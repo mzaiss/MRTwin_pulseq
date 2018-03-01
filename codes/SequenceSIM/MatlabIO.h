@@ -83,11 +83,10 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 	double * pPulseData = mxGetPr(prhs[1]);
 	for (unsigned int i = 0; i < numPulseSamples; i++)
 	{
-		int colIdx = 0;
-		blochSim->SetRFPulses(i, pPulseData[i + numPulseSamples * colIdx++], pPulseData[i + numPulseSamples * colIdx++]);
-		blochSim->SetGradients(i, pPulseData[i + numPulseSamples * colIdx++], pPulseData[i + numPulseSamples * colIdx++]);
-		blochSim->SetTimesteps(i, pPulseData[i + numPulseSamples * colIdx++]);
-		blochSim->SetADC(i, (bool)pPulseData[i + numPulseSamples * colIdx++]);
+		blochSim->SetRFPulses(i, pPulseData[i + numPulseSamples * 0], pPulseData[i + numPulseSamples * 1]);
+		blochSim->SetGradients(i, pPulseData[i + numPulseSamples * 2], pPulseData[i + numPulseSamples * 3]);
+		blochSim->SetTimesteps(i, pPulseData[i + numPulseSamples * 4]);
+		blochSim->SetADC(i, (bool)pPulseData[i + numPulseSamples * 5]);
 	}
 }
 
@@ -107,8 +106,8 @@ void ReturnKSpaceToMATLAB(int nlhs, mxArray* plhs[], MatrixXcd& kSpace)
 	//copy kspace to matlab
 	for (unsigned int x = 0; x < cols; x++){
 		for (unsigned int y = 0; y < rows; y++){
-			rOut[y + cols*x] = (kSpace.real())(x, y);
-			iOut[y + cols*x] = (kSpace.imag())(x, y);
+			rOut[y + cols*x] = (kSpace.real())(y, x);
+			iOut[y + cols*x] = (kSpace.imag())(y, x);
 		}
 	}
 }
