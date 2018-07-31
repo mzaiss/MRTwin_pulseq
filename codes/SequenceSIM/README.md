@@ -16,12 +16,12 @@ kspace = RunMRIzeroBlochSimulation(in1,in2,in3)
 (:,:,3) T2 [s]
 
 2: Px6 Vector with Pulse, Gradient and ADC events
-(:,:,1) w1 magnitude (B1[uT] * Gamma[rad])
-(:,:,2) w1 phase [rad]
-(:,:,3) X gradient [uT/m]
-(:,:,4) Y gradient [uT/m]
-(:,:,5) Duration of the current event [s]
-(:,:,6) ADC, 1 if sampling data after the event, 0 if not
+(:,1) w1 magnitude (B1[uT] * Gamma[rad])
+(:,2) w1 phase [rad]
+(:,3) X gradient [uT/m]
+(:,4) Y gradient [uT/m]
+(:,5) Duration of the current event [s]
+(:,6) ADC, 1 if sampling data after the event, 0 if not
 
 3: Field stength [T]
 

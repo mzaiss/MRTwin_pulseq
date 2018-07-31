@@ -143,7 +143,7 @@ void BlochSimulator::RunSimulation(MatrixXcd& kSpace)
 		// we could do this two loops on the GPU as they are independent from each other
 		for (unsigned int row = 0; row < numRows; row++) {
 			// gradient: 10^-3, pixel size 10^-3, Gamma: 10^6 -> 1
-			double yGrad = YGradient[nSample] * ((double)row / numRows) * pixelSize * Gamma;
+			double yGrad = YGradient[nSample] * row * pixelSize * Gamma;
 			for (unsigned int col = 0; col < numCols; col++) {
 				// get M0
 				double M0 = referenceVolume->GetProtonDensityValue(row, col);
@@ -152,7 +152,7 @@ void BlochSimulator::RunSimulation(MatrixXcd& kSpace)
 				}
 				//prepare for bloch equation
 				Vector3d Mi(Mx(row, col), My(row, col), Mz(row, col));
-				double dw0 = XGradient[nSample] * ((double)col / numCols) * pixelSize * Gamma + yGrad;
+				double dw0 = XGradient[nSample] * col * pixelSize * Gamma + yGrad;
 				double R1 = 1.0 / referenceVolume->GetT1Value(row, col);
 				double R2 = 1.0 / referenceVolume->GetT2Value(row, col);
 				A(0, 0) = -R2;
