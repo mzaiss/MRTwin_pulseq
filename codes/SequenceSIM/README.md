@@ -1,13 +1,14 @@
 Tiny MRI sequence simulator.
-Uses eigen library (LPGv3) for linear algebra operations.
+Uses eigen library (LPGv3 license) for linear algebra operations.
+Uses pulseq tool (MIT license)
 
 compile mex files in matlab:
 
-mex -I3rdParty\eigen-eigen-5a0156e40feb RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp
+mex -I3rdParty\eigen-eigen-5a0156e40feb -I3rdParty\pulseq-master\src RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp 3rdParty\pulseq-master\src\ExternalSequence.cpp
 
 call with:
 
-kspace = RunMRIzeroBlochSimulation(in1,in2,in3)
+kspace = RunMRIzeroBlochSimulation(in1,in2)
 
 3 Inputs:
 1: Reference Volume MxNx3
@@ -15,15 +16,7 @@ kspace = RunMRIzeroBlochSimulation(in1,in2,in3)
 (:,:,2) T1 [s]
 (:,:,3) T2 [s]
 
-2: Px6 Vector with Pulse, Gradient and ADC events
-(:,1) w1 magnitude (B1[uT] * Gamma[rad])
-(:,2) w1 phase [rad]
-(:,3) X gradient [uT/m]
-(:,4) Y gradient [uT/m]
-(:,5) Duration of the current event [s]
-(:,6) ADC, 1 if sampling data after the event, 0 if not
-
-3: Field stength [T]
+2: pulseq sequebce fileneme e.g. 'example.seq'
 
 1 Output:
 MxN complex k-space 
