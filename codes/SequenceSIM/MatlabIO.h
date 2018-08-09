@@ -98,6 +98,7 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 				pixelSizeSet = true;
 			}
         }
+		delete seqBlock; // pointer gets allocate with new in the GetBlock() function
 	}
 	if (numberOfADCEvents != refVol->GetNumberOfRows())
 	{

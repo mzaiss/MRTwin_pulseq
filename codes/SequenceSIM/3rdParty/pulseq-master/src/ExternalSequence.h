@@ -51,14 +51,15 @@ const int NUM_GRADS=ADC-GX;
  *
  * Stores the amplitude, frequency offset and an index to basic shapes for the
  * magnitude and phase
+ * KH: Set default values, so that it's save to use delete after GetBlock()
  */
 struct RFEvent
 {
-	float amplitude;     /**< @brief Amplitude of RF event (Hz) */
-	int magShape;        /**< @brief ID of shape for magnitude */
-	int phaseShape;      /**< @brief ID of shape for phase */
-	float freqOffset;    /**< @brief Frequency offset of transmitter (Hz) */
-	float phaseOffset;   /**< @brief Phase offset of transmitter (rad) */
+	float amplitude = 0.0f;     /**< @brief Amplitude of RF event (Hz) */
+	int magShape = 0;        /**< @brief ID of shape for magnitude */
+	int phaseShape = 0;      /**< @brief ID of shape for phase */
+	float freqOffset = 0.0f;    /**< @brief Frequency offset of transmitter (Hz) */
+	float phaseOffset = 0.0f;   /**< @brief Phase offset of transmitter (rad) */
 };
 
 
@@ -69,16 +70,17 @@ struct RFEvent
  * depending on the type:
  *  - **trapezoid:** ramp up, flat time, ramp down
  *  - **arbitrary:** index to basic shape (see CompressedShape)
+ * KH: Set default values, so that it's save to use delete after GetBlock()
  */
 struct GradEvent
 {
-	float amplitude;      /**< @brief Amplitude of gradient (Hz/m) */
+	float amplitude = 0.0f;      /**< @brief Amplitude of gradient (Hz/m) */
 	// Trapezoid:
-	long rampUpTime;      /**< @brief Ramp up time of trapezoid (us) */
-	long flatTime;        /**< @brief Flat-top time of trapezoid (us) */
-	long rampDownTime;    /**< @brief Ramp down time of trapezoid (us) */
+	long rampUpTime = 0;      /**< @brief Ramp up time of trapezoid (us) */
+	long flatTime = 0;        /**< @brief Flat-top time of trapezoid (us) */
+	long rampDownTime = 0;    /**< @brief Ramp down time of trapezoid (us) */
 	// Arbitrary:
-	int shape;            /**< @brief ID of shape for arbitrary gradient */
+	int shape = 0;            /**< @brief ID of shape for arbitrary gradient */
 };
 
 
@@ -87,15 +89,16 @@ struct GradEvent
  *
  * Stores number of ADC samples, dwell time, delay and frequency/phase offset
  * information (used to shift the FOV in-plane)
+ * KH: Set default values, so that it's save to use delete after GetBlock()
  *
  */
 struct ADCEvent
 {
-	int numSamples;     /**< @brief Number of samples */
-	int dwellTime;      /**< @brief Dwell time of ADC readout (ns) */
-	int delay;          /**< @brief Delay before first sample (us) */
-	float freqOffset;   /**< @brief Frequency offset of receiver (Hz) */
-	float phaseOffset;  /**< @brief Phase offset of receiver (rad) */
+	int numSamples = 0;     /**< @brief Number of samples */
+	int dwellTime = 0;      /**< @brief Dwell time of ADC readout (ns) */
+	int delay = 0;          /**< @brief Delay before first sample (us) */
+	float freqOffset = 0.0;   /**< @brief Frequency offset of receiver (Hz) */
+	float phaseOffset = 0.0;  /**< @brief Phase offset of receiver (rad) */
 };
 
 /**

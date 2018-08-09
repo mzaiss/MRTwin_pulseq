@@ -42,6 +42,7 @@ void BlochSimulator::RunSimulation(ExternalSequence& sequence, MatrixXcd& kSpace
 		else { // No Gradients ? -> run faster global function
 			ApplyGlobalEventToVolume(seqBlock);
 		}
+		delete seqBlock; // pointer gets allocate with new in the GetBlock() function
 	}
 }
 
