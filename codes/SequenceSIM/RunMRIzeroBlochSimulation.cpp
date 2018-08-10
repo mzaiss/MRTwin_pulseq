@@ -13,22 +13,23 @@ void mexFunction(int nlhs, mxArray* plhs[],
 	int nrhs, const mxArray* prhs[])
 {
 	//Init variables for simulation
-	ReferenceVolume* refVol = new ReferenceVolume();
-	BlochSimulator* bmSim = new BlochSimulator();
+	ReferenceVolume volume;
+	BlochSimulator simulator;
+	ExternalSequence sequence;        // sequence from pulseq
 
     //get the data from matlab and initialize the classes for simulation
-	ReadMATLABInput(nrhs, prhs, refVol, bmSim);
+	ReadMATLABInput(nrhs, prhs, &volume, &simulator, &sequence);
 
 	//Init kspace
-	MatrixXcd KSpace;
-	KSpace.resize(refVol->GetNumberOfColumns(), refVol->GetNumberOfRows());
-	KSpace.fill(std::complex<double>(0, 0));
+	MatrixXcd kSpace;
+	kSpace.resize(volume.GetNumberOfRows(), volume.GetNumberOfColumns());
+	kSpace.fill(std::complex<double>(0, 0));
 
 	//run the simulation
-	bmSim->RunSimulation(KSpace);
+	simulator.RunSimulation(sequence, kSpace);
 
 	//set the pointers to retrieve the data in matlab
-	ReturnKSpaceToMATLAB(nlhs, plhs, KSpace);
+	ReturnKSpaceToMATLAB(nlhs, plhs, kSpace);
 
 	return;
 }

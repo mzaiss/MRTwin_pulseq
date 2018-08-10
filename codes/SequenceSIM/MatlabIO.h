@@ -8,16 +8,16 @@ MRIzero Project
 kai.herz@tuebingen.mpg.de
 */
 
-#include "ReferenceVolume.h"
 #include "BlochSimulator.h"
 #include <matrix.h>
 #include <mex.h>
 
-void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, BlochSimulator* blochSim)
+
+void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, BlochSimulator* blochSim, ExternalSequence* seq)
 {
-	if (nrhs < 3){
+	if (nrhs < 2){
 		mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:nrhs",
-			"Three Inputs required, RefVolume, PulseTrain, B1");
+			"Three Inputs required: RefVolume and PulseSeq filename");
 	}
 
 	//Input 1: 3d Ref volume NxMx3
@@ -39,55 +39,73 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 	int nCols = dims[0];
 	int nRows = dims[1];
 
+	if (nCols != nRows){
+		mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs", "Only MxM k-space possible yet (No MxN).");
+	}
+
+
 	//get the data for the reference volume from the matlab pointer and store it in the eigen matrix class
-	refVol->AllocateMemory(nCols, nRows);
+	refVol->AllocateMemory(nRows, nCols);
 	double * pData = mxGetPr(prhs[0]);
+	double t1, t2;
 	for (int x = 0; x < nCols; x++){
 		for (int y = 0; y < nRows; y++){
 			refVol->SetProtonDensityValue(y, x, pData[x + y*nCols + 0 * (nCols*nRows)]);
-			refVol->SetT1Value(y, x, pData[x + y*nCols + 1 * (nCols*nRows)]);
-			refVol->SetT2Value(y, x, pData[x + y*nCols + 2 * (nCols*nRows)]);
+			t1 = pData[x + y*nCols + 1 * (nCols*nRows)];
+			t2 = pData[x + y*nCols + 2 * (nCols*nRows)];
+			refVol->SetR1Value(y, x, t1 <= 0.0 ? 0.0 : 1.0 / t1);
+			refVol->SetR2Value(y, x, t2 <= 0.0 ? 0.0 : 1.0 / t2);
 		}
 	}
 
-	//Input 2: 2D pulse vector (Mx6)
-	// (:,1): Pulse magnitude
-	// (:,2): Pulse phase
-	// (:,3): X gradient
-	// (:,4); Y Gradient
-	// (:,5): Timesteps
-	// (:,6): ADC
-	numDims = mxGetNumberOfDimensions(prhs[1]);
-	if (numDims != 2)
-	{
+	// Input 2: Filename of the pulseseq file
+	const int charBufferSize = 2048;
+	char tmpCharBuffer[charBufferSize];
+	// gete filename from matlab
+	mxGetString(prhs[1], tmpCharBuffer, charBufferSize);
+	std::string seqFileName = std::string(tmpCharBuffer);
+	//load the seq file
+	if (!seq->load(seqFileName)) {
 		mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs",
-			"Input Pulse Train must be 2 dimensional");
-	}
-	const mwSize* dimsVec = mxGetDimensions(prhs[1]);
-	if (dimsVec[1] != 6)
-	{
-		mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs",
-			"Input Pulse Train must include mag, phase, xgrad, ygrad, t and adc");
+			"Seq filename not found");
 	}
 
-	//Input 3: Field Strength
-	// double B0 [T]
-	double B0 = mxGetScalar(prhs[2]);
-	unsigned int numPulseSamples = dimsVec[0];
-
-	//init the simulator
-	blochSim->Initialize(B0, refVol);
-	blochSim->AllocateMemory(numPulseSamples);
-    
-	//set the pulse, gradient and adc events
-	double * pPulseData = mxGetPr(prhs[1]);
-	for (unsigned int i = 0; i < numPulseSamples; i++)
+	// check if seq file is valid for simulation
+	bool pixelSizeSet = false;
+	unsigned int numberOfADCEvents = 0;
+	for (unsigned int nSample = 0; nSample < seq->GetNumberOfBlocks(); nSample++)
 	{
-		blochSim->SetRFPulses(i, pPulseData[i + numPulseSamples * 0], pPulseData[i + numPulseSamples * 1]);
-		blochSim->SetGradients(i, pPulseData[i + numPulseSamples * 2], pPulseData[i + numPulseSamples * 3]);
-		blochSim->SetTimesteps(i, pPulseData[i + numPulseSamples * 4]);
-		blochSim->SetADC(i, (bool)pPulseData[i + numPulseSamples * 5]);
+		// get current event block
+		SeqBlock* seqBlock = seq->GetBlock(nSample);
+		//check if it consists arbitrary gradients
+		if (seqBlock->isArbitraryGradient(0) || seqBlock->isArbitraryGradient(1)){
+			mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs", "Arbitrary Gardient simulation is not implemented yet");
+		}
+		// try to get pixel size from seq file
+		if (seqBlock->isADC())
+		{
+			numberOfADCEvents++;
+			if (seqBlock->GetADCEvent().numSamples != refVol->GetNumberOfRows())
+			{
+				mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs",
+					"Mismatch between ADC samples in the sequence file and k-space samples");
+			}
+			if (~pixelSizeSet) {
+				// Gradient amplitude (Hz/m) * Gradient Flat Time (s) = (Number Of Samples In Read Direction)/FOV (1/m)
+				// -> inverse is pixel size (m)
+				double pxSizeInMeter = 1.0 / (seqBlock->GetGradEvent(0).amplitude*seqBlock->GetGradEvent(0).flatTime*1e-6);
+				refVol->SetPixelSize(pxSizeInMeter);
+				pixelSizeSet = true;
+			}
+        }
+		delete seqBlock; // pointer gets allocate with new in the GetBlock() function
 	}
+	if (numberOfADCEvents != refVol->GetNumberOfRows())
+	{
+		mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs", 
+			"Mismatch between ADC events in the sequence file and available k-space lines");
+	}
+	blochSim->Initialize(refVol);
 }
 
 
@@ -104,10 +122,10 @@ void ReturnKSpaceToMATLAB(int nlhs, mxArray* plhs[], MatrixXcd& kSpace)
 	double* iOut = mxGetPi(plhs[0]);
 
 	//copy kspace to matlab
-	for (unsigned int x = 0; x < cols; x++){
-		for (unsigned int y = 0; y < rows; y++){
-			rOut[y + cols*x] = (kSpace.real())(y, x);
-			iOut[y + cols*x] = (kSpace.imag())(y, x);
+	for (unsigned int y = 0; y < rows; y++){
+		for (unsigned int x = 0; x < cols; x++){
+			rOut[x + rows*y] = (kSpace.real())(y, x);
+			iOut[x + rows*y] = (kSpace.imag())(y, x);
 		}
 	}
 }

@@ -11,39 +11,37 @@ kai.herz@tuebingen.mpg.de
 #pragma once
 
 #include "ReferenceVolume.h"
+#include "ExternalSequence.h"
 
-#define Gamma 276.513
+#define Gamma 42.577
 
 class BlochSimulator
 {
 private:
 
-   //Input Variables
-	double B0;     // T
-    ReferenceVolume* referenceVolume;
-	unsigned int numberOfPulseSamples;
-	double* RFMagnitude; // w1 [T]
-	double* RFPhase;     // rad
-	double* XGradient;   // mT per meter
-	double* YGradient;   // mT per meter
-	double* Timesteps;   // s
-	bool* ADC;           // true if sampling data
-	bool isAllocated;
+    ReferenceVolume* referenceVolume; // ref volume with t1,t2 and pd
+	MatrixXd Mx, My, Mz;              // magnetization in x,y and z
 
 public:
-	BlochSimulator();
-	~BlochSimulator();
-	void Initialize(double b0, ReferenceVolume* refVolume);
-	void AllocateMemory(unsigned int numberOfSamples);
-	void FreeMemory();
-	void SetRFPulses(double* magnitude, double* phase);
-	void SetRFPulses(unsigned int pos, double magnitude, double phase);
-	void SetGradients(double* xGradient, double* yGradient);
-	void SetGradients(unsigned int pos, double xGradient, double yGradient);
-	void SetTimesteps(double* timeSteps);
-	void SetTimesteps(unsigned int pos, double timeSteps);
-	void SetADC(bool* adc);
-	void SetADC(unsigned int pos, bool adc);
-	void RunSimulation(MatrixXcd& kSpace);
-	Vector3d SolveBlochEquation(Vector3d &M0, Matrix3d &A, Vector3d &C, double& t, int numApprox = 6);
+	//Constructor & Destructor
+	BlochSimulator(){};
+	~BlochSimulator(){};
+	
+	// Init field strength and volume
+	void Initialize(ReferenceVolume* refVolume);
+
+	// Simulation functions
+	void RunSimulation(ExternalSequence& sequence, MatrixXcd& kSpace);
+
+	//Update A matrix
+	void SetRFPulse(Matrix3d& A, double rfAmplitude, double rfPhase);
+	void SetOffresonance(Matrix3d& A, double dw);
+
+	// Apply event that is the same in the entire volume e.g. relaxation phase, non-selective pulse
+	void ApplyGlobalEventToVolume(SeqBlock* seqBlock);
+	void ApplyEventToVolume(SeqBlock* seqBlock);
+	void AcquireKSpaceLine(MatrixXcd& kSpace, SeqBlock* seqBlock, unsigned int ky);
+
+	// appy bloch simulation to pixel
+	void ApplyBlochSimulationPixel(unsigned int row, unsigned int col, Matrix3d A, double t);
 };
