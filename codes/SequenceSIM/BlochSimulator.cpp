@@ -77,7 +77,7 @@ void BlochSimulator::ApplyGlobalEventToVolume(SeqBlock* seqBlock)
 	unsigned int numCols = referenceVolume->GetNumberOfColumns();
 
 	//set the rf pulse
-	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*Gamma, seqBlock->GetRFEvent().phaseOffset);
+	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset);
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// TODO: Parallelize
@@ -105,7 +105,7 @@ void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
 	double phaseGradientAtPx; // phase gradient at the current position
 
 	//set the rf pulse
-	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*Gamma, seqBlock->GetRFEvent().phaseOffset);
+	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset);
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// TODO: Parallelize
