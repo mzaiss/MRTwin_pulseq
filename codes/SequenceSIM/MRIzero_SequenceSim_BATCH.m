@@ -29,12 +29,14 @@ sequence.plot();
 
 %% run simulation
 tic;
-kspace = RunMRIzeroBlochSimulation(InVol, seqFilename);
+[kList, gradients] = RunMRIzeroBlochSimulation(InVol, seqFilename);
 toc;
 
 
 %% plot results
 
+% plot kspace
+kspace = reshape(kList,[resolution resolution]);
 figure;
 %original image
 subplot(2,4,1);
@@ -57,4 +59,5 @@ imagesc(real(kspace));
 subplot(2,4,8);
 imagesc(imag(kspace));
 
-
+%plot trajectory
+figure,plot(gradients(1,:),gradients(2,:), '-o');

@@ -21,15 +21,14 @@ void mexFunction(int nlhs, mxArray* plhs[],
 	ReadMATLABInput(nrhs, prhs, &volume, &simulator, &sequence);
 
 	//Init kspace
-	MatrixXcd kSpace;
-	kSpace.resize(volume.GetNumberOfRows(), volume.GetNumberOfColumns());
-	kSpace.fill(std::complex<double>(0, 0));
+	std::vector<KSpaceEvent> kSpaceEvents;
+	kSpaceEvents.resize(simulator.GetNumberOfKSpaceSamples());
 
 	//run the simulation
-	simulator.RunSimulation(sequence, kSpace);
+	simulator.RunSimulation(sequence, kSpaceEvents);
 
 	//set the pointers to retrieve the data in matlab
-	ReturnKSpaceToMATLAB(nlhs, plhs, kSpace);
+	ReturnKSpaceToMATLAB(nlhs, plhs, kSpaceEvents);
 
 	return;
 }
