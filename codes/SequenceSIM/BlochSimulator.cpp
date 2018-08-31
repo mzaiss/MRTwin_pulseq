@@ -12,18 +12,20 @@ kai.herz@tuebingen.mpg.de
 #include "BlochEquationSolver.h"
 
 
-void BlochSimulator::Initialize(ReferenceVolume* refVolume)
+void BlochSimulator::Initialize(ReferenceVolume* refVolume, unsigned int numSamples)
 {
 	referenceVolume = refVolume;
 	Mx = MatrixXd::Zero(referenceVolume->GetNumberOfRows(), referenceVolume->GetNumberOfColumns());
 	My = Mx;
 	Mz = referenceVolume->GetProtonDensityMap(); // init z mag with proton density
+    kx = 0;
+    ky = 0;
+	numKSpaceSamples = numSamples;
 }
 
-void BlochSimulator::RunSimulation(ExternalSequence& sequence, MatrixXcd& kSpace)
+void BlochSimulator::RunSimulation(ExternalSequence& sequence, std::vector<KSpaceEvent>& kSpace)
 {
-	//linear reordering 
-	unsigned int ky = 0;
+	unsigned int currentADC = 0;
 	// loop through event blocks
 	for (unsigned int nSample = 0; nSample < sequence.GetNumberOfBlocks(); nSample++)
 	{
@@ -32,41 +34,63 @@ void BlochSimulator::RunSimulation(ExternalSequence& sequence, MatrixXcd& kSpace
 		
 		// check if this is an ADC event
 		if (seqBlock->isADC()) {
-			AcquireKSpaceLine(kSpace, seqBlock, ky);
-			ky++;
+			AcquireKSpaceLine(kSpace, seqBlock, currentADC);
 		}
         else if(~seqBlock->isADC() && (seqBlock->isTrapGradient(0)|| seqBlock->isTrapGradient(1))) {
             // Gradients needs to be calculated for each pixel
 			ApplyEventToVolume(seqBlock); 
+			// Todo: take ramp times into account
+            ky += (seqBlock->GetGradEvent(1).flatTime) * (seqBlock->GetGradEvent(1).amplitude)*1e-6;
+            kx += (seqBlock->GetGradEvent(0).flatTime) * (seqBlock->GetGradEvent(0).amplitude)*1e-6;
 		}
 		else { // No Gradients ? -> run faster global function
 			ApplyGlobalEventToVolume(seqBlock);
+			if(seqBlock->isRF()) {
+				// check if 180 pulse
+	            if (fabs((seqBlock->GetRFEvent().amplitude)*(seqBlock->GetDuration()*1e-6) - 0.5) < 0.01) { 
+	                kx = -kx;
+	                ky = -ky;
+	            }
+	            else {
+	                kx = 0;
+	                ky = 0;
+	            }
+			}
 		}
 		delete seqBlock; // pointer gets allocate with new in the GetBlock() function
 	}
 }
 
-void BlochSimulator::AcquireKSpaceLine(MatrixXcd& kSpace, SeqBlock* seqBlock, unsigned int ky)
+void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBlock* seqBlock, unsigned int &currentADC)
 {
 	Matrix3d A = Matrix3d::Zero();
 	unsigned int numCols = referenceVolume->GetNumberOfColumns();
 	unsigned int numRows = referenceVolume->GetNumberOfRows();
 	double pixelSize = referenceVolume->GetPixelSize();
-
+    //ky += (seqBlock->GetGradEvent(1).flatTime) * (seqBlock->GetGradEvent(1).amplitude)*1e-6;
+    //kx += (seqBlock->GetGradEvent(0).flatTime) * (seqBlock->GetGradEvent(0).amplitude)*1e-6;
 	double GradientTimeStep = (seqBlock->GetDuration()*1e-6) / seqBlock->GetADCEvent().numSamples;
 	for (unsigned int adcSample = 0; adcSample < seqBlock->GetADCEvent().numSamples; adcSample++){
 		////////////////////////////////////////////////////////////////////////////////////////
 		// TODO: Parallelize
 		////////////////////////////////////////////////////////////////////////////////////////
 		for (unsigned int col = 0; col < numCols; col++) {
-			SetOffresonance(A, seqBlock->GetGradEvent(0).amplitude * col * pixelSize * TWO_PI);
+		double xGrad = seqBlock->GetGradEvent(0).amplitude * col * pixelSize * TWO_PI;
 			for (unsigned int row = 0; row < numRows; row++) {
+				SetOffresonance(A, seqBlock->GetGradEvent(1).amplitude * row * pixelSize * TWO_PI + xGrad);
 				if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
 					ApplyBlochSimulationPixel(row, col, A, GradientTimeStep);
 				}
 			}
 		}
-		kSpace(ky, adcSample) = std::complex<double>(Mx.sum(), My.sum());
+		// update gradients
+		kx += GradientTimeStep * seqBlock->GetGradEvent(0).amplitude;
+		ky += GradientTimeStep * seqBlock->GetGradEvent(1).amplitude;
+		//sample data
+		kSpace[currentADC].kSample = std::complex<double>(Mx.sum(), My.sum());
+		kSpace[currentADC].kX = kx;
+		kSpace[currentADC].kY = ky;
+		currentADC++;
 	}
 }
 
@@ -77,7 +101,7 @@ void BlochSimulator::ApplyGlobalEventToVolume(SeqBlock* seqBlock)
 	unsigned int numCols = referenceVolume->GetNumberOfColumns();
 
 	//set the rf pulse
-	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*Gamma, seqBlock->GetRFEvent().phaseOffset);
+	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset);
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// TODO: Parallelize
@@ -105,7 +129,7 @@ void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
 	double phaseGradientAtPx; // phase gradient at the current position
 
 	//set the rf pulse
-	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*Gamma, seqBlock->GetRFEvent().phaseOffset);
+	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset);
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// TODO: Parallelize
@@ -138,7 +162,7 @@ void BlochSimulator::SetOffresonance(Matrix3d& A, double dw)
 	A(1, 0) = -dw;
 }
 
-void BlochSimulator::ApplyBlochSimulationPixel(unsigned int row, unsigned int col, Matrix3d A, double t)
+void BlochSimulator::ApplyBlochSimulationPixel(unsigned int row, unsigned int col, Matrix3d& A, double t)
 {
 	double R1 = referenceVolume->GetR1Value(row, col);
 	double R2 = referenceVolume->GetR2Value(row, col);

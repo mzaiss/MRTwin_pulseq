@@ -72,7 +72,7 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 
 	// check if seq file is valid for simulation
 	bool pixelSizeSet = false;
-	unsigned int numberOfADCEvents = 0;
+	unsigned int totalNumberOfADCSamples = 0;
 	for (unsigned int nSample = 0; nSample < seq->GetNumberOfBlocks(); nSample++)
 	{
 		// get current event block
@@ -84,12 +84,7 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 		// try to get pixel size from seq file
 		if (seqBlock->isADC())
 		{
-			numberOfADCEvents++;
-			if (seqBlock->GetADCEvent().numSamples != refVol->GetNumberOfRows())
-			{
-				mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs",
-					"Mismatch between ADC samples in the sequence file and k-space samples");
-			}
+			totalNumberOfADCSamples += seqBlock->GetADCEvent().numSamples;
 			if (~pixelSizeSet) {
 				// Gradient amplitude (Hz/m) * Gradient Flat Time (s) = (Number Of Samples In Read Direction)/FOV (1/m)
 				// -> inverse is pixel size (m)
@@ -100,32 +95,27 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
         }
 		delete seqBlock; // pointer gets allocate with new in the GetBlock() function
 	}
-	if (numberOfADCEvents != refVol->GetNumberOfRows())
-	{
-		mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs", 
-			"Mismatch between ADC events in the sequence file and available k-space lines");
-	}
-	blochSim->Initialize(refVol);
+	blochSim->Initialize(refVol, totalNumberOfADCSamples);
 }
 
 
-
-void ReturnKSpaceToMATLAB(int nlhs, mxArray* plhs[], MatrixXcd& kSpace)
+void ReturnKSpaceToMATLAB(int nlhs, mxArray* plhs[], std::vector<KSpaceEvent>& kSpace)
 {
-	//get size for matlab pointer
-	unsigned int cols = kSpace.cols();
-	unsigned int rows = kSpace.rows();
 
+	unsigned int numKSamples = kSpace.size();
 	//init and set the matlab pointer
-	plhs[0] = mxCreateDoubleMatrix(cols, rows, mxCOMPLEX);
-	double* rOut = mxGetPr(plhs[0]);
-	double* iOut = mxGetPi(plhs[0]);
+
+	plhs[0] = mxCreateDoubleMatrix(1, numKSamples, mxCOMPLEX);
+	plhs[1] = mxCreateDoubleMatrix(2, numKSamples, mxREAL);
+	double* realSample = mxGetPr(plhs[0]);
+	double* imagSample = mxGetPi(plhs[0]);
+	double* gradientsAtSample = mxGetPr(plhs[1]);
 
 	//copy kspace to matlab
-	for (unsigned int y = 0; y < rows; y++){
-		for (unsigned int x = 0; x < cols; x++){
-			rOut[x + rows*y] = (kSpace.real())(y, x);
-			iOut[x + rows*y] = (kSpace.imag())(y, x);
-		}
+	for (unsigned int sample = 0; sample < numKSamples; sample++){
+		realSample[sample] = kSpace[sample].kSample.real();
+		imagSample[sample] = kSpace[sample].kSample.imag();
+		gradientsAtSample[sample*2] = kSpace[sample].kX;
+		gradientsAtSample[sample*2+1] = kSpace[sample].kY;
 	}
 }
