@@ -36,6 +36,19 @@ void BlochSimulator::RunSimulation(ExternalSequence& sequence, std::vector<KSpac
 		if (seqBlock->isADC()) {
 			AcquireKSpaceLine(kSpace, seqBlock, currentADC);
 		}
+        
+        // Pseudo-Spoiler (NOT PHYSICALLY REASONABLE!)
+        // set Mx=My=0 if any z gradient is applied
+        else if(seqBlock->isTrapGradient(2)) {
+            //Mx = MatrixXd::Zero(referenceVolume->GetNumberOfRows(), referenceVolume->GetNumberOfColumns());
+            //My = Mx;
+            for (unsigned int row = 0; row < referenceVolume->GetNumberOfRows(); row++) {
+                for (unsigned int col = 0; col < referenceVolume->GetNumberOfColumns(); col++) {
+                    Mx(row, col) = 0;
+                    My(row, col) = 0;
+                }
+            }
+        }
         else if(~seqBlock->isADC() && (seqBlock->isTrapGradient(0)|| seqBlock->isTrapGradient(1))) {
             // Gradients needs to be calculated for each pixel
 			ApplyEventToVolume(seqBlock); 
@@ -101,7 +114,7 @@ void BlochSimulator::ApplyGlobalEventToVolume(SeqBlock* seqBlock)
 	unsigned int numCols = referenceVolume->GetNumberOfColumns();
 
 	//set the rf pulse
-	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset);
+	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset, seqBlock->GetRFEvent().freqOffset*TWO_PI);
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// TODO: Parallelize
@@ -129,7 +142,7 @@ void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
 	double phaseGradientAtPx; // phase gradient at the current position
 
 	//set the rf pulse
-	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset);
+	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset, seqBlock->GetRFEvent().freqOffset*TWO_PI);
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// TODO: Parallelize
@@ -146,7 +159,7 @@ void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
 }
 
 
-void BlochSimulator::SetRFPulse(Matrix3d& A, double rfAmplitude, double rfPhase)
+void BlochSimulator::SetRFPulse(Matrix3d& A, double rfAmplitude, double rfPhase, double rfFreqOffset)
 {
 	double w1cp = rfAmplitude * cos(rfPhase);
 	double w1sp = rfAmplitude * sin(rfPhase);
@@ -154,6 +167,8 @@ void BlochSimulator::SetRFPulse(Matrix3d& A, double rfAmplitude, double rfPhase)
 	A(2, 0) = w1sp;
 	A(1, 2) = -w1cp;
 	A(2, 1) = w1cp;
+    
+    SetOffresonance(A, rfFreqOffset);
 }
 
 void BlochSimulator::SetOffresonance(Matrix3d& A, double dw)

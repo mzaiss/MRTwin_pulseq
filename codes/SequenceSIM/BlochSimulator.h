@@ -47,7 +47,7 @@ public:
 	void RunSimulation(ExternalSequence& sequence, std::vector<KSpaceEvent>& kSpace);
 
 	//Update A matrix
-	void SetRFPulse(Matrix3d& A, double rfAmplitude, double rfPhase);
+	void SetRFPulse(Matrix3d& A, double rfAmplitude, double rfPhase, double rfFreqOffset);
 	void SetOffresonance(Matrix3d& A, double dw);
 
 	// Apply event that is the same in the entire volume e.g. relaxation phase, non-selective pulse
@@ -57,4 +57,5 @@ public:
 
 	// appy bloch simulation to pixel
 	void ApplyBlochSimulationPixel(unsigned int row, unsigned int col, Matrix3d& A, double t);
+    
 };
