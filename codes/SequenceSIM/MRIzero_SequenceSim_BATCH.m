@@ -29,7 +29,7 @@ sequence.plot();
 
 %% run simulation
 tic;
-[kList, gradients] = RunMRIzeroBlochSimulation(InVol, seqFilename);
+[kList, gradients] = RunMRIzeroBlochSimulation2(InVol, seqFilename);
 toc;
 
 
