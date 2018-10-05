@@ -22,6 +22,13 @@ struct KSpaceEvent
 	double kY = 0.0;
 };
 
+enum BlochSolverType 
+{
+	FULL,
+	PRECESS,
+	RELAX
+};
+
 
 class BlochSimulator
 {
@@ -56,5 +63,5 @@ public:
 	void AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBlock* seqBlock, unsigned int &currentADC);
 
 	// appy bloch simulation to pixel
-	void ApplyBlochSimulationPixel(unsigned int row, unsigned int col, Matrix3d& A, double t);
+	void ApplyBlochSimulationPixel(unsigned int row, unsigned int col, Matrix3d& A, double t, BlochSolverType type);
 };

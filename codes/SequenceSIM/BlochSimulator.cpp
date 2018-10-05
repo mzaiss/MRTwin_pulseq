@@ -67,8 +67,6 @@ void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBloc
 	unsigned int numCols = referenceVolume->GetNumberOfColumns();
 	unsigned int numRows = referenceVolume->GetNumberOfRows();
 	double pixelSize = referenceVolume->GetPixelSize();
-    //ky += (seqBlock->GetGradEvent(1).flatTime) * (seqBlock->GetGradEvent(1).amplitude)*1e-6;
-    //kx += (seqBlock->GetGradEvent(0).flatTime) * (seqBlock->GetGradEvent(0).amplitude)*1e-6;
 	double GradientTimeStep = (seqBlock->GetDuration()*1e-6) / seqBlock->GetADCEvent().numSamples;
 	for (unsigned int adcSample = 0; adcSample < seqBlock->GetADCEvent().numSamples; adcSample++){
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -79,7 +77,7 @@ void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBloc
 			for (unsigned int row = 0; row < numRows; row++) {
 				SetOffresonance(A, seqBlock->GetGradEvent(1).amplitude * row * pixelSize * TWO_PI + xGrad);
 				if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
-					ApplyBlochSimulationPixel(row, col, A, GradientTimeStep);
+					ApplyBlochSimulationPixel(row, col, A, GradientTimeStep, PRECESS);
 				}
 			}
 		}
@@ -100,19 +98,34 @@ void BlochSimulator::ApplyGlobalEventToVolume(SeqBlock* seqBlock)
 	unsigned int numRows = referenceVolume->GetNumberOfRows();
 	unsigned int numCols = referenceVolume->GetNumberOfColumns();
 
-	//set the rf pulse
-	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset);
-
 	////////////////////////////////////////////////////////////////////////////////////////
 	// TODO: Parallelize
 	////////////////////////////////////////////////////////////////////////////////////////
-	for (unsigned int row = 0; row < numRows; row++) {
-		for (unsigned int col = 0; col < numCols; col++) {
-			if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
-				ApplyBlochSimulationPixel(row, col, A, seqBlock->GetDuration()*1e-6);
+	if (seqBlock->isRF())
+	{
+		//set the rf pulse
+		SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset);
+		for (unsigned int row = 0; row < numRows; row++) {
+			for (unsigned int col = 0; col < numCols; col++) {
+				if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
+					ApplyBlochSimulationPixel(row, col, A, seqBlock->GetDuration()*1e-6, PRECESS);
+				}
 			}
 		}
 	}
+	else
+	{
+		for (unsigned int row = 0; row < numRows; row++) {
+			for (unsigned int col = 0; col < numCols; col++) {
+				if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
+					ApplyBlochSimulationPixel(row, col, A, seqBlock->GetDuration()*1e-6, RELAX);
+				}
+			}
+		}
+	}
+
+
+
 }
 
 void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
@@ -139,7 +152,7 @@ void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
 		for (unsigned int col = 0; col < numCols; col++) {
 			if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
 				SetOffresonance(A, seqBlock->GetGradEvent(0).amplitude * col * pixelSize * TWO_PI +phaseGradientAtPx);
-				ApplyBlochSimulationPixel(row, col, A, seqBlock->GetDuration()*1e-6);
+				ApplyBlochSimulationPixel(row, col, A, seqBlock->GetDuration()*1e-6, PRECESS);
 			}
 		}
 	}
@@ -162,7 +175,7 @@ void BlochSimulator::SetOffresonance(Matrix3d& A, double dw)
 	A(1, 0) = -dw;
 }
 
-void BlochSimulator::ApplyBlochSimulationPixel(unsigned int row, unsigned int col, Matrix3d& A, double t)
+void BlochSimulator::ApplyBlochSimulationPixel(unsigned int row, unsigned int col, Matrix3d& A, double t, BlochSolverType type)
 {
 	double R1 = referenceVolume->GetR1Value(row, col);
 	double R2 = referenceVolume->GetR2Value(row, col);
@@ -171,7 +184,21 @@ void BlochSimulator::ApplyBlochSimulationPixel(unsigned int row, unsigned int co
 	A(2, 2) = -R1;
 	Vector3d C(0.0, 0.0, referenceVolume->GetProtonDensityValue(row, col)*R1);
 	Vector3d Mi(Mx(row, col), My(row, col), Mz(row, col));
-	Vector3d M = SolveBlochEquation(Mi, A, C, t);
+	Vector3d M;
+	switch (type)
+	{
+	case FULL:
+		M = SolveBlochEquation(Mi, A, C, t);
+		break;
+	case PRECESS:
+		M = Precess(Mi, A, t);
+		break;
+	case RELAX:
+		M = Relax(Mi, A, referenceVolume->GetProtonDensityValue(row, col), t);
+		break;
+	default:
+		break;
+	}
 	Mx(row, col) = M.x();
 	My(row, col) = M.y();
 	Mz(row, col) = M.z();

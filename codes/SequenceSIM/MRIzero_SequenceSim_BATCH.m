@@ -6,7 +6,7 @@
 % (:,:,2) -> T1
 % (:,:,3) -> T2
 
-resolution = 48; % 100x100 take runs ~12s on a single core
+resolution = 96; % 100x100 take runs ~12s on a single core
 PD = phantom(resolution);
 PD(PD<0) = 0;
 T1 = PD*2;
