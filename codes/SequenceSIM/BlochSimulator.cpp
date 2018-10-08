@@ -90,7 +90,7 @@ void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBloc
 			for (unsigned int row = 0; row < numRows; row++) {
 				SetOffresonance(A, seqBlock->GetGradEvent(1).amplitude * row * pixelSize * TWO_PI + xGrad);
 				if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
-					ApplyBlochSimulationPixel(row, col, A, GradientTimeStep, PRECESS);
+					ApplyBlochSimulationPixel(row, col, A, GradientTimeStep, DEPHASE);
 				}
 			}
 		}
@@ -211,6 +211,9 @@ void BlochSimulator::ApplyBlochSimulationPixel(unsigned int row, unsigned int co
 		break;
 	case RELAX:
 		M = Relax(Mi, A, referenceVolume->GetProtonDensityValue(row, col), t);
+		break;
+    case DEPHASE:
+		M = Dephase(Mi, A, t);
 		break;
 	default:
 		break;

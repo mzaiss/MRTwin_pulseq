@@ -26,7 +26,8 @@ enum BlochSolverType
 {
 	FULL,
 	PRECESS,
-	RELAX
+	RELAX,
+    DEPHASE
 };
 
 

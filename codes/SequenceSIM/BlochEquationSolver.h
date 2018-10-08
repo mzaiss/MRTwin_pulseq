@@ -105,3 +105,25 @@ Vector3d Relax(Vector3d &Mi, Matrix3d &A, double M0, double t)
 	M(2) = M0 + e1 * (Mi.z() - M0);
 	return M;
 }
+
+Vector3d Dephase(Vector3d &Mi, Matrix3d &A, double t)
+{
+	double b, nx, ny, c, s;
+	b = fabs(A(0, 1)*t);
+	Vector3d M(Mi.x(), Mi.y(), Mi.z());
+	if (b > 0.0)
+	{
+		nx = Mi.x();
+        ny = Mi.y();
+		
+		c = sin(0.5*b); c = 2.0*c*c;
+		s = sin(b);
+
+		M(0) += (-nx)*c + ny*s;
+		M(1) += (-ny)*c + (-nx)*s;
+	}
+	return M;
+}
+
+
+
