@@ -38,18 +38,23 @@ private:
     ReferenceVolume* referenceVolume; // ref volume with t1,t2 and pd
 	MatrixXd Mx, My, Mz;              // magnetization in x,y and z
 	double kx, ky;					  // x and y gradient moments
-	unsigned int numKSpaceSamples;
+	uint32_t numKSpaceSamples, numSpins;
 
 public:
 	//Constructor & Destructor
 	BlochSimulator(){};
 	~BlochSimulator(){};
 
+	uint32_t PixelPositionToIdx(uint32_t row, uint32_t col)
+	{
+		return row + col * referenceVolume->GetNumberOfRows();
+	}
+
 	// return Samples
-	unsigned int GetNumberOfKSpaceSamples(){ return numKSpaceSamples; };
+	uint32_t GetNumberOfKSpaceSamples(){ return numKSpaceSamples; };
 	
 	// Init field strength and volume
-	void Initialize(ReferenceVolume* refVolume, unsigned int numSamples);
+	void Initialize(ReferenceVolume* refVolume, uint32_t numSamples, uint32_t numberOfSpins);
 
 	// Simulation functions
 	void RunSimulation(ExternalSequence& sequence, std::vector<KSpaceEvent>& kSpace);
@@ -61,9 +66,9 @@ public:
 	// Apply event that is the same in the entire volume e.g. relaxation phase, non-selective pulse
 	void ApplyGlobalEventToVolume(SeqBlock* seqBlock);
 	void ApplyEventToVolume(SeqBlock* seqBlock);
-	void AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBlock* seqBlock, unsigned int &currentADC);
+	void AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBlock* seqBlock, uint32_t &currentADC);
 
 	// appy bloch simulation to pixel
-	void ApplyBlochSimulationPixel(unsigned int row, unsigned int col, Matrix3d& A, double t, BlochSolverType type);
+	void ApplyBlochSimulationPixel(uint32_t row, uint32_t col, uint32_t spin, Matrix3d& A, double t, BlochSolverType type);
     
 };
