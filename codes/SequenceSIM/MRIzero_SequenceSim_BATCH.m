@@ -12,7 +12,7 @@ PD(PD<0) = 0;
 T1 = PD*2;
 T2 = PD*0.35;
 InVol = cat(3,PD,T1,T2);
-numSpins = 100;
+numSpins = 512;
 
 
 %% Sequence Parameters

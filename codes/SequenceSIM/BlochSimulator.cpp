@@ -95,10 +95,10 @@ void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBloc
 			double xGrad = seqBlock->GetGradEvent(0).amplitude * col * pixelSize * TWO_PI;
 			for (uint32_t row = 0; row < numRows; row++) {
 				double xyGrad = seqBlock->GetGradEvent(1).amplitude * row * pixelSize * TWO_PI + xGrad;
-				for (uint32_t spin = 0; spin < numSpins; spin++) {
-					double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
-					SetOffresonance(A, xyGrad+spinDephaseFreq);
-					if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
+				if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
+                    for (uint32_t spin = 0; spin < numSpins; spin++) {
+                        double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
+                        SetOffresonance(A, xyGrad+spinDephaseFreq);
 						ApplyBlochSimulationPixel(row, col, spin, A, GradientTimeStep, DEPHASE);
 					}
 				}
@@ -129,12 +129,12 @@ void BlochSimulator::ApplyGlobalEventToVolume(SeqBlock* seqBlock)
     SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset, seqBlock->GetRFEvent().freqOffset*TWO_PI);
     for (uint32_t row = 0; row < numRows; row++) {
         for (uint32_t col = 0; col < numCols; col++) {
-			for (uint32_t spin = 0; spin < numSpins; spin++) {
-				double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
-				SetOffresonance(A, spinDephaseFreq);
-				if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
-					ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, seqBlock->isRF() ? PRECESS : RELAX);
-				}
+           	if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
+                for (uint32_t spin = 0; spin < numSpins; spin++) {
+                    double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
+                    SetOffresonance(A, spinDephaseFreq);
+                    ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, seqBlock->isRF() ? PRECESS : RELAX);
+                }
 			}
         }
     }
@@ -164,11 +164,10 @@ void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
 		phaseGradientAtPx = seqBlock->GetGradEvent(1).amplitude * row * pixelSize * TWO_PI;
 		for (uint32_t col = 0; col < numCols; col++) {
 			double xyGrad = seqBlock->GetGradEvent(0).amplitude * col * pixelSize * TWO_PI + phaseGradientAtPx;
-			for (uint32_t spin = 0; spin < numSpins; spin++) {
-				double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
-				SetOffresonance(A, xyGrad + spinDephaseFreq);
-				if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
-					SetOffresonance(A, seqBlock->GetGradEvent(0).amplitude * col * pixelSize * TWO_PI + phaseGradientAtPx);
+            if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
+                for (uint32_t spin = 0; spin < numSpins; spin++) {
+                    double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
+                    SetOffresonance(A, xyGrad + spinDephaseFreq);
 					ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, PRECESS);
 				}
 			}
