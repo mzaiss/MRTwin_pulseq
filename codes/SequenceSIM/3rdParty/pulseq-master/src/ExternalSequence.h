@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <map>
+#include <functional>
 
 #ifndef CLASS_EXTERNAL_SEQUENCE
 #define CLASS_EXTERNAL_SEQUENCE

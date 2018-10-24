@@ -12,6 +12,7 @@ PD(PD<0) = 0;
 T1 = PD*2;
 T2 = PD*0.35;
 InVol = cat(3,PD,T1,T2);
+numSpins = 512;
 
 
 %% Sequence Parameters
@@ -25,11 +26,11 @@ seqFilename = fullfile(pwd, 'gre.seq');
 
 
 sequence = WriteGRESequenceWithPulseq(SeqOpts, seqFilename);
-sequence.plot();
+%sequence.plot();
 
 %% run simulation
 tic;
-[kList, gradients] = RunMRIzeroBlochSimulation(InVol, seqFilename);
+[kList, gradients] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
 toc;
 
 
@@ -51,7 +52,7 @@ imagesc(imag(Y));
 
 % aquired signal
 subplot(2,4,5);
-imshow(abs(ifft2(fftshift(kspace))));
+imshow(abs(ifft2(fftshift(kspace)))./numSpins);
 subplot(2,4,6);
 imagesc(abs(kspace));
 subplot(2,4,7);

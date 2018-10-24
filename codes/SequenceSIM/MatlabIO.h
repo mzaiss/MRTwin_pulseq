@@ -44,6 +44,7 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 	}
 
 
+
 	//get the data for the reference volume from the matlab pointer and store it in the eigen matrix class
 	refVol->AllocateMemory(nRows, nCols);
 	double * pData = mxGetPr(prhs[0]);
@@ -72,8 +73,8 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 
 	// check if seq file is valid for simulation
 	bool pixelSizeSet = false;
-	unsigned int totalNumberOfADCSamples = 0;
-	for (unsigned int nSample = 0; nSample < seq->GetNumberOfBlocks(); nSample++)
+	uint32_t totalNumberOfADCSamples = 0;
+	for (uint32_t nSample = 0; nSample < seq->GetNumberOfBlocks(); nSample++)
 	{
 		// get current event block
 		SeqBlock* seqBlock = seq->GetBlock(nSample);
@@ -95,14 +96,20 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
         }
 		delete seqBlock; // pointer gets allocate with new in the GetBlock() function
 	}
-	blochSim->Initialize(refVol, totalNumberOfADCSamples);
+	uint32_t numberOfSpins = 1;
+	if (nrhs > 2)
+	{
+		double* tmpSpins = mxGetPr(prhs[2]);
+		numberOfSpins = uint32_t(*tmpSpins);
+	}
+	blochSim->Initialize(refVol, totalNumberOfADCSamples, numberOfSpins);
 }
 
 
 void ReturnKSpaceToMATLAB(int nlhs, mxArray* plhs[], std::vector<KSpaceEvent>& kSpace)
 {
 
-	unsigned int numKSamples = kSpace.size();
+	uint32_t numKSamples = kSpace.size();
 	//init and set the matlab pointer
 
 	plhs[0] = mxCreateDoubleMatrix(1, numKSamples, mxCOMPLEX);
@@ -112,7 +119,7 @@ void ReturnKSpaceToMATLAB(int nlhs, mxArray* plhs[], std::vector<KSpaceEvent>& k
 	double* gradientsAtSample = mxGetPr(plhs[1]);
 
 	//copy kspace to matlab
-	for (unsigned int sample = 0; sample < numKSamples; sample++){
+	for (uint32_t sample = 0; sample < numKSamples; sample++){
 		realSample[sample] = kSpace[sample].kSample.real();
 		imagSample[sample] = kSpace[sample].kSample.imag();
 		gradientsAtSample[sample*2] = kSpace[sample].kX;

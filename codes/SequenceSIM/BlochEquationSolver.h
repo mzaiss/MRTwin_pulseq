@@ -68,3 +68,62 @@ Vector3d SolveBlochEquation(Vector3d &Mi, Matrix3d &A, Vector3d &C, double t, in
 	}
 	return F*(Mi + AInvT) - AInvT; // return the result
 }
+
+
+Vector3d Precess(Vector3d &Mi, Matrix3d &A, double t)
+{
+	double b, bx, by, bz, nx, ny, nz, c, s, k;
+	bx = A(2, 1)*t;
+	by = A(2, 0)*t;
+	bz = A(0, 1)*t;
+	b = sqrt(bx*bx + by * by + bz * bz);
+	Vector3d M(Mi.x(), Mi.y(), Mi.z());
+	if (b > 0.0)
+	{
+		bx /= b;  nx = Mi.x();
+		by /= b;  ny = Mi.y();
+		bz /= b;  nz = Mi.z();
+
+		c = sin(0.5*b); c = 2.0*c*c;
+		s = sin(b);
+		k = nx * bx + ny * by + nz * bz;
+
+		M(0) += (bx*k - nx)*c + (ny*bz - nz * by)*s;
+		M(1) += (by*k - ny)*c + (nz*bx - nx * bz)*s;
+		M(2) += (bz*k - nz)*c + (nx*by - ny * bx)*s;
+	}
+	return M;
+}
+
+Vector3d Relax(Vector3d &Mi, Matrix3d &A, double M0, double t)
+{
+	Vector3d M(Mi.x(), Mi.y(), Mi.z());
+	double e2 = exp(A(0, 0)*t);
+	double e1 = exp(A(2, 2)*t);
+	M(0) *= e2;
+	M(1) *= e2;
+	M(2) = M0 + e1 * (Mi.z() - M0);
+	return M;
+}
+
+Vector3d Dephase(Vector3d &Mi, Matrix3d &A, double t)
+{
+	double b, nx, ny, c, s;
+	b = fabs(A(0, 1)*t);
+	Vector3d M(Mi.x(), Mi.y(), Mi.z());
+	if (b > 0.0)
+	{
+		nx = Mi.x();
+        ny = Mi.y();
+		
+		c = sin(0.5*b); c = 2.0*c*c;
+		s = sin(b);
+
+		M(0) += (-nx)*c + ny*s;
+		M(1) += (-ny)*c + (-nx)*s;
+	}
+	return M;
+}
+
+
+
