@@ -60,16 +60,16 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 	}
 
 	// Input 2: Filename of the pulseseq file
-	const int charBufferSize = 2048;
-	char tmpCharBuffer[charBufferSize];
-	// gete filename from matlab
-	mxGetString(prhs[1], tmpCharBuffer, charBufferSize);
-	std::string seqFileName = std::string(tmpCharBuffer);
-	//load the seq file
-	if (!seq->load(seqFileName)) {
-		mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs",
-			"Seq filename not found");
-	}
+		const int charBufferSize = 2048;
+			char tmpCharBuffer[charBufferSize];
+			// gete filename from matlab
+			mxGetString(prhs[1], tmpCharBuffer, charBufferSize);
+			std::string seqFileName = std::string(tmpCharBuffer);
+			//load the seq file
+			if (!seq->load(seqFileName)) {
+				mexErrMsgIdAndTxt("MRIzero:ReadMATLABInput:rrhs",
+					"Seq filename not found");
+			}
 
 	// check if seq file is valid for simulation
 	bool pixelSizeSet = false;
@@ -86,7 +86,7 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 		if (seqBlock->isADC())
 		{
 			totalNumberOfADCSamples += seqBlock->GetADCEvent().numSamples;
-			if (~pixelSizeSet) {
+			if (!pixelSizeSet) {
 				// Gradient amplitude (Hz/m) * Gradient Flat Time (s) = (Number Of Samples In Read Direction)/FOV (1/m)
 				// -> inverse is pixel size (m)
 				double pxSizeInMeter = 1.0 / (seqBlock->GetGradEvent(0).amplitude*seqBlock->GetGradEvent(0).flatTime*1e-6);
