@@ -39,16 +39,18 @@ SeqOpts.TR = 3000e-3;
 SeqOpts.FlipAngle = pi/2;
 seqFilename = fullfile(pwd, 'gre.seq');
 
-
 sequence = WriteGRESequenceWithPulseq(SeqOpts, seqFilename);
 sequence.plot();
 
-
 %FG: reference sequence: gre.seq
 seqFilename = fullfile(pwd, 'gre.seq');
+tic
+for ii=1:1
 [kList, gradients] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
+end;
+toc
 kRef = abs(reshape(kList,[resolution resolution]));
-
+kRefc = reshape(kList,[resolution resolution]);
 
 
 %% SETTINGS
@@ -166,14 +168,7 @@ for episodes = 1:maxEpi
     for g = 1:maxit
         g
         
-        if mod(g+1,100)==0
-            [gradMomsUniq, ia,ic] = unique(gradMoms', 'rows');
-            gradMomsScaled = (gradMomsUniq'+0.5)*resolution;
-            kUnique=kList(ic);
-            [momGridX,momGridY] = meshgrid(gradMomsScaled(1,:), gradMomsScaled(2,:));
-            kReco = interp2(momGridX, momGridY, kUnique, X,Y);
-            figure(2), imagesc(abs(kReco));
-        end
+       
         
         % Stop if the figure window is closed.
 %         if ~ishandle(panel)
@@ -211,6 +206,7 @@ for episodes = 1:maxEpi
         gradXevent=mr.makeTrapezoid('x','FlatArea',gx*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
         gradYevent=mr.makeTrapezoid('y','FlatArea',gy*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
         
+        adc = mr.makeAdc(1,'Duration',dt,'Delay',riseTime); %FG: TODO: number?
         %T = actions(aIdx);
         
         seq.addBlock(gradXevent,gradYevent,adc);
@@ -248,6 +244,9 @@ for episodes = 1:maxEpi
         seqFilename = fullfile(pwd, 'QSeq.seq');
         seq.write(seqFilename);
         
+        if (0)
+        seq.plot();
+        end
         % FG: do simulation
         [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
         
@@ -259,6 +258,19 @@ for episodes = 1:maxEpi
         kRefInterp = interp2(X,Y,kRef,gradMomsEnd(1), gradMomsEnd(2));
         kRefInterp2 = interp2(X,Y,kRef,Xq, Yq);
         
+        
+         if mod(g+1,100)==0
+            kList(isnan(kList))=0;
+            gradMomsScaled = (gradMoms+0.5)*resolution;
+            kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),kList,X,Y) ;
+            kReco(isnan(kReco))=0;
+            figure(2), subplot(3,2,1), imagesc(abs(kReco));
+            subplot(3,2,2), imagesc(abs(kRef));
+            subplot(3,2,4), imagesc(abs(ifft2(fftshift(kRefc))));
+            subplot(3,2,3), imagesc(abs(ifft2(fftshift(kReco))));
+            subplot(3,2,5), plot(gradMomsScaled);
+            clc
+        end
         
         
         % End condition for an episode
