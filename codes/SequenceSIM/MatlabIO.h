@@ -89,7 +89,7 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 			if (!pixelSizeSet) {
 				// Gradient amplitude (Hz/m) * Gradient Flat Time (s) = (Number Of Samples In Read Direction)/FOV (1/m)
 				// -> inverse is pixel size (m)
-				double pxSizeInMeter = 1.0 / (seqBlock->GetGradEvent(0).amplitude*seqBlock->GetGradEvent(0).flatTime*1e-6);
+				double pxSizeInMeter = 0.22/nCols; //FOV is fixed to 220mm
 				refVol->SetPixelSize(pxSizeInMeter);
 				pixelSizeSet = true;
 			}

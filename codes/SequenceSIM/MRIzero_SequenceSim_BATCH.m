@@ -18,7 +18,7 @@ numSpins = 1;
 %% Sequence Parameters
 
 SeqOpts.resolution = resolution;
-SeqOpts.FOV = resolution;
+SeqOpts.FOV = 220e-3; %FIX
 SeqOpts.TE = 10e-3;
 SeqOpts.TR = 3000e-3;
 SeqOpts.FlipAngle = pi/2;
