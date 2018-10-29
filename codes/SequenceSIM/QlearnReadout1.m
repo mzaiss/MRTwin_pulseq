@@ -268,7 +268,7 @@ for episodes = 1:maxEpi
             subplot(3,2,2), imagesc(abs(kRef));
             subplot(3,2,4), imagesc(abs(ifft2(fftshift(kRefc))));
             subplot(3,2,3), imagesc(abs(ifft2(fftshift(kReco))));
-            subplot(3,2,5), plot(gradMomsScaled);
+            subplot(3,2,5), plot(gradMomsScaled(1,:),gradMomsScaled(2,:));
             clc
         end
         

@@ -6,6 +6,8 @@ compile mex files in matlab:
 
 mex -I3rdParty\eigen-eigen-5a0156e40feb -I3rdParty\pulseq-master\src RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp 3rdParty\pulseq-master\src\ExternalSequence.cpp
 
+mex CXXOPTIMFLAGS="\$CXXOPTIMFLAGS -O3" -I3rdParty\eigen-eigen-5a0156e40feb -I3rdParty\pulseq-master\src\ RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp 3rdParty\pulseq-master\src\ExternalSequence.cpp -output RunMRIzeroBlochSimulationNSpins
+
 call with:
 
 kspace = RunMRIzeroBlochSimulation(in1,in2)
