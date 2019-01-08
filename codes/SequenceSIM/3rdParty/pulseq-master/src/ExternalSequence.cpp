@@ -147,8 +147,8 @@ bool ExternalSequence::load(std::string path)
 				break;
 			}
 			RFEvent event;
-			sscanf(buffer, "%d%f%d%d%f%f", &rfId, &(event.amplitude),
-				&(event.magShape),&(event.phaseShape),
+			sscanf(buffer, "%d%f%d%d%d%f%f", &rfId, &(event.amplitude),
+				&(event.magShape),&(event.phaseShape), &(event.delay),
 				&(event.freqOffset), &(event.phaseOffset)
 				);
 

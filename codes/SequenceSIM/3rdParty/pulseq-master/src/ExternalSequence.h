@@ -6,7 +6,6 @@
 #include <sstream>
 #include <fstream>
 #include <map>
-#include <functional>
 
 #ifndef CLASS_EXTERNAL_SEQUENCE
 #define CLASS_EXTERNAL_SEQUENCE
@@ -61,6 +60,7 @@ struct RFEvent
 	int phaseShape = 0;      /**< @brief ID of shape for phase */
 	float freqOffset = 0.0f;    /**< @brief Frequency offset of transmitter (Hz) */
 	float phaseOffset = 0.0f;   /**< @brief Phase offset of transmitter (rad) */
+    int delay;           /**< @brief Delay prior to the pulse (us) */
 };
 
 
