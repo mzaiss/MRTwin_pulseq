@@ -10,8 +10,8 @@ function [kspace, roundError] = kReorder(kList, gradients, yshiftflag)
     kspace = zeros(dim, dim);
     
     % shift and rescale gradient moments to get array indices 
-    normedGradients = max(gradients(1,:))-min(gradients(1,:));
-    indexList = round((gradients./normedGradients+0.5)*dim);
+    %normedGradients = max(gradients(1,:))-min(gradients(1,:));
+    indexList = round((gradients+0.5)*dim);
     
     if yshiftflag == 1 % increase all ky indices by 1
         indexList(2,:) = indexList(2,:)+1; 
