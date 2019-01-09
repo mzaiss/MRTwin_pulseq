@@ -15,8 +15,8 @@ NSpins=1;
 % PD(resolution/2, resolution/2)=1;
 
 PD(PD<0) = 0;
-T1 = PD*20000;
-T2 = PD*20000;
+T1 = PD*2;
+T2 = PD*0.1;
 T2star = PD*10000;
 
 % T1 = (PD+phantom([0.5 0.2 0.3 -0.4 -0.4 45], resolution))*2;
@@ -30,7 +30,7 @@ InVol = cat(3,PD,T1,T2);
 SeqOpts.resolution = resolution;
 SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 15e-3;
-SeqOpts.TR = 5000e-3;
+SeqOpts.TR = 500e-3;
 SeqOpts.ETL = resolution;
 SeqOpts.FlipAngle = pi/2;
 SeqOpts.FlipAngle1 = pi/2;
