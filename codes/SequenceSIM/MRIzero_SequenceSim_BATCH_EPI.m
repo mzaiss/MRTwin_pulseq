@@ -15,8 +15,8 @@ NSpins=1;
 % PD(resolution/2, resolution/2)=1;
 
 PD(PD<0) = 0;
-T1 = PD*2;
-T2 = PD*.2;
+T1 = PD*20000;
+T2 = PD*20000;
 T2star = PD*10000;
 
 % T1 = (PD+phantom([0.5 0.2 0.3 -0.4 -0.4 45], resolution))*2;
@@ -28,19 +28,19 @@ InVol = cat(3,PD,T1,T2);
 %% Sequence Parameters
 
 SeqOpts.resolution = resolution;
-SeqOpts.FOV = resolution;
+SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 15e-3;
 SeqOpts.TR = 5000e-3;
 SeqOpts.ETL = resolution;
 SeqOpts.FlipAngle = pi/2;
 SeqOpts.FlipAngle1 = pi/2;
 SeqOpts.FlipAngle2 = pi;
-SeqOpts.Order = 'center'; % increase, center, center_in, (half)
-filename = 'epi.seq';
+SeqOpts.Order = 'increase'; % increase, center, center_in, (half)
+filename = 'epi2.seq';
 seqFilename = fullfile(pwd, filename);
 
 
-sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
+sequence = WriteEPI2SequenceWithPulseq(SeqOpts, seqFilename);
 sequence.plot();
 
 %% run simulation
@@ -56,12 +56,14 @@ kspace = kReorder(kList, gradients);
 
 %% plot results
 plotSimulationResult(PD, kspace./NSpins);
-kspace2 = kspace;
-for ii = 2:2:size(kspace2,2)
-kspace2(:,ii) = flip(circshift(kspace(:,ii),1));
-end
-kspace2 = flip(kspace2,2);
-plotSimulationResult(PD, kspace2./NSpins);
+
+% corrections with kspace
+% kspace2 = kspace;
+% for ii = 2:2:size(kspace2,2)
+% kspace2(:,ii) = flip(circshift(kspace(:,ii),1));
+% end
+% kspace2 = flip(kspace2,2);
+% plotSimulationResult(PD, kspace2./NSpins);
 
 % figure, imagesc(abs(nonuniformIDFT(kList, gradients, resolution))), title('nonuniformIDFT');
 
