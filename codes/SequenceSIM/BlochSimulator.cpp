@@ -99,7 +99,7 @@ void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBloc
                     for (uint32_t spin = 0; spin < numSpins; spin++) {
                         double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
                         SetOffresonance(A, xyGrad+spinDephaseFreq);
-						ApplyBlochSimulationPixel(row, col, spin, A, GradientTimeStep, DEPHASE);
+						ApplyBlochSimulationPixel(row, col, spin, A, GradientTimeStep, FULL);
 					}
 				}
 			}
@@ -133,7 +133,7 @@ void BlochSimulator::ApplyGlobalEventToVolume(SeqBlock* seqBlock)
                 for (uint32_t spin = 0; spin < numSpins; spin++) {
                     double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
                     SetOffresonance(A, spinDephaseFreq);
-                    ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, seqBlock->isRF() ? PRECESS : RELAX);
+                    ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, FULL);
                 }
 			}
         }
@@ -168,7 +168,7 @@ void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
                 for (uint32_t spin = 0; spin < numSpins; spin++) {
                     double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
                     SetOffresonance(A, xyGrad + spinDephaseFreq);
-					ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, PRECESS);
+					ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, FULL);
 				}
 			}
 		}
