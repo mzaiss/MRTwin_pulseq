@@ -3,8 +3,8 @@
 #include <stdio.h>		// sscanf
 #include <cstring>		// strlen etc
 #include <iomanip>		// std::setw etc
-
 #include <algorithm>	// for std::max_element
+#include <functional>   // KH, for bind1st with MSCV compiler
 
 #ifndef MAX
 #define MAX(a,b) ( (a)>(b) ? (a) : (b) )

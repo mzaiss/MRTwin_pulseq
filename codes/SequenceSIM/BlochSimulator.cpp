@@ -180,10 +180,10 @@ void BlochSimulator::SetRFPulse(Matrix3d& A, double rfAmplitude, double rfPhase,
 {
 	double w1cp = rfAmplitude * cos(rfPhase);
 	double w1sp = rfAmplitude * sin(rfPhase);
-	A(0, 2) = -w1sp;
-	A(2, 0) = w1sp;
-	A(1, 2) = -w1cp;
-	A(2, 1) = w1cp;
+	A(0, 2) = w1sp;
+	A(2, 0) = -w1sp;
+	A(1, 2) = w1cp;
+	A(2, 1) = -w1cp;
     
     SetOffresonance(A, rfFreqOffset);
 }
