@@ -1,5 +1,6 @@
-function [kspace_out, roundError] = kReorder(kList, gradMoms, resolution)
+function [kspace_out, roundError] = kReorder2(kList, gradMoms, resolution)
 % sorts the acquired values in kList according to the gradient moments (gradMoms) and return a square kspace matrix
+% is able to deal with multiple samples at the same kspace point
 
     % square matrix, third axis: multiple values at same kspace position (average later?) 
     kspace = zeros(resolution, resolution, length(kList));

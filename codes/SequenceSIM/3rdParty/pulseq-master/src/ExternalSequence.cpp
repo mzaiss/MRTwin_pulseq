@@ -3,8 +3,8 @@
 #include <stdio.h>		// sscanf
 #include <cstring>		// strlen etc
 #include <iomanip>		// std::setw etc
-
 #include <algorithm>	// for std::max_element
+#include <functional>   // KH, for bind1st with MSCV compiler
 
 #ifndef MAX
 #define MAX(a,b) ( (a)>(b) ? (a) : (b) )
@@ -147,8 +147,8 @@ bool ExternalSequence::load(std::string path)
 				break;
 			}
 			RFEvent event;
-			sscanf(buffer, "%d%f%d%d%f%f", &rfId, &(event.amplitude),
-				&(event.magShape),&(event.phaseShape),
+			sscanf(buffer, "%d%f%d%d%d%f%f", &rfId, &(event.amplitude),
+				&(event.magShape),&(event.phaseShape), &(event.delay),
 				&(event.freqOffset), &(event.phaseOffset)
 				);
 

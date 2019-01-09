@@ -59,8 +59,8 @@ void BlochSimulator::RunSimulation(ExternalSequence& sequence, std::vector<KSpac
             // Gradients needs to be calculated for each pixel
 			ApplyEventToVolume(seqBlock); 
 			// Todo: take ramp times into account
-            ky += (seqBlock->GetGradEvent(1).flatTime) * (seqBlock->GetGradEvent(1).amplitude)*1e-6;
-            kx += (seqBlock->GetGradEvent(0).flatTime) * (seqBlock->GetGradEvent(0).amplitude)*1e-6;
+            ky += (seqBlock->GetGradEvent(1).flatTime) * (seqBlock->GetGradEvent(1).amplitude)*1e-6 * referenceVolume->GetPixelSize();
+            kx += (seqBlock->GetGradEvent(0).flatTime) * (seqBlock->GetGradEvent(0).amplitude)*1e-6 * referenceVolume->GetPixelSize();
 		}
 		else { // No Gradients ? -> run faster global function
 			ApplyGlobalEventToVolume(seqBlock);
@@ -105,8 +105,8 @@ void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBloc
 			}
 		}
 		// update gradients
-		kx += GradientTimeStep * seqBlock->GetGradEvent(0).amplitude;
-		ky += GradientTimeStep * seqBlock->GetGradEvent(1).amplitude;
+		kx += GradientTimeStep * seqBlock->GetGradEvent(0).amplitude * referenceVolume->GetPixelSize();
+		ky += GradientTimeStep * seqBlock->GetGradEvent(1).amplitude * referenceVolume->GetPixelSize();
 		//sample data
 		kSpace[currentADC].kSample = std::complex<double>(Mx.sum(), My.sum());
 		kSpace[currentADC].kX = kx;
@@ -168,7 +168,7 @@ void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
                 for (uint32_t spin = 0; spin < numSpins; spin++) {
                     double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
                     SetOffresonance(A, xyGrad + spinDephaseFreq);
-					ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, PRECESS);
+					ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, DEPHASE);
 				}
 			}
 		}
@@ -180,10 +180,10 @@ void BlochSimulator::SetRFPulse(Matrix3d& A, double rfAmplitude, double rfPhase,
 {
 	double w1cp = rfAmplitude * cos(rfPhase);
 	double w1sp = rfAmplitude * sin(rfPhase);
-	A(0, 2) = -w1sp;
-	A(2, 0) = w1sp;
-	A(1, 2) = -w1cp;
-	A(2, 1) = w1cp;
+	A(0, 2) = w1sp;
+	A(2, 0) = -w1sp;
+	A(1, 2) = w1cp;
+	A(2, 1) = -w1cp;
     
     SetOffresonance(A, rfFreqOffset);
 }

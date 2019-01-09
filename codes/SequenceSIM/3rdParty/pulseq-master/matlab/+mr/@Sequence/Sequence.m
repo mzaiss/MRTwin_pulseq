@@ -503,13 +503,15 @@ classdef Sequence < handle
                     if ~isempty(block.adc)
                         adc=block.adc;
                         t=adc.delay + (0:adc.numSamples-1)*adc.dwell;
-                        plot(tFactor*(t0+t),zeros(size(t)),'rx','MarkerSize',10,'Parent',ax(1));
+                        plot(tFactor*(t0+t),zeros(size(t)),'rx','Parent',ax(1));
                     end
                     if ~isempty(block.rf)
                         rf=block.rf;
                         t=rf.t + rf.delay;
-                        plot(tFactor*(t0+t),abs(rf.signal),'LineWidth',5,'Parent',ax(2));
-                        plot(tFactor*(t0+t),angle(rf.signal),'LineWidth',5,'Parent',ax(3));
+%                         plot(tFactor*(t0+t),abs(rf.signal),'Parent',ax(2));
+%                         plot(tFactor*(t0+t),angle(rf.signal),'Parent',ax(3));
+                        plot(ax(2),tFactor*(t0+t),abs(rf.signal),'d');
+                        plot(ax(3),tFactor*(t0+t),rf.signal*0+rf.phaseOffset,'d');
                     end
                     gradChannels={'gx','gy','gz'};
                     for j=1:length(gradChannels)
