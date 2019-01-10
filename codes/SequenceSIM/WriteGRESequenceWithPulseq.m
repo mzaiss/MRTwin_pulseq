@@ -37,7 +37,7 @@ rf = mr.makeBlockPulse(SeqOpts.FlipAngle,'Duration',1e-3);
 Nx = SeqOpts.resolution;
 Ny = SeqOpts.resolution;
 deltak=1/SeqOpts.FOV;
-riseTime = 5e-5; % use the same rise times for all gradients, so we can neglect them
+riseTime = 5e-16; % use the same rise times for all gradients, so we can neglect them
 gx = mr.makeTrapezoid('x','FlatArea',Nx*deltak,'FlatTime',6.4e-3,'RiseTime', riseTime);
 adc = mr.makeAdc(Nx,'Duration',gx.flatTime,'Delay',gx.riseTime);
 gxPre = mr.makeTrapezoid('x','Area',-gx.area/2,'Duration',3e-3, 'RiseTime', riseTime);
@@ -52,11 +52,11 @@ delayTR=ceil((SeqOpts.TR - mr.calcDuration(gxPre) - mr.calcDuration(rf) ...
 % put blocks together
 for i=1:Ny
     seq.addBlock(rf);
-    gyPre = mr.makeTrapezoid('y','Area',phaseAreas(i),'Duration',3e-3,'RiseTime', 5e-5);
+    gyPre = mr.makeTrapezoid('y','Area',phaseAreas(i),'Duration',3e-3,'RiseTime', riseTime);
     seq.addBlock(gxPre,gyPre);
     seq.addBlock(mr.makeDelay(delayTE));
     seq.addBlock(gx,adc);
-    gyRew = mr.makeTrapezoid('y','Area',-phaseAreas(i),'Duration',3e-3,'RiseTime', 5e-5);
+    gyRew = mr.makeTrapezoid('y','Area',-phaseAreas(i),'Duration',3e-3,'RiseTime', riseTime);
     seq.addBlock(gyRew);
     seq.addBlock(mr.makeDelay(delayTR))
 end
