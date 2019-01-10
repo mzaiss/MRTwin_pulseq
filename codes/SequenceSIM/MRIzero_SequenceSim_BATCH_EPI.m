@@ -35,12 +35,12 @@ SeqOpts.ETL = resolution;
 SeqOpts.FlipAngle = pi/2;
 SeqOpts.FlipAngle1 = pi/2;
 SeqOpts.FlipAngle2 = pi;
-SeqOpts.Order = 'center'; % increase, center, center_in, (half)
-filename = 'epi.seq';
+SeqOpts.Order = 'increase'; % increase, center, center_in, (half)
+filename = 'epi2.seq';
 seqFilename = fullfile(pwd, filename);
 
 
-sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
+sequence = WriteEPI2SequenceWithPulseq(SeqOpts, seqFilename);
 sequence.plot();
 
 %% run simulation
@@ -56,12 +56,14 @@ kspace = kReorder(kList, gradients);
 
 %% plot results
 plotSimulationResult(PD, kspace./NSpins);
-kspace2 = kspace;
-for ii = 2:2:size(kspace2,2)
-kspace2(:,ii) = flip(circshift(kspace(:,ii),1));
-end
-kspace2 = flip(kspace2,2);
-plotSimulationResult(PD, kspace2./NSpins);
+
+% corrections with kspace
+% kspace2 = kspace;
+% for ii = 2:2:size(kspace2,2)
+% kspace2(:,ii) = flip(circshift(kspace(:,ii),1));
+% end
+% kspace2 = flip(kspace2,2);
+% plotSimulationResult(PD, kspace2./NSpins);
 
 % figure, imagesc(abs(nonuniformIDFT(kList, gradients, resolution))), title('nonuniformIDFT');
 

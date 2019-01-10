@@ -1,6 +1,7 @@
 function QlearnPend
 %% Example reinforcement learning - Q-learning code
-% for single k-space readout
+% for repeated single k-space readout
+% idea first solve: best first action, then: best second action.
 
 close all;
 
@@ -8,7 +9,6 @@ close all;
 % (:,:,1) -> PD
 % (:,:,2) -> T2
 % (:,:,3) -> T2
-
 resolution = 48; % 100x100 take runs ~12s on a single core
 deltak=1/resolution;
 PD = phantom(resolution);
@@ -234,8 +234,6 @@ for episodes = 1:maxEpi
         if (0)
         seq.plot();
         end
-        
-        
         % FG: do simulation
         [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
         
@@ -274,8 +272,7 @@ for episodes = 1:maxEpi
         
 %         [~,snewIdx] = min(sum((states - repmat(z1,[size(states,1),1])).^2,2)); % Interpolate again to find the new state the system is closest to.
         snewIdx = z1; %FG (no interpolation necessary)
-toc
-        tic
+
         if episodes ~= maxEpi % On the last iteration, stop learning and just execute. Otherwise...
             % Update Q
             
