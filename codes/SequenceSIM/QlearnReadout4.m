@@ -133,6 +133,7 @@ for ii=1:48
 end
 
 figure,imagesc(Q);
+ Q = randn(length(states), length(actions_x)*length(actions_y)); % Q is length(x1) x length(x2) x length(actions) - IE a bin for every action-state combination.
 
 
 %% Start learning!
@@ -148,11 +149,11 @@ for episodes = 1:maxEpi
     
     seq.addBlock(rf); % start sequence with 90deg excitation
     Nx = resolution;
-    deltak = 1./resolution;
-    riseTime = 5e-5; % use the same rise times for all gradients, so we can neglect them
+    deltak = 1./SeqOpts.FOV ;
+    riseTime = 10e-16; % use the same rise times for all gradients, so we can neglect them
         
-    gradXevent=mr.makeTrapezoid('x','FlatArea',-24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
-    gradYevent=mr.makeTrapezoid('y','FlatArea',24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+    gradXevent=mr.makeTrapezoid('x','FlatArea',-resolution/2*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+    gradYevent=mr.makeTrapezoid('y','FlatArea',resolution/2*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
     % add PULSEQ block of gradient rewinder
     seq.addBlock(gradXevent,gradYevent);  
     
@@ -200,8 +201,8 @@ for episodes = 1:maxEpi
         gy = actions_y(iy);  % calculate the gradient in y
         
         % generate PULSEQ events
-         gradXevent.amplitude=gx*23.1481;
-         gradYevent.amplitude=gy*23.1481;
+         gradXevent.amplitude=gx*4.5455e+03;
+         gradYevent.amplitude=gy*4.5455e+03;
          
 %          if (mod(g,1000)==1)
 %          seq.addBlock(rf); % start sequence with 5deg excitation
@@ -236,12 +237,12 @@ for episodes = 1:maxEpi
         kList(isnan(kList))=0;
         gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
         
-        [X,Y] = meshgrid(1:resolution);
+        [Y,X] = meshgrid(1:resolution);
 %         [Xq,Yq] = meshgrid(1:0.5:resolution);
 %          kRefInterp = interp2(X,Y,kRef,gradMomsEnd(1), gradMomsEnd(2));
 %         kRefInterp2 = interp2(X,Y,kRef,Xq, Yq);
                
-        kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) +1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
+        kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) -1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
         kReco(isnan(kReco))=0;
          
         
