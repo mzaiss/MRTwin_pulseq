@@ -1,5 +1,7 @@
 clear all; close all;
 
+addpath optfnc
+
 % forward Fourier transform
 fftfull =  @(x) ifftshift(fftn(fftshift(x)))/sqrt(numel(x));
 
@@ -56,7 +58,7 @@ close all;
 NRep = 16; % number of repetitions
 sz = [16,16];
 
-gtruth_m = load('data/phantom.mat'); gtruth_m = gtruth_m.phantom;
+gtruth_m = load('../../data/phantom.mat'); gtruth_m = gtruth_m.phantom;
 gtruth_m = imresize(gtruth_m,sz);  % resize to something managable
 
 % set the optimizer
