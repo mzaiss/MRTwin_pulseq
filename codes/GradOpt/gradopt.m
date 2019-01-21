@@ -84,7 +84,8 @@ reco_m = zeros(sz);
 for rep = 1:NRep
   
   % initialize gradients
-  g = zeros(T,2); g(:,1) = rand(T,1) - 0.5; g = g(:);
+  g = zeros(T,2); g = g(:);  % initialize the gradients to all zeros
+  %g = zeros(T,2); g(:,1) = rand(T,1) - 0.5; g = g(:);
 
   % compute the current error to ground-truth
   error_m = gtruth_m - reshape(reco_m,sz);
@@ -126,15 +127,12 @@ for rep = 1:NRep
       maxval = max(spectrum(:));
       [a,b] = find(spectrum == maxval);
       
-      %a = field(t,1); b = field(t,2);
-      
       kspace_loc(t,1) = a; kspace_loc(t,2) = b;
     end
  
     % color code repetitions
     c = ones(T,1)*rep;
-    hold on; scatter(kspace_loc(:,1), kspace_loc(:,2),[],c); hold off; title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
-      %hold on; scatter(kspace_loc(:,1), kspace_loc(:,2),[],c); axis([0,sz(1),0,sz(1)]); hold off; title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
+      hold on; scatter(kspace_loc(:,1), kspace_loc(:,2),[],c); axis([0,sz(1),0,sz(1)]); hold off; title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
 
   pause
   
