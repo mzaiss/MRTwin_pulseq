@@ -35,8 +35,21 @@ g(:,1) = g(:,1) - T/2 - 1;
 B0X = g(:,1) * rampX; B0Y = g(:,2) * rampY;
 B0 = B0X + B0Y;
 
-% encoding operator
+% T1 relaxation term
+T1 = 1; % seconds
+T_endADC = 0.01;  % seconds
+time_vec = linspace(0,T_endADC,T).';
+R_T1 = 1 - exp(-time_vec/T1);
+
+% T2 relaxation term
+T2 = 0.1; % seconds
+R_T2 = exp(-time_vec/T2);
+
+% encoding operator (ignore relaxation)
 E = exp(1i*B0) / nfact;
+
+% encoding operator (with relaxation terms)
+% E = R_T1 .* R_T2 .* exp(1i*B0) / nfact;
 
 % compute loss
 prediction = (E'*E)*m;
