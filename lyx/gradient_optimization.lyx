@@ -85,7 +85,7 @@ The following forward process describes the image acquisition process in
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula ${\displaystyle \boldsymbol{s}(\boldsymbol{r},t)=\boldsymbol{m}(\boldsymbol{r},t_{1})*(1-exp(-\frac{t}{T1}))*exp(-\frac{t}{T2})*exp(i\int_{t_{1}}^{Ta}(G_{x}(\boldsymbol{r},t)+G_{y}(\boldsymbol{r},t))dt)}$
+\begin_inset Formula ${\displaystyle \boldsymbol{s}(\boldsymbol{r},t)=\boldsymbol{m}(\boldsymbol{r},t_{1})exp(i\int_{t_{1}}^{Ta}(G_{x}(\boldsymbol{r},t)+G_{y}(\boldsymbol{r},t))dt)}$
 \end_inset
 
  
@@ -129,18 +129,7 @@ We assume the acquisition with a single receive coil element, which has
 \end_inset
 
  , which is assumed to be a starting point of applying the gradients.
- Further, let scalars T1 and T2 denote the relaxation times, which are assumed
- to be constant at each spatial location.
- The model is trivially extended to spatially-varying relaxation times case
- by replacing the scalars with functions 
-\begin_inset Formula $T1(\boldsymbol{r})$
-\end_inset
-
- and 
-\begin_inset Formula $T2(\boldsymbol{r})$
-\end_inset
-
-.
+ We ignore the relaxation effects for now.
  The final time point of the ADC readout is denoted as 
 \begin_inset Formula $T_{a}$
 \end_inset
