@@ -5,6 +5,21 @@
 \save_transient_properties true
 \origin unavailable
 \textclass article
+\begin_preamble
+\usepackage{wasysym}
+\usepackage{float}
+\let\chapter\section
+\usepackage{bm,colortbl}
+\usepackage[round,numbers,comma,sort&compress]{natbib}
+
+\usepackage[nomarkers]{endfloat} % all figures at the end
+\let\MYoriglatexcaption\caption
+\renewcommand{\caption}[2][\relax]{\MYoriglatexcaption[#2]{#2}}
+\makeatletter
+\def\markboth#1#2{\def\leftmark{\@IEEEcompsoconly{\sffamily}\MakeUppercase{\protect#1}}%
+\def\rightmark{\@IEEEcompsoconly{\sffamily}\MakeUppercase{\protect#2}}}
+\makeatother
+\end_preamble
 \use_default_options true
 \maintain_unincluded_children false
 \language english
@@ -29,9 +44,10 @@
 \bibtex_command default
 \index_command default
 \paperfontsize default
+\spacing onehalf
 \use_hyperref false
 \papersize default
-\use_geometry false
+\use_geometry true
 \use_package amsmath 1
 \use_package amssymb 1
 \use_package cancel 1
@@ -44,6 +60,7 @@
 \use_package undertilde 1
 \cite_engine basic
 \cite_engine_type default
+\biblio_style plain
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
@@ -55,6 +72,10 @@
 \shortcut idx
 \color #008000
 \end_index
+\leftmargin 2cm
+\topmargin 2cm
+\rightmargin 2cm
+\bottommargin 2cm
 \secnumdepth 3
 \tocdepth 3
 \paragraph_separation indent
@@ -85,7 +106,7 @@ The following forward process describes the image acquisition process in
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula ${\displaystyle \boldsymbol{s}(\boldsymbol{r},t)=\boldsymbol{m}(\boldsymbol{r},t_{1})exp(i\int_{t_{1}}^{Ta}(G_{x}(\boldsymbol{r},t)+G_{y}(\boldsymbol{r},t))dt)}$
+\begin_inset Formula ${\displaystyle \boldsymbol{s}(\boldsymbol{r},t)=\boldsymbol{m}(\boldsymbol{r},t_{1})*exp(-\frac{t}{T2})*exp(i\int_{t_{1}}^{Ta}(G_{x}(\boldsymbol{r},t)+G_{y}(\boldsymbol{r},t))dt)}$
 \end_inset
 
  
@@ -99,14 +120,28 @@ name "Eq1.  continuous model"
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula $G_{x}(\boldsymbol{r},t)=g_{x}(t)*ramp_{x}(\boldsymbol{r})\quad\quad\quad G_{y}(\boldsymbol{r},t)=g_{y}(t)*ramp_{y}(\boldsymbol{r})$
+\begin_inset VSpace smallskip
 \end_inset
 
 
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula $ramp_{x}(x,y)=x\quad\quad\quad\quad\quad ramp_{y}(x,y)=y$
+\begin_inset Formula ${\displaystyle G_{x}(\boldsymbol{r},t)=g_{x}(t)*ramp_{x}(\boldsymbol{r})\quad\quad\quad G_{y}(\boldsymbol{r},t)=g_{y}(t)*ramp_{y}(\boldsymbol{r})}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace smallskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula ${\displaystyle ramp_{x}(x,y)=x\quad\quad\quad\quad\quad ramp_{y}(x,y)=y}$
 \end_inset
 
 
@@ -129,7 +164,14 @@ We assume the acquisition with a single receive coil element, which has
 \end_inset
 
  , which is assumed to be a starting point of applying the gradients.
- We ignore the relaxation effects for now.
+ Further, let scalar T2 denote the relaxation times, which are assumed to
+ be constant at each spatial location.
+ The model is trivially extended to spatially-varying relaxation times case
+ by replacing the scalars with functions 
+\begin_inset Formula $T2(\boldsymbol{r})$
+\end_inset
+
+.
  The final time point of the ADC readout is denoted as 
 \begin_inset Formula $T_{a}$
 \end_inset
@@ -245,6 +287,7 @@ into respective k-space locations.
 
 \begin_layout Standard
 \begin_inset Float algorithm
+placement h
 wide false
 sideways false
 status open
@@ -313,7 +356,7 @@ the reconstructed image.
 
 \begin_layout Itemize
 Assume 
-\begin_inset Formula $\boldsymbol{E_{g}=}exp(i(\boldsymbol{D}\boldsymbol{g}_{x}ramp_{x}^{T}+\boldsymbol{D}\boldsymbol{g}_{y}ramp_{y}^{T}))$
+\begin_inset Formula ${\displaystyle \boldsymbol{E_{g}=}exp(i(\boldsymbol{D}\boldsymbol{g}_{x}ramp_{x}^{T}+\boldsymbol{D}\boldsymbol{g}_{y}ramp_{y}^{T}))}$
 \end_inset
 
 
