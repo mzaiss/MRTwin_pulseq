@@ -48,7 +48,7 @@ R_T2 = exp(-time_vec/T2);
 % encoding operator (ignore relaxation)
 E = exp(1i*B0) / nfact;
 
-% encoding operator (with relaxation terms)
+% encoding operator (with relaxation terms) (we assume the same relaxation times at each spatial locations, otherwise T1/T2 need to be arrays)
 % E = R_T1 .* R_T2 .* exp(1i*B0) / nfact;
 
 % compute loss

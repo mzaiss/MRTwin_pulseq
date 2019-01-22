@@ -1,0 +1,353 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Section
+Model
+\end_layout
+
+\begin_layout Standard
+The following forward process describes the image acquisition process in
+ the presence of the field induced by the gradients:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula ${\displaystyle \boldsymbol{s}(\boldsymbol{r},t)=\boldsymbol{m}(\boldsymbol{r},t_{1})(1-exp(-t/T1))exp(-t/T2)exp(i\int_{t_{1}}^{t_{Ta}}(G_{x}(\boldsymbol{r},p,t)+G_{y}(\boldsymbol{r},t))dt)}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $G_{x}(\boldsymbol{r},t)=g_{x}(t)*ramp_{x}(\boldsymbol{r})\quad\quad\quad G_{y}(\boldsymbol{r},t)=g_{y}(t)*ramp_{y}(\boldsymbol{r})$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $ramp_{x}(x,y)=x\quad\quad\quad\quad\quad ramp_{y}(x,y)=y$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We assume the acquisition with a single receive coil element, and assume
+ the unity sensitivity profile for now.
+ 
+\begin_inset Formula $\boldsymbol{m}(r,t_{1})$
+\end_inset
+
+ is the magnetization vector at 
+\begin_inset Formula $t_{1}$
+\end_inset
+
+ time point.
+ T1/T2 are the relaxation times.
+ 
+\begin_inset Formula $T_{a}$
+\end_inset
+
+ is the time of the end of the ADC readout.
+ 
+\begin_inset Formula $ramp_{x/y}$
+\end_inset
+
+ defines the spatial gradient form.
+ Finally, at each time point, we have 
+\begin_inset Formula $g_{x}(t)$
+\end_inset
+
+ the applied current to the gradient system.
+\end_layout
+
+\begin_layout Standard
+We can discretize the continuous model to obtain:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\boldsymbol{s}=\boldsymbol{E}(\boldsymbol{g}_{x},\boldsymbol{g}_{y})\boldsymbol{m}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Here all time points are discretized, the gradient terms into a sum, and
+ thus all exponential terms can be packed into a matrix 
+\begin_inset Formula $E\in\mathbb{C}^{T\times N}$
+\end_inset
+
+, here 
+\begin_inset Formula $N=N_{x}N_{y}$
+\end_inset
+
+ is the number of pixels in spatial domain.
+\end_layout
+
+\begin_layout Section
+Optimization
+\end_layout
+
+\begin_layout Standard
+The signal acquired at repetition 
+\shape italic
+p 
+\shape default
+is denoted as 
+\begin_inset Formula $\boldsymbol{s}_{p}(\boldsymbol{r},t)$
+\end_inset
+
+ and is subject to repetition dependent temporal gradient forms 
+\begin_inset Formula $\boldsymbol{g}_{x,p}$
+\end_inset
+
+ and 
+\begin_inset Formula $\boldsymbol{g}_{y,p}$
+\end_inset
+
+.
+ Let the matrix 
+\begin_inset Formula $\boldsymbol{F}$
+\end_inset
+
+ be an orthonormal discrete Fourier operator.
+ We seek to find the target image 
+\begin_inset Formula $\boldsymbol{u}=\sum_{p}^{P}\boldsymbol{F}^{H}\boldsymbol{Q_{p}s_{p}}$
+\end_inset
+
+, where the operator 
+\begin_inset Formula $\boldsymbol{Q}_{p}$
+\end_inset
+
+ insert the coefficient from the readout 
+\shape italic
+p 
+\shape default
+into respective k-space locations.
+ In order to learn the gradients that allow to approximate the target image
+ 
+\begin_inset Formula $\boldsymbol{u}$
+\end_inset
+
+ as close as possible we use the following algorithm:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float algorithm
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Input:
+\series default
+ Target image 
+\begin_inset Formula $\boldsymbol{u}$
+\end_inset
+
+ of size 
+\begin_inset Formula $N=N_{x}\cdot N_{y}$
+\end_inset
+
+; 
+\begin_inset Formula $ramp_{x/y}$
+\end_inset
+
+ spatial gradient forms; 
+\begin_inset Formula $P$
+\end_inset
+
+ total number of repetitions.
+\end_layout
+
+\begin_layout Plain Layout
+
+\series bold
+Output:
+\series default
+ Temporal gradient forms 
+\begin_inset Formula $\boldsymbol{g}_{x/y,p}$
+\end_inset
+
+ at each repetition.
+\end_layout
+
+\begin_layout Itemize
+Initialize 
+\begin_inset Formula $\boldsymbol{\tilde{u}_{1}=}\boldsymbol{u}$
+\end_inset
+
+: the target to optimize at sequence step
+\shape italic
+ 
+\begin_inset Formula $p=1$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+Initialize 
+\shape italic
+
+\begin_inset Formula $\boldsymbol{w}=0$
+\end_inset
+
+: 
+\shape default
+the reconstructed image.
+\end_layout
+
+\begin_layout Plain Layout
+
+\series bold
+For
+\series default
+ 
+\begin_inset Formula $p\leftarrow1...P$
+\end_inset
+
+ 
+\series bold
+do
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\boldsymbol{g}_{x},\boldsymbol{g}_{y}\leftarrow\arg\min_{\boldsymbol{g}_{x},\boldsymbol{g}_{y}}\:||\boldsymbol{\tilde{u}}_{p}-\boldsymbol{E_{g}}^{H}\boldsymbol{E_{g}}\boldsymbol{m}||_{2}^{2}\quad\boldsymbol{E_{g}=}exp(i(\boldsymbol{g}_{x}ramp_{x}^{T}+\boldsymbol{g}_{y}ramp_{y}^{T}))$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Update the current image estimate: 
+\begin_inset Formula $\boldsymbol{w}=\boldsymbol{w}+\boldsymbol{E_{g}}^{H}\boldsymbol{E}_{g}\boldsymbol{m}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Update the target to optimize at next step: 
+\begin_inset Formula $\boldsymbol{\tilde{u}_{p+1}}=\boldsymbol{u}-\boldsymbol{w}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Save the gradient temporal waveforms: 
+\begin_inset Formula $\boldsymbol{g}_{x,p},\boldsymbol{g}_{y,p}\leftarrow\boldsymbol{g}_{x},\boldsymbol{g}_{y}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\series bold
+End
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "alg:Gradient-optimization"
+
+\end_inset
+
+Gradient optimization
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
