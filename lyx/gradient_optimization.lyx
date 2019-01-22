@@ -81,11 +81,18 @@ Model
 
 \begin_layout Standard
 The following forward process describes the image acquisition process in
- the presence of the field induced by the gradients:
+ the presence of the additive magnetic fields produced by the linear gradients:
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula ${\displaystyle \boldsymbol{s}(\boldsymbol{r},t)=\boldsymbol{m}(\boldsymbol{r},t_{1})(1-exp(-t/T1))exp(-t/T2)exp(i\int_{t_{1}}^{t_{Ta}}(G_{x}(\boldsymbol{r},p,t)+G_{y}(\boldsymbol{r},t))dt)}$
+\begin_inset Formula ${\displaystyle \boldsymbol{s}(\boldsymbol{r},t)=\boldsymbol{m}(\boldsymbol{r},t_{1})*(1-exp(-\frac{t}{T1}))*exp(-\frac{t}{T2})*exp(i\int_{t_{1}}^{Ta}(G_{x}(\boldsymbol{r},t)+G_{y}(\boldsymbol{r},t))dt)}$
+\end_inset
+
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "Eq1.  continuous model"
+
 \end_inset
 
 
@@ -106,57 +113,97 @@ The following forward process describes the image acquisition process in
 \end_layout
 
 \begin_layout Standard
-We assume the acquisition with a single receive coil element, and assume
- the unity sensitivity profile for now.
- 
-\begin_inset Formula $\boldsymbol{m}(r,t_{1})$
+We assume the acquisition with a single receive coil element, which has
+ a unity-valued sensitivity at each location of the imaged FoV.
+ We denote 
+\begin_inset Formula $\boldsymbol{m}(\boldsymbol{r},t_{1})$
 \end_inset
 
- is the magnetization vector at 
+ the function that describes the magnetization state of the system at spatial
+ location 
+\begin_inset Formula $\boldsymbol{r}$
+\end_inset
+
+ and time point 
 \begin_inset Formula $t_{1}$
 \end_inset
 
- time point.
- T1/T2 are the relaxation times.
- 
+ , which is assumed to be a starting point of applying the gradients.
+ Further, let scalars T1 and T2 denote the relaxation times, which are assumed
+ to be constant at each spatial location.
+ The model is trivially extended to spatially-varying relaxation times case
+ by replacing the scalars with functions 
+\begin_inset Formula $T1(\boldsymbol{r})$
+\end_inset
+
+ and 
+\begin_inset Formula $T2(\boldsymbol{r})$
+\end_inset
+
+.
+ The final time point of the ADC readout is denoted as 
 \begin_inset Formula $T_{a}$
 \end_inset
 
- is the time of the end of the ADC readout.
+.
  
 \begin_inset Formula $ramp_{x/y}$
 \end_inset
 
- defines the spatial gradient form.
- Finally, at each time point, we have 
+ define the spatial gradient form, which we assume to be linear in this
+ case.
+ Finally, at each time point we drive the gradient system with a current
+ 
 \begin_inset Formula $g_{x}(t)$
 \end_inset
 
- the applied current to the gradient system.
+ .
 \end_layout
 
 \begin_layout Standard
-We can discretize the continuous model to obtain:
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $\boldsymbol{s}=\boldsymbol{E}(\boldsymbol{g}_{x},\boldsymbol{g}_{y})\boldsymbol{m}$
+We can discretize the continuous model to obtain 
+\begin_inset Formula $\boldsymbol{s}=\boldsymbol{E}(\boldsymbol{D}\boldsymbol{g}_{x},\boldsymbol{D}\boldsymbol{g}_{y})\boldsymbol{m}$
 \end_inset
 
-
-\end_layout
-
-\begin_layout Standard
-Here all time points are discretized, the gradient terms into a sum, and
- thus all exponential terms can be packed into a matrix 
-\begin_inset Formula $E\in\mathbb{C}^{T\times N}$
+.
+ Note that the exponential terms are packed into a matrix 
+\begin_inset Formula $\boldsymbol{E}\in\mathbb{C}^{T\times N}$
 \end_inset
 
-, here 
+, where 
 \begin_inset Formula $N=N_{x}N_{y}$
 \end_inset
 
- is the number of pixels in spatial domain.
+ is the number of pixels in spatial domain, and 
+\begin_inset Formula $T$
+\end_inset
+
+ total number of time points.
+ Further, 
+\begin_inset Formula $\boldsymbol{D}$
+\end_inset
+
+ is the lower triangular matrix filled with ones.
+ The matrix 
+\begin_inset Formula $\boldsymbol{D}$
+\end_inset
+
+ is used to compute the cumulative sum in the first dimension of the vector
+ 
+\begin_inset Formula $\boldsymbol{g}$
+\end_inset
+
+, which is a counterpart of the integral in continous case 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "Eq1.  continuous model"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Section
@@ -172,7 +219,7 @@ is denoted as
 \begin_inset Formula $\boldsymbol{s}_{p}(\boldsymbol{r},t)$
 \end_inset
 
- and is subject to repetition dependent temporal gradient forms 
+ and is subject to repetition-dependent temporal gradient forms 
 \begin_inset Formula $\boldsymbol{g}_{x,p}$
 \end_inset
 
@@ -194,7 +241,7 @@ is denoted as
 \begin_inset Formula $\boldsymbol{Q}_{p}$
 \end_inset
 
- insert the coefficient from the readout 
+ insert the Fourier coefficients from readout 
 \shape italic
 p 
 \shape default
@@ -254,7 +301,7 @@ Initialize
 \begin_inset Formula $\boldsymbol{\tilde{u}_{1}=}\boldsymbol{u}$
 \end_inset
 
-: the target to optimize at sequence step
+: the target to optimize at sequence repetition
 \shape italic
  
 \begin_inset Formula $p=1$
@@ -275,6 +322,14 @@ Initialize
 the reconstructed image.
 \end_layout
 
+\begin_layout Itemize
+Assume 
+\begin_inset Formula $\boldsymbol{E_{g}=}exp(i(\boldsymbol{D}\boldsymbol{g}_{x}ramp_{x}^{T}+\boldsymbol{D}\boldsymbol{g}_{y}ramp_{y}^{T}))$
+\end_inset
+
+
+\end_layout
+
 \begin_layout Plain Layout
 
 \series bold
@@ -290,7 +345,8 @@ do
 \end_layout
 
 \begin_layout Itemize
-\begin_inset Formula $\boldsymbol{g}_{x},\boldsymbol{g}_{y}\leftarrow\arg\min_{\boldsymbol{g}_{x},\boldsymbol{g}_{y}}\:||\boldsymbol{\tilde{u}}_{p}-\boldsymbol{E_{g}}^{H}\boldsymbol{E_{g}}\boldsymbol{m}||_{2}^{2}\quad\boldsymbol{E_{g}=}exp(i(\boldsymbol{g}_{x}ramp_{x}^{T}+\boldsymbol{g}_{y}ramp_{y}^{T}))$
+Find gradient forms 
+\begin_inset Formula $\boldsymbol{g}_{x},\boldsymbol{g}_{y}\leftarrow\arg\min_{\boldsymbol{g}_{x},\boldsymbol{g}_{y}}\:||\boldsymbol{\tilde{u}}_{p}-\boldsymbol{E_{g}}^{H}\boldsymbol{E_{g}}\boldsymbol{m}||_{2}^{2}$
 \end_inset
 
 
@@ -313,7 +369,7 @@ Update the target to optimize at next step:
 \end_layout
 
 \begin_layout Itemize
-Save the gradient temporal waveforms: 
+Save the gradient temporal forms: 
 \begin_inset Formula $\boldsymbol{g}_{x,p},\boldsymbol{g}_{y,p}\leftarrow\boldsymbol{g}_{x},\boldsymbol{g}_{y}$
 \end_inset
 
@@ -347,6 +403,30 @@ Gradient optimization
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+Please note that the objective function 
+\begin_inset Formula $||\boldsymbol{\tilde{u}}_{p}-\boldsymbol{E_{g}}^{H}\boldsymbol{E_{g}}\boldsymbol{m}||_{2}^{2}$
+\end_inset
+
+ is differentiable in the gradient variables 
+\begin_inset Formula $\boldsymbol{g}_{x/y}$
+\end_inset
+
+.
+ Although 
+\begin_inset Formula $\boldsymbol{E_{g}}^{H}\boldsymbol{E_{g}}$
+\end_inset
+
+ is multiplicative, the gradient terms always appear as summations in the
+ argument of the complex exponentials in each entry of the matrix 
+\begin_inset Formula $\boldsymbol{E}_{g}$
+\end_inset
+
+.
+ Which allows to optimize the objective in one shot and not to resort to
+ potentially unstable and long alternating descent schemes.
 \end_layout
 
 \end_body
