@@ -476,6 +476,59 @@ L
 is the total number of images in the dataset.
 \end_layout
 
+\begin_layout Subsubsection
+Gradient forms reparameterization
+\end_layout
+
+\begin_layout Standard
+It is easy to see that B0 field induced by the gradients is the time integral
+ over the gradient waveform times the ramp constant.
+ Possibly more efficient parameterization of the gradient forms can be obtained
+ by introducing the variable 
+\begin_inset Formula $h:g_{x}=\int_{t1}^{Ta}h_{x}(t)dt$
+\end_inset
+
+.
+ The variable is essentially a derivative of the gradient temporal forms.
+ The desirable property of learned gradient forms is that the derivative
+ is non-zero only at a small subset of time points, which promotes less
+ load on the gradient amplifier system and results in more smooth trajectories.
+ Given such reparameterization, the optimization problem can be reformulated
+ as: 
+\begin_inset Formula ${\displaystyle \boldsymbol{h}_{x},\boldsymbol{h}_{y}\leftarrow\arg\min_{\boldsymbol{h}_{x},\boldsymbol{h}_{y}}\:||\boldsymbol{\tilde{u}}_{p}-\boldsymbol{E_{h}}^{H}\boldsymbol{E_{h}}\boldsymbol{m}||_{2}^{2}}+\lambda(|\boldsymbol{h}_{x}|_{1}+|\boldsymbol{h}_{y}|_{1})$
+\end_inset
+
+, where the sparsity penalty is put on the derivative.
+\end_layout
+
+\begin_layout Subsection
+Role of the initializations
+\end_layout
+
+\begin_layout Standard
+The proposed objective function is non-linear due to appearence of the optimized
+ variable as an argument in complex exponentials.
+ As usual, when optimizing highly non-linear objective the choice of the
+ initializations is crucial for convergence to the desired solution.
+ In order to obtain good initialization we can potentially benefit from
+ the following insight: since it is known [REF] that natural images(and
+ medical images as its subset) have scale invariant statistics it is reasonable
+ to assume that imaging primitives (basic successfull gradient forms) will
+ be prefered in both low resolution and high resolution imaging.
+ This allows to initially consider the problem where the number of spins/spatial
+ FOV/resolution is low resulting in smaller image matrices, and shorter
+ readout signals necessary for reconstruction.
+ In such settings, also the gradient variables are expected to be of lower
+ dimensionality, which allows to explore the objective more efficiently
+ by multiple random restart initializations.
+ Having learnt the gradient primitives for such simplified version of the
+ problem one can train a regression neural network that is able to evaluate
+ successfull vs.
+ poor choices of the gradient forms in low resolution regime.
+ Such auxiliary network can be then used to efficiently filter potentially
+ degenerate initializations that are to be used in higher resolution settings.
+\end_layout
+
 \begin_layout Subsection
 Optimization + NN reconstruction
 \end_layout
@@ -506,7 +559,7 @@ noprefix "false"
 .
  The perceptron can be composed of a concatenation of global layers (fully
  connected) and local ones (convolutional).
- We consider the following joing training process:
+ We consider the following joint training process:
 \end_layout
 
 \begin_layout Standard
