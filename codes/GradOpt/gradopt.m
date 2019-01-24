@@ -4,6 +4,7 @@ addpath optfnc
 
 % forward Fourier transform
 fftfull =  @(x) ifftshift(fftn(fftshift(x)))/sqrt(numel(x));
+ifftfull =  @(x) ifftshift(ifftn(fftshift(x)))*sqrt(numel(x));
 
 % NRMSE error function
 e = @(utrue,u) 100*norm(u(:)-utrue(:))/norm(utrue(:));
@@ -15,12 +16,12 @@ sz = [4, 6]; % image size (Nx Ny)
 
 % set gradient spatial forms
 rampX = pi*linspace(-1,1,sz(1) + 1);
-rampX = fftshift(rampX(1:end-1),2);
+rampX = rampX(1:end-1);
 rampX = repmat(rampX.', [1, sz(2)]);
 
 % set gradient spatial forms
 rampY = pi*linspace(-1,1,sz(2) + 1);
-rampY = fftshift(rampY(1:end-1),2);
+rampY = rampY(1:end-1);
 rampY = repmat(rampY, [sz(1), 1]);
 
 % initialize gradients (X/Y directions)
@@ -29,8 +30,11 @@ g = rand(T,2); g = g(:);
 % initialize complex-valued magnetization image
 m = rand(sz(1),sz(2)) + 1i*rand(sz(1),sz(2));
 
+use_tanh_fieldcap = 1;                                                          % otherwise put L2 penalty on the field controlled by lambda
+lambda = 0*1e-2;
+
 % pack the parameters for the gradient function
-args = {m, rampX, rampY};
+args = {m, rampX, rampY,sz,lambda,use_tanh_fieldcap};
 [phi,dg_ana] = phi_grad_readout2d(g(:),args{:}); % compute loss and analytical derivatives
 
 % compute numerical derivatives
@@ -52,30 +56,39 @@ fprintf('deriv-err=%1.3f%%\n',e(dx_num,dg_ana(:)))
 % compare analytical and numerical gradients
 [dg_ana(:), dx_num]
 
+
 %% do full optimization
 close all;
 
-NRep = 16; % number of repetitions
-sz = [16,16];
+% params
+NRep = 16;                                                                                                           % number of repetitions
+sz = [16,16];                                                                                                                   % image size
+T = 24;                                                                                           % set the number of time points in readout
+nmb_rand_restarts = 5;                                                                      % number of restarts with random initializations
+do_versbose = 0;                                                                         % additionally show learned Fourier basis functions
+
+% regularization parameters
+use_tanh_fieldcap = 1;                                                                     % limit the effective field to sz*[-1..1]/2 range
+lambda = 0*1e-6;                                                                                               % put L2 penalty on the field
 
 gtruth_m = load('../../data/phantom.mat'); gtruth_m = gtruth_m.phantom;
 gtruth_m = imresize(gtruth_m,sz);  % resize to something managable
-
+ 
+gtruth_m = fftfull(gtruth_m); gtruth_m(8:end,:) = 0; gtruth_m = ifftfull(gtruth_m);        % set some part of kspace to zero just for a test
+                                                                     
 % set the optimizer
 p = struct();
 nMVM = 200;  % number of optimization iterations
 p.length = -nMVM;
 p.method = 'LBFGS';
 
-T = 24; % set the number of time points in readout
-
 % set gradient spatial forms
 rampX = pi*linspace(-1,1,sz(1) + 1);
-rampX = fftshift(rampX(1:end-1),2);
+rampX = rampX(1:end-1);
 rampX = repmat(rampX.', [1, sz(2)]);
 
 rampY = pi*linspace(-1,1,sz(2) + 1);
-rampY = fftshift(rampY(1:end-1),2);
+rampY = rampY(1:end-1);
 rampY = repmat(rampY, [sz(1), 1]);
 
 % initialize reconstructed image
@@ -83,57 +96,60 @@ reco_m = zeros(sz);
 
 for rep = 1:NRep
   
-  % initialize gradients
-  g = zeros(T,2); g = g(:);  % initialize the gradients to all zeros
-  %g = zeros(T,2); g(:,1) = rand(T,1) - 0.5; g = g(:);
-
+  minerr = 1e8;
+  bestgrad = 0;
+  
   % compute the current error to ground-truth
   error_m = gtruth_m - reshape(reco_m,sz);
-
-  % do optimization for g of E(g), loss --> (||error_m - E.T*E*error_m||^2) 
-  args = {error_m, rampX, rampY};
-  [g,~] = minimize(g(:),'phi_grad_readout2d',p,args{:});
-  g = reshape(g,[],2);
   
-  %x = cumsum(x, 1);
-  figure(1), plot(g); title(['learned gradients at repetition ', num2str(rep), ' blue - grad X, orange - grad Y']); xlabel('time'); ylabel('gradient strength');
+  for rnd_restart = 1:nmb_rand_restarts
+    
+    % initialize gradients
+    %g = zeros(T,2); g = g(:);                                                                       % initialize the gradients to all zeros
+    %g = zeros(T,2); g(:,1) = rand(T,1) - 0.5; g = g(:);
+    g = rand(T,2) - 0.5; g = g(:);                                                                                % good for random restarts
+
+    % do optimization for g of E(g), loss --> (||error_m - E.T*E*error_m||^2 + lambda*||cumsum(g)||^2) 
+    args = {error_m, rampX, rampY,sz,lambda,use_tanh_fieldcap};
+    [g,phi] = minimize(g(:),'phi_grad_readout2d',p,args{:});
+    
+    % select the gradients with the lowest loss achieved
+    phi = phi(end);
+    if phi < minerr
+      bestgrad = g;
+      minerr = phi;
+    end
+  end
  
-  % forward pass to compute the prediction and the operator
-  [~,~,reco_current,E] = phi_grad_readout2d(g(:),args{:});
+  % forward pass to compute the prediction, field and gradients
+  [~,~,reco_current,E,field,grads] = phi_grad_readout2d(bestgrad(:),args{:});
+  
+  figure(1), plot(grads); title(['learned gradients at repetition ', num2str(rep), ' blue - grad X, orange - grad Y']); xlabel('time'); ylabel('gradient strength (au)');
   
   % update the current reconstruction
   reco_m = reco_m + reshape(reco_current,sz);
 
   figure(2),
-    subplot(2,2,1), imagesc(abs(reshape(error_m,sz))); title('current iteration target to predict');
-    subplot(2,2,2), imagesc(abs(reshape(reco_current,sz))); title('current iteration prediction');
-    subplot(2,2,3), imagesc(abs(reco_m)); title(['curent reconstruction, error=',num2str(e(gtruth_m(:),reco_m(:)))]);
-    subplot(2,2,4), imagesc(abs(gtruth_m)); title('all iterations target to predict (final reco)');
- 
-  % plot samples k-space locations
-  field = cumsum(g,1);
-  figure(3),
-    E = reshape(E,[],sz(1),sz(2)); 
+    subplot(2,2,1), imagesc(abs(reshape(error_m,sz))); title(['repetition ',num2str(rep),' : target to predict']);
+    subplot(2,2,2), imagesc(abs(reshape(reco_current,sz))); title(['repetition ',num2str(rep),' :prediction']);
+    subplot(2,2,3), imagesc(abs(reco_m)); title(['repetition ',num2str(rep),' : reconstruction, error=',num2str(e(gtruth_m(:),reco_m(:)))]);
+    subplot(2,2,4), imagesc(abs(gtruth_m)); title('global target to predict (actual image)');
     
-    a = 0; b = 0;
-    kspace_loc = zeros(T,2);
-    for t = 1:T
-      basis_func = squeeze(E(t,:,:));
-      
-      % compute location of the peak in k-space (gives sampled k-space point)
-      spectrum = fftfull(basis_func);
-      spectrum = abs(spectrum);
-      
-      maxval = max(spectrum(:));
-      [a,b] = find(spectrum == maxval);
-      
-      kspace_loc(t,1) = a; kspace_loc(t,2) = b;
-    end
- 
-    % color code repetitions
-    c = ones(T,1)*rep;
-      hold on; scatter(kspace_loc(:,1), kspace_loc(:,2),[],c); axis([0,sz(1),0,sz(1)]); hold off; title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
+  E = reshape(E,[],sz(1),sz(2));
+  
+  if do_versbose
+    figure(10),
+      for t = 1:T
+        basis_func = fftshift(squeeze(E(t,:,:)));
+        subplot(4,6,t), imagesc(fftshift(angle(basis_func)));
+      end
+  end
 
+  % plot actual sampled kspace locations  
+  figure(5)
+  c = ones(T,1)*rep;                                                                                                % color code repetitions
+    hold on; scatter(field(:,2), field(:,1),[],c); hold off; axis([-8,8,-8,8]); title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
+      
   pause
   
 end
