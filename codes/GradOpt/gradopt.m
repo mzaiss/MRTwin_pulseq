@@ -1,5 +1,6 @@
 clear all; close all;
 
+addpath  ../SequenceSIM/3rdParty/pulseq-master/matlab/
 addpath optfnc
 
 % forward Fourier transform
@@ -74,7 +75,7 @@ lambda = 0*1e-6;                                                                
 gtruth_m = load('../../data/phantom.mat'); gtruth_m = gtruth_m.phantom;
 gtruth_m = imresize(gtruth_m,sz);  % resize to something managable
  
-gtruth_m = fftfull(gtruth_m); gtruth_m(8:end,:) = 0; gtruth_m = ifftfull(gtruth_m);        % set some part of kspace to zero just for a test
+%gtruth_m = fftfull(gtruth_m); gtruth_m(8:end,:) = 0; gtruth_m = ifftfull(gtruth_m);        % set some part of kspace to zero just for a test
                                                                      
 % set the optimizer
 p = struct();
@@ -93,6 +94,7 @@ rampY = repmat(rampY, [sz(1), 1]);
 
 % initialize reconstructed image
 reco_m = zeros(sz);
+all_grad = cell(NRep,1);                                                                         % learned gradients at all repetition steps
 
 for rep = 1:NRep
   
@@ -123,7 +125,7 @@ for rep = 1:NRep
  
   % forward pass to compute the prediction, field and gradients
   [~,~,reco_current,E,field,grads] = phi_grad_readout2d(bestgrad(:),args{:});
-  
+  all_grad{rep} = bestgrad;
   figure(1), plot(grads); title(['learned gradients at repetition ', num2str(rep), ' blue - grad X, orange - grad Y']); xlabel('time'); ylabel('gradient strength (au)');
   
   % update the current reconstruction
@@ -151,6 +153,82 @@ for rep = 1:NRep
     hold on; scatter(field(:,2), field(:,1),[],c); hold off; axis([-8,8,-8,8]); title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
       
   pause
-  
 end
+
+return
+
+%% plug learned gradients into the sequence constructor
+
+seqFilename = 'seq/learned_grad.seq';
+
+SeqOpts.resolution = sz;                                                                                                       % matrix size
+SeqOpts.FOV = sz;
+SeqOpts.TE = 10e-3;
+SeqOpts.TR = 3000e-3;
+SeqOpts.FlipAngle = pi/2;
+
+% init sequence and system
+seq = mr.Sequence();
+sys = mr.opts();
+
+% rf pulse
+rf = mr.makeBlockPulse(SeqOpts.FlipAngle,'Duration',1e-3);
+
+%gradients
+Nx = SeqOpts.resolution(1); Ny = SeqOpts.resolution(2);
+
+deltak=1/SeqOpts.FOV(1);
+dt=1e-3;
+riseTime = 5e-16; % use the same rise times for all gradients, so we can neglect them
+adc = mr.makeAdc(1,'Duration',dt,'Delay',riseTime);
+
+% TR delay (probably computet wrong..)
+delayTR=ceil((SeqOpts.TR)/seq.gradRasterTime)*seq.gradRasterTime;
+
+gradXevent=mr.makeTrapezoid('x','FlatArea',-24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+gradYevent=mr.makeTrapezoid('y','FlatArea',24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+
+% put blocks together
+for rep=1:NRep
+    seq.addBlock(rf);
+    
+    for kx = 1:T
+      learned_grads = reshape(all_grad{rep},[],2);
+      
+      gradXevent.amplitude=23.1481*learned_grads(kx,1);
+      gradYevent.amplitude=23.1481*learned_grads(kx,2);
+
+      seq.addBlock(gradXevent,gradYevent,adc);
+    end
+    
+    seq.addBlock(mr.makeDelay(delayTR))
+end
+
+%write sequence
+seq.write(seqFilename);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
