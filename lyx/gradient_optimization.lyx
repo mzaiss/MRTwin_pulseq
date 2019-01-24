@@ -454,6 +454,119 @@ Please note that the objective function
 \end_layout
 
 \begin_layout Subsubsection
+Multi-repetition training
+\end_layout
+
+\begin_layout Standard
+An alternative to an iterative repetition-by-repetition process is to use
+ a joint optimization procedure where the gradient forms in all repetitions
+ are optimized at once.
+ The algorithm then simplifies to:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float algorithm
+placement h
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Input:
+\series default
+ Target image 
+\begin_inset Formula $\boldsymbol{u}$
+\end_inset
+
+ of size 
+\begin_inset Formula $N=N_{x}\cdot N_{y}$
+\end_inset
+
+; 
+\begin_inset Formula $ramp_{x/y}$
+\end_inset
+
+ spatial gradient forms; 
+\begin_inset Formula $P$
+\end_inset
+
+ total number of repetitions.
+\end_layout
+
+\begin_layout Plain Layout
+
+\series bold
+Output:
+\series default
+ Temporal gradient forms 
+\begin_inset Formula ${\displaystyle \boldsymbol{G}_{x},\boldsymbol{G}_{y}}$
+\end_inset
+
+ in all repetitions.
+\end_layout
+
+\begin_layout Itemize
+Assume 
+\begin_inset Formula ${\displaystyle \boldsymbol{E_{g_{p}}=}exp(i(\boldsymbol{D}\boldsymbol{g}_{x,p}ramp_{x}^{T}+\boldsymbol{D}\boldsymbol{g}_{y,p}ramp_{y}^{T}))}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Assume matrices 
+\begin_inset Formula ${\displaystyle \boldsymbol{G}_{x},\boldsymbol{G}_{y}}$
+\end_inset
+
+ contain gradient forms 
+\begin_inset Formula $\boldsymbol{g}_{x/y,p}$
+\end_inset
+
+ in all repetitions
+\end_layout
+
+\begin_layout Itemize
+Find gradient forms 
+\begin_inset Formula $\boldsymbol{G}_{x},\boldsymbol{G}_{y}\leftarrow\arg\min_{\boldsymbol{G}_{x},\boldsymbol{G}_{y}}\:||\boldsymbol{u}-\sum_{p}^{P}\boldsymbol{E_{g_{p}}}^{H}\boldsymbol{E_{g_{p}}}\boldsymbol{m}||_{2}^{2}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Compute reconstructed image: 
+\begin_inset Formula $\boldsymbol{w}=\sum_{p}^{P}\boldsymbol{E_{g_{p}}}^{H}\boldsymbol{E}_{g_{p}}\boldsymbol{m}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "alg:Gradient-optimization-allrep"
+
+\end_inset
+
+Gradient optimization for all repetitions simultaneously
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
 Multi-image training
 \end_layout
 
@@ -501,7 +614,7 @@ It is easy to see that B0 field induced by the gradients is the time integral
 , where the sparsity penalty is put on the derivative.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Subsubsection
 Role of the initializations
 \end_layout
 
@@ -527,6 +640,81 @@ The proposed objective function is non-linear due to appearence of the optimized
  poor choices of the gradient forms in low resolution regime.
  Such auxiliary network can be then used to efficiently filter potentially
  degenerate initializations that are to be used in higher resolution settings.
+\end_layout
+
+\begin_layout Subsubsection
+Dealing with k-space samples above Nyquist frequency
+\end_layout
+
+\begin_layout Standard
+Since the term 
+\begin_inset Formula $B_{grad}=\int_{t_{1}}^{Ta}(G_{x}(\boldsymbol{r},t)+G_{y}(\boldsymbol{r},t))dt$
+\end_inset
+
+ in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "Eq1.  continuous model"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ can grow arbitrary large depending on the gradient amplitudes it can result
+ in basis functions 
+\begin_inset Formula $exp(iB_{grad})$
+\end_inset
+
+ having the spatial frequency above Nyquist.
+ If such gradients are used in the actualy measurement the resulting sampled
+ k-space locations would be of the frequency too high to be useful for reconstru
+ction the image at a given target resolution.
+ Also at some point with overly large 
+\begin_inset Formula $B_{grad}$
+\end_inset
+
+ intravoxel dephasing and signal loss can occur.
+ On the contrary, during the simulations large 
+\begin_inset Formula $B_{grad}$
+\end_inset
+
+ values result in the errors when computing discrete versions of Fourier
+ basis functions 
+\begin_inset Formula $exp(iB_{grad})$
+\end_inset
+
+.
+ Such errors are paradoxically beneficial to reconstructions, since the
+ resulting numerical jitter forms additional basis functions filled with
+ semirandom coefficients (subject to numerical instability).
+ In other words, the optimizer might actually prefer to travel away from
+ the (central) k-space region that is meaningful to get an advantage of
+ encoding with random projections.
+ Since the trained gradient forms will be essentially useless for actual
+ measurements, it is necessary to constrain the optimization process to
+ a certain range of the spatial frequencies.
+ A simple way to achieve this task is to augment the operator with a smooth
+ bounding function, which we choose to be hyperbolic tan 
+\begin_inset Formula ${\displaystyle \boldsymbol{E_{g}=}exp(i(\frac{N_{x}}{2}tanh(\boldsymbol{D}\boldsymbol{g}_{x})ramp_{x}^{T}+\frac{N_{y}}{2}tanh(\boldsymbol{D}\boldsymbol{g}_{y})ramp_{y}^{T}))}$
+\end_inset
+
+.
+ Please note that the function is still differentiable in 
+\begin_inset Formula $\boldsymbol{g}$
+\end_inset
+
+.
+ Since 
+\begin_inset Formula $tanh$
+\end_inset
+
+ function has a range of [-1..1] we multiply its output with half the image
+ size 
+\begin_inset Formula $\frac{N_{x}}{2}$
+\end_inset
+
+ to get the desired range of kspace locations.
 \end_layout
 
 \begin_layout Subsection
