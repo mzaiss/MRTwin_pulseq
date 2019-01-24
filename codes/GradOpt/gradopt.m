@@ -1,3 +1,5 @@
+% TODO: ADC masking
+
 clear all; close all;
 
 addpath  ../SequenceSIM/3rdParty/pulseq-master/matlab/
@@ -25,6 +27,8 @@ rampY = pi*linspace(-1,1,sz(2) + 1);
 rampY = rampY(1:end-1);
 rampY = repmat(rampY, [sz(1), 1]);
 
+adc_mask = ones(T,1); adc_mask(1:2) = 0;
+
 % initialize gradients (X/Y directions)
 g = rand(T,2); g = g(:);
 
@@ -35,7 +39,7 @@ use_tanh_fieldcap = 1;                                                          
 lambda = 0*1e-2;
 
 % pack the parameters for the gradient function
-args = {m, rampX, rampY,sz,lambda,use_tanh_fieldcap};
+args = {m,rampX,rampY,adc_mask,sz,lambda,use_tanh_fieldcap};
 [phi,dg_ana] = phi_grad_readout2d(g(:),args{:}); % compute loss and analytical derivatives
 
 % compute numerical derivatives
@@ -83,6 +87,9 @@ nMVM = 200;  % number of optimization iterations
 p.length = -nMVM;
 p.method = 'LBFGS';
 
+% set ADC mask
+adc_mask = ones(T,1); adc_mask(1:6) = 0;
+
 % set gradient spatial forms
 rampX = pi*linspace(-1,1,sz(1) + 1);
 rampX = rampX(1:end-1);
@@ -112,7 +119,7 @@ for rep = 1:NRep
     g = rand(T,2) - 0.5; g = g(:);                                                                                % good for random restarts
 
     % do optimization for g of E(g), loss --> (||error_m - E.T*E*error_m||^2 + lambda*||cumsum(g)||^2) 
-    args = {error_m, rampX, rampY,sz,lambda,use_tanh_fieldcap};
+    args = {error_m,rampX,rampY,adc_mask,sz,lambda,use_tanh_fieldcap};
     [g,phi] = minimize(g(:),'phi_grad_readout2d',p,args{:});
     
     % select the gradients with the lowest loss achieved
@@ -159,10 +166,12 @@ return
 
 %% plug learned gradients into the sequence constructor
 
+NRep = 2;
+
 seqFilename = 'seq/learned_grad.seq';
 
 SeqOpts.resolution = sz;                                                                                                       % matrix size
-SeqOpts.FOV = sz;
+SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 10e-3;
 SeqOpts.TR = 3000e-3;
 SeqOpts.FlipAngle = pi/2;
@@ -177,9 +186,9 @@ rf = mr.makeBlockPulse(SeqOpts.FlipAngle,'Duration',1e-3);
 %gradients
 Nx = SeqOpts.resolution(1); Ny = SeqOpts.resolution(2);
 
-deltak=1/SeqOpts.FOV(1);
+deltak=1/SeqOpts.resolution(1);
 dt=1e-3;
-riseTime = 5e-16; % use the same rise times for all gradients, so we can neglect them
+riseTime = 5e-5; % use the same rise times for all gradients, so we can neglect them
 adc = mr.makeAdc(1,'Duration',dt,'Delay',riseTime);
 
 % TR delay (probably computet wrong..)
@@ -206,6 +215,8 @@ end
 
 %write sequence
 seq.write(seqFilename);
+
+seq.plot();
 
 
 

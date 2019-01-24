@@ -20,7 +20,7 @@
 % field - integral (cumsum) over the gradients
 % effective gradients (computed as finite derivative of the field)
 
-function [phi,dg,prediction,E,field,grads] = phi_grad_readout2d(g,m,rampX,rampY,sz,lambda,use_tanh_fieldcap)
+function [phi,dg,prediction,E,field,grads] = phi_grad_readout2d(g,m,rampX,rampY,adc_mask,sz,lambda,use_tanh_fieldcap)
 
 g = reshape(g,[],2);
 
@@ -63,6 +63,8 @@ B0 = B0X + B0Y;
 
 % encoding operator (ignore relaxation)
 E = exp(1i*B0);
+
+E = E .* adc_mask;
 
 % compute loss
 prediction = (E'*E)*m / nfact;
