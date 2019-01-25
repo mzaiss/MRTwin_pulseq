@@ -2,7 +2,8 @@
 
 clear all; close all;
 
-addpath  ../SequenceSIM/3rdParty/pulseq-master/matlab/
+addpath ls 
+addpath  ../SequenceSIM
 addpath optfnc
 
 % forward Fourier transform
@@ -68,7 +69,7 @@ close all;
 % params
 NRep = 16;                                                                                                           % number of repetitions
 sz = [16,16];                                                                                                                   % image size
-T = 24;                                                                                           % set the number of time points in readout
+T = 16;                                                                                           % set the number of time points in readout
 nmb_rand_restarts = 5;                                                                      % number of restarts with random initializations
 do_versbose = 0;                                                                         % additionally show learned Fourier basis functions
 
@@ -88,7 +89,7 @@ p.length = -nMVM;
 p.method = 'LBFGS';
 
 % set ADC mask
-adc_mask = ones(T,1); adc_mask(1:6) = 0;
+adc_mask = ones(T,1); %adc_mask(1:6) = 0;
 
 % set gradient spatial forms
 rampX = pi*linspace(-1,1,sz(1) + 1);
@@ -102,6 +103,8 @@ rampY = repmat(rampY, [sz(1), 1]);
 % initialize reconstructed image
 reco_m = zeros(sz);
 all_grad = cell(NRep,1);                                                                         % learned gradients at all repetition steps
+
+E_allrep = cell(NRep,1);
 
 for rep = 1:NRep
   
@@ -132,7 +135,7 @@ for rep = 1:NRep
  
   % forward pass to compute the prediction, field and gradients
   [~,~,reco_current,E,field,grads] = phi_grad_readout2d(bestgrad(:),args{:});
-  all_grad{rep} = bestgrad;
+  all_grad{rep} = grads;
   figure(1), plot(grads); title(['learned gradients at repetition ', num2str(rep), ' blue - grad X, orange - grad Y']); xlabel('time'); ylabel('gradient strength (au)');
   
   % update the current reconstruction
@@ -145,6 +148,8 @@ for rep = 1:NRep
     subplot(2,2,4), imagesc(abs(gtruth_m)); title('global target to predict (actual image)');
     
   E = reshape(E,[],sz(1),sz(2));
+  
+  E_allrep{rep} = E;
   
   if do_versbose
     figure(10),
@@ -159,7 +164,7 @@ for rep = 1:NRep
   c = ones(T,1)*rep;                                                                                                % color code repetitions
     hold on; scatter(field(:,2), field(:,1),[],c); hold off; axis([-8,8,-8,8]); title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
       
-  pause
+  %pause
 end
 
 return
@@ -194,18 +199,34 @@ adc = mr.makeAdc(1,'Duration',dt,'Delay',riseTime);
 % TR delay (probably computet wrong..)
 delayTR=ceil((SeqOpts.TR)/seq.gradRasterTime)*seq.gradRasterTime;
 
-gradXevent=mr.makeTrapezoid('x','FlatArea',-24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
-gradYevent=mr.makeTrapezoid('y','FlatArea',24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+
+% learned_grads are implicitly gradients of 1s length
+%grad_moms = learned_grads * 1; % 1s
+
+clear gradXevent gradYevent
+
+gradXevent=mr.makeTrapezoid('x','FlatArea',-deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+gradYevent=mr.makeTrapezoid('y','FlatArea',deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+
+flatArea = abs(gradXevent.flatArea);
+
+NRep = 16;
 
 % put blocks together
 for rep=1:NRep
     seq.addBlock(rf);
     
+    learned_grads = reshape(all_grad{rep},[],2);
+    grad_moms = cumsum(learned_grads,1) * 1; % 1s
+    
+    
     for kx = 1:T
-      learned_grads = reshape(all_grad{rep},[],2);
       
-      gradXevent.amplitude=23.1481*learned_grads(kx,1);
-      gradYevent.amplitude=23.1481*learned_grads(kx,2);
+      %gradXevent=mr.makeTrapezoid('x','FlatArea',flatArea*grad_moms(kx,1),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+      %gradYevent=mr.makeTrapezoid('y','FlatArea',flatArea*grad_moms(kx,2),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+      
+      gradXevent.amplitude=23.1481*grad_moms(kx,1)/8 ;
+      gradYevent.amplitude=23.1481*grad_moms(kx,2)/8;
 
       seq.addBlock(gradXevent,gradYevent,adc);
     end
@@ -218,17 +239,87 @@ seq.write(seqFilename);
 
 seq.plot();
 
+%%
+PD = phantom(sz(1));
+
+PD = abs(gtruth_m);
+
+PD(PD<0) = 0;
+T1 = 1e6*PD*2; T1(:) = 1e3;
+T2 = 1e6*PD*2; T2(:) = 1e3;
+InVol = double(cat(3,PD,T1,T2));
+
+numSpins = 1;
+
+[kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
+
+
+kList = reshape(kList, [NRep, T]);
+
+
+reco = 0;
+
+for rep = 1:NRep
+  
+  E = E_allrep{rep};
+  E = reshape(E, T, []);
+  
+  y = kList(rep,:).';
+  
+  %y = E*gtruth_m(:);
+  
+  reco = reco + E'*y;
+  
+end
+
+figure(1), imagesc(abs(reshape(reco,sz)));
+
+
+%%
+
+close all
+
+PD = phantom(sz(1));
+
+PD = abs(gtruth_m);
+
+PD(PD<0) = 0;
+T1 = 1e6*PD*2; T1(:) = 1e3;
+T2 = 1e6*PD*2; T2(:) = 1e3;
+InVol = double(cat(3,PD,T1,T2));
+
+numSpins = 1;
+[kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
+
+resolution = sz(1);
 
 
 
+kList(isnan(kList))=0;
+gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
+
+[X,Y] = meshgrid(1:resolution);
+
+kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) +1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
+kReco(isnan(kReco))=0;
 
 
+figure, imagesc(abs(fft2(fftshift(kReco))));
 
+figure, plot(gradMoms(1,:),gradMoms(2,:)); title('gradMoms');
+figure, plot(gradMomsScaled(1,:),gradMomsScaled(2,:)); title('gradMomsScaled');
 
+%{
+figure(2), subplot(3,2,1), imagesc(abs(kReco),[0 200]);
+subplot(3,2,2), imagesc(abs(kRef),[0 200]);
+subplot(3,2,4), imagesc(abs(ifft2(fftshift(kRef))),[0 2]);
 
+subplot(3,2,5), plot(gradMomsScaled(1,:),gradMomsScaled(2,:));
+subplot(3,2,6),scatter3(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList))
+drawnow;
+clc   
 
-
-
+%}
 
 
 

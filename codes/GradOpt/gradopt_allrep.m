@@ -65,7 +65,7 @@ fprintf('deriv-err=%1.3f%%\n',e(dx_num,dg_ana(:)))
 %close all;
 
 % params
-NRep = 4;                                                                                                           % number of repetitions
+NRep = 8;                                                                                                           % number of repetitions
 sz = [16,16];                                                                                                                   % image size
 T = 24;                                                                                           % set the number of time points in readout
 nmb_rand_restarts = 15;                                                                      % number of restarts with random initializations
@@ -78,7 +78,7 @@ lambda = 0*1e-6;                                                                
 gtruth_m = load('../../data/phantom.mat'); gtruth_m = gtruth_m.phantom;
 gtruth_m = imresize(gtruth_m,sz);  % resize to something managable
  
-gtruth_m = fftfull(gtruth_m); gtruth_m(8:end,:) = 0; gtruth_m = ifftfull(gtruth_m);        % set some part of kspace to zero just for a test
+%gtruth_m = fftfull(gtruth_m); gtruth_m(8:end,:) = 0; gtruth_m = ifftfull(gtruth_m);        % set some part of kspace to zero just for a test
                                                                      
 % set the optimizer
 p = struct();
