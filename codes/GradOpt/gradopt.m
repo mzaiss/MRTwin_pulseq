@@ -199,7 +199,6 @@ adc = mr.makeAdc(1,'Duration',dt,'Delay',riseTime);
 % TR delay (probably computet wrong..)
 delayTR=ceil((SeqOpts.TR)/seq.gradRasterTime)*seq.gradRasterTime;
 
-
 % learned_grads are implicitly gradients of 1s length
 %grad_moms = learned_grads * 1; % 1s
 
@@ -217,16 +216,15 @@ for rep=1:NRep
     seq.addBlock(rf);
     
     learned_grads = reshape(all_grad{rep},[],2);
-    grad_moms = cumsum(learned_grads,1) * 1; % 1s
-    
+    grad_moms = cumsum(learned_grads,1) * 1;      % 1s
     
     for kx = 1:T
       
       %gradXevent=mr.makeTrapezoid('x','FlatArea',flatArea*grad_moms(kx,1),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
       %gradYevent=mr.makeTrapezoid('y','FlatArea',flatArea*grad_moms(kx,2),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
       
-      gradXevent.amplitude=23.1481*grad_moms(kx,1)/8 ;
-      gradYevent.amplitude=23.1481*grad_moms(kx,2)/8;
+      gradXevent.amplitude=69.4444*grad_moms(kx,1);
+      gradYevent.amplitude=69.4444*grad_moms(kx,2);
 
       seq.addBlock(gradXevent,gradYevent,adc);
     end
@@ -280,8 +278,7 @@ figure(1), imagesc(abs(reshape(reco,sz)));
 close all
 
 PD = phantom(sz(1));
-
-PD = abs(gtruth_m);
+% PD = abs(gtruth_m) ;
 
 PD(PD<0) = 0;
 T1 = 1e6*PD*2; T1(:) = 1e3;
@@ -293,8 +290,6 @@ numSpins = 1;
 
 resolution = sz(1);
 
-
-
 kList(isnan(kList))=0;
 gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
 
@@ -302,7 +297,6 @@ gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
 
 kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) +1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
 kReco(isnan(kReco))=0;
-
 
 figure, imagesc(abs(fft2(fftshift(kReco))));
 
