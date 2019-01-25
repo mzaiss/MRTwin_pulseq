@@ -133,6 +133,7 @@ for ii=1:48
 end
 
 figure,imagesc(Q);
+% Q = randn(length(states), length(actions_x)*length(actions_y)); % Q is length(x1) x length(x2) x length(actions) - IE a bin for every action-state combination.
 
 
 %% Start learning!
@@ -148,17 +149,17 @@ for episodes = 1:maxEpi
     
     seq.addBlock(rf); % start sequence with 90deg excitation
     Nx = resolution;
-    deltak = 1./resolution;
+    deltak = 1./SeqOpts.FOV ;
     riseTime = 5e-5; % use the same rise times for all gradients, so we can neglect them
         
-    gradXevent=mr.makeTrapezoid('x','FlatArea',-24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
-    gradYevent=mr.makeTrapezoid('y','FlatArea',24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+    gradXevent=mr.makeTrapezoid('x','Area',-resolution/2*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+    gradYevent=mr.makeTrapezoid('y','area',resolution/2*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
     % add PULSEQ block of gradient rewinder
     seq.addBlock(gradXevent,gradYevent);  
     
     % prepare updateable events
-    gradXevent=mr.makeTrapezoid('x','FlatArea',0*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
-    gradYevent=mr.makeTrapezoid('y','FlatArea',0*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+    gradXevent=mr.makeTrapezoid('x','area',0*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+    gradYevent=mr.makeTrapezoid('y','area',0*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
     % always have the ADC open during any gradient.
     adc = mr.makeAdc(1,'Duration',dt,'Delay',riseTime); %FG: TODO: number?
         
@@ -200,8 +201,8 @@ for episodes = 1:maxEpi
         gy = actions_y(iy);  % calculate the gradient in y
         
         % generate PULSEQ events
-         gradXevent.amplitude=gx*23.1481;
-         gradYevent.amplitude=gy*23.1481;
+         gradXevent.amplitude=gx*4.5455e+03;
+         gradYevent.amplitude=gy*4.5455e+03;
          
 %          if (mod(g,1000)==1)
 %          seq.addBlock(rf); % start sequence with 5deg excitation

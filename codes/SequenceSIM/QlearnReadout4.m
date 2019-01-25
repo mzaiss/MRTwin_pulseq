@@ -3,6 +3,8 @@ function QlearnMRIzero
 % for single k-space readout
 clear all
 close all;
+clc
+
 
 %% create Input image (N,N,3)
 % (:,:,1) -> PD
@@ -24,9 +26,11 @@ SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 10e-3;
 SeqOpts.TR = 3000e-3;
 SeqOpts.FlipAngle = pi/2;
-seqFilename = fullfile(pwd, 'gre.seq');
+seqFilename = fullfile(pwd, 'epi.seq');
 
-sequence = WriteGRESequenceWithPulseq(SeqOpts, seqFilename);
+% sequence = WriteGRESequenceWithPulseq(SeqOpts, seqFilename);
+sequence = WriteEPI2SequenceWithPulseq(SeqOpts, seqFilename);
+
 sequence.plot();
 %FG: reference sequence: gre.seq
 % we use the outcome of the standard linear reorderd GRE as a reference k-space and image
@@ -38,6 +42,14 @@ end
 toc
 kRef = reshape(kList,[resolution resolution]);
 
+
+figure(2), 
+        subplot(3,2,1), imagesc(PD);
+        subplot(3,2,3), imagesc(T1);
+        subplot(3,2,5), imagesc(T2);
+        subplot(3,2,2), imagesc(abs(kRef),[0 200]);
+        subplot(3,2,4), imagesc(abs(ifft2(fftshift(kRef))),[0 2]);
+       
 
 
 %% SETTINGS
@@ -133,7 +145,9 @@ for ii=1:48
 end
 
 figure,imagesc(Q);
- Q = randn(length(states), length(actions_x)*length(actions_y)); % Q is length(x1) x length(x2) x length(actions) - IE a bin for every action-state combination.
+%  Q = randn(length(states), length(actions_x)*length(actions_y)); % Q is length(x1) x length(x2) x length(actions) - IE a bin for every action-state combination.
+ 
+%  Q = zeros(length(states), length(actions_x)*length(actions_y)); % Q is length(x1) x length(x2) x length(actions) - IE a bin for every action-state combination.
 
 
 %% Start learning!
