@@ -4,9 +4,26 @@ Uses pulseq tool (MIT license)
 
 compile mex files in matlab:
 
-mex -I3rdParty\eigen-eigen-5a0156e40feb -I3rdParty\pulseq-master\src RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp 3rdParty\pulseq-master\src\ExternalSequence.cpp
+Windows:
 
-mex CXXOPTIMFLAGS="\$CXXOPTIMFLAGS -O3" -I3rdParty\eigen-eigen-5a0156e40feb -I3rdParty\pulseq-master\src\ RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp 3rdParty\pulseq-master\src\ExternalSequence.cpp -output RunMRIzeroBlochSimulationNSpins
+  mex -I3rdParty\eigen-eigen-5a0156e40feb -I3rdParty\pulseq-master\src RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp 3rdParty\pulseq-master\src\ExternalSequence.cpp
+
+  mex CXXOPTIMFLAGS="\$CXXOPTIMFLAGS -O3" -I3rdParty\eigen-eigen-5a0156e40feb -I3rdParty\pulseq-master\src\ RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp 3rdParty\pulseq-master\src\ExternalSequence.cpp -output RunMRIzeroBlochSimulationNSpins
+
+Linux 64-bit (gcc-4.7):
+
+  mex -I$MATLAB_PATH/extern/include/ -L$MATLAB_PATH/bin/glnxa64 -I3rdParty/eigen-eigen-5a0156e40feb/Eigen/src/ -I3rdParty/pulseq-master/src/ RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp 3rdParty/pulseq-master/src/ExternalSequence.cpp
+
+  mex CXXOPTIMFLAGS="\$CXXOPTIMFLAGS -O3" -I$MATLAB_PATH/extern/include/ -L$MATLAB_PATH/bin/glnxa64 -I3rdParty/eigen-eigen-5a0156e40feb/Eigen/src/ -I3rdParty/pulseq-master/src/ RunMRIzeroBlochSimulation.cpp BlochSimulator.cpp 3rdParty/pulseq-master/src/ExternalSequence.cpp -output RunMRIzeroBlochSimulationNSpins
+
+  in all .cpp/.h files using Eigen lib change: 
+  
+  #include "Eigen\eigen"
+  to:
+  #include "Eigen/Core"
+  #include <Eigen/Geometry>
+
+  add #include <stdint.h> in BlochSimulator.h
 
 call with:
 
