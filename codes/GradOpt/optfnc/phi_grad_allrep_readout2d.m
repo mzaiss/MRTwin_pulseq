@@ -20,7 +20,7 @@
 % grad_moms - integral (cumsum) over the gradients
 % effective gradients (computed as finite derivative of the grad_moms)
 
-function [phi,tdg,prediction,E,grad_moms,grads] = phi_grad_allrep_readout2d(g,m,rampX,rampY,adc_mask,sz,NRep,lambda,use_tanh_grad_moms_cap,use_gpu)
+function [phi,tdg,prediction,E_all_rep,grad_moms,grads] = phi_grad_allrep_readout2d(g,m,rampX,rampY,adc_mask,sz,NRep,lambda,use_tanh_grad_moms_cap,use_gpu)
 
 if use_gpu
   g = gpuArray(single(g));
@@ -47,6 +47,8 @@ tdg = zeros(NRep,2*T);
 prediction = 0;
 
 grads = cell(NRep,1);
+E_all_rep = cell(NRep,1);
+
 for rep = 1:NRep
 
   % integrate over time to get grad_moms from the gradients
@@ -64,7 +66,7 @@ for rep = 1:NRep
     end
   end
 
-  grads{rep} = diff(cat(1,[0,0],grad_moms),1,1);                    % actual gradient forms are the derivative of grad_moms (inverse cumsum)
+  grads{rep} = gather(diff(cat(1,[0,0],grad_moms),1,1));                    % actual gradient forms are the derivative of grad_moms (inverse cumsum)
 
   % compute the B0 by adding gradients in X/Y after multiplying them respective ramps
   B0X = grad_moms(:,1) * rampX; B0Y = grad_moms(:,2) * rampY;
@@ -75,6 +77,8 @@ for rep = 1:NRep
   E = exp(1i*B0);
   
   E = E .* adc_mask;
+  
+  E_all_rep{rep} = gather(E);
   
   % compute loss
   prediction = prediction + (E'*E)*m / nfact;
