@@ -177,13 +177,12 @@ return
 %% plug learned gradients into the sequence constructor
 % close all
 NRep = 2;
-
 seqFilename = 'seq/learned_grad.seq';
 
 SeqOpts.resolution = sz;                                                                                                       % matrix size
 SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 10e-3;
-SeqOpts.TR = 3000e-3;
+SeqOpts.TR = 10000e-3;
 SeqOpts.FlipAngle = pi/2;
 
 % init sequence and system
@@ -213,33 +212,32 @@ clear gradXevent gradYevent
 gradXevent=mr.makeTrapezoid('x','FlatArea',-deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
 gradYevent=mr.makeTrapezoid('y','FlatArea',deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
 
-
 amplitude = abs(gradXevent.amplitude);
 
 NRep = 16;
+
 
 % put blocks together
 for rep=1:NRep
     seq.addBlock(rf);
     
-    learned_grads = reshape(all_grad{rep},[],2);
-    
+%     learned_grads = reshape(all_grad{rep},[],2);
 %     grad_moms = cumsum(learned_grads,1) * 1; % 1s
     
-    grad_moms = learned_grads * 1; % 1s
+    learned_grads=learned_grads * 1; % 1s
+    
         
-    figure(11), scatter(grad_moms(:,1),grad_moms(:,2)); title('gradmoms'); hold on;
+    figure(11), scatter(learned_grads(:,1),learned_grads(:,2)); title('gradmoms'); hold on;
     cum_grad_moms = cumsum([learned_grads],1) * 1; % 1s
-     figure(111), scatter(cum_grad_moms(:,2)+8,cum_grad_moms(:,1)+8,'Displayname','from BlochSim'); title('cumgradmoms'); hold on;
+    figure(111), scatter(cum_grad_moms(:,2)+sz(1)/2,cum_grad_moms(:,1)+sz(1)/2,'Displayname','from BlochSim'); title('cumgradmoms'); hold on;
     
     for kx = 1:T
       
       %gradXevent=mr.makeTrapezoid('x','FlatArea',flatArea*grad_moms(kx,1),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
       %gradYevent=mr.makeTrapezoid('y','FlatArea',flatArea*grad_moms(kx,2),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
       
-      
-      gradXevent.amplitude=grad_moms(kx,1)*4.5455e+03;
-      gradYevent.amplitude=grad_moms(kx,2)*4.5455e+03;
+      gradXevent.amplitude=learned_grads(kx,1)*amplitude;
+      gradYevent.amplitude=learned_grads(kx,2)*amplitude;
 
       seq.addBlock(gradXevent,gradYevent,adc);
     end
@@ -258,16 +256,15 @@ seq.plot();
 % close all
 
 PD = phantom(sz(1));
-
-PD = abs(gtruth_m);
+% PD = abs(gtruth_m);
 
 PD(PD<0) = 0;
-T1 = 1e6*PD*2; T1(:) = 0.1;
-T2 = 1e6*PD*2; T2(:) = 100;
+T1 = 1e6*PD*2; T1(:) = 1;
+T2 = 1e6*PD*2; T2(:) = 1;
 InVol = double(cat(3,PD,T1,T2));
 
 numSpins = 1;
-[kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
+[kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
 
 resolution = sz(1);
 
@@ -277,15 +274,11 @@ gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
 [X,Y] = meshgrid(1:resolution);
 
 kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) +1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
-
 % kReco = griddata(field(:,1),field(:,2),real(kList),X,Y) +1j*griddata(field(:,1),field(:,2),imag(kList),X,Y) ;
-
 kReco(isnan(kReco))=0;
 
-figure, imagesc(abs(fft2(fftshift(kReco))));
-
-figure, scatter(gradMoms(1,:),gradMoms(2,:)); title('gradMoms');
-
+figure, subplot(2,2,1), imagesc(abs(fft2(fftshift(kReco))));
+subplot(2,2,2), scatter(gradMoms(1,:),gradMoms(2,:)); title('gradMoms');
 figure(111), scatter(gradMomsScaled(2,:),gradMomsScaled(1,:),'.'); title('gradMomsScaled: circles from cumsum(g), dots from BlochSim');
 
 %{
@@ -300,7 +293,6 @@ clc
 
 %}
 
-
 %%  E'E
 PD1 = phantom(sz(1));
 
@@ -314,7 +306,6 @@ InVol = double(cat(3,PD,T1,T2));
 numSpins = 1;
 
 [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
-
 
 kList = reshape(kList, [NRep, T]);
 
@@ -340,13 +331,158 @@ figure(1), imagesc(abs(reshape(reco,sz)));
 
 
 
+%% pulseq TEST
+% Sequence Parameters
+SeqOpts.resolution = resolution;
+SeqOpts.FOV = 220e-3;
+SeqOpts.TE = 10e-3;
+SeqOpts.TR = 3000e-3;
+SeqOpts.FlipAngle = pi/2;
+seqFilename = fullfile(pwd, 'epi.seq');
+
+% sequence = WriteGRESequenceWithPulseq(SeqOpts, seqFilename);
+sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
+
+sequence.plot();
+%FG: reference sequence: gre.seq
+% we use the outcome of the standard linear reorderd GRE as a reference k-space and image
+
+PD = phantom(sz(1));
+
+PD(PD<0) = 0;
+T1 = 1e6*PD*2; T1(:) = 1;
+T2 = 1e6*PD*2; T2(:) = 100;
+InVol = double(cat(3,PD,T1,T2));
+
+  tic
+        [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename,5);
+        toc
+        
+        kList(isnan(kList))=0;
+        gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
+        
+        [Y,X] = meshgrid(1:resolution);
+%         [Xq,Yq] = meshgrid(1:0.5:resolution);
+%          kRefInterp = interp2(X,Y,kRef,gradMomsEnd(1), gradMomsEnd(2));
+%         kRefInterp2 = interp2(X,Y,kRef,Xq, Yq);
+               
+        kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) -1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
+        kReco(isnan(kReco))=0;
+
+        figure(), subplot(3,2,1), imagesc(abs(kReco),[0 200]);
+               subplot(3,2,3), imagesc(abs(fft2(fftshift(kReco))),[0 500]); 
+        subplot(3,2,5), plot(gradMomsScaled(1,:),gradMomsScaled(2,:));
+        subplot(3,2,6),scatter3(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList))
+       
+
+%% TEST pulseq and learngrads
+
+%  plug learned gradients into the sequence constructor
+% close all
+NRep = 2;
+sz = [32,32];   
+seqFilename = 'seq/learned_grad.seq';
+
+SeqOpts.resolution = sz;                                                                                                       % matrix size
+SeqOpts.FOV = 220e-3;
+SeqOpts.TE = 10e-3;
+SeqOpts.TR = 10000e-3;
+SeqOpts.FlipAngle = pi/2;
+
+% init sequence and system
+seq = mr.Sequence();
+sys = mr.opts();
+
+% rf pulse
+rf = mr.makeBlockPulse(SeqOpts.FlipAngle,'Duration',1e-3);
+
+%gradients
+Nx = SeqOpts.resolution(1); Ny = SeqOpts.resolution(2);
+
+deltak=1/SeqOpts.FOV;
+dt=1e-3;
+riseTime = 10e-36; % use the same rise times for all gradients, so we can neglect them
+adc = mr.makeAdc(1,'Duration',dt,'Delay',riseTime);
+
+% TR delay (probably computet wrong..)
+delayTR=ceil((SeqOpts.TR)/seq.gradRasterTime)*seq.gradRasterTime;
+
+% learned_grads are implicitly gradients of 1s length
+%grad_moms = learned_grads * 1; % 1s
+
+clear gradXevent gradYevent
+
+gradXevent=mr.makeTrapezoid('x','FlatArea',-deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+gradYevent=mr.makeTrapezoid('y','FlatArea',deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+
+amplitude = abs(gradXevent.amplitude);
 
 
 
+NRep = 32;                                                                                                           % number of repetitions
+ T=32;
+% put blocks together
+for rep=1:NRep
+    seq.addBlock(rf);
+    
+%     learned_grads = reshape(all_grad{rep},[],2);
+%     grad_moms = cumsum(learned_grads,1) * 1; % 1s
+    
+    learned_grads=learned_grads * 1; % 1s
+    
+    grad_moms(:,1) = linspace(-sz(1)/2,sz(1)/2,sz(1));
+    grad_moms(:,2) = ones(sz(1),1)*(rep-sz(1)/2);
+    learned_grads = diff(cat(1,[0,0],grad_moms),1);
+        
+    figure(11), scatter(learned_grads(:,1),learned_grads(:,2)); title('gradmoms'); hold on;
+    cum_grad_moms = cumsum([learned_grads],1) * 1; % 1s
+    figure(111), scatter(cum_grad_moms(:,2)+sz(1)/2,cum_grad_moms(:,1)+sz(1)/2,'Displayname','from BlochSim'); title('cumgradmoms'); hold on;
+    
+    for kx = 1:T
+      
+      %gradXevent=mr.makeTrapezoid('x','FlatArea',flatArea*grad_moms(kx,1),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+      %gradYevent=mr.makeTrapezoid('y','FlatArea',flatArea*grad_moms(kx,2),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+      
+      gradXevent.amplitude=learned_grads(kx,1)*amplitude;
+      gradYevent.amplitude=learned_grads(kx,2)*amplitude;
+
+      seq.addBlock(gradXevent,gradYevent,adc);
+    end
+    
+    seq.addBlock(mr.makeDelay(delayTR))
+end
+
+%write sequence
+seq.write(seqFilename);
+
+seq.plot();
 
 
 
+PD = phantom(sz(1));
 
+PD(PD<0) = 0;
+T1 = 1e6*PD*2; T1(:) = 1;
+T2 = 1e6*PD*2; T2(:) = 100;
+InVol = double(cat(3,PD,T1,T2));
 
+  tic
+        [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename,5);
+        toc
+        
+        kList(isnan(kList))=0;
+        gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
+        
+        [Y,X] = meshgrid(1:resolution);
+%         [Xq,Yq] = meshgrid(1:0.5:resolution);
+%          kRefInterp = interp2(X,Y,kRef,gradMomsEnd(1), gradMomsEnd(2));
+%         kRefInterp2 = interp2(X,Y,kRef,Xq, Yq);
+               
+        kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) -1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
+        kReco(isnan(kReco))=0;
 
-
+        figure(), subplot(3,2,1), imagesc(abs(kReco),[0 200]);
+               subplot(3,2,3), imagesc(abs(fft2(fftshift(kReco))),[0 500]); 
+        subplot(3,2,5), plot(gradMomsScaled(1,:),gradMomsScaled(2,:));
+        subplot(3,2,6),scatter3(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList))
+       
