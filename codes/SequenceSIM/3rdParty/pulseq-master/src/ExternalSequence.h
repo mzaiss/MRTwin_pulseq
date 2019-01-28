@@ -7,14 +7,22 @@
 #include <fstream>
 #include <map>
 
-#ifndef CLASS_EXTERNAL_SEQUENCE
-#define CLASS_EXTERNAL_SEQUENCE
+#ifndef _EXTERNAL_SEQUENCE_H_
+#define _EXTERNAL_SEQUENCE_H_
 
 //#define MASTER_SLAVE_FORMAT
+#define EXTERNAL_GRADS
 
 #define PI     3.1415926535897932384626433832795
 #define TWO_PI 6.283185307179586476925286766558
 
+#ifndef MIN
+#define MIN(a,b) ( (a)<(b) ? (a) : (b) )
+#endif
+
+#ifndef MAX
+#define MAX(a,b) ( (a)>(b) ? (a) : (b) )
+#endif
 
 /**
  * @brief Output message types
@@ -29,7 +37,8 @@ enum MessageType {
 };
 
 // Define the current level of messages to display
-const MessageType MSG_LEVEL = NORMAL_MSG;
+//const MessageType MSG_LEVEL = NORMAL_MSG;
+const MessageType MSG_LEVEL = DEBUG_LOW_LEVEL;
 
 
 /**
@@ -42,8 +51,10 @@ enum Event {
 	GY,
 	GZ,
 	ADC,
+	CTRL,
+	LAST_UNUSED // this entry should be last in the list
 };
-const int NUM_EVENTS=ADC+1;
+const int NUM_EVENTS=LAST_UNUSED;
 const int NUM_GRADS=ADC-GX;
 
 /**
@@ -51,16 +62,15 @@ const int NUM_GRADS=ADC-GX;
  *
  * Stores the amplitude, frequency offset and an index to basic shapes for the
  * magnitude and phase
- * KH: Set default values, so that it's save to use delete after GetBlock()
  */
 struct RFEvent
 {
-	float amplitude = 0.0f;     /**< @brief Amplitude of RF event (Hz) */
-	int magShape = 0;        /**< @brief ID of shape for magnitude */
-	int phaseShape = 0;      /**< @brief ID of shape for phase */
-	float freqOffset = 0.0f;    /**< @brief Frequency offset of transmitter (Hz) */
-	float phaseOffset = 0.0f;   /**< @brief Phase offset of transmitter (rad) */
-    int delay;           /**< @brief Delay prior to the pulse (us) */
+	float amplitude;     /**< @brief Amplitude of RF event (Hz) */
+	int magShape;        /**< @brief ID of shape for magnitude */
+	int phaseShape;      /**< @brief ID of shape for phase */
+	float freqOffset;    /**< @brief Frequency offset of transmitter (Hz) */
+	float phaseOffset;   /**< @brief Phase offset of transmitter (rad) */
+	int delay;           /**< @brief Delay prior to the pulse (us) */
 };
 
 
@@ -71,17 +81,17 @@ struct RFEvent
  * depending on the type:
  *  - **trapezoid:** ramp up, flat time, ramp down
  *  - **arbitrary:** index to basic shape (see CompressedShape)
- * KH: Set default values, so that it's save to use delete after GetBlock()
  */
 struct GradEvent
 {
-	float amplitude = 0.0f;      /**< @brief Amplitude of gradient (Hz/m) */
+	float amplitude;      /**< @brief Amplitude of gradient (Hz/m) */
+	int delay;
 	// Trapezoid:
-	long rampUpTime = 0;      /**< @brief Ramp up time of trapezoid (us) */
-	long flatTime = 0;        /**< @brief Flat-top time of trapezoid (us) */
-	long rampDownTime = 0;    /**< @brief Ramp down time of trapezoid (us) */
+	long rampUpTime;      /**< @brief Ramp up time of trapezoid (us) */
+	long flatTime;        /**< @brief Flat-top time of trapezoid (us) */
+	long rampDownTime;    /**< @brief Ramp down time of trapezoid (us) */
 	// Arbitrary:
-	int shape = 0;            /**< @brief ID of shape for arbitrary gradient */
+	int shape;            /**< @brief ID of shape for arbitrary gradient */
 };
 
 
@@ -90,16 +100,35 @@ struct GradEvent
  *
  * Stores number of ADC samples, dwell time, delay and frequency/phase offset
  * information (used to shift the FOV in-plane)
- * KH: Set default values, so that it's save to use delete after GetBlock()
  *
  */
 struct ADCEvent
 {
-	int numSamples = 0;     /**< @brief Number of samples */
-	int dwellTime = 0;      /**< @brief Dwell time of ADC readout (ns) */
-	int delay = 0;          /**< @brief Delay before first sample (us) */
-	float freqOffset = 0.0;   /**< @brief Frequency offset of receiver (Hz) */
-	float phaseOffset = 0.0;  /**< @brief Phase offset of receiver (rad) */
+	int numSamples;     /**< @brief Number of samples */
+	int dwellTime;      /**< @brief Dwell time of ADC readout (ns) */
+	int delay;          /**< @brief Delay before first sample (us) */
+	float freqOffset;   /**< @brief Frequency offset of receiver (Hz) */
+	float phaseOffset;  /**< @brief Phase offset of receiver (rad) */
+};
+
+/**
+ * @brief Control event
+ *
+ * Stores information depending on the control command type:
+ *  - **trigger:** type, duration
+ *  - **rotation:** rotation matrix
+ */
+struct ControlEvent
+{
+	enum Type 
+	{
+		TRIGGER = 0,
+		ROTATION
+	};
+	Type type;              /**< @brief Command type: trigger or gradient rotation */
+	long duration;          /**< @brief Duration of trigger event (us) */
+	int triggerType;        /**< @brief Type of trigger (system dependent) */
+	double rotMatrix[9];    /**< @brief Gradient rotation matrix */
 };
 
 /**
@@ -154,6 +183,16 @@ public:
 	 */
 	bool    isDelay();
 
+	/**
+	 * @brief Return `true` if block has a trigger command
+	 */
+	bool    isTrigger();
+	
+	/**
+	 * @brief Return `true` if block has a gradient rotation command
+	 */
+	bool    isRotation();
+	
 	/**
 	 * @brief Return index of this block
 	 */
@@ -217,6 +256,11 @@ public:
 	ADCEvent& GetADCEvent();
 
 	/**
+	 * @brief Return the control command event
+	 */
+	ControlEvent& GetControlEvent();
+	
+	/**
 	 * @brief Return a brief string description of the block
 	 */
 	std::string GetTypeString();
@@ -237,7 +281,7 @@ protected:
 	RFEvent rf;                 /**< @brief RF event */
 	GradEvent grad[NUM_GRADS];  /**< @brief gradient events */
 	ADCEvent adc;               /**< @brief ADC event  */
-
+	ControlEvent control;       /**< @brief control event */
 	// Below is only valid once decompressed:
 
 	// RF
@@ -259,6 +303,8 @@ inline bool      SeqBlock::isTrapGradient(int channel) { return ((events[channel
 inline bool      SeqBlock::isArbitraryGradient(int channel) { return ((events[channel+GX]>0) & (grad[channel].shape>0)); }
 inline bool      SeqBlock::isADC() { return (events[ADC]>0); }
 inline bool      SeqBlock::isDelay() { return (events[DELAY]>0); }
+inline bool      SeqBlock::isRotation() { return (events[CTRL]>0 && control.type==ControlEvent::ROTATION); }
+inline bool      SeqBlock::isTrigger() { return (events[CTRL]>0) && control.type==ControlEvent::TRIGGER; }
 
 inline long      SeqBlock::GetDelay() { return delay; }
 inline long      SeqBlock::GetDuration() { return duration; }
@@ -268,6 +314,7 @@ inline int       SeqBlock::GetEventIndex(Event type) { return events[type]; }
 inline GradEvent& SeqBlock::GetGradEvent(int channel) { return grad[channel]; }
 inline RFEvent&   SeqBlock::GetRFEvent() { return rf; }
 inline ADCEvent&  SeqBlock::GetADCEvent() { return adc; }
+inline ControlEvent&  SeqBlock::GetControlEvent() { return control; }
 
 
 inline std::string SeqBlock::GetTypeString() {
@@ -281,6 +328,9 @@ inline std::string SeqBlock::GetTypeString() {
 	if (isArbitraryGradient(2)) type += " ArbZ";
 	if (isADC()) type += " ADC";
 	if (isDelay()) type += " Delay";
+	if (isRotation()) type = type + " Rot";
+	if (isTrigger()) type = type + " Trig";
+	
 	return type;
 }
 
@@ -357,6 +407,17 @@ class ExternalSequence
 	 * @param  path location of file or directory
 	 */
 	bool load(std::string path);
+
+
+	/**
+	 * @brief Report the version of the loaded sequence
+	 *
+	 * Returns the version of the loaded PulSeq file combined to a single integer
+	 * The format is MMmmmmrrrr where M is the major version number, m is the minor
+	 * version number and r is the revision
+	 *
+	 */
+	int GetVersion() { return version_combined; }
 
 
 	/**
@@ -442,7 +503,9 @@ class ExternalSequence
 	 * @param buffer the output line buffer (null terminated)
 	 * @param MAX_SIZE maximum size of the buffer
 	 */
-	static std::istream& getline(std::istream& stream, char *buffer, const int MAX_SIZE);
+	// MZ: VC2008 / VD13 do not seem to properly handle the errors streams
+	//static std::istream& 
+	static bool getline(std::istream& stream, char *buffer, const int MAX_SIZE);
 
 	/**
 	 * @brief Search the file stream for section headers e.g. [RF], [GRAD] etc
@@ -511,6 +574,11 @@ class ExternalSequence
 
 	// *** Members ***
 
+	int version_major;
+	int version_minor;
+	int version_revision;
+	int version_combined;
+
 	std::map<std::string,int> m_fileIndex;     /**< @brief File location of sections, [RF], [ADC] etc */
 
 	// Low level sequence blocks
@@ -520,10 +588,11 @@ class ExternalSequence
 	std::map<std::string, std::vector<double> >m_definitions;  /**< @brief Custom definitions provided through [DEFINITIONS] section) */
 
 	// List of events (referenced by blocks)
-	std::map<int,RFEvent>   m_rfLibrary;       /**< @brief Library of RF events */
-	std::map<int,GradEvent> m_gradLibrary;     /**< @brief Library of gradient events */
-	std::map<int,ADCEvent>  m_adcLibrary;      /**< @brief Library of ADC readouts */
-	std::map<int,long>      m_delayLibrary;    /**< @brief Library of delays */
+	std::map<int,RFEvent>      m_rfLibrary;       /**< @brief Library of RF events */
+	std::map<int,GradEvent>    m_gradLibrary;     /**< @brief Library of gradient events */
+	std::map<int,ADCEvent>     m_adcLibrary;      /**< @brief Library of ADC readouts */
+	std::map<int,ControlEvent> m_controlLibrary;  /**< @brief Library of control commands */
+	std::map<int,long>         m_delayLibrary;    /**< @brief Library of delays */
 
 	// List of basic shapes (referenced by events)
 	std::map<int,CompressedShape> m_shapeLibrary;    /**< @brief Library of compressed shapes */
@@ -546,4 +615,4 @@ inline void ExternalSequence::SetPrintFunction(PrintFunPtr fun) { print_fun=fun;
 
 
 
-#endif	//CLASS_EXTERNAL_SEQUENCE
+#endif	//_EXTERNAL_SEQUENCE_H_

@@ -3,6 +3,8 @@ function QlearnMRIzero
 % for single k-space readout
 clear all
 close all;
+clc
+
 
 %% create Input image (N,N,3)
 % (:,:,1) -> PD
@@ -24,9 +26,11 @@ SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 10e-3;
 SeqOpts.TR = 3000e-3;
 SeqOpts.FlipAngle = pi/2;
-seqFilename = fullfile(pwd, 'gre.seq');
+seqFilename = fullfile(pwd, 'epi.seq');
 
-sequence = WriteGRESequenceWithPulseq(SeqOpts, seqFilename);
+% sequence = WriteGRESequenceWithPulseq(SeqOpts, seqFilename);
+sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
+
 sequence.plot();
 %FG: reference sequence: gre.seq
 % we use the outcome of the standard linear reorderd GRE as a reference k-space and image
@@ -38,6 +42,14 @@ end
 toc
 kRef = reshape(kList,[resolution resolution]);
 
+
+figure(2), 
+        subplot(3,2,1), imagesc(PD);
+        subplot(3,2,3), imagesc(T1);
+        subplot(3,2,5), imagesc(T2);
+        subplot(3,2,2), imagesc(abs(kRef),[0 200]);
+        subplot(3,2,4), imagesc(abs(ifft2(fftshift(kRef))),[0 2]);
+       
 
 
 %% SETTINGS
@@ -122,8 +134,8 @@ n=1;
 Q = zeros(length(states), length(actions_x)*length(actions_y)); % Q is length(x1) x length(x2) x length(actions) - IE a bin for every action-state combination.
 
 Q(:,1)=0.1;
-for ii=1:48
-    for jj=1:48
+for ii=1:resolution
+    for jj=1:resolution
             gx(n)=sign(mod(ii,2))+2;
             gy(n)=(mod(jj,48)==0)*5;
             Q(n,gx(n)+gy(n))=1;
@@ -133,6 +145,9 @@ for ii=1:48
 end
 
 figure,imagesc(Q);
+%  Q = randn(length(states), length(actions_x)*length(actions_y)); % Q is length(x1) x length(x2) x length(actions) - IE a bin for every action-state combination.
+ 
+%  Q = zeros(length(states), length(actions_x)*length(actions_y)); % Q is length(x1) x length(x2) x length(actions) - IE a bin for every action-state combination.
 
 
 %% Start learning!
@@ -148,11 +163,11 @@ for episodes = 1:maxEpi
     
     seq.addBlock(rf); % start sequence with 90deg excitation
     Nx = resolution;
-    deltak = 1./resolution;
-    riseTime = 5e-5; % use the same rise times for all gradients, so we can neglect them
+    deltak = 1./SeqOpts.FOV ;
+    riseTime = 10e-16; % use the same rise times for all gradients, so we can neglect them
         
-    gradXevent=mr.makeTrapezoid('x','FlatArea',-24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
-    gradYevent=mr.makeTrapezoid('y','FlatArea',24*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+    gradXevent=mr.makeTrapezoid('x','FlatArea',-resolution/2*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
+    gradYevent=mr.makeTrapezoid('y','FlatArea',resolution/2*deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
     % add PULSEQ block of gradient rewinder
     seq.addBlock(gradXevent,gradYevent);  
     
@@ -200,8 +215,8 @@ for episodes = 1:maxEpi
         gy = actions_y(iy);  % calculate the gradient in y
         
         % generate PULSEQ events
-         gradXevent.amplitude=gx*23.1481;
-         gradYevent.amplitude=gy*23.1481;
+         gradXevent.amplitude=gx*4.5455e+03;
+         gradYevent.amplitude=gy*4.5455e+03;
          
 %          if (mod(g,1000)==1)
 %          seq.addBlock(rf); % start sequence with 5deg excitation
@@ -227,21 +242,56 @@ for episodes = 1:maxEpi
         seqFilename = fullfile(pwd, 'QSeq.seq');
         seq.write(seqFilename);
         toc
-                    
+                
         % FG: run MR simulation
         tic
-        [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
+        [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename,1);
         toc
+        
+        [ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
+        nCoils = size(kList, 2); % the incoming data order is [kx coils acquisitions]
+
+nAcq=size(kList,3);
+nD=size(ktraj_adc, 1);
+
+kxmin=min(ktraj_adc(1,:));
+kxmax=max(ktraj_adc(1,:));
+kxmax1=kxmax/(Nx/2-1)*(Nx/2); % this compensates for the non-symmetric center definition in FFT
+kmaxabs=max(kxmax1, -kxmin);
+
+kxx= ((-Nx/2):(Nx/2-1))/(Nx/2)*kmaxabs; % kx-sample positions
+ktraj_adc2=reshape(ktraj_adc,[size(ktraj_adc,1), nADC, size(ktraj_adc,2)/nADC]);
+t_adc2=reshape(t_adc,[nADC, size(t_adc,1)/nADC]);
+
+data_resampled=zeros(length(kxx), nCoils, nAcq);
+ktraj_resampled=zeros(nD, length(kxx), nAcq);
+t_adc_resampled=zeros(length(kxx), nAcq);
+for a=1:nAcq
+    for c=1:1
+        data_resampled(:,c,a)=interp1(ktraj_adc2(1,:,a),kList(:,c,a),kxx,'spline',0);
+    end
+    ktraj_resampled(1,:,a)=kxx;
+    for d=2:nD
+        ktraj_resampled(d,:,a)=interp1(ktraj_adc2(1,:,a),ktraj_adc2(d,:,a),kxx,'linear',NaN);
+    end
+    t_adc_resampled(:,a)=interp1(ktraj_adc2(1,:,a),t_adc2(:,a),kxx,'linear',NaN);
+end
+
+figure;imagesc(squeeze(abs(data_resampled(:,1,:)))');axis('square');
+        
+        
+        
+        
         
         kList(isnan(kList))=0;
         gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
         
-        [X,Y] = meshgrid(1:resolution);
+        [Y,X] = meshgrid(1:resolution);
 %         [Xq,Yq] = meshgrid(1:0.5:resolution);
 %          kRefInterp = interp2(X,Y,kRef,gradMomsEnd(1), gradMomsEnd(2));
 %         kRefInterp2 = interp2(X,Y,kRef,Xq, Yq);
                
-        kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) +1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
+        kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) -1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
         kReco(isnan(kReco))=0;
          
         
