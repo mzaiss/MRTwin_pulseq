@@ -949,8 +949,9 @@ One problematic aspect of the above formulation is that the network need
 \begin_inset Formula $||\boldsymbol{\tilde{u}}_{p}-NN_{\theta}\boldsymbol{E_{g}}^{H}\boldsymbol{E_{g}}\boldsymbol{m}||_{2}^{2}$
 \end_inset
 
-, where the role of the network would be to rectify and map to the manifold
- of the plausible images the output of the adjoing gradient operator.
+, where the role of the network would be to rectify the output of the adjoint
+ gradient operator and map it to the manifold of the images in the training
+ set.
 \end_layout
 
 \end_body

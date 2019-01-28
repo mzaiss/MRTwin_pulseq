@@ -11,7 +11,7 @@ clc
 % (:,:,2) -> T2
 % (:,:,3) -> T2
 
-resolution = 48; % 100x100 take runs ~12s on a single core
+resolution = 16; % 100x100 take runs ~12s on a single core
 deltak=1/resolution;
 PD = phantom(resolution);
 PD(PD<0) = 0;
@@ -29,7 +29,7 @@ SeqOpts.FlipAngle = pi/2;
 seqFilename = fullfile(pwd, 'epi.seq');
 
 % sequence = WriteGRESequenceWithPulseq(SeqOpts, seqFilename);
-sequence = WriteEPI2SequenceWithPulseq(SeqOpts, seqFilename);
+sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
 
 sequence.plot();
 %FG: reference sequence: gre.seq
@@ -134,10 +134,10 @@ n=1;
 Q = zeros(length(states), length(actions_x)*length(actions_y)); % Q is length(x1) x length(x2) x length(actions) - IE a bin for every action-state combination.
 
 Q(:,1)=0.1;
-for ii=1:48
-    for jj=1:48
+for ii=1:resolution
+    for jj=1:resolution
             gx(n)=sign(mod(ii,2))+2;
-            gy(n)=(mod(jj,48)==0)*5;
+            gy(n)=(mod(jj,resolution)==0)*5;
             Q(n,gx(n)+gy(n))=1;
             
             n=n+1;
@@ -218,9 +218,9 @@ for episodes = 1:maxEpi
          gradXevent.amplitude=gx*4.5455e+03;
          gradYevent.amplitude=gy*4.5455e+03;
          
-%          if (mod(g,1000)==1)
-%          seq.addBlock(rf); % start sequence with 5deg excitation
-%          end
+         if (mod(g,1000)==1)
+         seq.addBlock(rf); % start sequence with 5deg excitation
+         end
          
         % add PULSEQ block of gradient and ADC
         seq.addBlock(gradXevent,gradYevent,adc);       
@@ -245,7 +245,7 @@ for episodes = 1:maxEpi
                     
         % FG: run MR simulation
         tic
-        [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
+        [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename,1);
         toc
         
         kList(isnan(kList))=0;
