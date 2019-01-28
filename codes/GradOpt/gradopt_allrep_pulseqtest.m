@@ -100,13 +100,13 @@ adc_mask = ones(T,1); adc_mask(1:4) = 1;
 
 % set gradient spatial forms
 rampX = pi*linspace(-1,1,sz(1) + 1);
-%rampX = rampX(1:end-1);
-rampX = fftshift(rampX(1:end-1),2);
+rampX = rampX(1:end-1);
+%rampX = fftshift(rampX(1:end-1),2);
 rampX = repmat(rampX.', [1, sz(2)]);
 
 rampY = pi*linspace(-1,1,sz(2) + 1);
-%rampY = rampY(1:end-1);
-rampY = fftshift(rampY(1:end-1),2);
+rampY = rampY(1:end-1);
+%rampY = fftshift(rampY(1:end-1),2);
 rampY = repmat(rampY, [sz(1), 1]);
 
 minerr = 1e8;
@@ -154,7 +154,8 @@ grad_moms(:,:,2) = repmat(linspace(-sz(2)/2,sz(2)/2-1,sz(2)).',[1 sz(2),1]);
 
 %grad_moms = grad_moms + 0.5*(rand(size(grad_moms))-0.5);
 %grad_moms(:,:,1) = grad_moms(:,:,1) + 10;
-alpha = 0*pi/280; Rmat = [cos(alpha), -sin(alpha); sin(alpha), cos(alpha)];
+alpha = 10*pi/180; Rmat = [cos(alpha), -sin(alpha); sin(alpha), cos(alpha)];
+
 for i = 1:NRep
   for j = 1:T
     grad_moms(i,j,:) = Rmat*squeeze(grad_moms(i,j,:));
@@ -247,7 +248,7 @@ for rep=1:NRep
      learned_grads = reshape(learned_grads_all{rep},[],2);
 %     grad_moms = cumsum(learned_grads,1) * 1; % 1s
     
-    learned_grads=learned_grads * 1; % 1s
+    learned_grads = learned_grads * 1; % 1s
     
         
     figure(11), scatter(learned_grads(:,1),learned_grads(:,2)); title('gradmoms'); hold on;
@@ -259,8 +260,8 @@ for rep=1:NRep
       %gradXevent=mr.makeTrapezoid('x','FlatArea',flatArea*grad_moms(kx,1),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
       %gradYevent=mr.makeTrapezoid('y','FlatArea',flatArea*grad_moms(kx,2),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
       
-      gradXevent.amplitude=learned_grads(kx,1)*amplitude;
-      gradYevent.amplitude=learned_grads(kx,2)*amplitude;
+      gradXevent.amplitude=-1*learned_grads(kx,1)*amplitude;
+      gradYevent.amplitude=-1*learned_grads(kx,2)*amplitude;
 
       seq.addBlock(gradXevent,gradYevent,adc);
     end
@@ -326,15 +327,17 @@ T1 = 1e6*PD*2; T1(:) = 1;
 T2 = 1e6*PD*2; T2(:) = 2;
 InVol = double(cat(3,PD,T1,T2));
 
+%InVol = permute(InVol,[2,1,3]);
 %InVol = flipud(fliplr(InVol));
+
 %InVol = fftshift(fftshift(InVol,1),2);
 
 numSpins = 11;
 
 [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
 
-kList = reshape(kList, [NRep, T]);
-
+%kList = reshape(kList, [NRep, T]);
+kList = reshape(kList, [T, NRep]);
 
 reco = 0;
 PD1 = eye(sz(1));
@@ -343,7 +346,8 @@ for rep = 1:NRep
   E = E_all_rep{rep};
   E = reshape(E, T, []);
   
-  y = kList(rep,:).';
+  y = kList(:,rep);
+  %y = kList(rep,:).';
   
   %y = E*gtruth_m(:);
   %y = E*PD1(:);
@@ -353,7 +357,7 @@ for rep = 1:NRep
 end
 
 reco = reshape(reco,sz);
-%reco = fftshift(reco);
+reco = fftshift(reco);
 
 figure(1), imagesc(abs(reco));
 
