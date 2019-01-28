@@ -6,7 +6,7 @@
 % (:,:,2) -> T1
 % (:,:,3) -> T2
 
-resolution = 48; % 100x100 take runs ~12s on a single core
+resolution = 96; % 100x100 take runs ~12s on a single core
 PD = phantom(resolution);
 NSpins=1;
 
@@ -36,13 +36,13 @@ SeqOpts.FlipAngle = pi/2;
 SeqOpts.FlipAngle1 = pi/2;
 SeqOpts.FlipAngle2 = pi;
 SeqOpts.Order = 'increase'; % increase, center, center_in, (half)
-filename = 'epi2.seq';
+filename = 'epi.seq';
 seqFilename = fullfile(pwd, filename);
 
 
-sequence = WriteEPI2SequenceWithPulseq(SeqOpts, seqFilename);
+sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
 sequence.plot();
-
+% sequence.sound();
 %% run simulation
 tic;
 [kList, gradients] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, NSpins);
@@ -68,9 +68,14 @@ plotSimulationResult(PD, kspace./NSpins);
 % figure, imagesc(abs(nonuniformIDFT(kList, gradients, resolution))), title('nonuniformIDFT');
 
 %% plot kspace-trajectory
-plotKSpaceTrajectory(gradients, resolution, 0);
+plotKSpaceTrajectory(gradients, resolution, 1);
 
-%% comparison 
+%% comparison with pulseq trajectory
+[ktraj_adc, ktraj, t_excitation, t_refocusing] = sequence.calculateKspace();
+
+% figure; plot(ktraj'); % plot the entire k-space trajectory
+figure; plot(ktraj(1,:),ktraj(2,:),'b'); % a 2D plot
+hold;plot(ktraj_adc(1,:),ktraj_adc(2,:),'r.');
 
 %% comparison of reco result with filtered original kspace
 filterfunc1 = @(x,y) exp(-abs(y)/10); % exponential decay in PE direction

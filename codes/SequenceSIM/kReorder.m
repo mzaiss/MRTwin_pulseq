@@ -6,7 +6,7 @@ function [kspace, roundError] = kReorder(kList, gradients, yshiftflag)
         yshiftflag=0;
     end
 
-    dim = sqrt(length(kList)); % assuming square shaped k space (dim x dim)
+    dim = round(sqrt(length(kList))); % assuming square shaped k space (dim x dim)
     kspace = zeros(dim, dim);
     
     % shift and rescale gradient moments to get array indices 
