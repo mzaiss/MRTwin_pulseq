@@ -36,11 +36,11 @@ g = rand(T,2); g = g(:);
 % initialize complex-valued magnetization image
 m = rand(sz(1),sz(2)) + 1i*rand(sz(1),sz(2));
 
-use_tanh_fieldcap = 1;                                                          % otherwise put L2 penalty on the field controlled by lambda
+use_tanh_grad_moms_cap = 1;                                                 % otherwise put L2 penalty on the grad_moms controlled by lambda
 lambda = 0*1e-2;
 
 % pack the parameters for the gradient function
-args = {m,rampX,rampY,adc_mask,sz,lambda,use_tanh_fieldcap};
+args = {m,rampX,rampY,adc_mask,sz,lambda,use_tanh_grad_moms_cap};
 [phi,dg_ana] = phi_grad_readout2d(g(:),args{:}); % compute loss and analytical derivatives
 
 % compute numerical derivatives
@@ -74,13 +74,13 @@ nmb_rand_restarts = 5;                                                          
 do_versbose = 0;                                                                         % additionally show learned Fourier basis functions
 
 % regularization parameters
-use_tanh_fieldcap = 1;                                                                     % limit the effective field to sz*[-1..1]/2 range
-lambda = 0*1e-6;                                                                                               % put L2 penalty on the field
+use_tanh_grad_moms_cap = 1;                                                            % limit the effective grad_moms to sz*[-1..1]/2 range
+lambda = 0*1e-6;                                                                                           % put L2 penalty on the grad_moms
 
 gtruth_m = load('../../data/phantom.mat'); gtruth_m = gtruth_m.phantom;
 gtruth_m = imresize(gtruth_m,sz);  % resize to something managable
  
-%gtruth_m = fftfull(gtruth_m); gtruth_m(8:end,:) = 0; gtruth_m = ifftfull(gtruth_m);        % set some part of kspace to zero just for a test
+%gtruth_m = fftfull(gtruth_m); gtruth_m(8:end,:) = 0; gtruth_m = ifftfull(gtruth_m);       % set some part of kspace to zero just for a test
                                                                      
 % set the optimizer
 p = struct();
@@ -122,7 +122,7 @@ for rep = 1:NRep
     g = rand(T,2) - 0.5; g = g(:);                                                                                % good for random restarts
 
     % do optimization for g of E(g), loss --> (||error_m - E.T*E*error_m||^2 + lambda*||cumsum(g)||^2) 
-    args = {error_m,rampX,rampY,adc_mask,sz,lambda,use_tanh_fieldcap};
+    args = {error_m,rampX,rampY,adc_mask,sz,lambda,use_tanh_grad_moms_cap};
     [g,phi] = minimize(g(:),'phi_grad_readout2d',p,args{:});
     
     % select the gradients with the lowest loss achieved
@@ -133,8 +133,8 @@ for rep = 1:NRep
     end
   end
  
-  % forward pass to compute the prediction, field and gradients
-  [~,~,reco_current,E,field,grads] = phi_grad_readout2d(bestgrad(:),args{:});
+  % forward pass to compute the prediction, gradient moments and gradients
+  [~,~,reco_current,E,grad_moms,grads] = phi_grad_readout2d(bestgrad(:),args{:});
   all_grad{rep} = grads;
   figure(1), plot(grads); title(['learned gradients at repetition ', num2str(rep), ' blue - grad X, orange - grad Y']); xlabel('time'); ylabel('gradient strength (au)');
   
@@ -162,7 +162,7 @@ for rep = 1:NRep
   % plot actual sampled kspace locations  
   figure(5)
   c = ones(T,1)*rep;                                                                                                % color code repetitions
-    hold on; scatter(field(:,2), field(:,1),[],c); hold off; axis([-8,8,-8,8]); title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
+    hold on; scatter(grad_moms(:,2), grad_moms(:,1),[],c); hold off; axis([-8,8,-8,8]); title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
       
   %pause
 end
