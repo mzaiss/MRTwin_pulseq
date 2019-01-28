@@ -8,8 +8,8 @@
 % rampX - fixed gradient spatial form in x dir
 % rampY ...
 % sz - image size
-% lambda - regularization weight controlling the field penalty
-% use_tanh_fieldcap - flag that uses hard tanh constrain on the field: field = tanh(cumsum(gx/y))
+% lambda - regularization weight controlling the grad_moms penalty
+% use_tanh_grad_moms_cap - flag that uses hard tanh constrain on the grad_moms: grad_moms = tanh(cumsum(gx/y))
 % both L2 and tanh help prevent the case where the kspace locations reached are above the frequencies of Nyquist condition
 
 % returns
@@ -17,10 +17,10 @@
 % dg - analytical derivative of the gradient variable
 % prediction - reconstructed image
 % E - encoding matrix
-% field - integral (cumsum) over the gradients
-% effective gradients (computed as finite derivative of the field)
+% grad_moms - integral (cumsum) over the gradients
+% effective gradients (computed as finite derivative of the grad_moms)
 
-function [phi,dg,prediction,E,field,grads] = phi_grad_readout2d(g,m,rampX,rampY,adc_mask,sz,lambda,use_tanh_fieldcap)
+function [phi,dg,prediction,E,grad_moms,grads] = phi_grad_readout2d(g,m,rampX,rampY,adc_mask,sz,lambda,use_tanh_grad_moms_cap)
 
 g = reshape(g,[],2);
 
@@ -37,27 +37,27 @@ dtanh = @(z) 1 - tanh(z).^2;
 % vectorize ramps and the image
 rampX = rampX(:).'; rampY = rampY(:).'; m = m(:);
 
-% integrate over time to get field from the gradients
-field = cumsum(g,1);
+% integrate over time to get grad_moms from the gradients
+grad_moms = cumsum(g,1);
 
 % prewinder (to be relaxed in future)
 %g(:,1) = g(:,1) - T/2 - 1;
 
-save_field = field;                                                                                             % needed for tanh derivative
+save_grad_moms = grad_moms;                                                                                     % needed for tanh derivative
 
-if use_tanh_fieldcap
-  fmax = sz / 2;                                                                                             % cap the field to [-1..1]*sz/2
+if use_tanh_grad_moms_cap
+  fmax = sz / 2;                                                                                         % cap the grad_moms to [-1..1]*sz/2
   
   for i = 1:2
-    field(:,i) = fmax(i)*tanh(field(:,i));                                                                                  % soft threshold
-    field(abs(field(:,i)) > fmax(i),i) = sign(field(abs(field(:,i)) > fmax(i),i))*fmax(i);  % hard threshold, this part is nondifferentiable
+    grad_moms(:,i) = fmax(i)*tanh(grad_moms(:,i));                                                                          % soft threshold
+    grad_moms(abs(grad_moms(:,i)) > fmax(i),i) = sign(grad_moms(abs(grad_moms(:,i)) > fmax(i),i))*fmax(i);  % hard threshold, this part is nondifferentiable
   end
 end
 
-grads = diff(cat(1,[0,0],field),1);                                     % actual gradient forms are the derivative of field (inverse cumsum)
+grads = diff(cat(1,[0,0],grad_moms),1);                             % actual gradient forms are the derivative of grad_moms (inverse cumsum)
 
 % compute the B0 by adding gradients in X/Y after multiplying them respective ramps
-B0X = field(:,1) * rampX; B0Y = field(:,2) * rampY;
+B0X = grad_moms(:,1) * rampX; B0Y = grad_moms(:,2) * rampY;
 
 B0 = B0X + B0Y;
 
@@ -71,19 +71,19 @@ prediction = (E'*E)*m / nfact;
 loss = (prediction - m);
 phi = sum(l2(loss));
 
-phi = phi + lambda*sum(l2(field(:)));
+phi = phi + lambda*sum(l2(grad_moms(:)));
 
 % compute derivative with respect to temporal gradient waveforms
 cmx = conj(dl2(loss)) * m.' / nfact ;
 dgXY = (conj(E) * cmx + conj(E * cmx.')) .* E;
 
-dg = zeros(size(field));
+dg = zeros(size(grad_moms));
 dg(:,1) = sum(1i*dgXY.*rampX,2);
 dg(:,2) = sum(1i*dgXY.*rampY,2);
 
-if use_tanh_fieldcap
+if use_tanh_grad_moms_cap
   for i = 1:2
-    dg(:,i) = fmax(i)*dtanh(save_field(:,i)) .* dg(:,i);
+    dg(:,i) = fmax(i)*dtanh(save_grad_moms(:,i)) .* dg(:,i);
   end
 end
 
@@ -91,10 +91,10 @@ dg = cumsum(dg, 1, 'reverse');
 dg = real(dg(:));
 
 % regularization part derivatives
-rega = dl2(field);
-if use_tanh_fieldcap
+rega = dl2(grad_moms);
+if use_tanh_grad_moms_cap
   for i = 1:2
-    rega(:,i) = fmax(i)*dtanh(save_field(:,i)) .* rega(:,i);
+    rega(:,i) = fmax(i)*dtanh(save_grad_moms(:,i)) .* rega(:,i);
   end  
 end
 
