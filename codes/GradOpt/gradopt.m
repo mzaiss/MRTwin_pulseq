@@ -221,7 +221,7 @@ NRep = 16;
 for rep=1:NRep
     seq.addBlock(rf);
     
-%     learned_grads = reshape(all_grad{rep},[],2);
+     learned_grads = reshape(all_grad{rep},[],2);
 %     grad_moms = cumsum(learned_grads,1) * 1; % 1s
     
     learned_grads=learned_grads * 1; % 1s
@@ -376,17 +376,17 @@ InVol = double(cat(3,PD,T1,T2));
        
 
 %% TEST pulseq and learngrads
-
+clear grad_moms
 %  plug learned gradients into the sequence constructor
 % close all
 NRep = 2;
 sz = [32,32];   
-seqFilename = 'seq/learned_grad.seq';
+seqFilename = 'seq/learned_grad_test.seq';
 
 SeqOpts.resolution = sz;                                                                                                       % matrix size
 SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 10e-3;
-SeqOpts.TR = 10000e-3;
+SeqOpts.TR = 1000000e-3;
 SeqOpts.FlipAngle = pi/2;
 
 % init sequence and system
@@ -418,7 +418,6 @@ gradYevent=mr.makeTrapezoid('y','FlatArea',deltak,'FlatTime',dt-2*riseTime,'Rise
 amplitude = abs(gradXevent.amplitude);
 
 
-
 NRep = 32;                                                                                                           % number of repetitions
  T=32;
 % put blocks together
@@ -428,7 +427,7 @@ for rep=1:NRep
 %     learned_grads = reshape(all_grad{rep},[],2);
 %     grad_moms = cumsum(learned_grads,1) * 1; % 1s
     
-    learned_grads=learned_grads * 1; % 1s
+%     learned_grads=learned_grads * 1; % 1s
     
     grad_moms(:,1) = linspace(-sz(1)/2,sz(1)/2,sz(1));
     grad_moms(:,2) = ones(sz(1),1)*(rep-sz(1)/2);
@@ -457,8 +456,6 @@ seq.write(seqFilename);
 
 seq.plot();
 
-
-
 PD = phantom(sz(1));
 
 PD(PD<0) = 0;
@@ -467,13 +464,13 @@ T2 = 1e6*PD*2; T2(:) = 100;
 InVol = double(cat(3,PD,T1,T2));
 
   tic
-        [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename,5);
+        [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename,1);
         toc
         
         kList(isnan(kList))=0;
-        gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
+        gradMomsScaled = (gradMoms+0.5)*sz(1);  % calculate grad moms to FoV
         
-        [Y,X] = meshgrid(1:resolution);
+        [Y,X] = meshgrid(1:sz(1));
 %         [Xq,Yq] = meshgrid(1:0.5:resolution);
 %          kRefInterp = interp2(X,Y,kRef,gradMomsEnd(1), gradMomsEnd(2));
 %         kRefInterp2 = interp2(X,Y,kRef,Xq, Yq);
