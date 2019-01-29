@@ -6,7 +6,7 @@
 % (:,:,2) -> T1
 % (:,:,3) -> T2
 
-resolution = 96; % 100x100 take runs ~12s on a single core
+resolution = 16; % 100x100 take runs ~12s on a single core
 PD = phantom(resolution);
 NSpins=1;
 
@@ -15,8 +15,8 @@ NSpins=1;
 % PD(resolution/2, resolution/2)=1;
 
 PD(PD<0) = 0;
-T1 = PD*2;
-T2 = PD*0.1;
+T1 = PD*1;
+T2 = PD*.1;
 T2star = PD*10000;
 
 % T1 = (PD+phantom([0.5 0.2 0.3 -0.4 -0.4 45], resolution))*2;
@@ -44,15 +44,17 @@ sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
 sequence.plot();
 % sequence.sound();
 %% run simulation
+seqFilename = '../GradOpt/seq/learned_grad.seq';
 tic;
 [kList, gradients] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, NSpins);
 toc;
-
 
 %% reconstruction
 %kspace = reshape(kList,[resolution resolution]);
 kspace = kReorder(kList, gradients);
 
+%% regridding
+kspace = k_regrid(kList, gradients, resolution);
 
 %% plot results
 plotSimulationResult(PD, kspace./NSpins);
@@ -70,8 +72,15 @@ plotSimulationResult(PD, kspace./NSpins);
 %% plot kspace-trajectory
 plotKSpaceTrajectory(gradients, resolution, 1);
 
+%% nonuniform IDFT
+res_nuidft = nonuniformIDFT(kList, gradients, resolution);
+figure
+subplot(1,2,1), imagesc1t(abs(res_nuidft)), axis('image'), title('non-uniform IDFT');
+subplot(1,2,2), imagesc1t(abs(PD)), axis('image'), title('REF (PD)');
+
+
 %% comparison with pulseq trajectory
-[ktraj_adc, ktraj, t_excitation, t_refocusing] = sequence.calculateKspace();
+[ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
 
 % figure; plot(ktraj'); % plot the entire k-space trajectory
 figure; plot(ktraj(1,:),ktraj(2,:),'b'); % a 2D plot

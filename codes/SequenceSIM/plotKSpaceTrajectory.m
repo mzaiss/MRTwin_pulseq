@@ -10,15 +10,17 @@ function [] = plotKSpaceTrajectory(gradients, resolution, plotIndices)
 
     if plotIndices == 1
         plotcoords = (gradients+0.5)*resolution;
+        fprintf('k-trajectory (indices) max: %.2f, min: %.2f\n', max(max(plotcoords)), min(min(plotcoords)));
     else 
         plotcoords = gradients;
     end
     
-    figure
-    p = plot(plotcoords(1,:),plotcoords(2,:), '-o'), xlabel('k_x'), ylabel('k_y');
+    figure;
+    p = plot(plotcoords(1,:),plotcoords(2,:), '-o');
+    xlabel('k_x'), ylabel('k_y');
    
     % color data for trajectory
     cd = [uint8(jet(length(plotcoords))*255) uint8(ones(length(plotcoords),1))].';
-    drawnow
+    drawnow;
     set(p.Edge, 'ColorBinding','interpolated', 'ColorData',cd);
 end
