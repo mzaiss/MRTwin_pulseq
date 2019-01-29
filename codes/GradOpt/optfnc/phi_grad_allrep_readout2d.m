@@ -20,7 +20,11 @@
 % grad_moms - integral (cumsum) over the gradients
 % effective gradients (computed as finite derivative of the grad_moms)
 
-function [phi,tdg,prediction,E,grad_moms,grads] = phi_grad_allrep_readout2d(g,m,rampX,rampY,adc_mask,sz,NRep,lambda,use_tanh_grad_moms_cap)
+function [phi,tdg,prediction,E_all_rep,grad_moms,grads] = phi_grad_allrep_readout2d(g,m,rampX,rampY,adc_mask,sz,NRep,lambda,use_tanh_grad_moms_cap,use_gpu)
+
+if use_gpu
+  g = gpuArray(single(g));
+end
 
 g = reshape(g,NRep,[],2);
 
@@ -43,6 +47,8 @@ tdg = zeros(NRep,2*T);
 prediction = 0;
 
 grads = cell(NRep,1);
+E_all_rep = cell(NRep,1);
+
 for rep = 1:NRep
 
   % integrate over time to get grad_moms from the gradients
@@ -60,7 +66,7 @@ for rep = 1:NRep
     end
   end
 
-  grads{rep} = diff(cat(1,[0,0],grad_moms),1);                      % actual gradient forms are the derivative of grad_moms (inverse cumsum)
+  grads{rep} = gather(diff(cat(1,[0,0],grad_moms),1,1));                    % actual gradient forms are the derivative of grad_moms (inverse cumsum)
 
   % compute the B0 by adding gradients in X/Y after multiplying them respective ramps
   B0X = grad_moms(:,1) * rampX; B0Y = grad_moms(:,2) * rampY;
@@ -71,6 +77,8 @@ for rep = 1:NRep
   E = exp(1i*B0);
   
   E = E .* adc_mask;
+  
+  E_all_rep{rep} = gather(E);
   
   % compute loss
   prediction = prediction + (E'*E)*m / nfact;
@@ -116,8 +124,13 @@ for rep = 1:NRep
 
   % compute derivative with respect to temporal gradient waveforms
   dgXY = (conj(E) * cmx + conj(E * cmx.')) .* E;
-
-  dg = zeros(size(grad_moms));
+  
+  if use_gpu
+    dg = gpuArray(single(zeros(size(grad_moms))));
+  else
+    dg = zeros(size(grad_moms));
+  end
+  
   dg(:,1) = sum(1i*dgXY.*rampX,2);
   dg(:,2) = sum(1i*dgXY.*rampY,2);
 
@@ -132,7 +145,7 @@ for rep = 1:NRep
 
   % regularization part derivatives
   rega = dl2(grad_moms);
-  if use_tanh_grad_mom_scap
+  if use_tanh_grad_moms_cap
     for i = 1:2
       rega(:,i) = fmax(i)*dtanh(save_grad_moms(:,i)) .* rega(:,i);
     end  
@@ -140,8 +153,16 @@ for rep = 1:NRep
 
   rega = lambda*cumsum(rega, 1, 'reverse');
 
-  tdg(rep,:) = dg + rega(:);
+  if use_gpu
+    tdg(rep,:) = gather(dg + rega(:));
+  else
+    tdg(rep,:) = dg + rega(:);
+  end
 
+end
+
+if use_gpu
+  phi = gather(phi);
 end
 
 tdg = tdg(:);

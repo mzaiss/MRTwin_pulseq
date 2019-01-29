@@ -1,9 +1,8 @@
-% TODO: ADC masking
 
 clear all; close all;
 
-addpath ls 
 addpath  ../SequenceSIM
+addpath  ../SequenceSIM/3rdParty/pulseq-master/matlab/
 addpath optfnc
 
 % forward Fourier transform
@@ -13,10 +12,13 @@ ifftfull =  @(x) ifftshift(ifftn(fftshift(x)))*sqrt(numel(x));
 % NRMSE error function
 e = @(utrue,u) 100*norm(u(:)-utrue(:))/norm(utrue(:));
 
-%% Check numerical vs. analytical derivatives
+%% Check numerical vs. analytical derivatives : optimize all reps simultaneously
+
+use_gpu = 0;
 
 T = 4;       % number of time points in readout                                                                                                  
-sz = [4, 6]; % image size (Nx Ny)                                                                                                       
+sz = [4, 6]; % image size (Nx Ny)          
+Nrep = 8;
 
 % set gradient spatial forms
 rampX = pi*linspace(-1,1,sz(1) + 1);
@@ -31,7 +33,7 @@ rampY = repmat(rampY, [sz(1), 1]);
 adc_mask = ones(T,1); adc_mask(1:2) = 0;
 
 % initialize gradients (X/Y directions)
-g = rand(T,2); g = g(:);
+g = rand(Nrep,T,2); g = g(:);
 
 % initialize complex-valued magnetization image
 m = rand(sz(1),sz(2)) + 1i*rand(sz(1),sz(2));
@@ -40,14 +42,14 @@ use_tanh_grad_moms_cap = 1;                                                 % ot
 lambda = 0*1e-2;
 
 % pack the parameters for the gradient function
-args = {m,rampX,rampY,adc_mask,sz,lambda,use_tanh_grad_moms_cap};
-[phi,dg_ana] = phi_grad_readout2d(g(:),args{:}); % compute loss and analytical derivatives
+args = {m,rampX,rampY,adc_mask,sz,Nrep,lambda,use_tanh_grad_moms_cap,use_gpu};
+[phi,dg_ana] = phi_grad_allrep_readout2d(g(:),args{:}); % compute loss and analytical derivatives
 
 % compute numerical derivatives
 h = 1e-4;
 dg = zeros(size(g)); dphi_h = zeros(size(g));
 for i=1:numel(g)
-  dg(i) = 1; dphi_h(i) = phi_grad_readout2d(g+h*dg,args{:})-phi;
+  dg(i) = 1; dphi_h(i) = phi_grad_allrep_readout2d(g+h*dg,args{:})-phi;
   dg(i) = 0;
   
   if mod(i,100) == 0
@@ -60,17 +62,18 @@ dx_num = dphi_h/h; clear dphi_h i dx
 fprintf('deriv-err=%1.3f%%\n',e(dx_num,dg_ana(:)))
 
 % compare analytical and numerical gradients
-[dg_ana(:), dx_num]
+%[dg_ana(:), dx_num]
 
+%% optimize all reps simultaneously
+%close all;
 
-%% do full optimization
-close all;
+use_gpu = 1;
 
 % params
-NRep = 16;                                                                                                           % number of repetitions
-sz = [16,16];                                                                                                                   % image size
-T = 16;                                                                                           % set the number of time points in readout
-nmb_rand_restarts = 5;                                                                      % number of restarts with random initializations
+NRep = 32;                                                                                                           % number of repetitions
+sz = [32,32];                                                                                                                   % image size
+T = sz(2);                                                                                        % set the number of time points in readout
+nmb_rand_restarts = 1;                                                                      % number of restarts with random initializations
 do_versbose = 0;                                                                         % additionally show learned Fourier basis functions
 
 % regularization parameters
@@ -78,99 +81,120 @@ use_tanh_grad_moms_cap = 1;                                                     
 lambda = 0*1e-6;                                                                                           % put L2 penalty on the grad_moms
 
 gtruth_m = load('../../data/phantom.mat'); gtruth_m = gtruth_m.phantom;
+gtruth_m = phantom(sz(1));
+%gtruth_m = imread('cameraman.tif'); gtruth_m = single(gtruth_m)/255;
 gtruth_m = imresize(gtruth_m,sz);  % resize to something managable
+
+gtruth_m = abs(gtruth_m);
  
-%gtruth_m = fftfull(gtruth_m); gtruth_m(8:end,:) = 0; gtruth_m = ifftfull(gtruth_m);       % set some part of kspace to zero just for a test
+%gtruth_m = fftfull(gtruth_m); gtruth_m(8:end,:) = 0; gtruth_m = ifftfull(gtruth_m);        % set some part of kspace to zero just for a test
                                                                      
 % set the optimizer
 p = struct();
-nMVM = 200;  % number of optimization iterations
+nMVM = 100;  % number of optimization iterations
 p.length = -nMVM;
 p.method = 'LBFGS';
 
 % set ADC mask
-adc_mask = ones(T,1); %adc_mask(1:6) = 0;
+adc_mask = ones(T,1); adc_mask(1:4) = 1;
 
 % set gradient spatial forms
 rampX = pi*linspace(-1,1,sz(1) + 1);
 rampX = rampX(1:end-1);
+%rampX = fftshift(rampX(1:end-1),2);
 rampX = repmat(rampX.', [1, sz(2)]);
 
 rampY = pi*linspace(-1,1,sz(2) + 1);
 rampY = rampY(1:end-1);
+%rampY = fftshift(rampY(1:end-1),2);
 rampY = repmat(rampY, [sz(1), 1]);
 
+minerr = 1e8;
+
 % initialize reconstructed image
-reco_m = zeros(sz);
 all_grad = cell(NRep,1);                                                                         % learned gradients at all repetition steps
 
-E_allrep = cell(NRep,1);
+for rnd_restart = 1:nmb_rand_restarts
+
+  % initialize gradients
+  %g = zeros(T,2); g = g(:);                                                                       % initialize the gradients to all zeros
+  %g = zeros(NRep,T,2); g(:,:,1) = rand(NRep,T,1) - 0.5; g = g(:);
+  g = 1.0*(rand(NRep,T,2) - 0.5); g = g(:); 
+  
+  p.length = -500;
+
+  % do optimization for g of E(g), loss --> (||error_m - E.T*E*error_m||^2 + lambda*||cumsum(g)||^2) 
+  if use_gpu
+    args = {gpuArray(single(gtruth_m)),gpuArray(single(rampX)),gpuArray(single(rampY)),gpuArray(single(adc_mask)),sz,NRep,lambda,use_tanh_grad_moms_cap,use_gpu};
+  else
+    args = {gtruth_m,rampX,rampY,adc_mask,sz,NRep,lambda,use_tanh_grad_moms_cap,use_gpu};
+  end  
+  
+  [g,phi] = minimize(g(:),'phi_grad_allrep_readout2d',p,args{:});
+
+  % select the gradients with the lowest loss achieved
+  phi = phi(end);
+  if phi < minerr
+    bestgrad = g;
+    minerr = phi;
+  end
+end
+
+p.length = -nMVM;
+
+savedbestgrad = bestgrad;
+
+
+%%
+close all
+
+grad_moms = zeros(NRep,T,2);
+grad_moms(:,:,1) = repmat(linspace(-sz(1)/2,sz(1)/2-1,sz(1)),[sz(1),1,1]);
+grad_moms(:,:,2) = repmat(linspace(-sz(2)/2,sz(2)/2-1,sz(2)).',[1 sz(2),1]);
+
+%grad_moms = grad_moms + 0.5*(rand(size(grad_moms))-0.5);
+%grad_moms(:,:,1) = grad_moms(:,:,1) + 10;
+alpha = 10*pi/180; Rmat = [cos(alpha), -sin(alpha); sin(alpha), cos(alpha)];
+
+for i = 1:NRep
+  for j = 1:T
+    grad_moms(i,j,:) = Rmat*squeeze(grad_moms(i,j,:));
+  end
+end
+
+bestgrad = diff(cat(2,zeros(sz(1),1,2),grad_moms),[],2); use_tanh_grad_moms_cap = 0;
+
+g = bestgrad;
+
+lambda = 0;
+
+args = {gtruth_m,rampX,rampY,adc_mask,sz,NRep,lambda,use_tanh_grad_moms_cap,0};
+[~,~,reco_current,E_all_rep,grad_moms_output,grads] = phi_grad_allrep_readout2d(g(:),args{:});
+
+figure(3), hold off; plot(1);
 
 for rep = 1:NRep
   
-  minerr = 1e8;
-  bestgrad = 0;
+  figure(1), plot(grads{rep}); title(['learned gradients at repetition ', num2str(rep), ' blue - grad X, orange - grad Y']); xlabel('time'); ylabel('gradient strength (au)');
   
-  % compute the current error to ground-truth
-  error_m = gtruth_m - reshape(reco_m,sz);
-  
-  for rnd_restart = 1:nmb_rand_restarts
-    
-    % initialize gradients
-    %g = zeros(T,2); g = g(:);                                                                       % initialize the gradients to all zeros
-    %g = zeros(T,2); g(:,1) = rand(T,1) - 0.5; g = g(:);
-    g = rand(T,2) - 0.5; g = g(:);                                                                                % good for random restarts
-
-    % do optimization for g of E(g), loss --> (||error_m - E.T*E*error_m||^2 + lambda*||cumsum(g)||^2) 
-    args = {error_m,rampX,rampY,adc_mask,sz,lambda,use_tanh_grad_moms_cap};
-    [g,phi] = minimize(g(:),'phi_grad_readout2d',p,args{:});
-    
-    % select the gradients with the lowest loss achieved
-    phi = phi(end);
-    if phi < minerr
-      bestgrad = g;
-      minerr = phi;
-    end
-  end
- 
-  % forward pass to compute the prediction, gradient moments and gradients
-  [~,~,reco_current,E,grad_moms,grads] = phi_grad_readout2d(bestgrad(:),args{:});
-  all_grad{rep} = grads;
-  figure(1), plot(grads); title(['learned gradients at repetition ', num2str(rep), ' blue - grad X, orange - grad Y']); xlabel('time'); ylabel('gradient strength (au)');
-  figure(11), scatter(grads(:,1),grads(:,2)); title('grads'); hold on;
-  % update the current reconstruction
-  reco_m = reco_m + reshape(reco_current,sz);
-
   figure(2),
-    subplot(2,2,1), imagesc(abs(reshape(error_m,sz))); title(['repetition ',num2str(rep),' : target to predict']);
-    subplot(2,2,2), imagesc(abs(reshape(reco_current,sz))); title(['repetition ',num2str(rep),' :prediction']);
-    subplot(2,2,3), imagesc(abs(reco_m)); title(['repetition ',num2str(rep),' : reconstruction, error=',num2str(e(gtruth_m(:),reco_m(:)))]);
-    subplot(2,2,4), imagesc(abs(gtruth_m)); title('global target to predict (actual image)');
+    subplot(1,2,1), imagesc(abs(reshape(reco_current,sz))); title(['repetition ',num2str(rep),' :prediction ',' : reconstruction, error=',num2str(e(gtruth_m(:),reco_current(:)))]);
+    subplot(1,2,2), imagesc(abs(gtruth_m)); title('global target to predict (actual image)');
     
-  E = reshape(E,[],sz(1),sz(2));
-  
-  E_allrep{rep} = E;
-  
-  if do_versbose
-    figure(10),
-      for t = 1:T
-        basis_func = fftshift(squeeze(E(t,:,:)));
-        subplot(4,6,t), imagesc(fftshift(angle(basis_func)));
-      end
-  end
-
+  grad_moms_plot = cumsum(grads{rep},1);
+  %grad_moms_plot = squeeze(grad_moms(rep,:,:));
+    
   % plot actual sampled kspace locations  
-  figure(5)
+  figure(3)
   c = ones(T,1)*rep;                                                                                                % color code repetitions
-    hold on; scatter(grad_moms(:,2), grad_moms(:,1),[],c); hold off; axis([-8,8,-8,8]); title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
-     
-%   figure(6)
-%   c = ones(T,1)*rep;         
-%   field=cumsum(grads,1); % color code repetitions
-%     hold on; scatter(field(:,2), field(:,1),[],c); hold off; axis([-8,8,-8,8]); title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
-%   
+    hold on; scatter(grad_moms_plot(:,2), grad_moms_plot(:,1),[],c); hold off; axis([-sz(1)/2,sz(1)/2,-sz(2)/2,sz(2)/2]); title('kspace sampled locations'); xlabel('readout direction'); ylabel('phase encode direction');
+      
   %pause
 end
+
+learned_grads_all = grads;
+
+
 
 return
 
@@ -214,17 +238,17 @@ gradYevent=mr.makeTrapezoid('y','FlatArea',deltak,'FlatTime',dt-2*riseTime,'Rise
 
 amplitude = abs(gradXevent.amplitude);
 
-NRep = 16;
+NRep = sz(2);
 
 
 % put blocks together
 for rep=1:NRep
     seq.addBlock(rf);
     
-     learned_grads = reshape(all_grad{rep},[],2);
+     learned_grads = reshape(learned_grads_all{rep},[],2);
 %     grad_moms = cumsum(learned_grads,1) * 1; % 1s
     
-    learned_grads=learned_grads * 1; % 1s
+    learned_grads = learned_grads * 1; % 1s
     
         
     figure(11), scatter(learned_grads(:,1),learned_grads(:,2)); title('gradmoms'); hold on;
@@ -236,8 +260,8 @@ for rep=1:NRep
       %gradXevent=mr.makeTrapezoid('x','FlatArea',flatArea*grad_moms(kx,1),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
       %gradYevent=mr.makeTrapezoid('y','FlatArea',flatArea*grad_moms(kx,2),'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
       
-      gradXevent.amplitude=learned_grads(kx,1)*amplitude;
-      gradYevent.amplitude=learned_grads(kx,2)*amplitude;
+      gradXevent.amplitude=-1*learned_grads(kx,1)*amplitude;
+      gradYevent.amplitude=-1*learned_grads(kx,2)*amplitude;
 
       seq.addBlock(gradXevent,gradYevent,adc);
     end
@@ -256,7 +280,7 @@ seq.plot();
 % close all
 
 PD = phantom(sz(1));
-% PD = abs(gtruth_m);
+%PD = abs(gtruth_m);
 
 PD(PD<0) = 0;
 T1 = 1e6*PD*2; T1(:) = 1;
@@ -300,86 +324,49 @@ PD = abs(gtruth_m);
 
 PD(PD<0) = 0;
 T1 = 1e6*PD*2; T1(:) = 1;
-T2 = 1e6*PD*2; T2(:) = 100;
+T2 = 1e6*PD*2; T2(:) = 2;
 InVol = double(cat(3,PD,T1,T2));
 
-numSpins = 1;
+%InVol = permute(InVol,[2,1,3]);
+%InVol = flipud(fliplr(InVol));
+
+%InVol = fftshift(fftshift(InVol,1),2);
+
+numSpins = 11;
 
 [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
 
-kList = reshape(kList, [NRep, T]);
-
+%kList = reshape(kList, [NRep, T]);
+kList = reshape(kList, [T, NRep]);
 
 reco = 0;
 PD1 = eye(sz(1));
 for rep = 1:NRep
   
-  E = E_allrep{rep};
+  E = E_all_rep{rep};
   E = reshape(E, T, []);
   
-  y = kList(rep,:).';
+  y = kList(:,rep);
+  %y = kList(rep,:).';
   
-%   y = E*gtruth_m(:);
-  y = E*PD1(:);
+  %y = E*gtruth_m(:);
+  %y = E*PD1(:);
   
   reco = reco + E'*y;
   
 end
 
-figure(1), imagesc(abs(reshape(reco,sz)));
+reco = reshape(reco,sz);
+reco = fftshift(reco);
 
+figure(1), imagesc(abs(reco));
 
-
-
-%% pulseq TEST
-% Sequence Parameters
-SeqOpts.resolution = resolution;
-SeqOpts.FOV = 220e-3;
-SeqOpts.TE = 10e-3;
-SeqOpts.TR = 3000e-3;
-SeqOpts.FlipAngle = pi/2;
-seqFilename = fullfile(pwd, 'epi.seq');
-
-% sequence = WriteGRESequenceWithPulseq(SeqOpts, seqFilename);
-sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
-
-sequence.plot();
-%FG: reference sequence: gre.seq
-% we use the outcome of the standard linear reorderd GRE as a reference k-space and image
-
-PD = phantom(sz(1));
-
-PD(PD<0) = 0;
-T1 = 1e6*PD*2; T1(:) = 1;
-T2 = 1e6*PD*2; T2(:) = 100;
-InVol = double(cat(3,PD,T1,T2));
-
-  tic
-        [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename,5);
-        toc
-        
-        kList(isnan(kList))=0;
-        gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
-        
-        [Y,X] = meshgrid(1:resolution);
-%         [Xq,Yq] = meshgrid(1:0.5:resolution);
-%          kRefInterp = interp2(X,Y,kRef,gradMomsEnd(1), gradMomsEnd(2));
-%         kRefInterp2 = interp2(X,Y,kRef,Xq, Yq);
-               
-        kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) -1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
-        kReco(isnan(kReco))=0;
-
-        figure(), subplot(3,2,1), imagesc(abs(kReco),[0 200]);
-               subplot(3,2,3), imagesc(abs(fft2(fftshift(kReco))),[0 500]); 
-        subplot(3,2,5), plot(gradMomsScaled(1,:),gradMomsScaled(2,:));
-        subplot(3,2,6),scatter3(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList))
-       
 
 %% TEST pulseq and learngrads
 clear grad_moms
 %  plug learned gradients into the sequence constructor
 % close all
-NRep = 2;
+
 sz = [32,32];   
 seqFilename = 'seq/learned_grad_test.seq';
 
@@ -417,9 +404,6 @@ gradYevent=mr.makeTrapezoid('y','FlatArea',deltak,'FlatTime',dt-2*riseTime,'Rise
 
 amplitude = abs(gradXevent.amplitude);
 
-
-NRep = 32;                                                                                                           % number of repetitions
- T=32;
 % put blocks together
 for rep=1:NRep
     seq.addBlock(rf);
@@ -483,3 +467,30 @@ InVol = double(cat(3,PD,T1,T2));
         subplot(3,2,5), plot(gradMomsScaled(1,:),gradMomsScaled(2,:));
         subplot(3,2,6),scatter3(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList))
        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

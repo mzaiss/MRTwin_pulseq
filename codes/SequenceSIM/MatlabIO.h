@@ -51,9 +51,9 @@ void ReadMATLABInput(int nrhs, const mxArray *prhs[], ReferenceVolume* refVol, B
 	double t1, t2;
 	for (int x = 0; x < nCols; x++){
 		for (int y = 0; y < nRows; y++){
-			refVol->SetProtonDensityValue(y, x, pData[x + y*nCols + 0 * (nCols*nRows)]);
-			t1 = pData[x + y*nCols + 1 * (nCols*nRows)];
-			t2 = pData[x + y*nCols + 2 * (nCols*nRows)];
+			refVol->SetProtonDensityValue(y, x, pData[y + x * nRows + 0 * (nCols*nRows)]);
+			t1 = pData[y + x*nRows + 1 * (nCols*nRows)];
+			t2 = pData[y + x*nRows + 2 * (nCols*nRows)];
 			refVol->SetR1Value(y, x, t1 <= 0.0 ? 0.0 : 1.0 / t1);
 			refVol->SetR2Value(y, x, t2 <= 0.0 ? 0.0 : 1.0 / t2);
 		}
