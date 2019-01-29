@@ -655,8 +655,8 @@ bool ExternalSequence::decodeBlock(SeqBlock *block)
 		decompressShape(shapePhase,&waveform[0]);
 
 		// Scale phase by 2pi
-		std::transform(waveform.begin(), waveform.end(), waveform.begin(), std::bind1st(std::multiplies<float>(),TWO_PI));
-		block->rfPhase = std::vector<float>(waveform);
+		//std::transform(waveform.begin(), waveform.end(), waveform.begin(), std::bind1st(std::multiplies<float>(),TWO_PI));
+		//block->rfPhase = std::vector<float>(waveform);
 	}
 
 	// Decode gradients
