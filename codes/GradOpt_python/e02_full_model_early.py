@@ -137,7 +137,7 @@ def magimg(x):
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0]                                            # number of events F/R/P
-NSpins = 2
+NSpins = 10
 
 m = np.load('../../data/phantom.npy')
 m = cv2.resize(m, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
@@ -148,10 +148,12 @@ Nvox = sz[0]*sz[1]
 # set relaxations and proton densities
 PD = torch.from_numpy(magimg(m).reshape([Nvox])).float()
 T1 = torch.ones(Nvox, dtype=torch.float32)*1e6
-T2 = torch.ones(Nvox, dtype=torch.float32)*1e6
+T2 = torch.ones(Nvox, dtype=torch.float32)*2                        # seconds
+T2[0:Nvox/2] = 0.09
 
 # set NSpins offresonance
-dB0 = torch.zeros(NSpins, dtype=torch.float32)
+#dB0 = torch.zeros(NSpins, dtype=torch.float32)
+dB0 = torch.from_numpy(0*(1e-3*np.pi/180)*np.arange(0,NSpins).reshape([NSpins])).float()
 
 # set gradient spatial forms
 rampX = np.pi*np.linspace(-1,1,sz[0] + 1)
@@ -178,7 +180,7 @@ P = torch.zeros((NSpins,1,1,4,4), dtype=torch.float32)                       # F
 F[:,:,0,3,3] = 1
 F[:,:,0,1,1] = 1
 
-flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
+flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
 
 flips_cos = torch.cos(flips)
 flips_sin = torch.sin(flips)
@@ -189,7 +191,7 @@ F[:,:,0,2,0] = -flips_sin
 F[:,:,0,2,2] = flips_cos
  
 # relaxations
-dt = 1
+dt = 0.0001                                                         # seconds
 T2_r = torch.exp(-dt/T2)
 T1_r = torch.exp(-dt/T1)
 
@@ -254,6 +256,36 @@ M_init = M0
 
 M = M_init.clone()
 M = M.view([NSpins,NRep,Nvox,4,1])
+
+# beginning of repetition flip
+FF = torch.zeros((1,NRep,1,4,4), dtype=torch.float32)
+FF[:,:,0,3,3] = 1
+FF[:,:,0,1,1] = 1
+
+flips = torch.ones((1,NRep), dtype=torch.float32) * 90 * np.pi/180
+flips_cos = torch.cos(flips)
+flips_sin = torch.sin(flips)
+FF[:,:,0,0,0] = flips_cos
+FF[:,:,0,0,2] = flips_sin
+FF[:,:,0,2,0] = -flips_sin
+FF[:,:,0,2,2] = flips_cos
+
+M = torch.matmul(FF[0,:,:,:],M)
+
+# relax till ADC
+
+RR = torch.zeros((Nvox,4,4), dtype=torch.float32)
+fdt = 0.06                                                          # seconds
+T2_r = torch.exp(-fdt/T2)
+T1_r = torch.exp(-fdt/T1)
+RR[:,3,3] = 1
+RR[:,0,0] = T2_r
+RR[:,1,1] = T2_r
+RR[:,2,2] = T1_r
+RR[:,2,3] = 1 - T1_r
+RR = RR.view([1,Nvox,4,4])
+
+M = torch.matmul(RR,M)
 
 # flip
 F[1:,:,0,0,0] = 1
@@ -321,6 +353,8 @@ plt.title('reconstruction')
 plt.ion()
 plt.show()
 
+#hgfhgf
+
 
 # %% optimize
 
@@ -330,6 +364,43 @@ def phi_FRP_model(grads,args):
     
     M = M_init.clone()
     M = M.view([NSpins,NRep,Nvox,4,1])
+    
+    
+    
+    
+    # beginning of repetition flip
+    FF = torch.zeros((1,NRep,1,4,4), dtype=torch.float32)
+    FF[:,:,0,3,3] = 1
+    FF[:,:,0,1,1] = 1
+    
+    flips = torch.ones((1,NRep), dtype=torch.float32) * 90 * np.pi/180
+    flips_cos = torch.cos(flips)
+    flips_sin = torch.sin(flips)
+    FF[:,:,0,0,0] = flips_cos
+    FF[:,:,0,0,2] = flips_sin
+    FF[:,:,0,2,0] = -flips_sin
+    FF[:,:,0,2,2] = flips_cos
+    
+    M = torch.matmul(FF[0,:,:,:],M)
+    
+    # relax till ADC
+    
+    RR = torch.zeros((Nvox,4,4), dtype=torch.float32)
+    fdt = 0.06                                                          # seconds
+    T2_r = torch.exp(-fdt/T2)
+    T1_r = torch.exp(-fdt/T1)
+    RR[:,3,3] = 1
+    RR[:,0,0] = T2_r
+    RR[:,1,1] = T2_r
+    RR[:,2,2] = T1_r
+    RR[:,2,3] = 1 - T1_r
+    RR = RR.view([1,Nvox,4,4])
+    
+    M = torch.matmul(RR,M)    
+    
+    
+    
+    
     
     # gradients
     rampX_t = torch.from_numpy(rampX).float()
