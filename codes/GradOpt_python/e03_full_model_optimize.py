@@ -13,7 +13,7 @@ import cv2
 import matplotlib.pyplot as plt
 from torch import optim
 
-use_gpu = 0
+use_gpu = 1
 
 # NRMSE error function
 def e(gt,x):
@@ -39,16 +39,18 @@ def get_ramps(sz):
     rampY = torch.from_numpy(rampY).float()
     rampY = rampY.view([1,1,Nvox])    
     
-    setdevice(rampX)
-    setdevice(rampY)
+    rampX = setdevice(rampX)
+    rampY = setdevice(rampY)
     
     return (rampX, rampY)
 
-def init_flip_holder_tensor(T,NRep):
+def init_flip_tensor_holder(T,NRep):
     F = torch.zeros((T,NRep,1,4,4), dtype=torch.float32)
     
     F[:,:,0,3,3] = 1
     F[:,:,0,1,1] = 1
+     
+    F = setdevice(F)
      
     return F
      
@@ -78,7 +80,7 @@ def get_relaxation_tensor(T1,T2,dt,Nvox):
      
     R = R.view([1,Nvox,4,4])
     
-    setdevice(R)
+    R = setdevice(R)
 
     return R
 
@@ -95,16 +97,16 @@ def get_freeprecession_tensor(dB0,NSpins):
     P[:,0,0,1,0] = B0_nspins_sin
     P[:,0,0,1,1] = B0_nspins_cos
      
-    setdevice(P)
+    P = setdevice(P)
 
     return P
 
-def init_gradient_holder_tensor(NRep,Nvox):
+def init_gradient_tensor_holder(NRep,Nvox):
     G = torch.zeros((NRep,Nvox,4,4), dtype=torch.float32)
     G[:,:,2,2] = 1
     G[:,:,3,3] = 1
      
-    setdevice(G)
+    G = setdevice(G)
     
     return G
     
@@ -137,13 +139,15 @@ def get_initial_magnetization(PD,NSpins,NRep,Nvox):
     M0[:,:,:,2:] = 1
     M0[:,:,:,2] = M0[:,:,:,2] * PD.view([Nvox])    # weight by proton density
     
-    setdevice(M0)
+    M0 = setdevice(M0)
     
     return M0
 
 def setdevice(x):
     if use_gpu:
-        x = x.cuda()
+        x = x.cuda(0)
+        
+    return x
 
 # define setup
 
@@ -175,11 +179,12 @@ rampX, rampY = get_ramps(sz)
 adc_mask = torch.from_numpy(np.ones((T,1))).float()
 #adc_mask[:1] = 0
 
-setdevice(adc_mask)
+adc_mask = setdevice(adc_mask)
 
 # init tensors
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
-F = init_flip_holder_tensor(T,NRep)
+flips[0,:] = 90*np.pi/180
+F = init_flip_tensor_holder(T,NRep)
 set_flip_tensor(F,flips,T,NRep)
 
 R = get_relaxation_tensor(T1,T2,dt,Nvox)
@@ -192,13 +197,14 @@ grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 grad_moms[:,:,0] = torch.linspace(-sz[0]/2,sz[0]/2-1,T).view(T,1).repeat([1,NRep])
 grad_moms[:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,NRep).repeat([T,1])
 
-temp = torch.cat((torch.zeros((1,NRep,2),dtype=torch.float32),grad_moms),0)
+padder = torch.zeros((1,NRep,2),dtype=torch.float32)
+temp = torch.cat((padder,grad_moms),0)
 grads = temp[1:,:,:] - temp[:-1,:,:]
 
-setdevice(grads)
-setdevice(grad_moms)
+grads = setdevice(grads)
+grad_moms = setdevice(grad_moms)
 
-G = init_gradient_holder_tensor(NRep,Nvox)
+G = init_gradient_tensor_holder(NRep,Nvox)
 B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(grads,rampX,rampY,NRep,Nvox)
  
 ## Forward model :::
@@ -207,22 +213,23 @@ B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(grads,rampX,rampY,NRep
 signal = torch.zeros((T,NRep,4,1), dtype=torch.float32) 
 signal[:,:,3,0] = 1
       
-setdevice(signal)
+signal = setdevice(signal)
 
 # initialize magnetization vector
 M_init = get_initial_magnetization(PD,NSpins,NRep,Nvox)
 M = M_init.clone().view([NSpins,NRep,Nvox,4,1])
 
-# beginning of repetition flip
-flips_init = torch.ones((1,NRep), dtype=torch.float32) * 90 * np.pi/180
-F1 = init_flip_holder_tensor(1,NRep)
-set_flip_tensor(F1,flips_init,1,NRep)
-M = torch.matmul(F1[0,:,:,:],M)
-
-# relax till ADC
-till_ADC = 0.06                                                     # seconds
-R1 = get_relaxation_tensor(T1,T2,0.06,Nvox)
-M = torch.matmul(R1,M)
+if False:                                          # fixed flip position case
+    # beginning of repetition flip
+    flips_init = torch.ones((1,NRep), dtype=torch.float32) * 90 * np.pi/180
+    F1 = init_flip_tensor_holder(1,NRep)
+    set_flip_tensor(F1,flips_init,1,NRep)
+    M = torch.matmul(F1[0,:,:,:],M)
+    
+    # relax till ADC
+    till_ADC = 0.06                                                     # seconds
+    R1 = get_relaxation_tensor(T1,T2,0.06,Nvox)
+    M = torch.matmul(R1,M)
 
 for t in range(T):
     
@@ -245,7 +252,7 @@ B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(grad_moms,rampX,rampY,
 
 # init reconstructed image
 reco = torch.zeros((Nvox,2), dtype = torch.float32)
-setdevice(reco)
+reco = setdevice(reco)
 
 for t in range(T-1,-1,-1):
     
@@ -280,9 +287,10 @@ def phi_FRP_model(grads,args):
     M = M_init.clone()
     M = M.view([NSpins,NRep,Nvox,4,1])
     
-    # initial flip/relax
-    M = torch.matmul(F1[0,:,:,:],M)
-    M = torch.matmul(R1,M)    
+    if False:                                      # fixed flip position case
+        # initial flip/relax
+        M = torch.matmul(F1[0,:,:,:],M)
+        M = torch.matmul(R1,M)    
     
     # gradients
     grad_moms = torch.cumsum(grads,0)
@@ -294,8 +302,9 @@ def phi_FRP_model(grads,args):
       for i in [0,1]:
           grad_moms[:,:,i] = boost_fct*fmax[i]*torch.tanh(grad_moms[:,:,i])
           
-          
-    temp = torch.cat((torch.zeros((1,NRep,2),dtype=torch.float32),grad_moms),0)
+    padder = torch.zeros((1,NRep,2),dtype=torch.float32)
+    padder = setdevice(padder)
+    temp = torch.cat((padder,grad_moms),0)
     grads_cap = temp[1:,:,:] - temp[:-1,:,:]          
           
     B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(grads_cap,rampX,rampY,NRep,Nvox)
@@ -304,7 +313,9 @@ def phi_FRP_model(grads,args):
     signal = torch.zeros((T,NRep,4,1), dtype=torch.float32) 
     signal[:,:,3,0] = 1
           
-    G = init_gradient_holder_tensor(NRep,Nvox)
+    signal = setdevice(signal)
+          
+    G = init_gradient_tensor_holder(NRep,Nvox)
           
     for t in range(T):
         
@@ -323,7 +334,7 @@ def phi_FRP_model(grads,args):
     B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(grad_moms,rampX,rampY,NRep,Nvox)
     
     reco = torch.zeros((Nvox,2), dtype = torch.float32)
-    setdevice(reco)
+    reco = setdevice(reco)
     
     for t in range(T-1,-1,-1):
         
@@ -343,8 +354,9 @@ def phi_FRP_model(grads,args):
 g = np.random.rand(T,NRep,2) - 0.5
 #g = g.ravel()
 grads = torch.from_numpy(g).float()
+grads = setdevice(grads)
 grads.requires_grad = True
-setdevice(grads)
+
 
 target = target.detach()
 
@@ -364,7 +376,7 @@ def weak_closure():
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 
-training_iter = 50
+training_iter = 80
 for i in range(training_iter):
     optimizer.step(weak_closure)
     
