@@ -6,7 +6,7 @@
 % (:,:,2) -> T1
 % (:,:,3) -> T2
 
-resolution = 96; % 100x100 take runs ~12s on a single core
+resolution = 64; % 100x100 take runs ~12s on a single core
 PD = phantom(resolution);
 PD(PD<0) = 0;
 T1 = PD*2;
@@ -52,13 +52,13 @@ imagesc(imag(Y));
 
 % aquired signal
 subplot(2,4,5);
-imshow(abs(ifft2(fftshift(kspace)))./numSpins);
+imshow(abs(fftshift((ifft2((kspace)))./numSpins))');
 subplot(2,4,6);
-imagesc(abs(kspace));
+imagesc(abs(kspace)');
 subplot(2,4,7);
-imagesc(real(kspace));
+imagesc(real(kspace)');
 subplot(2,4,8);
-imagesc(imag(kspace));
+imagesc(imag(kspace)');
 
 %plot trajectory
 figure,plot(gradients(1,:),gradients(2,:), '-o');

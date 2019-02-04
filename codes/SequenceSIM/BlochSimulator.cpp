@@ -83,20 +83,20 @@ void BlochSimulator::RunSimulation(ExternalSequence& sequence, std::vector<KSpac
 void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBlock* seqBlock, uint32_t &currentADC)
 {
 	Matrix3d A = Matrix3d::Zero();
-	uint32_t numCols = referenceVolume->GetNumberOfColumns();
-	uint32_t numRows = referenceVolume->GetNumberOfRows();
+	int numCols = referenceVolume->GetNumberOfColumns();
+	int numRows = referenceVolume->GetNumberOfRows();
 	double pixelSize = referenceVolume->GetPixelSize();
 	double GradientTimeStep = (seqBlock->GetDuration()*1e-6) / seqBlock->GetADCEvent().numSamples;
 	for (uint32_t adcSample = 0; adcSample < seqBlock->GetADCEvent().numSamples; adcSample++){
 		////////////////////////////////////////////////////////////////////////////////////////
 		// TODO: Parallelize
 		////////////////////////////////////////////////////////////////////////////////////////
-		for (uint32_t col = 0; col < numCols; col++) {
-			double xGrad = seqBlock->GetGradEvent(0).amplitude * col * pixelSize * TWO_PI;
-			for (uint32_t row = 0; row < numRows; row++) {
-				double xyGrad = seqBlock->GetGradEvent(1).amplitude * row * pixelSize * TWO_PI + xGrad;
+		for (int col = 0; col < numCols; col++) {
+			double xGrad = seqBlock->GetGradEvent(0).amplitude * (col+1-numCols/2) * pixelSize * TWO_PI; 
+			for (int row = 0; row < numRows; row++) {
+				double xyGrad = seqBlock->GetGradEvent(1).amplitude * (row+1-numRows/2) * pixelSize * TWO_PI + xGrad;
 				if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
-                    for (uint32_t spin = 0; spin < numSpins; spin++) {
+                    for (int spin = 0; spin < numSpins; spin++) {
                         double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
                         SetOffresonance(A, xyGrad+spinDephaseFreq);
 						ApplyBlochSimulationPixel(row, col, spin, A, GradientTimeStep, DEPHASE);
@@ -118,8 +118,8 @@ void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBloc
 void BlochSimulator::ApplyGlobalEventToVolume(SeqBlock* seqBlock)
 {
 	Matrix3d A = Matrix3d::Zero();
-	uint32_t numRows = referenceVolume->GetNumberOfRows();
-	uint32_t numCols = referenceVolume->GetNumberOfColumns();
+	int numRows = referenceVolume->GetNumberOfRows();
+	int numCols = referenceVolume->GetNumberOfColumns();
 
 	
 	////////////////////////////////////////////////////////////////////////////////////////
@@ -127,10 +127,10 @@ void BlochSimulator::ApplyGlobalEventToVolume(SeqBlock* seqBlock)
 	////////////////////////////////////////////////////////////////////////////////////////
     //set the rf pulse
     SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset, seqBlock->GetRFEvent().freqOffset*TWO_PI);
-    for (uint32_t row = 0; row < numRows; row++) {
-        for (uint32_t col = 0; col < numCols; col++) {
+    for (int row = 0; row < numRows; row++) {
+        for (int col = 0; col < numCols; col++) {
            	if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
-                for (uint32_t spin = 0; spin < numSpins; spin++) {
+                for (int spin = 0; spin < numSpins; spin++) {
                     double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);
                     SetOffresonance(A, spinDephaseFreq);
                     ApplyBlochSimulationPixel(row, col, spin, A, seqBlock->GetDuration()*1e-6, seqBlock->isRF() ? PRECESS : RELAX);
@@ -148,22 +148,23 @@ void BlochSimulator::ApplyEventToVolume(SeqBlock* seqBlock)
 	// 2. Compensate for gradient rise and fall time
 	////////////////////////////////////////////////////////////////////////////////////////
 	Matrix3d A = Matrix3d::Zero();
-	uint32_t numRows = referenceVolume->GetNumberOfRows();
-	uint32_t numCols = referenceVolume->GetNumberOfColumns();
+	int numRows = referenceVolume->GetNumberOfRows();
+	int numCols = referenceVolume->GetNumberOfColumns();
 	double pixelSize = referenceVolume->GetPixelSize();
 	double phaseGradientAtPx; // phase gradient at the current position
 	double xyGrad;
 
 	//set the rf pulse
-	SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset, seqBlock->GetRFEvent().freqOffset*TWO_PI);
+	if(seqBlock->isRF())
+		SetRFPulse(A, seqBlock->GetRFEvent().amplitude*TWO_PI, seqBlock->GetRFEvent().phaseOffset, seqBlock->GetRFEvent().freqOffset*TWO_PI);
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// TODO: Parallelize
 	////////////////////////////////////////////////////////////////////////////////////////
-	for (uint32_t row = 0; row < numRows; row++) {
-		phaseGradientAtPx = seqBlock->GetGradEvent(1).amplitude * row * pixelSize * TWO_PI;
-		for (uint32_t col = 0; col < numCols; col++) {
-			double xyGrad = seqBlock->GetGradEvent(0).amplitude * col * pixelSize * TWO_PI + phaseGradientAtPx;
+	for (int row = 0; row < numRows; row++) {
+		phaseGradientAtPx = seqBlock->GetGradEvent(1).amplitude *  (row + 1 - numRows / 2) * pixelSize * TWO_PI;
+		for (int col = 0; col < numCols; col++) {
+			double xyGrad = seqBlock->GetGradEvent(0).amplitude *  (col + 1 - numCols / 2) * pixelSize * TWO_PI + phaseGradientAtPx;
             if (referenceVolume->GetProtonDensityValue(row, col) > 0) { // skip if there is no tissue
                 for (uint32_t spin = 0; spin < numSpins; spin++) {
                     double spinDephaseFreq = (double(spin) / numSpins)*TWO_PI*referenceVolume->GetR2Value(row, col);

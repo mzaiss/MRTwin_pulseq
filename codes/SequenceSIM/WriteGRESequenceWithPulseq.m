@@ -57,7 +57,7 @@ for i=1:Ny
     seq.addBlock(mr.makeDelay(delayTE));
     seq.addBlock(gx,adc);
     gyRew = mr.makeTrapezoid('y','Area',-phaseAreas(i),'Duration',3e-3,'RiseTime', riseTime);
-    seq.addBlock(gyRew);
+    seq.addBlock(gxPre,gyRew);
     seq.addBlock(mr.makeDelay(delayTR))
 end
 
