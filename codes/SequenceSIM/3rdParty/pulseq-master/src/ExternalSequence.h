@@ -65,12 +65,12 @@ const int NUM_GRADS=ADC-GX;
  */
 struct RFEvent
 {
-	float amplitude;     /**< @brief Amplitude of RF event (Hz) */
-	int magShape;        /**< @brief ID of shape for magnitude */
-	int phaseShape;      /**< @brief ID of shape for phase */
-	float freqOffset;    /**< @brief Frequency offset of transmitter (Hz) */
-	float phaseOffset;   /**< @brief Phase offset of transmitter (rad) */
-	int delay;           /**< @brief Delay prior to the pulse (us) */
+	float amplitude = 0.0;     /**< @brief Amplitude of RF event (Hz) */
+	int magShape = 0;        /**< @brief ID of shape for magnitude */
+	int phaseShape = 0;      /**< @brief ID of shape for phase */
+	float freqOffset = 0.0;    /**< @brief Frequency offset of transmitter (Hz) */
+	float phaseOffset = 0.0;   /**< @brief Phase offset of transmitter (rad) */
+	int delay = 0;           /**< @brief Delay prior to the pulse (us) */
 };
 
 
@@ -84,14 +84,14 @@ struct RFEvent
  */
 struct GradEvent
 {
-	float amplitude;      /**< @brief Amplitude of gradient (Hz/m) */
-	int delay;
+	float amplitude = 0.0;      /**< @brief Amplitude of gradient (Hz/m) */
+	int delay = 0;
 	// Trapezoid:
-	long rampUpTime;      /**< @brief Ramp up time of trapezoid (us) */
-	long flatTime;        /**< @brief Flat-top time of trapezoid (us) */
-	long rampDownTime;    /**< @brief Ramp down time of trapezoid (us) */
+	long rampUpTime = 0;      /**< @brief Ramp up time of trapezoid (us) */
+	long flatTime = 0;        /**< @brief Flat-top time of trapezoid (us) */
+	long rampDownTime = 0;    /**< @brief Ramp down time of trapezoid (us) */
 	// Arbitrary:
-	int shape;            /**< @brief ID of shape for arbitrary gradient */
+	int shape = 0;            /**< @brief ID of shape for arbitrary gradient */
 };
 
 
@@ -104,11 +104,11 @@ struct GradEvent
  */
 struct ADCEvent
 {
-	int numSamples;     /**< @brief Number of samples */
-	int dwellTime;      /**< @brief Dwell time of ADC readout (ns) */
-	int delay;          /**< @brief Delay before first sample (us) */
-	float freqOffset;   /**< @brief Frequency offset of receiver (Hz) */
-	float phaseOffset;  /**< @brief Phase offset of receiver (rad) */
+	int numSamples = 0;     /**< @brief Number of samples */
+	int dwellTime = 0;      /**< @brief Dwell time of ADC readout (ns) */
+	int delay = 0;          /**< @brief Delay before first sample (us) */
+	float freqOffset = 0.0;   /**< @brief Frequency offset of receiver (Hz) */
+	float phaseOffset = 0.0;  /**< @brief Phase offset of receiver (rad) */
 };
 
 /**

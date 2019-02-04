@@ -19,11 +19,11 @@ function [] = plotSimulationResult(PD, kspace)
 
     % aquired signal
         subplot(2,4,5);
-        imshow(abs(ifft2(fftshift(kspace)))); % reconstructed image
+        imshow(abs(fftshift(ifft2(kspace)))'); % reconstructed image
         subplot(2,4,6);
-        imagesc(abs(kspace));
+        imagesc(abs(kspace)');
         subplot(2,4,7);
-        imagesc(real(kspace));
+        imagesc(real(kspace)');
         subplot(2,4,8);
-        imagesc(imag(kspace));
+        imagesc(imag(kspace)');
 end
