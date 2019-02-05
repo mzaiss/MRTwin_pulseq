@@ -33,10 +33,10 @@ def setdevice(x):
 # define setup
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
-T = sz[0] + 300                                        # number of events F/R/P
+T = sz[0] + 2                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-dt = 0.0001                         # time interval between actions (seconds)
+#dt = 0.0001                         # time interval between actions (seconds)
 
 noise_std = 0*1e0                               # additive Gaussian noise std
 
@@ -56,8 +56,8 @@ class SpinSystem():
         self.T2 = None                          # T2 relaxation times (NVox,)
         self.dB0 = None                        # spin off-resonance (NSpins,)
         
-        self.M0 = None     # initial magnetization state (NSpins,NRep,NVox,4)
-        self.M = None       # curent magnetization state (NSpins,NRep,NVox,4)
+        self.M0 = None          # initial magnetization state (NSpins,NVox,4)
+        self.M = None            # curent magnetization state (NSpins,NVox,4)
         
         # aux
         self.img = None
@@ -72,32 +72,40 @@ class SpinSystem():
         self.img = m.copy()
         
         # set relaxations (unit - seconds) and proton density
-        self.PD = torch.from_numpy(magimg(m).reshape([self.NVox])).float()
-        self.T1 = torch.ones(self.NVox, dtype=torch.float32)*4
-        self.T2 = torch.ones(self.NVox, dtype=torch.float32)*2
-        self.T2[0:NVox/2] = 0.09
+        PD = torch.from_numpy(magimg(m).reshape([self.NVox])).float()
+        T1 = torch.ones(self.NVox, dtype=torch.float32)*4
+        T2 = torch.ones(self.NVox, dtype=torch.float32)*2
+        T2[0:NVox/2] = 0.09
         
         # set NSpins offresonance (from R2)
         factor = (0*1e0*np.pi/180) / self.NSpins
-        self.dB0 = torch.from_numpy(factor*np.arange(0,self.NSpins).reshape([self.NSpins])).float()
+        dB0 = torch.from_numpy(factor*np.arange(0,self.NSpins).reshape([self.NSpins])).float()
         
-    def set_initial_magnetization(self,NRep):
-        M0 = torch.zeros((self.NSpins,NRep,self.NVox,4), dtype=torch.float32)
+        self.T1 = setdevice(T1)
+        self.T2 = setdevice(T2)
+        self.PD = setdevice(PD)
+        self.dB0 = setdevice(dB0)
+        
+    def set_initial_magnetization(self):
+        M0 = torch.zeros((self.NSpins,self.NVox,4), dtype=torch.float32)
+        
+        M0 = setdevice(M0)
         
         # set initial longitudinal magnetization value
-        M0[:,:,:,2:] = 1
-        M0[:,:,:,2:] = M0[:,:,:,2:] * self.PD.view([self.NVox,1])    # weight by proton density
+        M0[:,:,2:] = 1
+        M0[:,:,2:] = M0[:,:,2:] * self.PD.view([self.NVox,1])    # weight by proton density
         
-        M = M0.clone().view([self.NSpins,NRep,self.NVox,4,1])
+        M = M0.clone().view([self.NSpins,self.NVox,4,1])
         
-        self.M0 = setdevice(M0)
+        self.M0 = M0
+        
         self.M = setdevice(M)
         
 
 # HOW we measure
 class Scanner():
     
-    def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,dt,noise_std):
+    def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,noise_std):
         
         self.sz = sz                                             # image size
         self.NVox = sz[0]*sz[1]                                 # voxel count
@@ -105,7 +113,6 @@ class Scanner():
         self.NRep = NRep                              # number of repetitions
         self.T = T                       # number of "actions" with a readout
         self.NCoils = NCoils                # number of receive coil elements
-        self.dt = dt                # time interval between actions (seconds)
         self.noise_std = noise_std              # additive Gaussian noise std
         
         self.adc_mask = None         # ADC signal acquisition event mask (T,)
@@ -122,7 +129,7 @@ class Scanner():
         self.B0_grad_adj_cos = None  # adjoint grad phase accum (T,NRep,NVox)
         self.B0_grad_adj_sin = None
         
-        self.B1 = None            # coil sensitivity profiles (NCoils,NVox,4)
+        self.B1 = None          # coil sensitivity profiles (NCoils,NVox,2,2)
 
         self.signal = None                # measured signal (NCoils,T,NRep,4)
         self.reco =  None                       # reconstructed image (NVox,) 
@@ -130,11 +137,22 @@ class Scanner():
     def set_adc_mask(self):
         adc_mask = torch.from_numpy(np.ones((self.T,1))).float()
         adc_mask[:T-self.sz[0]] = 0
+        adc_mask[-1] = 0
         
         self.adc_mask = setdevice(adc_mask)
 
     def get_ramps(self):
-        rampX = np.pi*np.linspace(-1,1,self.sz[0] + 1)
+        
+        use_nonlinear_grads = False                       # very experimental
+        
+        baserampX = np.linspace(-1,1,self.sz[0] + 1)
+        baserampY = np.linspace(-1,1,self.sz[1] + 1)
+        
+        if use_nonlinear_grads:
+            baserampX = np.abs(baserampX)**1.2 * np.sign(baserampX)
+            baserampY = np.abs(baserampY)**1.2 * np.sign(baserampY)
+        
+        rampX = np.pi*baserampX
         rampX = -np.expand_dims(rampX[:-1],1)
         rampX = np.tile(rampX, (1, self.sz[1]))
         
@@ -142,7 +160,7 @@ class Scanner():
         rampX = rampX.view([1,1,self.NVox])    
         
         # set gradient spatial forms
-        rampY = np.pi*np.linspace(-1,1,self.sz[1] + 1)
+        rampY = np.pi*baserampY
         rampY = -np.expand_dims(rampY[:-1],0)
         rampY = np.tile(rampY, (self.sz[0], 1))
         
@@ -153,7 +171,10 @@ class Scanner():
         self.rampY = setdevice(rampY)
         
     def init_coil_sensitivities(self):
-        B1 = torch.ones((self.NCoils,1,self.NVox,1), dtype=torch.float32)
+        # handle complex mul as matrix mul
+        B1 = torch.zeros((self.NCoils,self.NVox,2,2), dtype=torch.float32)
+        B1[:,:,0,0] = 1
+        B1[:,:,1,1] = 1
         
         self.B1 = setdevice(B1)
         
@@ -175,11 +196,13 @@ class Scanner():
         self.F[:,:,0,2,0] = -flips_sin
         self.F[:,:,0,2,2] = flips_cos 
          
-    def set_relaxation_tensor(self,spins):
+    def set_relaxation_tensor(self,spins,dt):
         R = torch.zeros((self.NVox,4,4), dtype=torch.float32) 
         
-        T2_r = torch.exp(-self.dt/spins.T2)
-        T1_r = torch.exp(-self.dt/spins.T1)
+        R = setdevice(R)
+        
+        T2_r = torch.exp(-dt/spins.T2)
+        T1_r = torch.exp(-dt/spins.T1)
         
         R[:,3,3] = 1
         
@@ -190,25 +213,28 @@ class Scanner():
          
         R = R.view([1,self.NVox,4,4])
         
-        self.R = setdevice(R)
-    
-    def set_freeprecession_tensor(self,spins):
-        P = torch.zeros((self.NSpins,1,1,4,4), dtype=torch.float32)
+        self.R = R
+        
+    def set_freeprecession_tensor(self,spins,dt):
+        P = torch.zeros((self.NSpins,1,4,4), dtype=torch.float32)
+        
+        P = setdevice(P)
         
         B0_nspins = spins.dB0.view([self.NSpins])
         
-        B0_nspins_cos = torch.cos(B0_nspins)
-        B0_nspins_sin = torch.sin(B0_nspins)
+        B0_nspins_cos = torch.cos(B0_nspins*dt)
+        B0_nspins_sin = torch.sin(B0_nspins*dt)
          
-        P[:,0,0,0,0] = B0_nspins_cos
-        P[:,0,0,0,1] = -B0_nspins_sin
-        P[:,0,0,1,0] = B0_nspins_sin
-        P[:,0,0,1,1] = B0_nspins_cos
+        P[:,0,0,0] = B0_nspins_cos
+        P[:,0,0,1] = -B0_nspins_sin
+        P[:,0,1,0] = B0_nspins_sin
+        P[:,0,1,1] = B0_nspins_cos
          
-        P[:,0,0,2,2] = 1
-        P[:,0,0,3,3] = 1         
+        P[:,:,2,2] = 1
+        P[:,:,3,3] = 1         
          
-        self.P = setdevice(P)
+        self.P = P
+         
     
     def init_gradient_tensor_holder(self):
         G = torch.zeros((self.NRep,self.NVox,4,4), dtype=torch.float32)
@@ -260,17 +286,21 @@ class Scanner():
         self.B0_grad_adj_cos = torch.cos(B0_grad)
         self.B0_grad_adj_sin = torch.sin(B0_grad)        
         
-    def flip(self,t,spins):
-        spins.M = torch.matmul(self.F[t,:,:,:],spins.M)
+    def flip(self,t,r,spins):
+        
+        spins.M = torch.matmul(self.F[t,r,:,:,:],spins.M)
         
     def relax(self,spins):
         spins.M = torch.matmul(self.R,spins.M)
         
-    def grad_precess(self,spins):
-        spins.M = torch.matmul(self.G,spins.M)
+    def relax_and_dephase(self,spins):
         
-    def free_precess(self,spins):
+        spins.M = torch.matmul(self.R,spins.M)
         spins.M = torch.matmul(self.P,spins.M)
+        
+    def grad_precess(self,r,spins):
+        
+        spins.M = torch.matmul(self.G[r,:,:,:],spins.M)
         
     def init_signal(self):
         signal = torch.zeros((self.NCoils,self.T,self.NRep,4,1), dtype=torch.float32) 
@@ -283,18 +313,19 @@ class Scanner():
         
         self.reco = setdevice(reco)
         
-    def read_signal(self,t,spins):
+    def read_signal(self,t,r,spins):
         
         if self.adc_mask[t] > 0:
-            sig = torch.sum(spins.M[:,:,:,:2,0],[0])
-            sig = self.B1 * sig.unsqueeze(0) 
-            self.signal[:,t,:,:2,0] = torch.sum(sig,[2]) * self.adc_mask[t]
+            sig = torch.sum(spins.M[:,:,:2,0],[0])
+            sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(3))
+            
+            self.signal[:,t,r,:2] = (torch.sum(sig,[1]) * self.adc_mask[t])
             
             if self.noise_std > 0:
-                noise = self.noise_std*torch.randn(self.signal[:,t,:,:,0].shape).float()
-                noise[:,:,2:] = 0
+                noise = self.noise_std*torch.randn(self.signal[:,t,r,:,0].shape).float()
+                noise[:,2:] = 0
                 noise = setdevice(noise)
-                self.signal[:,t,:,:,0] = self.signal[:,t,:,:,0] + noise
+                self.signal[:,t,r,:,0] = self.signal[:,t,r,:,0] + noise
 
     # reconstruct image readout by readout            
     def do_grad_adj_reco(self,t,spins):
@@ -332,9 +363,6 @@ class Scanner():
         
         R = torch.zeros((self.NVox,4,4), dtype=torch.float32) 
         
-        if dt is None:                           # custom duration case check
-            dt = self.dt
-            
         T2_r = torch.exp(-dt/spins.T2)
         T1_r = torch.exp(-dt/spins.T1)
         
@@ -359,7 +387,7 @@ class Scanner():
 spins = SpinSystem(sz,NVox,NSpins)
 spins.set_system()
 
-scanner = Scanner(sz,NVox,NSpins,NRep,T,NCoils,dt,noise_std)
+scanner = Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std)
 scanner.get_ramps()
 scanner.set_adc_mask()
 
@@ -374,9 +402,6 @@ flips = setdevice(flips)
 scanner.init_flip_tensor_holder()
 scanner.set_flip_tensor(flips)
 
-scanner.set_relaxation_tensor(spins)
-scanner.set_freeprecession_tensor(spins)
-
 # gradient-driver precession
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
@@ -386,6 +411,12 @@ grad_moms[T-sz[0]:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,NRep).repeat([sz[0],
 
 grad_moms = setdevice(grad_moms)
 
+# event timing vector 
+event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,scanner.NRep,1))).float()
+event_time[0,:,0] = 1e-1
+event_time[-1,:,0] = 1e2
+event_time = setdevice(event_time)
+
 scanner.init_gradient_tensor_holder()
 scanner.set_gradient_precession_tensor(grad_moms)
 
@@ -393,7 +424,7 @@ scanner.set_gradient_precession_tensor(grad_moms)
 ## Forward process ::: ######################################################
     
 scanner.init_signal()
-spins.set_initial_magnetization(scanner.NRep)
+spins.set_initial_magnetization()
 
 # always flip 90deg on first action (test)
 if False:                                 
@@ -402,14 +433,22 @@ if False:
     scanner.custom_relax(spins,dt=0.06)                # relax till ADC (sec)
     
 # scanner forward process loop
-for t in range(T):                                          # for all actions
+for r in range(NRep):                                   # for all repetitions
+    for t in range(T):                                      # for all actions
     
-    scanner.flip(t,spins)
-    scanner.relax(spins)
-    scanner.set_grad_op(t)
-    scanner.grad_precess(spins)
-    scanner.free_precess(spins)
-    scanner.read_signal(t,spins)
+        # flip/relax/dephase only if adc is closed
+        if scanner.adc_mask[t] == 0:
+            scanner.flip(t,r,spins)
+                  
+            delay = torch.abs(event_time[t,r] + 1e-6)
+            scanner.set_relaxation_tensor(spins,delay)
+            scanner.set_freeprecession_tensor(spins,delay)
+            scanner.relax_and_dephase(spins)
+            
+        scanner.set_grad_op(t)
+        scanner.grad_precess(r,spins)
+        scanner.read_signal(t,r,spins)
+        
 
 # init reconstructed image
 scanner.init_reco()
@@ -446,12 +485,12 @@ if False:                                                       # check sanity
 # %% ###     OPTIMIZE ######################################################@
 #############################################################################
 
-def phi_FRP_model(flips,grads,args):
+def phi_FRP_model(flips,grads,event_time,args):
     
     scanner,spins,target,use_tanh_grad_moms_cap = args
     
     scanner.init_signal()
-    spins.set_initial_magnetization(scanner.NRep)
+    spins.set_initial_magnetization()
     
     # always flip 90deg on first action (test)
     if False:                                 
@@ -476,14 +515,19 @@ def phi_FRP_model(flips,grads,args):
           
     scanner.init_gradient_tensor_holder()
           
-    for t in range(T):
-        
-        scanner.flip(t,spins)
-        scanner.relax(spins)
-        scanner.set_grad_op(t)
-        scanner.grad_precess(spins)
-        scanner.free_precess(spins)
-        scanner.read_signal(t,spins)        
+    for r in range(NRep):                                   # for all repetitions
+        for t in range(T):
+            
+            if scanner.adc_mask[t] == 0:
+                scanner.flip(t,r,spins)
+                delay = torch.abs(event_time[t,r] + 1e-6)
+                scanner.set_relaxation_tensor(spins,delay)
+                scanner.set_freeprecession_tensor(spins,delay)
+                scanner.relax_and_dephase(spins)
+    
+            scanner.set_grad_op(t)
+            scanner.grad_precess(r,spins)
+            scanner.read_signal(t,r,spins)        
         
     scanner.init_reco()
     
@@ -510,59 +554,85 @@ def init_variables():
     flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     #flips[0,:] = 90*np.pi/180
     flips = setdevice(flips)
-    flips.requires_grad = True    
+    flips.requires_grad = True
     
     flips = setdevice(flips)
     
-    return flips, grads
+    event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
+    event_time = setdevice(event_time)
+    event_time.requires_grad = True
+    
+    return flips, grads, event_time
     
 
 target = target.detach()
+target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 
-use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
-learning_rate = 0.5                                         # LBFGS step size
-training_iter = 50000
-
-args = (scanner,spins,target,use_tanh_grad_moms_cap)
-
-continue_optimize = True                         # early restart on poor init
-while continue_optimize:
-    continue_optimize = False
-
+def train_model(doRestart=False, best_vars=None):
+    
     # init gradients and flip events
-    flips, grads = init_variables()
-    
-    optimizer = optim.LBFGS([flips,grads], lr=learning_rate, max_iter=1,history_size=200)
-    
+    if doRestart:
+        nmb_outer_iter = nmb_rnd_restart
+        nmb_inner_iter = training_iter_restarts
+        
+        best_error = 200
+        best_vars = []        
+    else:
+        nmb_outer_iter = 1
+        nmb_inner_iter = training_iter
+        
+        flips,grads,event_time = best_vars
+        flips.requires_grad = True
+        grads.requires_grad = True
+        event_time.requires_grad = True
+        
+        
     def weak_closure():
         optimizer.zero_grad()
-        loss,_ = phi_FRP_model(flips, grads, args)
+        loss,_ = phi_FRP_model(flips, grads, event_time, args)
         loss.backward()
         
         return loss
     
-    target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+    for outer_iter in range(nmb_outer_iter):
+        
+        if doRestart:
+            flips,grads,event_time = init_variables()
     
-    for i in range(training_iter):
-        optimizer.step(weak_closure)
+        optimizer = optim.LBFGS([flips,grads,event_time], lr=learning_rate, max_iter=1,history_size=200)
         
-        _,reco = phi_FRP_model(flips, grads, args)
+        for inner_iter in range(nmb_inner_iter):
+            optimizer.step(weak_closure)
+            
+            _,reco = phi_FRP_model(flips, grads, event_time, args)
+            reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+            error = e(target_numpy.ravel(),reco.ravel())
+            
+            if doRestart:
+                if error < best_error:
+                    best_error = error
+                    best_vars = (flips.detach().clone(),grads.detach().clone(),event_time.detach().clone())
+                    print("recon error = %f" %error)
+            else:
+                print("recon error = %f" %error)
         
-        reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
-        
-        error = e(target_numpy.ravel(),reco.ravel())
-        
-        if i > 10 and error > 100:
-            continue_optimize = True
-            print("Divergence detected. Restarting...")
-            break
-        
-        print("recon error = %f" %error)
+    if doRestart:
+        return best_vars
+    else:
+        return reco
     
 
-phi,reco = phi_FRP_model(flips, grads, args)
+use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
+learning_rate = 0.1                                         # LBFGS step size
+training_iter = 2000
+nmb_rnd_restart = 15
+training_iter_restarts = 10
 
-reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+args = (scanner,spins,target,use_tanh_grad_moms_cap)
+
+best_vars = train_model(True)
+    
+reco = train_model(False,best_vars)
 
 plt.imshow(magimg(spins.img))
 plt.title('original')
