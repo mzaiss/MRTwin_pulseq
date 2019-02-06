@@ -2,8 +2,15 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Jan 29 14:38:26 2019
-
 @author: aloktyus
+
+experiment desciption:
+only optimize for flip and gradient events
+assume regular grid of events separate by the time interval dt
+at each point of the grid assume a succession of: flip, relax, free precess, gradient precess
+assume very long TR and return of magnetization to initial state at the beginning of each repetition
+
+
 """
 
 import os, sys
