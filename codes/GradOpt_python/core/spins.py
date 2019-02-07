@@ -35,16 +35,20 @@ class SpinSystem():
     def magimg(self, x):
       return np.sqrt(np.sum(np.abs(x)**2,2))    
     
-    def set_system(self):
+    def set_system(self, img=None):
         
         # load image
-        m = np.load('../../data/phantom.npy')
-        m = cv2.resize(m, dsize=(self.sz[0], self.sz[1]), interpolation=cv2.INTER_CUBIC)
-        m = m / np.max(m)
-        self.img = m.copy()
+        if img is None:
+            m = np.load('../../data/phantom.npy')
+            m = cv2.resize(m, dsize=(self.sz[0], self.sz[1]), interpolation=cv2.INTER_CUBIC)
+            m = m / np.max(m)
+            self.img = m.copy()
+        else:
+            self.img = img
+            self.img = self.img / np.max(self.img)
         
         # set relaxations (unit - seconds) and proton density
-        PD = torch.from_numpy(self.magimg(m).reshape([self.NVox])).float()
+        PD = torch.from_numpy(self.magimg(self.img).reshape([self.NVox])).float()
         T1 = torch.ones(self.NVox, dtype=torch.float32)*4
         T2 = torch.ones(self.NVox, dtype=torch.float32)*2
         T2[0:self.NVox/2] = 0.09
