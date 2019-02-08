@@ -47,7 +47,7 @@ def setdevice(x):
     return x
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 2                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
@@ -62,8 +62,11 @@ NVox = sz[0]*sz[1]
 ## Init spin system and the scanner ::: #####################################
 
 dir_data = '/agbs/cpr/mr_motion/RIMphase/data/'
-fn_data_tensor = 'T1w_10subjpack_16x16_cmplx.npy'
+fn_data_tensor = 'T1w_10subjpack_32x32_cmplx.npy'
+fn_out = "T1w_10subjpack_32x32_tgt_cmplx.npy"
+
 data_tensor_numpy_cmplx = np.load(os.path.join(dir_data, fn_data_tensor))
+data_tensor_numpy_cmplx = data_tensor_numpy_cmplx / np.max(data_tensor_numpy_cmplx)
 
 ssz = data_tensor_numpy_cmplx.shape
 data_tensor_numpy_cmplx = data_tensor_numpy_cmplx.reshape([ssz[0]*ssz[1],ssz[2],ssz[3],ssz[4]])
@@ -179,5 +182,4 @@ for subjid in range(NSubj):
         
         
         
-fn_out = "T1w_10subjpack_16x16_tgt_cmplx.npy"
 np.save(os.path.join(dir_data, fn_out), target_arr)

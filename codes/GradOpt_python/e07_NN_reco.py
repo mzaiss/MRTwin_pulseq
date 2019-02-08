@@ -62,18 +62,24 @@ fn_data_tensor = 'T1w_10subjpack_16x16_cmplx.npy'
 fn_tgt_tensor = "T1w_10subjpack_16x16_tgt_cmplx.npy"
 
 data_tensor_numpy_cmplx = np.load(os.path.join(dir_data, fn_data_tensor))
+data_tensor_numpy_cmplx = data_tensor_numpy_cmplx / np.max(data_tensor_numpy_cmplx)
+
 tgt_tensor_numpy_cmplx = np.load(os.path.join(dir_data, fn_tgt_tensor))
 
 ssz = data_tensor_numpy_cmplx.shape
 data_tensor_numpy_cmplx = data_tensor_numpy_cmplx.reshape([ssz[0]*ssz[1],ssz[2],ssz[3],ssz[4]])
 
-subjid = 0
+subjid = 160
+
+batch_size = 24
 
 # initialize scanned object
-spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
-spins.set_system(img=data_tensor_numpy_cmplx[subjid,:,:,:])
+spins = core.spins.SpinSystem_batched(sz,NVox,NSpins,batch_size,use_gpu)
 
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
+batch_idx = np.random.choice(data_tensor_numpy_cmplx.shape[0],batch_size,replace=False)
+spins.set_system(data_tensor_numpy_cmplx[batch_idx,:,:,:])
+
+scanner = core.scanner.Scanner_batched(sz,NVox,NSpins,NRep,T,NCoils,noise_std,batch_size,use_gpu)
 scanner.get_ramps()
 scanner.set_adc_mask()
 
@@ -149,15 +155,17 @@ for t in range(T-1,-1,-1):
 # try to fit this
 target = scanner.reco.clone()
   
-reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
+reco = scanner.reco.cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
+
+img_id = 1
 
 if False:                                                      # check sanity
-    plt.imshow(magimg(spins.img))
+    plt.imshow(magimg(spins.images[img_id,:,:,:]))
     plt.title('original')
     plt.ion()
     plt.show()
     
-    plt.imshow(magimg(reco))
+    plt.imshow(magimg(reco[img_id,:,:,:]))
     plt.title('reconstruction')
     plt.ion()
     plt.show()
@@ -173,7 +181,7 @@ class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
         
-        self.lspec = [2,32,32,32,2]
+        self.lspec = [2,64,64,64,2]
         self.conv_layers = []
         self.bn_layers = []
         
@@ -206,8 +214,8 @@ class ConvNet(nn.Module):
         
 
     def forward(self, x):
-        x = x.permute([1,0])
-        x = x.view([1,2,sz[0],sz[1]])
+        x = x.permute([0,2,1])
+        x = x.view([batch_size,2,sz[0],sz[1]])
         
         normfact = 600.0
         
@@ -216,17 +224,35 @@ class ConvNet(nn.Module):
         for l_idx in range(len(self.lspec)-1):
             
             x = self.conv_layers[l_idx](x)
-            x = self.bn_layers[l_idx](x)
             
             if l_idx < len(self.lspec) - 2:
-                x = torch.tanh(x)
+                x = self.bn_layers[l_idx](x)
+                x = torch.relu(x)
         
         x = x * normfact
         
-        x = x.view([2,sz[0]*sz[1]])
-        x = x.permute([1,0])
+        x = x.view([batch_size,2,sz[0]*sz[1]])
+        x = x.permute([0,2,1])
         
         return x
+    
+    
+class CTRL():
+    def __init__(self):
+        self.globepoch = 0
+        self.subjidx = 0
+        
+    def new(self):
+        self.globepoch += 1
+        
+        #if self.globepoch % 1:
+        self.subjidx = np.random.choice(data_tensor_numpy_cmplx.shape[0], batch_size)
+        #self.subjidx = np.random.choice(12, batch_size)
+        #self.subjidx = np.random.randint(12)
+        #self.subjidx = 0
+
+        
+ctrl = CTRL()
     
     
 NN = ConvNet().cuda()
@@ -235,14 +261,13 @@ NN = ConvNet().cuda()
 def phi_FRP_model(flips,grads,event_time,args):
     
     scanner,spins,target,use_tanh_grad_moms_cap,opti_mode = args
+
+    ctrl.new()
+    spins.set_system(images=data_tensor_numpy_cmplx[ctrl.subjidx,:,:,:])
     
     scanner.init_signal()
     
-    subjid = np.random.randint(data_tensor_numpy_cmplx.shape[0])
-    #subjid = 0
-    spins.set_system(img=data_tensor_numpy_cmplx[subjid,:,:,:])
-    
-    target = torch.from_numpy(tgt_tensor_numpy_cmplx[subjid,:,:,:].reshape([NVox,2])).float().cuda()
+    target = torch.from_numpy(tgt_tensor_numpy_cmplx[ctrl.subjidx,:,:,:].reshape([batch_size,NVox,2])).float().cuda()
     
     spins.set_initial_magnetization(scanner.NRep)
     
@@ -297,7 +322,7 @@ def phi_FRP_model(flips,grads,event_time,args):
             
     loss = normfact*(scanner.reco - target/normfact)
     phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
-    
+
     return (phi,scanner.reco)
 
 def init_variables():
@@ -324,8 +349,8 @@ def init_variables():
     return flips, grads, event_time
     
 
-target = target.detach()
-target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+#target = target.detach()
+#target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 
 def train_model(doRestart=False, best_vars=None):
     
@@ -349,6 +374,7 @@ def train_model(doRestart=False, best_vars=None):
     def weak_closure():
         optimizer.zero_grad()
         loss,_ = phi_FRP_model(flips, grads, event_time, args)
+        #print(loss.item())
         loss.backward()
         
         return loss
@@ -368,10 +394,10 @@ def train_model(doRestart=False, best_vars=None):
         for inner_iter in range(nmb_inner_iter):
             optimizer.step(weak_closure)
             
-            target_numpy = tgt_tensor_numpy_cmplx[subjid,:,:,:].reshape([NVox,2])
+            target_numpy = tgt_tensor_numpy_cmplx[ctrl.subjidx,:,:,:].reshape([batch_size,NVox,2])
             
             _,reco = phi_FRP_model(flips, grads, event_time, args)
-            reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+            reco = reco.detach().cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
             error = e(target_numpy.ravel(),reco.ravel())
             
             if doRestart:
@@ -392,43 +418,49 @@ def train_model(doRestart=False, best_vars=None):
 
 use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
 learning_rate = 0.1                                         # LBFGS step size
-training_iter = 50
+training_iter = 150
 nmb_rnd_restart = 15
 training_iter_restarts = 10
 
 
 
+learning_rate = 1.0
+
 opti_mode = 'seq'
-args = (scanner,spins,target,use_tanh_grad_moms_cap,opti_mode)
+args = (scanner,spins,None,use_tanh_grad_moms_cap,opti_mode)
 best_vars = train_model(True)
+
+hfhgfgfhgf
+
 reco,flips,grads,event_time = train_model(False,best_vars)
 
+if True:
+    print('<nn> now')
+    best_vars = flips,grads,event_time
+    training_iter = 50
+    opti_mode = 'nn'
+    args = (scanner,spins,None,use_tanh_grad_moms_cap,opti_mode)
+    reco,flips,grads,event_time = train_model(False,best_vars)
 
-print('<nn> now')
-best_vars = flips,grads,event_time
-training_iter = 150
-opti_mode = 'nn'
-args = (scanner,spins,target,use_tanh_grad_moms_cap,opti_mode)
-reco,flips,grads,event_time = train_model(False,best_vars)
+if True:
+    #learning_rate = 0.05                                         # LBFGS step size
+    print('<seqnn> now')
+    best_vars = flips,grads,event_time
+    training_iter = 150
+    opti_mode = 'seqnn'
+    args = (scanner,spins,None,use_tanh_grad_moms_cap,opti_mode)
+    reco,flips,grads,event_time = train_model(False,best_vars)
 
 
-print('<seqnn> now')
-best_vars = flips,grads,event_time
-training_iter = 1500
-opti_mode = 'seqnn'
-args = (scanner,spins,target,use_tanh_grad_moms_cap,opti_mode)
-reco,flips,grads,event_time = train_model(False,best_vars)
-
-
-
+target_numpy = tgt_tensor_numpy_cmplx[ctrl.subjidx,:,:,:].reshape([batch_size,NVox,2])
 event_time = torch.abs(event_time)
 
-plt.imshow(magimg(target.cpu().numpy().reshape([sz[0],sz[1],2])))
+plt.imshow(magimg(target_numpy[0,:,:].reshape([sz[0],sz[1],2])))
 plt.title('target')
 plt.ion()
 plt.show()
 
-plt.imshow(magimg(reco))
+plt.imshow(magimg(reco[0,:,:]))
 plt.title('reconstruction')
 
 
