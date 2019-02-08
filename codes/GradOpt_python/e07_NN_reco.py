@@ -22,8 +22,12 @@ from torch import optim
 import torch.nn as nn
 import torch.nn.functional as fnn
 
-import core.spins; reload(core.spins)
-import core.scanner; reload(core.scanner)
+import core.spins
+import core.scanner
+
+if sys.version_info[0] < 3:
+    reload(core.spins)
+    reload(core.scanner)
 
 use_gpu = 1
 

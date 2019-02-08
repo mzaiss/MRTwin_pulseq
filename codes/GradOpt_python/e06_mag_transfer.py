@@ -23,8 +23,12 @@ import cv2
 import matplotlib.pyplot as plt
 from torch import optim
 
-import core.spins; reload(core.spins)
-import core.scanner; reload(core.scanner)
+import core.spins
+import core.scanner
+
+if sys.version_info[0] < 3:
+    reload(core.spins)
+    reload(core.scanner)
 
 use_gpu = 1
 
