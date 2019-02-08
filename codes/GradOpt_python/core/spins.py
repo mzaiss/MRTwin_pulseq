@@ -149,7 +149,6 @@ class SpinSystem_batched():
             NRep = 1
             
         M0 = torch.zeros((self.batch_size,self.NSpins,NRep,self.NVox,4), dtype=torch.float32)
-        
         M0 = self.setdevice(M0)
         
         # set initial longitudinal magnetization value
@@ -159,7 +158,6 @@ class SpinSystem_batched():
         M = M0.clone().view([self.batch_size,self.NSpins,NRep,self.NVox,4,1])
         
         self.M0 = M0
-        
         self.M = self.setdevice(M)
         
         

@@ -242,6 +242,7 @@ class Scanner():
     def read_signal_allRep(self,t,spins):
         
         if self.adc_mask[t] > 0:
+            #import pdb; pdb.set_trace()
             sig = torch.sum(spins.M[:,:,:,:2,0],[0])
             sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(4))
             self.signal[:,t,:,:2] = torch.sum(sig,[2]) * self.adc_mask[t]
@@ -392,10 +393,12 @@ class Scanner_batched():
         self.B1 = self.setdevice(B1)
         
     def init_flip_tensor_holder(self):
-        F = torch.zeros((1,self.T,self.NRep,1,4,4), dtype=torch.float32)
+        F = torch.zeros((self.T,self.NRep,1,4,4), dtype=torch.float32)
         
-        F[0,:,:,0,3,3] = 1
-        F[0,:,:,0,1,1] = 1
+        F[:,:,0,3,3] = 1
+        F[:,:,0,1,1] = 1
+         
+        F = F.unsqueeze(0)  # XXXX
          
         self.F = self.setdevice(F)
          
@@ -404,32 +407,33 @@ class Scanner_batched():
         flips_cos = torch.cos(flips)
         flips_sin = torch.sin(flips)
         
+        # XXXX
         self.F[0,:,:,0,0,0] = flips_cos
         self.F[0,:,:,0,0,2] = flips_sin
         self.F[0,:,:,0,2,0] = -flips_sin
         self.F[0,:,:,0,2,2] = flips_cos 
          
     def set_relaxation_tensor(self,spins,dt):
-        R = torch.zeros((1,self.NVox,4,4), dtype=torch.float32) 
+        R = torch.zeros((self.NVox,4,4), dtype=torch.float32) 
         
         R = self.setdevice(R)
         
         T2_r = torch.exp(-dt/spins.T2)
         T1_r = torch.exp(-dt/spins.T1)
         
-        R[0,:,3,3] = 1
+        R[:,3,3] = 1
         
-        R[0,:,0,0] = T2_r
-        R[0,:,1,1] = T2_r
-        R[0,:,2,2] = T1_r
-        R[0,:,2,3] = 1 - T1_r
+        R[:,0,0] = T2_r
+        R[:,1,1] = T2_r
+        R[:,2,2] = T1_r
+        R[:,2,3] = 1 - T1_r
          
-        R = R.view([1,1,self.NVox,4,4])
+        R = R.view([1,1,self.NVox,4,4])  # XXXX
         
         self.R = R
         
     def set_freeprecession_tensor(self,spins,dt):
-        P = torch.zeros((1,self.NSpins,1,1,4,4), dtype=torch.float32)
+        P = torch.zeros((self.NSpins,1,1,4,4), dtype=torch.float32)
         
         P = self.setdevice(P)
         
@@ -438,31 +442,37 @@ class Scanner_batched():
         B0_nspins_cos = torch.cos(B0_nspins*dt)
         B0_nspins_sin = torch.sin(B0_nspins*dt)
          
-        P[0,:,0,0,0,0] = B0_nspins_cos
-        P[0,:,0,0,0,1] = -B0_nspins_sin
-        P[0,:,0,0,1,0] = B0_nspins_sin
-        P[0,:,0,0,1,1] = B0_nspins_cos
+        P[:,0,0,0,0] = B0_nspins_cos
+        P[:,0,0,0,1] = -B0_nspins_sin
+        P[:,0,0,1,0] = B0_nspins_sin
+        P[:,0,0,1,1] = B0_nspins_cos
          
-        P[0,:,0,0,2,2] = 1
-        P[0,:,0,0,3,3] = 1         
+        P[:,0,0,2,2] = 1
+        P[:,0,0,3,3] = 1        
+         
+        P = P.unsqueeze(0)  # XXXX
          
         self.P = P
          
     
     def init_gradient_tensor_holder(self):
-        G = torch.zeros((1,self.NRep,self.NVox,4,4), dtype=torch.float32)
-        G[0,:,:,2,2] = 1
-        G[0,:,:,3,3] = 1
+        G = torch.zeros((self.NRep,self.NVox,4,4), dtype=torch.float32)
+        G[:,:,2,2] = 1
+        G[:,:,3,3] = 1
          
-        G_adj = torch.zeros((1,self.NRep,self.NVox,4,4), dtype=torch.float32)
-        G_adj[0,:,:,2,2] = 1
-        G_adj[0,:,:,3,3] = 1
+        G_adj = torch.zeros((self.NRep,self.NVox,4,4), dtype=torch.float32)
+        G_adj[:,:,2,2] = 1
+        G_adj[:,:,3,3] = 1
+             
+        G = G.unsqueeze(0)  # XXXX
+        G_adj = G_adj.unsqueeze(0)  # XXXX
          
         self.G = self.setdevice(G)
         self.G_adj = self.setdevice(G_adj)
         
     def set_grad_op(self,t):
         
+        # XXXX
         self.G[0,:,:,0,0] = self.B0_grad_cos[t,:,:]
         self.G[0,:,:,0,1] = -self.B0_grad_sin[t,:,:]
         self.G[0,:,:,1,0] = self.B0_grad_sin[t,:,:]
@@ -470,6 +480,7 @@ class Scanner_batched():
         
     def set_grad_adj_op(self,t):
         
+        # XXXX
         self.G_adj[0,:,:,0,0] = self.B0_grad_adj_cos[t,:,:]
         self.G_adj[0,:,:,0,1] = self.B0_grad_adj_sin[t,:,:]
         self.G_adj[0,:,:,1,0] = -self.B0_grad_adj_sin[t,:,:]
@@ -531,8 +542,10 @@ class Scanner_batched():
         
         self.reco = self.setdevice(reco)
         
+    # XXX
     def read_signal(self,t,r,spins):
         if self.adc_mask[t] > 0:
+            
             sig = torch.sum(spins.M[:,:,0,:,:2,0],[1])
             sig = torch.matmul(self.B1.unsqueeze(0),sig.unsqueeze(1).unsqueeze(1).unsqueeze(5))
             
@@ -544,12 +557,18 @@ class Scanner_batched():
                 noise = self.setdevice(noise)
                 self.signal[:,:,t,r,:,0] = self.signal[:,:,t,r,:,0] + noise        
         
+    # XXX  -- slow
     def read_signal_allRep(self,t,spins):
         
         if self.adc_mask[t] > 0:
-            sig = torch.sum(spins.M[:,:,:,:,:2,0],[1])
-            sig = torch.matmul(self.B1.unsqueeze(0),sig.unsqueeze(1).unsqueeze(5))
-            self.signal[:,:,t,:,:2] = torch.sum(sig,[3]) * self.adc_mask[t]
+            
+            sig = torch.matmul(self.B1.unsqueeze(0),spins.M[:,:,:,:,:2,:])
+            self.signal[:,0,t,:,:2] = torch.sum(sig,[1,3]) * self.adc_mask[t]
+            
+            # slow
+#            sig = torch.sum(spins.M[:,:,:,:,:2,0],[1])
+#            sig = torch.matmul(self.B1.unsqueeze(0),sig.unsqueeze(1).unsqueeze(5))
+#            self.signal[:,:,t,:,:2] = torch.sum(sig,[3]) * self.adc_mask[t]            
             
             if self.noise_std > 0:
                 noise = self.noise_std*torch.randn(self.signal[:,:,t,:,:,0].shape).float()
@@ -557,6 +576,7 @@ class Scanner_batched():
                 noise = self.setdevice(noise)
                 self.signal[:,:,t,:,:,0] = self.signal[:,:,t,:,:,0] + noise
 
+    # XXX
     # reconstruct image readout by readout            
     def do_grad_adj_reco(self,t,spins):
         s = self.signal[:,:,t,:,:,:] * self.adc_mask[t]
@@ -566,45 +586,4 @@ class Scanner_batched():
         r = torch.matmul(self.G_adj.permute([0,2,1,3,4]), s)
         self.reco = self.reco + torch.sum(r[:,:,:,:2,0],2)
         
-    ## extra func land        
-    # aux flexible operators for sandboxing things
-    def custom_flip(self,t,spins,flips):
-        
-        F = torch.zeros((self.T,self.NRep,1,4,4), dtype=torch.float32)
-        
-        F[:,:,0,3,3] = 1
-        F[:,:,0,1,1] = 1
-         
-        F = self.setdevice(F)
-        
-        flips = self.setdevice(flips)
-        
-        flips_cos = torch.cos(flips)
-        flips_sin = torch.sin(flips)
-        
-        F[:,:,0,0,0] = flips_cos
-        F[:,:,0,0,2] = flips_sin
-        F[:,:,0,2,0] = -flips_sin
-        F[:,:,0,2,2] = flips_cos         
-        
-        spins.M = torch.matmul(F[t,:,:,:],spins.M)
-        
-    def custom_relax(self,spins,dt=None):
-        
-        R = torch.zeros((self.NVox,4,4), dtype=torch.float32) 
-        
-        T2_r = torch.exp(-dt/spins.T2)
-        T1_r = torch.exp(-dt/spins.T1)
-        
-        R[:,3,3] = 1
-        
-        R[:,0,0] = T2_r
-        R[:,1,1] = T2_r
-        R[:,2,2] = T1_r
-        R[:,2,3] = 1 - T1_r
-         
-        R = R.view([1,self.NVox,4,4])
-        
-        R = self.setdevice(R)
-        
-        spins.M = torch.matmul(R,spins.M)          
+      

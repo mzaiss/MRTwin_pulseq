@@ -11,6 +11,8 @@ assume irregular event grid where flip and gradient events are interleaved with
 relaxation and free pression events subject to free variable (dt) that specifies
 the duration of each relax/precess event
 assume very long TR and return of magnetization to initial state at the beginning of each repetition
+attach NN trainable reco module to the output of adjoint operator
+train on a database of <PD/T1/T2> -- <target image> pairs
 
 """
 
@@ -24,10 +26,14 @@ import torch.nn.functional as fnn
 
 import core.spins
 import core.scanner
+import core.nnreco
+import core.opt_helper
 
 if sys.version_info[0] < 3:
     reload(core.spins)
     reload(core.scanner)
+    reload(core.nnreco)
+    reload(core.opt_helper)
 
 use_gpu = 1
 
@@ -46,7 +52,7 @@ def setdevice(x):
         
     return x
 
-batch_size = 256
+batch_size = 32     # number of images used at one optimization gradient step
 
 # define setup
 sz = np.array([16,16])                                           # image size
@@ -54,7 +60,7 @@ NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 2                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-#dt = 0.0001                         # time interval between actions (seconds)
+#dt = 0.0001                        # time interval between actions (seconds)
 
 noise_std = 0*1e0                               # additive Gaussian noise std
 
@@ -64,21 +70,19 @@ NVox = sz[0]*sz[1]
 ## Init spin system and the scanner ::: #####################################
 
 dir_data = '/agbs/cpr/mr_motion/RIMphase/data/'
-fn_data_tensor = 'T1w_10subjpack_16x16_cmplx.npy'
-fn_tgt_tensor = "T1w_10subjpack_16x16_tgt_cmplx.npy"
+fn_data_tensor = 'T1w_10subjpack_16x16_cmplx.npy'                    # inputs
+fn_tgt_tensor = "T1w_10subjpack_16x16_tgt_cmplx.npy"                # targets
 
+# load and normalize
 data_tensor_numpy_cmplx = np.load(os.path.join(dir_data, fn_data_tensor))
 data_tensor_numpy_cmplx = data_tensor_numpy_cmplx / np.max(data_tensor_numpy_cmplx)
-
 tgt_tensor_numpy_cmplx = np.load(os.path.join(dir_data, fn_tgt_tensor))
-
 ssz = data_tensor_numpy_cmplx.shape
 data_tensor_numpy_cmplx = data_tensor_numpy_cmplx.reshape([ssz[0]*ssz[1],ssz[2],ssz[3],ssz[4]])
 
 # initialize scanned object
 spins = core.spins.SpinSystem_batched(sz,NVox,NSpins,batch_size,use_gpu)
 
-#batch_idx = np.random.choice(data_tensor_numpy_cmplx.shape[0],batch_size,replace=False)
 batch_idx = np.random.choice(batch_size,batch_size,replace=False)
 spins.set_system(data_tensor_numpy_cmplx[batch_idx,:,:,:])
 
@@ -162,6 +166,7 @@ reco = scanner.reco.cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
 
 img_id = 0
 
+# sanity  check
 #tgt_tensor_numpy_cmplx[0,:,:,:] = target.cpu().numpy().reshape([16,16,2])
 
 if False:                                                      # check sanity
@@ -180,98 +185,17 @@ if False:                                                      # check sanity
 
 # %% ###     OPTIMIZE ######################################################@
 #############################################################################
-
-
-class ConvNet(nn.Module):
-    def __init__(self):
-        super(ConvNet, self).__init__()
         
-        self.lspec = [2,128,128,128,2]
-        self.conv_layers = []
-        self.bn_layers = []
-        
-        for l_idx in range(len(self.lspec)-1):
-            layer = nn.Conv2d(self.lspec[l_idx], self.lspec[l_idx+1], 3, padding=1)
-            self.conv_layers.append(layer)
-            
-            weight = torch.zeros([self.lspec[l_idx+1],self.lspec[l_idx],3,3]).cuda()
-            
-            weight[0,0,1,1] = 1
-                  
-            #layer.weight.data = weight
-            layer = layer.cuda()
-            
-            bnlayer = nn.BatchNorm2d(self.lspec[l_idx+1])
-            self.bn_layers.append(bnlayer)
-            
-            bnlayer = bnlayer.cuda()
-            
-            
-        self.conv0 = self.conv_layers[0]
-        self.conv1 = self.conv_layers[1]
-        self.conv2 = self.conv_layers[2]
-        self.conv3 = self.conv_layers[3]
-        
-        self.conv0_bn = self.bn_layers[0]
-        self.conv1_bn = self.bn_layers[1]
-        self.conv2_bn = self.bn_layers[2]
-        self.conv3_bn = self.bn_layers[3]
-        
-
-    def forward(self, x):
-        x = x.permute([0,2,1])
-        x = x.view([batch_size,2,sz[0],sz[1]])
-        
-        normfact = 1.0
-        
-        x = x / normfact
-        
-        for l_idx in range(len(self.lspec)-1):
-            
-            x = self.conv_layers[l_idx](x)
-            
-            if l_idx < len(self.lspec) - 2:
-                x = self.bn_layers[l_idx](x)
-                x = torch.relu(x)
-        
-        x = x * normfact
-        
-        x = x.view([batch_size,2,sz[0]*sz[1]])
-        x = x.permute([0,2,1])
-        
-        return x
+def phi_FRP_model(opt_params,aux_params):
     
-    
-class CTRL():
-    def __init__(self):
-        self.globepoch = 0
-        self.subjidx = 0
-        
-    def new(self):
-        self.globepoch += 1
-        
-        #if self.globepoch % 1:
-        self.subjidx = np.random.choice(data_tensor_numpy_cmplx.shape[0], batch_size, replace=False)
-        #self.subjidx = np.random.choice(batch_size, batch_size, replace=False)
-        #self.subjidx = np.random.randint(12)
-        #self.subjidx = 0
+    flips,grads,event_time = opt_params
+    use_tanh_grad_moms_cap,opti_mode = aux_params
 
-        
-ctrl = CTRL()
-    
-    
-NN = ConvNet().cuda()
-#NN.requires_grad = True
-
-def phi_FRP_model(flips,grads,event_time,args):
-    
-    scanner,spins,target,use_tanh_grad_moms_cap,opti_mode = args
-
-    spins.set_system(images=data_tensor_numpy_cmplx[ctrl.subjidx,:,:,:])
+    spins.set_system(images=data_tensor_numpy_cmplx[opt.subjidx,:,:,:])
     
     scanner.init_signal()
     
-    target = torch.from_numpy(tgt_tensor_numpy_cmplx[ctrl.subjidx,:,:,:].reshape([batch_size,NVox,2])).float().cuda()
+    target = torch.from_numpy(tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])).float().cuda()
     
     spins.set_initial_magnetization(scanner.NRep)
     
@@ -293,7 +217,6 @@ def phi_FRP_model(flips,grads,event_time,args):
       fmax = sz / 2
       for i in [0,1]:
           grad_moms[:,:,i] = boost_fct*fmax[i]*torch.tanh(grad_moms[:,:,i])
-          
           
     grad_moms = grads
     scanner.set_gradient_precession_tensor(grad_moms)
@@ -320,16 +243,18 @@ def phi_FRP_model(flips,grads,event_time,args):
             scanner.set_grad_adj_op(t)
             scanner.do_grad_adj_reco(t,spins)
     
-    normfact = 1.0
-    
     if opti_mode == 'nn' or opti_mode == 'seqnn':
-        scanner.reco = scanner.reco/normfact
+        scanner.reco = scanner.reco
         scanner.reco = NN(scanner.reco)
             
-    loss = normfact*(scanner.reco - target/normfact)
+    loss = (scanner.reco - target)
     phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
+    
+    target_numpy = tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])
+    ereco = scanner.reco.detach().cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
+    error = e(target_numpy.ravel(),ereco.ravel())    
 
-    return (phi,scanner.reco)
+    return (phi,scanner.reco,error)
 
 def init_variables():
     g = np.random.rand(T,NRep,2) - 0.5
@@ -352,151 +277,57 @@ def init_variables():
     event_time = setdevice(event_time)
     event_time.requires_grad = True
     
-    #######################################
-    # FORCED INIT
-    # init tensors
-#    flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
-#    flips[0,:] = 90*np.pi/180
-#         
-#    flips = setdevice(flips)
-#         
-#    # gradient-driver precession
-#    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
-#    
-#    # Cartesian encoding
-#    grad_moms[T-sz[0]:,:,0] = torch.linspace(-sz[0]/2,sz[0]/2-1,sz[0]).view(sz[0],1).repeat([1,NRep])
-#    grad_moms[T-sz[0]:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,NRep).repeat([sz[0],1])
-#    
-#    grad_moms = setdevice(grad_moms)
-#    
-#    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
-#    padder = setdevice(padder)
-#    temp = torch.cat((padder,grad_moms),0)
-#    grads = temp[1:,:,:] - temp[:-1,:,:]   
-#    grads = grad_moms      
-#    
-#    # event timing vector 
-#    event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,1))).float()
-#    event_time[0,0] = 1e-1
-#    event_time = setdevice(event_time)    
-#    
-#    grads.requires_grad = True
-#    flips.requires_grad = True    
-#    event_time.requires_grad = True    
-    
-    return flips, grads, event_time
+    return [flips, grads, event_time]
     
 
-#target = target.detach()
-#target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
-
-def train_model(doRestart=False, best_vars=None):
     
-    # init gradients and flip events
-    if doRestart:
-        nmb_outer_iter = nmb_rnd_restart
-        nmb_inner_iter = training_iter_restarts
-        
-        best_error = 200
-        best_vars = []        
-    else:
-        nmb_outer_iter = 1
-        nmb_inner_iter = training_iter
-        
-        flips,grads,event_time = best_vars
-        flips.requires_grad = True
-        grads.requires_grad = True
-        event_time.requires_grad = True
-        
-        
-    def weak_closure():
-        optimizer.zero_grad()
-        loss,_ = phi_FRP_model(flips, grads, event_time, args)
-        #print(loss.item())
-        loss.backward()
-        
-        return loss
+# %% # OPTIMIZATION land
+
+# set number of convolution neurons
+nmb_conv_neurons_list = [2,32,32,32,2]
+
+# initialize reconstruction module
+NN = core.nnreco.RecoConvNet_basic(spins.sz, nmb_conv_neurons_list).cuda()
     
-    for outer_iter in range(nmb_outer_iter):
-        
-        if doRestart:
-            flips,grads,event_time = init_variables()
-            
-        if args[4] == 'seq':
-            #optimizer = optim.LBFGS([flips,grads,event_time], lr=learning_rate, max_iter=1,history_size=200)
-            optimizer = optim.Adam([flips,grads,event_time], lr=learning_rate, weight_decay=1e-8)
-        elif args[4] == 'nn':
-            #optimizer = optim.LBFGS(list(NN.parameters()), lr=learning_rate, max_iter=1,history_size=200)
-            optimizer = optim.Adam(list(NN.parameters()), lr=learning_rate, weight_decay=1e-8)
-        elif args[4] == 'seqnn':
-            #optimizer = optim.LBFGS(list(NN.parameters())+list([flips,grads,event_time]), lr=learning_rate, max_iter=1,history_size=200)
-            optimizer = optim.Adam(list(NN.parameters())+list([flips,grads,event_time]), lr=learning_rate, weight_decay=1e-8)
-        
-        for inner_iter in range(nmb_inner_iter):
-            ctrl.new()
-            optimizer.step(weak_closure)
-            
-            target_numpy = tgt_tensor_numpy_cmplx[ctrl.subjidx,:,:,:].reshape([batch_size,NVox,2])
-            
-            _,reco = phi_FRP_model(flips, grads, event_time, args)
-            reco = reco.detach().cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
-            error = e(target_numpy.ravel(),reco.ravel())
-            
-            if doRestart:
-                if error < best_error:
-                    best_error = error
-                    best_vars = (flips.detach().clone(),grads.detach().clone(),event_time.detach().clone())
-                    print("recon error = %f" %error)
-            else:
-                print("recon error = %f" %error)
-        
-    if doRestart:
-        return best_vars
-    else:
-        return reco,flips,grads,event_time
-    
-# %% #
-    
+opt = core.opt_helper.OPT_helper(scanner,spins,NN,tgt_tensor_numpy_cmplx.shape[0])
 
-use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
-learning_rate = 0.05                                         # LBFGS step size
-training_iter = 100
-nmb_rnd_restart = 15
-training_iter_restarts = 10
+opt.use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
+opt.learning_rate = 0.02                                         # ADAM step size
 
+# fast track
+# opt.training_iter = 10; opt.training_iter_restarts = 5
 
+print('<seq> now')
+opt.opti_mode = 'seq'
 
-learning_rate = 0.02
+opt.set_handles(init_variables, phi_FRP_model)
 
-opti_mode = 'seq'
-args = (scanner,spins,None,use_tanh_grad_moms_cap,opti_mode)
-
-best_vars = train_model(True)
-
-reco,flips,grads,event_time = train_model(False,best_vars)
+opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
+#opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
+opt.train_model(training_iter=100)
+#opt.train_model(training_iter=10)
 
 if True:
     print('<nn> now')
-    best_vars = flips,grads,event_time
-    training_iter = 100
-    opti_mode = 'nn'
-    args = (scanner,spins,None,use_tanh_grad_moms_cap,opti_mode)
-    reco,flips,grads,event_time = train_model(False,best_vars)
+    opt.opti_mode = 'nn'
+    opt.train_model(training_iter=100)
+    #opt.train_model(training_iter=10)
 
 if True:
-    #learning_rate = 0.05                                         # LBFGS step size
     print('<seqnn> now')
-    best_vars = flips,grads,event_time
-    training_iter = 1500
-    opti_mode = 'seqnn'
-    args = (scanner,spins,None,use_tanh_grad_moms_cap,opti_mode)
-    reco,flips,grads,event_time = train_model(False,best_vars)
+    opt.opti_mode = 'seqnn'
+    opt.train_model(training_iter=1500)
+    #opt.train_model(training_iter=10)
 
 
-target_numpy = tgt_tensor_numpy_cmplx[ctrl.subjidx,:,:,:].reshape([batch_size,NVox,2])
-event_time = torch.abs(event_time)
+target_numpy = tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])
+#event_time = torch.abs(event_time)  # need to be positive
 
-# %% #
+# %% # show results
+
+opt.new_batch()
+_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
+reco = reco.detach().cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
 
 img_id = 0
 
@@ -508,10 +339,7 @@ plt.show()
 plt.imshow(magimg(reco[img_id,:,:]))
 plt.title('reconstruction')
 
-
-
-
-target_numpy = tgt_tensor_numpy_cmplx[ctrl.subjidx,:,:,:].reshape([batch_size,NVox,2])
+target_numpy = tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])
 reco = reco.reshape([batch_size,sz[0],sz[1],2])
 error = e(target_numpy.ravel(),reco.ravel())
 print(error)
