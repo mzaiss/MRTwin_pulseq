@@ -5,14 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 
 @author: aloktyus
 
-experiment desciption:
-optimize for flip and gradient events and also for time delays between those
-assume irregular event grid where flip and gradient events are interleaved with
-relaxation and free pression events subject to free variable (dt) that specifies
-the duration of each relax/precess event
-assume very long TR and return of magnetization to initial state at the beginning of each repetition
-attach NN trainable reco module to the output of adjoint operator
-train on a database of <PD/T1/T2> -- <target image> pairs
+simulate acquisition and reconstruction by adjoint
 
 """
 
@@ -57,6 +50,12 @@ def setdevice(x):
         x = x.cuda(0)
         
     return x
+    
+def stop():
+    sys.tracebacklimit = 0
+    class ExecutionControl(Exception): pass
+    raise ExecutionControl('stopped by user')
+    sys.tracebacklimit = 1000    
 
 
 batch_size = 32     # number of images used at one optimization gradient step
@@ -183,9 +182,5 @@ plt.imshow(magimg(reco[img_id,:,:,:]))
 plt.title('output of the adjoint operator')
 plt.ion()
 plt.show()
-
-
-
-
 
 

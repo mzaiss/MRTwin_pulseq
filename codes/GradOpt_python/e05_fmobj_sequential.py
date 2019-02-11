@@ -52,7 +52,10 @@ def setdevice(x):
     return x
 
 def stop():
-    sys.exit(0)
+    sys.tracebacklimit = 0
+    class ExecutionControl(Exception): pass
+    raise ExecutionControl('stopped by user')
+    sys.tracebacklimit = 1000
 
 
 # define setup
