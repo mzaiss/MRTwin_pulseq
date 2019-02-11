@@ -25,7 +25,6 @@ import core.scanner
 import core.opt_helper
 
 if sys.version_info[0] < 3:
-    import reload
     reload(core.spins)
     reload(core.scanner)
     reload(core.opt_helper)
@@ -263,7 +262,9 @@ def init_variables():
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
 
 opt.use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
-opt.learning_rate = 0.02                                         # ADAM step size
+opt.learning_rate = 0.01                                         # ADAM step size
+
+# TODO: spoiling
 
 # fast track
 # opt.training_iter = 10; opt.training_iter_restarts = 5
@@ -275,7 +276,7 @@ opt.set_handles(init_variables, phi_FRP_model)
 
 opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
 #opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
-opt.train_model(training_iter=100)
+opt.train_model(training_iter=1000)
 #opt.train_model(training_iter=10)
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])

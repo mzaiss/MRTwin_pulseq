@@ -231,6 +231,8 @@ class Scanner():
             sig = torch.sum(spins.M[:,0,:,:2,0],[0])
             sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(0).unsqueeze(4))
             
+            ## TODO: fix noise
+            
             self.signal[:,t,r,:2] = (torch.sum(sig,[2]) * self.adc_mask[t])
             
             if self.noise_std > 0:

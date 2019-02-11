@@ -15,16 +15,18 @@ assume very long TR and return of magnetization to initial state at the beginnin
 
 import os, sys
 import numpy as np
-global torch
 import torch
 import cv2
 import matplotlib.pyplot as plt
 from torch import optim
 
+module_path = os.path.abspath(os.path.join('./'))
+if module_path not in sys.path:
+    sys.path.append(module_path)
+
 import core.opt_helper
 
 if sys.version_info[0] < 3:
-    import reload
     reload(core.opt_helper)
 else:
     import importlib
@@ -96,7 +98,7 @@ class SpinSystem():
         self.PD = torch.from_numpy(magimg(m).reshape([self.NVox])).float()
         self.T1 = torch.ones(self.NVox, dtype=torch.float32)*4
         self.T2 = torch.ones(self.NVox, dtype=torch.float32)*2
-        self.T2[0:NVox/2] = 0.09
+        self.T2[0:int(NVox/2)] = 0.09
         
         # set NSpins offresonance (from R2)
         factor = (0*1e0*np.pi/180) / self.NSpins
@@ -402,8 +404,8 @@ scanner.set_freeprecession_tensor(spins)
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
 # Cartesian encoding
-grad_moms[T-sz[0]:,:,0] = torch.linspace(-sz[0]/2,sz[0]/2-1,sz[0]).view(sz[0],1).repeat([1,NRep])
-grad_moms[T-sz[0]:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,NRep).repeat([sz[0],1])
+grad_moms[T-sz[0]:,:,0] = torch.linspace(-sz[0]//2,sz[0]//2-1,sz[0]).view(sz[0],1).repeat([1,NRep])
+grad_moms[T-sz[0]:,:,1] = torch.linspace(-sz[1]//2,sz[1]//2-1,NRep).repeat([sz[0],1])
 
 grad_moms = setdevice(grad_moms)
 
@@ -574,66 +576,6 @@ plt.show()
 
 plt.imshow(magimg(reco))
 plt.title('reconstruction')
-
-hgfhgfhgf
-    
-
-target = target.detach()
-
-use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
-learning_rate = 0.5                                         # LBFGS step size
-training_iter = 50000
-
-args = (scanner,spins,target,use_tanh_grad_moms_cap)
-
-continue_optimize = True                         # early restart on poor init
-while continue_optimize:
-    continue_optimize = False
-
-    # init gradients and flip events
-    flips, grads = init_variables()
-    
-    optimizer = optim.LBFGS([flips,grads], lr=learning_rate, max_iter=1,history_size=200)
-    
-    def weak_closure():
-        optimizer.zero_grad()
-        loss,_ = phi_FRP_model(flips, grads, args)
-        loss.backward()
-        
-        return loss
-    
-    target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
-    
-    for i in range(training_iter):
-        optimizer.step(weak_closure)
-        
-        _,reco = phi_FRP_model(flips, grads, args)
-        
-        reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
-        
-        error = e(target_numpy.ravel(),reco.ravel())
-        
-        if i > 10 and error > 100:
-            continue_optimize = True
-            print("Divergence detected. Restarting...")
-            break
-        
-        print("recon error = %f" %error)
-    
-
-phi,reco = phi_FRP_model(flips, grads, args)
-
-reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
-
-plt.imshow(magimg(spins.img))
-plt.title('original')
-plt.ion()
-plt.show()
-
-plt.imshow(magimg(reco))
-plt.title('reconstruction')
-
-
 
 
 
