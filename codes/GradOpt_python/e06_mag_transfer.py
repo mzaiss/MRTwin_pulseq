@@ -28,9 +28,15 @@ import core.scanner
 import core.opt_helper
 
 if sys.version_info[0] < 3:
+    import reload
     reload(core.spins)
     reload(core.scanner)
     reload(core.opt_helper)
+else:
+    import importlib
+    importlib.reload(core.spins)
+    importlib.reload(core.scanner)
+    importlib.reload(core.opt_helper)    
 
 use_gpu = 1
 

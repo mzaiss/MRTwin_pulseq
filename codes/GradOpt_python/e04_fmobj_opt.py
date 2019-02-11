@@ -24,7 +24,11 @@ from torch import optim
 import core.opt_helper
 
 if sys.version_info[0] < 3:
+    import reload
     reload(core.opt_helper)
+else:
+    import importlib
+    importlib.reload(core.opt_helper)
 
 use_gpu = 1
 

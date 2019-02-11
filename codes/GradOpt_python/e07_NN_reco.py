@@ -30,10 +30,17 @@ import core.nnreco
 import core.opt_helper
 
 if sys.version_info[0] < 3:
+    import reload
     reload(core.spins)
     reload(core.scanner)
     reload(core.nnreco)
     reload(core.opt_helper)
+else:
+    import importlib
+    importlib.reload(core.spins)
+    importlib.reload(core.scanner)
+    importlib.reload(core.nnreco)
+    importlib.reload(core.opt_helper)    
 
 use_gpu = 1
 
