@@ -11,27 +11,24 @@ simulate acquisition and reconstruction by adjoint
 
 import os, sys
 import numpy as np
+import scipy
 import torch
+import cv2
 import matplotlib.pyplot as plt
 from torch import optim
-import torch.nn as nn
-import torch.nn.functional as fnn
 
 import core.spins
 import core.scanner
-import core.nnreco
 import core.opt_helper
 
 if sys.version_info[0] < 3:
     reload(core.spins)
     reload(core.scanner)
-    reload(core.nnreco)
     reload(core.opt_helper)
 else:
     import importlib
     importlib.reload(core.spins)
     importlib.reload(core.scanner)
-    importlib.reload(core.nnreco)
     importlib.reload(core.opt_helper)    
 
 use_gpu = 1
@@ -50,51 +47,40 @@ def setdevice(x):
         x = x.cuda(0)
         
     return x
-    
+
 def stop():
     sys.tracebacklimit = 0
     class ExecutionControl(Exception): pass
     raise ExecutionControl('stopped by user')
-    sys.tracebacklimit = 1000    
-
-
-batch_size = 32     # number of images used at one optimization gradient step
+    sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16]).astype(np.int32)                          # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 2                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-#dt = 0.0001                        # time interval between actions (seconds)
+#dt = 0.0001                         # time interval between actions (seconds)
 
 noise_std = 0*1e0                               # additive Gaussian noise std
 
 NVox = sz[0]*sz[1]
 
+
 #############################################################################
 ## Init spin system and the scanner ::: #####################################
 
-dir_data = '/agbs/cpr/mr_motion/RIMphase/data/'
-fn_data_tensor = 'T1w_10subjpack_16x16_cmplx.npy'                    # inputs
-fn_tgt_tensor = "T1w_10subjpack_16x16_tgt_cmplx.npy"                # targets
-
-# load and normalize
-data_tensor_numpy_cmplx = np.load(os.path.join(dir_data, fn_data_tensor))
-data_tensor_numpy_cmplx = data_tensor_numpy_cmplx / np.max(data_tensor_numpy_cmplx)
-tgt_tensor_numpy_cmplx = np.load(os.path.join(dir_data, fn_tgt_tensor))
-ssz = data_tensor_numpy_cmplx.shape
-data_tensor_numpy_cmplx = data_tensor_numpy_cmplx.reshape([ssz[0]*ssz[1],ssz[2],ssz[3],ssz[4]])
-
+    
 # initialize scanned object
-spins = core.spins.SpinSystem_batched(sz,NVox,NSpins,batch_size,use_gpu)
+spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
+spins.set_system()
 
-batch_idx = np.random.choice(batch_size,batch_size,replace=False)
-spins.set_system(data_tensor_numpy_cmplx[batch_idx,:,:,:])
-
-scanner = core.scanner.Scanner_batched(sz,NVox,NSpins,NRep,T,NCoils,noise_std,batch_size,use_gpu)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
 scanner.set_adc_mask()
+
+# allow for relaxation after last readout event
+scanner.adc_mask[-1] = 0
 
 scanner.init_coil_sensitivities()
 
@@ -117,8 +103,9 @@ grad_moms[T-sz[0]:,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,1))).float()
-event_time[0,0] = 1e-1
+event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,scanner.NRep,1))).float()
+event_time[0,:,0] = 1e-1
+event_time[-1,:,0] = 1e2
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
@@ -128,29 +115,31 @@ scanner.set_gradient_precession_tensor(grad_moms)
 ## Forward process ::: ######################################################
     
 scanner.init_signal()
-spins.set_initial_magnetization(scanner.NRep)
+spins.set_initial_magnetization(NRep=1)
 
 # always flip 90deg on first action (test)
 if False:                                 
     flips_base = torch.ones((1,NRep), dtype=torch.float32) * 90 * np.pi/180
-    scanner.custom_flip_allRep(0,flips_base,spins)
+    scanner.custom_flip(0,flips_base,spins)
     scanner.custom_relax(spins,dt=0.06)                # relax till ADC (sec)
     
 # scanner forward process loop
-for t in range(T):                                          # for all actions
-
-    # flip/relax/dephase only if adc is closed
-    if scanner.adc_mask[t] == 0:
-        scanner.flip_allRep(t,spins)
-              
-        delay = torch.abs(event_time[t] + 1e-6)
-        scanner.set_relaxation_tensor(spins,delay)
-        scanner.set_freeprecession_tensor(spins,delay)
-        scanner.relax_and_dephase(spins)
+for r in range(NRep):                                   # for all repetitions
+    for t in range(T):                                      # for all actions
+    
+        # flip/relax/dephase only if adc is closed
+        if scanner.adc_mask[t] == 0:
+            scanner.flip(t,r,spins)
+                  
+            delay = torch.abs(event_time[t,r] + 1e-6)
+            scanner.set_relaxation_tensor(spins,delay)
+            scanner.set_freeprecession_tensor(spins,delay)
+            scanner.relax_and_dephase(spins)
+            
+        scanner.set_grad_op(t)
+        scanner.grad_precess(r,spins)
+        scanner.read_signal(t,r,spins)
         
-    scanner.set_grad_op(t)
-    scanner.grad_precess_allRep(spins)
-    scanner.read_signal_allRep(t,spins)
 
 # init reconstructed image
 scanner.init_reco()
@@ -167,18 +156,16 @@ for t in range(T-1,-1,-1):
     
 # try to fit this
 target = scanner.reco.clone()
-  
-reco = scanner.reco.cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
-
-img_id = 0
+   
+reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
 
-plt.imshow(magimg(spins.images[img_id,:,:,:]), interpolation='none')
+plt.imshow(magimg(spins.img), interpolation='none')
 plt.title('original (proton density) image')
 plt.ion()
 plt.show()
 
-plt.imshow(magimg(reco[img_id,:,:,:]), interpolation='none')
+plt.imshow(magimg(reco), interpolation='none')
 plt.title('output of the adjoint operator')
 plt.ion()
 plt.show()
