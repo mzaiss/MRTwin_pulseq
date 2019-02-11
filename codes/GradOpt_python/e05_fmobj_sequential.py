@@ -22,10 +22,12 @@ from torch import optim
 
 import core.spins
 import core.scanner
+import core.opt_helper
 
 if sys.version_info[0] < 3:
     reload(core.spins)
     reload(core.scanner)
+    reload(core.opt_helper)
 
 use_gpu = 1
 
@@ -43,6 +45,10 @@ def setdevice(x):
         x = x.cuda(0)
         
     return x
+
+def stop():
+    sys.exit(0)
+
 
 # define setup
 sz = np.array([16,16])                                           # image size
@@ -153,15 +159,15 @@ if False:                                                      # check sanity
     plt.ion()
     plt.show()
     
-    gfdgfdfd
-
-
-# %% ###     OPTIMIZE ######################################################@
-#############################################################################
-
-def phi_FRP_model(flips,grads,event_time,args):
+    stop()
     
-    scanner,spins,target,use_tanh_grad_moms_cap = args
+# %% ###     OPTIMIZE ######################################################@
+#############################################################################    
+
+def phi_FRP_model(opt_params,aux_params):
+    
+    flips,grads,event_time = opt_params
+    use_tanh_grad_moms_cap = aux_params
     
     scanner.init_signal()
     spins.set_initial_magnetization(scanner.NRep)
@@ -212,7 +218,14 @@ def phi_FRP_model(flips,grads,event_time,args):
     loss = (scanner.reco - target)
     phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
     
-    return (phi,scanner.reco)
+    ereco = scanner.reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+    error = e(target.cpu().numpy().ravel(),ereco.ravel())     
+    
+    return (phi,scanner.reco, error)
+
+    
+
+    
 
 def init_variables():
     g = np.random.rand(T,NRep,2) - 0.5
@@ -235,88 +248,43 @@ def init_variables():
     event_time = setdevice(event_time)
     event_time.requires_grad = True
     
-    return flips, grads, event_time
+    return [flips, grads, event_time]
     
 
-target = target.detach()
+    
+# %% # OPTIMIZATION land
+
+opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
+
+opt.use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
+opt.learning_rate = 0.02                                         # ADAM step size
+
+# fast track
+# opt.training_iter = 10; opt.training_iter_restarts = 5
+
+print('<seq> now')
+opt.opti_mode = 'seq'
+
+opt.set_handles(init_variables, phi_FRP_model)
+
+opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
+#opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
+opt.train_model(training_iter=100)
+#opt.train_model(training_iter=10)
+
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+#event_time = torch.abs(event_time)  # need to be positive
 
-def train_model(doRestart=False, best_vars=None):
-    
-    # init gradients and flip events
-    if doRestart:
-        nmb_outer_iter = nmb_rnd_restart
-        nmb_inner_iter = training_iter_restarts
-        
-        best_error = 200
-        best_vars = []        
-    else:
-        nmb_outer_iter = 1
-        nmb_inner_iter = training_iter
-        
-        flips,grads,event_time = best_vars
-        flips.requires_grad = True
-        grads.requires_grad = True
-        event_time.requires_grad = True
-        
-        
-    def weak_closure():
-        optimizer.zero_grad()
-        loss,_ = phi_FRP_model(flips, grads, event_time, args)
-        loss.backward()
-        
-        return loss
-    
-    for outer_iter in range(nmb_outer_iter):
-        
-        if doRestart:
-            flips,grads,event_time = init_variables()
-    
-        optimizer = optim.LBFGS([flips,grads,event_time], lr=learning_rate, max_iter=1,history_size=200)
-        
-        for inner_iter in range(nmb_inner_iter):
-            optimizer.step(weak_closure)
-            
-            _,reco = phi_FRP_model(flips, grads, event_time, args)
-            reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
-            error = e(target_numpy.ravel(),reco.ravel())
-            
-            if doRestart:
-                if error < best_error:
-                    best_error = error
-                    best_vars = (flips.detach().clone(),grads.detach().clone(),event_time.detach().clone())
-                    print("recon error = %f" %error)
-            else:
-                print("recon error = %f" %error)
-        
-    if doRestart:
-        return best_vars
-    else:
-        return reco,flips,grads,torch.abs(event_time)
-    
+_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
+reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
 
-use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
-learning_rate = 0.1                                         # LBFGS step size
-training_iter = 200
-nmb_rnd_restart = 15
-training_iter_restarts = 10
-
-args = (scanner,spins,target,use_tanh_grad_moms_cap)
-
-best_vars = train_model(True)
-    
-reco,flips,grads,torch.abs(event_time) = train_model(False,best_vars)
-
-plt.imshow(magimg(spins.img))
-plt.title('original')
+plt.imshow(magimg(target_numpy))
+plt.title('target')
 plt.ion()
 plt.show()
 
 plt.imshow(magimg(reco))
 plt.title('reconstruction')
-
-
-
 
 
 

@@ -52,6 +52,10 @@ def setdevice(x):
         
     return x
 
+def stop():
+    sys.exit(0)
+
+
 batch_size = 32     # number of images used at one optimization gradient step
 
 # define setup
@@ -180,7 +184,7 @@ if False:                                                      # check sanity
     plt.ion()
     plt.show()
     
-    gfdgfdfd
+    stop()
 
 
 # %% ###     OPTIMIZE ######################################################@

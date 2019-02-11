@@ -33,7 +33,13 @@ class OPT_helper():
         
     def new_batch(self):
         self.globepoch += 1
-        self.subjidx = np.random.choice(self.nmb_total_samples_dataset, self.spins.batch_size, replace=False)
+        
+        if hasattr(self.spins, 'batch_size'):
+            batch_size = self.spins.batch_size
+        else:
+            batch_size = 1
+        
+        self.subjidx = np.random.choice(self.nmb_total_samples_dataset, batch_size, replace=False)
         #self.subjidx = np.random.choice(batch_size, batch_size, replace=False)
         
     def weak_closure(self):
@@ -101,3 +107,5 @@ class OPT_helper():
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]
             self.scanner_opt_params[pidx].requires_grad = True
+                                   
+                                   

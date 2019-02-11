@@ -4,6 +4,12 @@
 Created on Tue Jan 29 14:38:26 2019
 
 @author: aloktyus
+
+
+TODO:
+  for loop over NSpins
+  for loop over NRep ..
+
 """
 
 import os, sys
@@ -122,12 +128,12 @@ def set_grad_op(G,B0_grad_cos,B0_grad_sin,isConj):
     G[:,:,1,0] = sign*B0_grad_sin
     G[:,:,1,1] = B0_grad_cos
     
-def get_gradient_precession_tensor(grads,rampX,rampY,NRep,Nvox):
+def get_gradient_precession_tensor(t,grads,rampX,rampY,NRep,Nvox):
     
-    B0X = torch.unsqueeze(grads[:,:,0],2) * rampX
-    B0Y = torch.unsqueeze(grads[:,:,1],2) * rampY
+    B0X = torch.unsqueeze(torch.unsqueeze(grads[t,:,0],0),2) * rampX
+    B0Y = torch.unsqueeze(torch.unsqueeze(grads[t,:,1],0),2) * rampY
     
-    B0_grad = (B0X + B0Y).view([T,NRep,Nvox])
+    B0_grad = (B0X + B0Y).view([1,NRep,Nvox])
     
     B0_grad_cos = torch.cos(B0_grad)
     B0_grad_sin = torch.sin(B0_grad)
@@ -136,8 +142,6 @@ def get_gradient_precession_tensor(grads,rampX,rampY,NRep,Nvox):
 
 def get_initial_magnetization(PD,NSpins,NRep,Nvox):
     M0 = torch.zeros((NSpins,NRep,Nvox,4), dtype=torch.float32)
-    
-    # set initial longitudinal magnetization value
     M0[:,:,:,2:] = 1
     M0[:,:,:,2] = M0[:,:,:,2] * PD.view([Nvox])    # weight by proton density
     
@@ -153,10 +157,10 @@ def setdevice(x):
 
 # define setup
 
-sz = np.array([16,16])                                           # image size
+sz = np.array([48,48])                                           # image size
 NRep = sz[1]                                          # number of repetitions
-T = sz[0] + 2                                      # number of events F/R/P
-NSpins = 10
+T = sz[0]                                            # number of events F/R/P
+NSpins = 2
 dt = 0.0001                         # time interval between actions (seconds)
 
 m = np.load('../../data/phantom.npy')
@@ -179,7 +183,7 @@ rampX, rampY = get_ramps(sz)
 
 # set ADC mask
 adc_mask = torch.from_numpy(np.ones((T,1))).float()
-adc_mask[:2] = 0
+#adc_mask[:1] = 0
 
 adc_mask = setdevice(adc_mask)
 
@@ -207,8 +211,7 @@ grads = setdevice(grads)
 grad_moms = setdevice(grad_moms)
 
 G = init_gradient_tensor_holder(NRep,Nvox)
-B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(grads,rampX,rampY,NRep,Nvox)
- 
+
 ## Forward model :::
     
 # init signal holder
@@ -238,8 +241,10 @@ for t in range(T):
     M = torch.matmul(F[t,:,:,:],M)                                     # Flip
     M = torch.matmul(R,M)                                             # Relax
     
+    B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(t,grads,rampX,rampY,NRep,Nvox)
+    
     # gradient-driver precession
-    set_grad_op(G,B0_grad_cos[t,:,:],B0_grad_sin[t,:,:],False)
+    set_grad_op(G,B0_grad_cos[0,:,:],B0_grad_sin[0,:,:],False)
     
     M = torch.matmul(G,M)
     
@@ -247,44 +252,42 @@ for t in range(T):
     M = torch.matmul(P,M)
     
     # ADC -- read sig
-    if adc_mask[t] > 0:
-        signal[t,:,:,0] = torch.sum(M,[0,2,4]) * adc_mask[t]
+    signal[t,:,:,0] = torch.sum(M,[0,2,4]) * adc_mask[t]
           
-# get kumulative gradients
-B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(grad_moms,rampX,rampY,NRep,Nvox)
-
 # init reconstructed image
 reco = torch.zeros((Nvox,2), dtype = torch.float32)
 reco = setdevice(reco)
 
 for t in range(T-1,-1,-1):
     
-    if adc_mask[t] > 0:
-        set_grad_op(G,B0_grad_cos[t,:,:],B0_grad_sin[t,:,:],True)
-        
-        s = signal[t,:,:,:] * adc_mask[t]
-        r = torch.matmul(G.permute([1,0,2,3]),s)
-        reco = reco + torch.sum(r[:,:,:2,0],1)
+    # get kumulative gradients
+    B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(t,grad_moms,rampX,rampY,NRep,Nvox)    
+    
+    set_grad_op(G,B0_grad_cos[0,:,:],B0_grad_sin[0,:,:],True)
+    
+    s = signal[t,:,:,:] * adc_mask[t]
+    r = torch.matmul(G.permute([1,0,2,3]),s)
+    reco = reco + torch.sum(r[:,:,:2,0],1)
     
 # try to fit this
 target = reco.clone()
    
 reco = reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
-#plt.imshow(magimg(m))
-#plt.title('original')
-#plt.ion()
-#plt.show()
+plt.imshow(magimg(m))
+plt.title('original')
+plt.ion()
+plt.show()
 
-#plt.imshow(magimg(reco))
-#plt.title('reconstruction')
-#plt.ion()
-#plt.show()
+plt.imshow(magimg(reco))
+plt.title('reconstruction')
+plt.ion()
+plt.show()
 
 
 # %% optimize
 
-def phi_FRP_model(flips,grads,args):
+def phi_FRP_model(grads,args):
     
     target,M_init,use_tanh_grad_moms_cap = args
     
@@ -294,11 +297,7 @@ def phi_FRP_model(flips,grads,args):
     if False:                                      # fixed flip position case
         # initial flip/relax
         M = torch.matmul(F1[0,:,:,:],M)
-        M = torch.matmul(R1,M)
-        
-    # excitations
-    F = init_flip_tensor_holder(T,NRep)
-    set_flip_tensor(F,flips,T,NRep)
+        M = torch.matmul(R1,M)    
     
     # gradients
     grad_moms = torch.cumsum(grads,0)
@@ -315,8 +314,6 @@ def phi_FRP_model(flips,grads,args):
     temp = torch.cat((padder,grad_moms),0)
     grads_cap = temp[1:,:,:] - temp[:-1,:,:]          
           
-    B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(grads_cap,rampX,rampY,NRep,Nvox)
-    
     # init signal 
     signal = torch.zeros((T,NRep,4,1), dtype=torch.float32) 
     signal[:,:,3,0] = 1
@@ -330,52 +327,43 @@ def phi_FRP_model(flips,grads,args):
         M = torch.matmul(F[t,:,:,:],M)   # Flip
         M = torch.matmul(R,M)      # Relax
         
+        B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(t,grads_cap,rampX,rampY,NRep,Nvox)
+        
         # gradient-driver precession
-        set_grad_op(G,B0_grad_cos[t,:,:],B0_grad_sin[t,:,:],False)
+        set_grad_op(G,B0_grad_cos[0,:,:],B0_grad_sin[0,:,:],False)
 
         M = torch.matmul(G,M)
         M = torch.matmul(P,M)     # free precession
          
         # ADC -- read sig
-        if adc_mask[t] > 0:
-            signal[t,:,:,0] = torch.sum(M,[0,2,4]) * adc_mask[t]
+        signal[t,:,:,0] = torch.sum(M,[0,2,4]) * adc_mask[t]
       
-    B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(grad_moms,rampX,rampY,NRep,Nvox)
-    
     reco = torch.zeros((Nvox,2), dtype = torch.float32)
     reco = setdevice(reco)
     
     for t in range(T-1,-1,-1):
         
-        if adc_mask[t] > 0:
-            set_grad_op(G,B0_grad_cos[t,:,:],B0_grad_sin[t,:,:],True)
-            
-            s = signal[t,:,:,:] * adc_mask[t]
-            r = torch.matmul(G.permute([1,0,2,3]),s)
-            reco = reco + torch.sum(r[:,:,:2,0],1)
+        B0_grad_cos, B0_grad_sin = get_gradient_precession_tensor(t,grad_moms,rampX,rampY,NRep,Nvox)
+        
+        set_grad_op(G,B0_grad_cos[0,:,:],B0_grad_sin[0,:,:],True)
+        
+        s = signal[t,:,:,:] * adc_mask[t]
+        r = torch.matmul(G.permute([1,0,2,3]),s)
+        reco = reco + torch.sum(r[:,:,:2,0],1)
         
     loss = (reco - target)
     phi = torch.sum((1.0/Nvox)*torch.abs(loss.squeeze())**2)
     
     return (phi,reco)
 
-def init_variables():
-    g = np.random.rand(T,NRep,2) - 0.5
-    #g = g.ravel()
-    grads = torch.from_numpy(g).float()
-    grads = setdevice(grads)
-    grads.requires_grad = True
-    
-    flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
-    flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
-    #flips[0,:] = 0*np.pi/180
-    flips = setdevice(flips)
-    flips.requires_grad = True    
-    
-    return flips, grads
-    
+# init gradients
 
-continue_optimize = True
+g = np.random.rand(T,NRep,2) - 0.5
+#g = g.ravel()
+grads = torch.from_numpy(g).float()
+grads = setdevice(grads)
+grads.requires_grad = True
+
 
 target = target.detach()
 
@@ -384,50 +372,31 @@ learning_rate = 0.1
 
 args = (target,M_init,use_tanh_grad_moms_cap)
 
-while continue_optimize:
-    
-    continue_optimize = False
+optimizer = optim.LBFGS([grads], lr=learning_rate, max_iter=1,history_size=200)
 
-    # init gradients and fli[ events
-    flips, grads = init_variables()
+def weak_closure():
+    optimizer.zero_grad()
+    loss,_ = phi_FRP_model(grads, args)
+    loss.backward()
     
-    optimizer = optim.LBFGS([flips,grads], lr=learning_rate, max_iter=1,history_size=200)
+    return loss
+
+target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+
+training_iter = 80
+for i in range(training_iter):
+    optimizer.step(weak_closure)
     
-    def weak_closure():
-        optimizer.zero_grad()
-        loss,_ = phi_FRP_model(flips, grads, args)
-        loss.backward()
-        
-        return loss
+    _,reco = phi_FRP_model(grads, args)
     
-    target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+    reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
     
-    training_iter = 200
-    for i in range(training_iter):
-        optimizer.step(weak_closure)
-        
-        _,reco = phi_FRP_model(flips, grads, args)
-        
-        reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
-        
-        error = e(target_numpy.ravel(),reco.ravel())
-        
-        if i > 10 and error > 100:
-            continue_optimize = True
-            print("Divergence detected. Restarting...")
-            break
-        
-        print("recon error = %f" %error)
+    print("error =%f" %e(target_numpy.ravel(),reco.ravel()))
     
 
-phi,reco = phi_FRP_model(flips, grads, args)
+phi,reco = phi_FRP_model(grads, args)
 
 reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
-
-plt.imshow(magimg(m))
-plt.title('original')
-plt.ion()
-plt.show()
 
 plt.imshow(magimg(reco))
 plt.title('reconstruction')

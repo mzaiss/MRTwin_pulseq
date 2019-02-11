@@ -15,10 +15,16 @@ assume very long TR and return of magnetization to initial state at the beginnin
 
 import os, sys
 import numpy as np
+global torch
 import torch
 import cv2
 import matplotlib.pyplot as plt
 from torch import optim
+
+import core.opt_helper
+
+if sys.version_info[0] < 3:
+    reload(core.opt_helper)
 
 use_gpu = 1
 
@@ -37,10 +43,14 @@ def setdevice(x):
         
     return x
 
+def stop():
+    sys.exit(0)
+
+
 # define setup
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
-T = sz[0] + 300                                        # number of events F/R/P
+T = sz[0] + 2                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 dt = 0.0001                         # time interval between actions (seconds)
@@ -447,15 +457,16 @@ if False:                                                       # check sanity
     plt.ion()
     plt.show()
     
-    gfdgfdfd
+    stop()
 
 
 # %% ###     OPTIMIZE ######################################################@
 #############################################################################
 
-def phi_FRP_model(flips,grads,args):
+def phi_FRP_model(opt_params,aux_params):
     
-    scanner,spins,target,use_tanh_grad_moms_cap = args
+    flips,grads = opt_params
+    use_tanh_grad_moms_cap = aux_params
     
     scanner.init_signal()
     spins.set_initial_magnetization(scanner.NRep)
@@ -502,7 +513,10 @@ def phi_FRP_model(flips,grads,args):
     loss = (scanner.reco - target)
     phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
     
-    return (phi,scanner.reco)
+    ereco = scanner.reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+    error = e(target.cpu().numpy().ravel(),ereco.ravel())     
+    
+    return (phi,scanner.reco, error)
 
 def init_variables():
     g = np.random.rand(T,NRep,2) - 0.5
@@ -521,7 +535,43 @@ def init_variables():
     
     flips = setdevice(flips)
     
-    return flips, grads
+    return [flips, grads]
+
+# %% # OPTIMIZATION land
+
+opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
+
+opt.use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
+opt.learning_rate = 0.02                                         # ADAM step size
+
+# fast track
+# opt.training_iter = 10; opt.training_iter_restarts = 5
+
+print('<seq> now')
+opt.opti_mode = 'seq'
+
+opt.set_handles(init_variables, phi_FRP_model)
+
+opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
+#opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
+opt.train_model(training_iter=100)
+#opt.train_model(training_iter=10)
+
+target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+#event_time = torch.abs(event_time)  # need to be positive
+
+_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
+reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+
+plt.imshow(magimg(target_numpy))
+plt.title('target')
+plt.ion()
+plt.show()
+
+plt.imshow(magimg(reco))
+plt.title('reconstruction')
+
+hgfhgfhgf
     
 
 target = target.detach()
