@@ -61,7 +61,7 @@ def stop():
 batch_size = 32     # number of images used at one optimization gradient step
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([16,16]).astype(np.int32)                          # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 2                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
@@ -111,8 +111,8 @@ scanner.set_flip_tensor(flips)
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
 # Cartesian encoding
-grad_moms[T-sz[0]:,:,0] = torch.linspace(-sz[0]/2,sz[0]/2-1,sz[0]).view(sz[0],1).repeat([1,NRep])
-grad_moms[T-sz[0]:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,NRep).repeat([sz[0],1])
+grad_moms[T-sz[0]:,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+grad_moms[T-sz[0]:,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
 
 grad_moms = setdevice(grad_moms)
 
@@ -173,12 +173,12 @@ reco = scanner.reco.cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
 img_id = 0
 
 
-plt.imshow(magimg(spins.images[img_id,:,:,:]))
+plt.imshow(magimg(spins.images[img_id,:,:,:]), interpolation='none')
 plt.title('original (proton density) image')
 plt.ion()
 plt.show()
 
-plt.imshow(magimg(reco[img_id,:,:,:]))
+plt.imshow(magimg(reco[img_id,:,:,:]), interpolation='none')
 plt.title('output of the adjoint operator')
 plt.ion()
 plt.show()

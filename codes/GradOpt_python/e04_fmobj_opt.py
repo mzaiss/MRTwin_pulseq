@@ -407,8 +407,8 @@ scanner.set_freeprecession_tensor(spins)
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
 # Cartesian encoding
-grad_moms[T-sz[0]:,:,0] = torch.linspace(-sz[0]//2,sz[0]//2-1,sz[0]).view(sz[0],1).repeat([1,NRep])
-grad_moms[T-sz[0]:,:,1] = torch.linspace(-sz[1]//2,sz[1]//2-1,NRep).repeat([sz[0],1])
+grad_moms[T-sz[0]:,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+grad_moms[T-sz[0]:,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
 
 grad_moms = setdevice(grad_moms)
 
@@ -456,13 +456,13 @@ target = scanner.reco.clone()
 reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
 if False:                                                       # check sanity
-    plt.imshow(magimg(spins.img))
+    plt.imshow(magimg(spins.img), interpolation='none')
     plt.title('original')
     plt.ion()
     plt.show()
     
     plt.imshow(magimg(reco))
-    plt.title('reconstruction')
+    plt.title('reconstruction', interpolation='none')
     plt.ion()
     plt.show()
     
@@ -572,12 +572,12 @@ target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
 
-plt.imshow(magimg(target_numpy))
+plt.imshow(magimg(target_numpy), interpolation='none')
 plt.title('target')
 plt.ion()
 plt.show()
 
-plt.imshow(magimg(reco))
+plt.imshow(magimg(reco), interpolation='none')
 plt.title('reconstruction')
 
 

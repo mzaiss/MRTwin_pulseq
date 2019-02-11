@@ -118,8 +118,8 @@ scanner.set_flip_tensor(flips)
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
 # Cartesian encoding
-grad_moms[T-sz[0]:,:,0] = torch.linspace(-sz[0]/2,sz[0]/2-1,sz[0]).view(sz[0],1).repeat([1,NRep])
-grad_moms[T-sz[0]:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,NRep).repeat([sz[0],1])
+grad_moms[T-sz[0]:,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+grad_moms[T-sz[0]:,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
 
 grad_moms = setdevice(grad_moms)
 
@@ -183,12 +183,12 @@ img_id = 0
 #tgt_tensor_numpy_cmplx[0,:,:,:] = target.cpu().numpy().reshape([16,16,2])
 
 if False:                                                      # check sanity
-    plt.imshow(magimg(spins.images[img_id,:,:,:]))
+    plt.imshow(magimg(spins.images[img_id,:,:,:]), interpolation='none')
     plt.title('original')
     plt.ion()
     plt.show()
     
-    plt.imshow(magimg(reco[img_id,:,:,:]))
+    plt.imshow(magimg(reco[img_id,:,:,:]), interpolation='none')
     plt.title('reconstruction')
     plt.ion()
     plt.show()
@@ -344,12 +344,12 @@ reco = reco.detach().cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
 
 img_id = 0
 
-plt.imshow(magimg(target_numpy[img_id,:,:].reshape([sz[0],sz[1],2])))
+plt.imshow(magimg(target_numpy[img_id,:,:].reshape([sz[0],sz[1],2])), interpolation='none')
 plt.title('target')
 plt.ion()
 plt.show()
 
-plt.imshow(magimg(reco[img_id,:,:]))
+plt.imshow(magimg(reco[img_id,:,:]), interpolation='none')
 plt.title('reconstruction')
 
 target_numpy = tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])
