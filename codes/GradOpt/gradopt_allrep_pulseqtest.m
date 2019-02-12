@@ -301,7 +301,7 @@ kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) +1j*gr
 % kReco = griddata(field(:,1),field(:,2),real(kList),X,Y) +1j*griddata(field(:,1),field(:,2),imag(kList),X,Y) ;
 kReco(isnan(kReco))=0;
 
-figure, subplot(2,2,1), imagesc(abs(fft2(fftshift(kReco))));
+figure, subplot(2,2,1), imagesc(abs(fftshift(ifft2(kReco))));
 subplot(2,2,2), scatter(gradMoms(1,:),gradMoms(2,:)); title('gradMoms');
 figure(111), scatter(gradMomsScaled(2,:),gradMomsScaled(1,:),'.'); title('gradMomsScaled: circles from cumsum(g), dots from BlochSim');
 
@@ -357,9 +357,9 @@ for rep = 1:NRep
 end
 
 reco = reshape(reco,sz);
-reco = fftshift(reco);
+%reco = fftshift(reco);
 
-figure(1), imagesc(abs(reco));
+figure(1), imagesc(abs(reco'));
 
 
 %% TEST pulseq and learngrads
