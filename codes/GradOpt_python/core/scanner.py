@@ -247,9 +247,7 @@ class Scanner():
             sig = torch.sum(spins.M[:,:,:,:2,0],[0])
             sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(4))
             
-            # redundant
-            #self.signal[:,t,:,:2] = torch.sum(sig,[2]) * self.adc_mask[t]
-            self.signal[:,t,:,:2] = torch.sum(sig,[2])
+            self.signal[:,t,:,:2] = torch.sum(sig,[2]) * self.adc_mask[t]
             
             if self.noise_std > 0:
                 noise = self.noise_std*torch.randn(self.signal[:,t,:,:,0].shape).float()
@@ -260,7 +258,10 @@ class Scanner():
     # reconstruct image readout by readout            
     def do_grad_adj_reco(self,t,spins):
         
-        s = self.signal[:,t,:,:,:] * self.adc_mask[t]
+        # redundant
+        #s = self.signal[:,t,:,:,:] * self.adc_mask[t]
+        s = self.signal[:,t,:,:,:]
+         
         # for now we ignore parallel imaging options here (do naive sum sig over coil)
         s = torch.sum(s, 0)                                                  
         r = torch.matmul(self.G_adj.permute([1,0,2,3]), s)

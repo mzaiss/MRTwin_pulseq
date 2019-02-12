@@ -57,6 +57,13 @@ def setdevice(x):
         x = x.cuda(0)
         
     return x
+    
+def imshow(x, title=None):
+    plt.imshow(x, interpolation='none')
+    if title != None:
+        plt.title(title)
+    plt.ion()
+    plt.show()       
 
 def stop():
     sys.tracebacklimit = 0
@@ -183,15 +190,8 @@ img_id = 0
 #tgt_tensor_numpy_cmplx[0,:,:,:] = target.cpu().numpy().reshape([16,16,2])
 
 if False:                                                      # check sanity
-    plt.imshow(magimg(spins.images[img_id,:,:,:]), interpolation='none')
-    plt.title('original')
-    plt.ion()
-    plt.show()
-    
-    plt.imshow(magimg(reco[img_id,:,:,:]), interpolation='none')
-    plt.title('reconstruction')
-    plt.ion()
-    plt.show()
+    imshow(magimg(spins.img), 'original')
+    imshow(magimg(reco), 'reconstruction')
     
     stop()
 
@@ -345,13 +345,9 @@ reco = reco.detach().cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
 
 img_id = 0
 
-plt.imshow(magimg(target_numpy[img_id,:,:].reshape([sz[0],sz[1],2])), interpolation='none')
-plt.title('target')
-plt.ion()
-plt.show()
+imshow(magimg(target_numpy[img_id,:,:].reshape([sz[0],sz[1],2])), 'target')
+imshow(magimg(reco[img_id,:,:]), 'reconstruction')
 
-plt.imshow(magimg(reco[img_id,:,:]), interpolation='none')
-plt.title('reconstruction')
 
 target_numpy = tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])
 reco = reco.reshape([batch_size,sz[0],sz[1],2])

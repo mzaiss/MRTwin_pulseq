@@ -47,6 +47,13 @@ def setdevice(x):
         x = x.cuda(0)
         
     return x
+    
+def imshow(x, title=None):
+    plt.imshow(x, interpolation='none')
+    if title != None:
+        plt.title(title)
+    plt.ion()
+    plt.show()       
 
 def stop():
     sys.tracebacklimit = 0

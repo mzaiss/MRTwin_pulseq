@@ -50,6 +50,13 @@ def setdevice(x):
         x = x.cuda(0)
         
     return x
+    
+def imshow(x, title=None):
+    plt.imshow(x, interpolation='none')
+    if title != None:
+        plt.title(title)
+    plt.ion()
+    plt.show()     
 
 def stop():
     sys.tracebacklimit = 0
@@ -156,16 +163,9 @@ target = scanner.reco.clone()
    
 reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
-if False:                                                      # check sanity
-    plt.imshow(magimg(spins.img), interpolation='none')
-    plt.title('original')
-    plt.ion()
-    plt.show()
-    
-    plt.imshow(magimg(reco), interpolation='none')
-    plt.title('reconstruction')
-    plt.ion()
-    plt.show()
+if True:                                                      # check sanity
+    imshow(magimg(spins.img), 'original')
+    imshow(magimg(reco), 'reconstruction')
     
     stop()
     
@@ -280,7 +280,7 @@ opt.set_handles(init_variables, phi_FRP_model)
 
 opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
 #opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
-opt.train_model(training_iter=1000)
+opt.train_model(training_iter=100)
 #opt.train_model(training_iter=10)
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
@@ -289,13 +289,8 @@ target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
 
-plt.imshow(magimg(target_numpy), interpolation='none')
-plt.title('target')
-plt.ion()
-plt.show()
-
-plt.imshow(magimg(reco), interpolation='none')
-plt.title('reconstruction')
+imshow(magimg(target_numpy), 'target')
+imshow(magimg(reco), 'reconstruction')
 
 
 
