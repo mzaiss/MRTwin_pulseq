@@ -6,13 +6,8 @@ Created on Tue Jan 29 14:38:26 2019
 @author: aloktyus
 
 experiment desciption:
-optimize for flip and gradient events and also for time delays between those
-assume irregular event grid where flip and gradient events are interleaved with
-relaxation and free pression events subject to free variable (dt) that specifies
-the duration of each relax/precess event
-assume very long TR and return of magnetization to initial state at the beginning of each repetition
-attach NN trainable reco module to the output of adjoint operator
-train on a database of <PD/T1/T2> -- <target image> pairs
+only optimize for gradients
+fix flip and relax variables 
 
 """
 
@@ -21,25 +16,21 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from torch import optim
-import torch.nn as nn
-import torch.nn.functional as fnn
+import cv2
 
 import core.spins
 import core.scanner
-import core.nnreco
 import core.opt_helper
 
 if sys.version_info[0] < 3:
     reload(core.spins)
     reload(core.scanner)
-    reload(core.nnreco)
     reload(core.opt_helper)
 else:
     import importlib
     importlib.reload(core.spins)
     importlib.reload(core.scanner)
-    importlib.reload(core.nnreco)
-    importlib.reload(core.opt_helper)    
+    importlib.reload(core.opt_helper)
 
 use_gpu = 1
 
@@ -57,15 +48,26 @@ def setdevice(x):
         x = x.cuda(0)
         
     return x
+    
+def fftfull(x):                                                 # forward FFT
+    return np.fft.ifftshift(np.fft.fftn(np.fft.fftshift(x)))
+
+def ifftfull(x):                                                # inverse FFT
+    return np.fft.ifftshift(np.fft.ifftn(np.fft.fftshift(x)))
 
 def stop():
     sys.tracebacklimit = 0
     class ExecutionControl(Exception): pass
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
+    
+def imshow(x, title=None):
+    plt.imshow(x, interpolation='none')
+    if title != None:
+        plt.title(title)
+    plt.ion()
+    plt.show() 
 
-
-batch_size = 32     # number of images used at one optimization gradient step
 
 # define setup
 sz = np.array([16,16])                                           # image size
@@ -73,33 +75,40 @@ NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 2                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-#dt = 0.0001                        # time interval between actions (seconds)
+#dt = 0.0001                         # time interval between actions (seconds)
 
-noise_std = 0*1e0                               # additive Gaussian noise std
+noise_std = 0*1e2                               # additive Gaussian noise std
 
 NVox = sz[0]*sz[1]
 
 #############################################################################
 ## Init spin system and the scanner ::: #####################################
 
-dir_data = '/agbs/cpr/mr_motion/RIMphase/data/'
-fn_data_tensor = 'T1w_10subjpack_16x16_cmplx.npy'                    # inputs
-fn_tgt_tensor = "T1w_10subjpack_16x16_tgt_cmplx.npy"                # targets
-
-# load and normalize
-data_tensor_numpy_cmplx = np.load(os.path.join(dir_data, fn_data_tensor))
-data_tensor_numpy_cmplx = data_tensor_numpy_cmplx / np.max(data_tensor_numpy_cmplx)
-tgt_tensor_numpy_cmplx = np.load(os.path.join(dir_data, fn_tgt_tensor))
-ssz = data_tensor_numpy_cmplx.shape
-data_tensor_numpy_cmplx = data_tensor_numpy_cmplx.reshape([ssz[0]*ssz[1],ssz[2],ssz[3],ssz[4]])
-
+    
 # initialize scanned object
-spins = core.spins.SpinSystem_batched(sz,NVox,NSpins,batch_size,use_gpu)
+spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 
-batch_idx = np.random.choice(batch_size,batch_size,replace=False)
-spins.set_system(data_tensor_numpy_cmplx[batch_idx,:,:,:])
+m = np.load('../../data/phantom.npy')
+m = cv2.resize(m, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
+img = m / np.max(m)
 
-scanner = core.scanner.Scanner_batched(sz,NVox,NSpins,NRep,T,NCoils,noise_std,batch_size,use_gpu)
+img_cplx = img[:,:,0] + 1j*img[:,:,1]
+spectrum = fftfull(img_cplx)
+
+spectrum_save = spectrum.copy()
+spectrum[:,:] = 0
+#spectrum[8:24,8:24] = spectrum_save[8:24,8:24]
+spectrum[4:12,4:12] = spectrum_save[4:12,4:12]
+#plt.imshow(np.abs(spectrum))
+
+#gfdgfd
+
+img_cplx = ifftfull(spectrum)
+
+img = np.stack((np.real(img_cplx),np.imag(img_cplx)),axis=2)
+spins.set_system(img=img)
+
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
 scanner.set_adc_mask()
 
@@ -124,8 +133,8 @@ grad_moms[T-sz[0]:,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,1))).float()
-event_time[0,0] = 1e-1
+event_time = torch.from_numpy(np.zeros((scanner.T,1))).float()
+#event_time[0,0] = 1e-1
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
@@ -153,7 +162,7 @@ for t in range(T):                                          # for all actions
         delay = torch.abs(event_time[t]) + 1e-6
         scanner.set_relaxation_tensor(spins,delay)
         scanner.set_freeprecession_tensor(spins,delay)
-        scanner.relax_and_dephase(spins)
+        #scanner.relax_and_dephase(spins)
         
     scanner.set_grad_op(t)
     scanner.grad_precess_allRep(spins)
@@ -174,42 +183,42 @@ for t in range(T-1,-1,-1):
     
 # try to fit this
 target = scanner.reco.clone()
-  
-reco = scanner.reco.cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
-
-img_id = 0
-
-# sanity  check
-#tgt_tensor_numpy_cmplx[0,:,:,:] = target.cpu().numpy().reshape([16,16,2])
+#target = (sz[0]*sz[1]) * target / torch.sum(target)
+   
+reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
 if False:                                                      # check sanity
-    plt.imshow(magimg(spins.images[img_id,:,:,:]), interpolation='none')
-    plt.title('original')
-    plt.ion()
-    plt.show()
-    
-    plt.imshow(magimg(reco[img_id,:,:,:]), interpolation='none')
-    plt.title('reconstruction')
-    plt.ion()
-    plt.show()
+    imshow(magimg(spins.img), 'original')
+    imshow(magimg(reco), 'reconstruction')
     
     stop()
+    
+
+if False:    
+    msig = scanner.signal.detach().cpu().numpy()[0,:,:,0,:]
+    spectrum = scanner.signal.detach().cpu().numpy()[0,:,:,0:2,:]
+    spectrum = spectrum[2:,:,0,0] + 1j*spectrum[2:,:,1,0]
+    img_cplx = ifftfull(spectrum)
+    #plt.imshow(np.log(np.abs(img_cplx)), interpolation='none')
+    #plt.imshow(np.log(np.abs(msig[:,:,0])), interpolation='none')
+    img_cplx = reco[:,:,0] + 1j*reco[:,:,1]
+    spectrum = fftfull(img_cplx)
+    imshow(np.log(np.abs(spectrum)))
 
 
+    
 # %% ###     OPTIMIZE ######################################################@
-#############################################################################
-        
+#############################################################################  
+    
+noise_std = 0*1e0                               # additive Gaussian noise std
+NRep = NRep / 1
+
 def phi_FRP_model(opt_params,aux_params):
     
-    flips,grads,event_time = opt_params
-    use_periodic_grad_moms_cap,opti_mode = aux_params
-
-    spins.set_system(images=data_tensor_numpy_cmplx[opt.subjidx,:,:,:])
+    flips,grads,event_time,adc_mask = opt_params
+    use_periodic_grad_moms_cap = aux_params
     
     scanner.init_signal()
-    
-    target = torch.from_numpy(tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])).float().cuda()
-    
     spins.set_initial_magnetization(scanner.NRep)
     
     # always flip 90deg on first action (test)
@@ -225,25 +234,30 @@ def phi_FRP_model(opt_params,aux_params):
     grad_moms = torch.cumsum(grads,0)
     
     if use_periodic_grad_moms_cap:
+      boost_fct = 1
+        
+      #fmax = sz / 2
       fmax = torch.ones([1,1,2]).float().cuda(0)
       fmax[0,0,0] = sz[0]/2
       fmax[0,0,1] = sz[1]/2
 
       grad_moms = torch.sin(grad_moms)*fmax
+      #for i in [0,1]:
+      #    grad_moms[:,:,i] = boost_fct*fmax[i]*torch.sin(grad_moms[:,:,i])
           
-    grad_moms = grads
     scanner.set_gradient_precession_tensor(grad_moms)
           
     scanner.init_gradient_tensor_holder()
+    
+    scanner.adc_mask = adc_mask
           
     for t in range(T):
         
-        if scanner.adc_mask[t] == 0:
-            scanner.flip_allRep(t,spins)
-            delay = torch.abs(event_time[t]) + 1e-6
-            scanner.set_relaxation_tensor(spins,delay)
-            scanner.set_freeprecession_tensor(spins,delay)
-            scanner.relax_and_dephase(spins)
+        scanner.flip_allRep(t,spins)
+        delay = torch.abs(event_time[t]) + 1e-6
+        scanner.set_relaxation_tensor(spins,delay)
+        scanner.set_freeprecession_tensor(spins,delay)
+        scanner.relax_and_dephase(spins)
 
         scanner.set_grad_op(t)
         scanner.grad_precess_allRep(spins)
@@ -255,22 +269,19 @@ def phi_FRP_model(opt_params,aux_params):
         if scanner.adc_mask[t] > 0:
             scanner.set_grad_adj_op(t)
             scanner.do_grad_adj_reco(t,spins)
-    
-    if opti_mode == 'nn' or opti_mode == 'seqnn':
-        scanner.reco = scanner.reco
-        scanner.reco = NN(scanner.reco)
             
+    #scanner.reco = (sz[0]*sz[1]) * scanner.reco / torch.sum(scanner.reco)
     loss = (scanner.reco - target)
     phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
     
-    target_numpy = tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])
-    ereco = scanner.reco.detach().cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
-    error = e(target_numpy.ravel(),ereco.ravel())    
+    ereco = scanner.reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+    error = e(target.cpu().numpy().ravel(),ereco.ravel())     
+    
+    return (phi,scanner.reco, error)
 
-    return (phi,scanner.reco,error)
-
+    
 def init_variables():
-    g = np.random.rand(T,NRep,2) - 0.5
+    g = (np.random.rand(T,NRep,2) - 0.5)*0.1
 
     grads = torch.from_numpy(g).float()
     grads = setdevice(grads)
@@ -278,34 +289,44 @@ def init_variables():
     
     grads = setdevice(grads)
     
-    flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
-    flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
-    #flips[0,:] = 90*np.pi/180
+    flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
+    flips[0,:] = 90*np.pi/180
+
     flips = setdevice(flips)
-    flips.requires_grad = True
+    flips.requires_grad = False
     
     flips = setdevice(flips)
     
-    event_time = torch.from_numpy(np.zeros((scanner.T,1))).float()
+    event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,1))).float()
+    #event_time[0,0] = 1e-1
     event_time = setdevice(event_time)
-    event_time.requires_grad = True
+    event_time.requires_grad = False
     
-    return [flips, grads, event_time]
+    adc_mask = torch.ones((T,1)).float()*0.1
+
+    adc_mask = setdevice(adc_mask)
+    adc_mask.requires_grad = True    
+    
+    return [flips, grads, event_time, adc_mask]
     
 
     
 # %% # OPTIMIZATION land
-
-# set number of convolution neurons
-nmb_conv_neurons_list = [2,32,32,32,2]
-
-# initialize reconstruction module
-NN = core.nnreco.RecoConvNet_basic(spins.sz, nmb_conv_neurons_list).cuda()
     
-opt = core.opt_helper.OPT_helper(scanner,spins,NN,tgt_tensor_numpy_cmplx.shape[0])
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
+scanner.get_ramps()
+scanner.set_adc_mask()
 
-opt.use_periodic_grad_moms_cap = 1                 # do not sample above Nyquist flag
-opt.learning_rate = 0.02                                         # ADAM step size
+scanner.init_coil_sensitivities()
+scanner.init_flip_tensor_holder()
+
+opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
+
+opt.use_periodic_grad_moms_cap = 1               # do not sample above Nyquist flag
+opt.learning_rate = 0.01                                       # ADAM step size
+
+
+# TODO: spoiling
 
 # fast track
 # opt.training_iter = 10; opt.training_iter_restarts = 5
@@ -313,50 +334,58 @@ opt.learning_rate = 0.02                                         # ADAM step siz
 print('<seq> now')
 opt.opti_mode = 'seq'
 
-opt.set_opt_param_idx([0,1,2])
 opt.set_handles(init_variables, phi_FRP_model)
+opt.set_opt_param_idx([1,3])
+#opt.set_opt_param_idx([1])
 
-opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
-#opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
-opt.train_model(training_iter=100)
-#opt.train_model(training_iter=10)
+opt.train_model_with_restarts(nmb_rnd_restart=10, training_iter=15)
+opt.train_model(training_iter=200)
 
-if True:
-    print('<nn> now')
-    opt.opti_mode = 'nn'
-    opt.train_model(training_iter=100)
-    #opt.train_model(training_iter=10)
-
-if True:
-    print('<seqnn> now')
-    opt.opti_mode = 'seqnn'
-    opt.train_model(training_iter=1500)
-    #opt.train_model(training_iter=10)
-
-
-target_numpy = tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])
+target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 #event_time = torch.abs(event_time)  # need to be positive
 
-# %% # show results
-
-opt.new_batch()
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
-reco = reco.detach().cpu().numpy().reshape([batch_size,sz[0],sz[1],2])
+reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
 
-img_id = 0
+imshow(magimg(target_numpy), title='target')
+imshow(magimg(reco), title='reconstruction')
 
-plt.imshow(magimg(target_numpy[img_id,:,:].reshape([sz[0],sz[1],2])), interpolation='none')
-plt.title('target')
-plt.ion()
-plt.show()
+img_cplx = reco[:,:,0] + 1j*reco[:,:,1]
+spectrum = fftfull(img_cplx)
+imshow(np.abs(spectrum))
 
-plt.imshow(magimg(reco[img_id,:,:]), interpolation='none')
-plt.title('reconstruction')
 
-target_numpy = tgt_tensor_numpy_cmplx[opt.subjidx,:,:,:].reshape([batch_size,NVox,2])
-reco = reco.reshape([batch_size,sz[0],sz[1],2])
-error = e(target_numpy.ravel(),reco.ravel())
-print(error)
+grads = opt.scanner_opt_params[1].detach().cpu()
+
+grad_moms = torch.cumsum(grads,0)
+
+if opt.use_periodic_grad_moms_cap:
+      fmax = torch.ones([1,1,2]).float()
+      fmax[0,0,0] = sz[0]/2
+      fmax[0,0,1] = sz[1]/2
+
+      grad_moms = torch.sin(grad_moms)*fmax
+        
+grad_moms = grad_moms.numpy()
+        
+for i in range(NRep):
+    plt.scatter(grad_moms[:,i,0], grad_moms[:,i,1])
+    
+plt.axis([-sz[0]/2,sz[0]/2,-sz[1]/2,sz[1]/2])
+plt.title('sampled k-space locations')
+
+
+if False:
+    test = scanner.signal.detach().cpu().numpy()
+    test = test[:,:,:,:2,:].reshape( [T,NRep,2] )
+    spectrum = test[:,:,0] + 1j*test[:,:,1]
+    #spectrum = fftfull(img_cplx)
+    imshow(np.abs(spectrum))
+
+
+
+        
+        
 
 
 

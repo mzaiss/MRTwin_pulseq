@@ -231,15 +231,14 @@ class Scanner():
             sig = torch.sum(spins.M[:,0,:,:2,0],[0])
             sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(0).unsqueeze(4))
             
-            ## TODO: fix noise
+            if self.noise_std > 0:
+                noise = self.noise_std*torch.randn(sig.shape).float()
+                #noise[:,2:] = 0
+                noise = self.setdevice(noise)
+                sig += noise  
             
             self.signal[:,t,r,:2] = (torch.sum(sig,[2]) * self.adc_mask[t])
-            
-            if self.noise_std > 0:
-                noise = self.noise_std*torch.randn(self.signal[:,t,r,:,0].shape).float()
-                noise[:,2:] = 0
-                noise = self.setdevice(noise)
-                self.signal[:,t,r,:,0] = self.signal[:,t,r,:,0] + noise        
+      
         
     def read_signal_allRep(self,t,spins):
         
@@ -247,7 +246,10 @@ class Scanner():
             #import pdb; pdb.set_trace()
             sig = torch.sum(spins.M[:,:,:,:2,0],[0])
             sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(4))
-            self.signal[:,t,:,:2] = torch.sum(sig,[2]) * self.adc_mask[t]
+            
+            # redundant
+            #self.signal[:,t,:,:2] = torch.sum(sig,[2]) * self.adc_mask[t]
+            self.signal[:,t,:,:2] = torch.sum(sig,[2])
             
             if self.noise_std > 0:
                 noise = self.noise_std*torch.randn(self.signal[:,t,:,:,0].shape).float()

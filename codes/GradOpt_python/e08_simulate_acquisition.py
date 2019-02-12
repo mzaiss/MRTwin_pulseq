@@ -131,7 +131,7 @@ for r in range(NRep):                                   # for all repetitions
         if scanner.adc_mask[t] == 0:
             scanner.flip(t,r,spins)
                   
-            delay = torch.abs(event_time[t,r] + 1e-6)
+            delay = torch.abs(event_time[t,r]) + 1e-6
             scanner.set_relaxation_tensor(spins,delay)
             scanner.set_freeprecession_tensor(spins,delay)
             scanner.relax_and_dephase(spins)

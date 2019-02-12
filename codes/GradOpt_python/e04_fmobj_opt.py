@@ -48,6 +48,13 @@ def setdevice(x):
         x = x.cuda(0)
         
     return x
+    
+def imshow(x, title=None):
+    plt.imshow(x, interpolation='none')
+    if title != None:
+        plt.title(title)
+    plt.ion()
+    plt.show()    
 
 def stop():
     sys.tracebacklimit = 0
@@ -475,7 +482,7 @@ if False:                                                       # check sanity
 def phi_FRP_model(opt_params,aux_params):
     
     flips,grads = opt_params
-    use_tanh_grad_moms_cap = aux_params
+    use_periodic_grad_moms_cap = aux_params
     
     scanner.init_signal()
     spins.set_initial_magnetization(scanner.NRep)
@@ -492,12 +499,12 @@ def phi_FRP_model(opt_params,aux_params):
     # gradients
     grad_moms = torch.cumsum(grads,0)
     
-    if use_tanh_grad_moms_cap:
-      boost_fct = 1
-        
-      fmax = sz / 2
-      for i in [0,1]:
-          grad_moms[:,:,i] = boost_fct*fmax[i]*torch.tanh(grad_moms[:,:,i])
+    if use_periodic_grad_moms_cap:
+      fmax = torch.ones([1,1,2]).float().cuda(0)
+      fmax[0,0,0] = sz[0]/2
+      fmax[0,0,1] = sz[1]/2
+
+      grad_moms = torch.sin(grad_moms)*fmax
           
     scanner.set_gradient_precession_tensor(grad_moms)
           
@@ -550,7 +557,7 @@ def init_variables():
 
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
 
-opt.use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
+opt.use_periodic_grad_moms_cap = 1                 # do not sample above Nyquist flag
 opt.learning_rate = 0.02                                         # ADAM step size
 
 # fast track
@@ -559,6 +566,7 @@ opt.learning_rate = 0.02                                         # ADAM step siz
 print('<seq> now')
 opt.opti_mode = 'seq'
 
+opt.set_opt_param_idx([0,1])
 opt.set_handles(init_variables, phi_FRP_model)
 
 opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)

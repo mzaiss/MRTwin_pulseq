@@ -137,7 +137,7 @@ for r in range(NRep):                                   # for all repetitions
         if scanner.adc_mask[t] == 0:
             scanner.flip(t,r,spins)
                   
-            delay = torch.abs(event_time[t,r] + 1e-6)
+            delay = torch.abs(event_time[t,r]) + 1e-6
             scanner.set_relaxation_tensor(spins,delay)
             scanner.set_freeprecession_tensor(spins,delay)
             scanner.relax_and_dephase(spins)
@@ -185,7 +185,7 @@ if False:                                                       # check sanity
 def phi_FRP_model(opt_params,aux_params):
     
     flips,grads,event_time = opt_params
-    use_tanh_grad_moms_cap = aux_params
+    use_periodic_grad_moms_cap = aux_params
     
     scanner.init_signal()
     spins.set_initial_magnetization(NRep=1)
@@ -202,12 +202,12 @@ def phi_FRP_model(opt_params,aux_params):
     # gradients
     grad_moms = torch.cumsum(grads,0)
     
-    if use_tanh_grad_moms_cap:
-      boost_fct = 1                         # maybe we need an extendor again
-        
-      fmax = sz / 2
-      for i in [0,1]:
-          grad_moms[:,:,i] = boost_fct*fmax[i]*torch.tanh(grad_moms[:,:,i])
+    if use_periodic_grad_moms_cap:
+      fmax = torch.ones([1,1,2]).float().cuda(0)
+      fmax[0,0,0] = sz[0]/2
+      fmax[0,0,1] = sz[1]/2
+
+      grad_moms = torch.sin(grad_moms)*fmax
           
     scanner.set_gradient_precession_tensor(grad_moms)
           
@@ -218,7 +218,7 @@ def phi_FRP_model(opt_params,aux_params):
             
             if scanner.adc_mask[t] == 0:
                 scanner.flip(t,r,spins)
-                delay = torch.abs(event_time[t,r] + 1e-6)
+                delay = torch.abs(event_time[t,r]) + 1e-6
                 scanner.set_relaxation_tensor(spins,delay)
                 scanner.set_freeprecession_tensor(spins,delay)
                 scanner.relax_and_dephase(spins)
@@ -272,7 +272,7 @@ def init_variables():
 
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
 
-opt.use_tanh_grad_moms_cap = 1                 # do not sample above Nyquist flag
+opt.use_periodic_grad_moms_cap = 1                 # do not sample above Nyquist flag
 opt.learning_rate = 0.02                                         # ADAM step size
 
 # fast track
@@ -281,6 +281,7 @@ opt.learning_rate = 0.02                                         # ADAM step siz
 print('<seq> now')
 opt.opti_mode = 'seq'
 
+opt.set_opt_param_idx([0,1,2])
 opt.set_handles(init_variables, phi_FRP_model)
 
 opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
