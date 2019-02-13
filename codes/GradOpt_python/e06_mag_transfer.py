@@ -299,7 +299,7 @@ opt.learning_rate = 0.01                                        # ADAM step size
 print('<seq> now')
 opt.opti_mode = 'seq'
 
-opt.set_opt_param_idx([0,1,2,3])
+opt.set_opt_param_idx([0,1,2])
 opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)

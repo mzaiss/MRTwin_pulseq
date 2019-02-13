@@ -63,7 +63,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
@@ -113,7 +113,7 @@ grad_moms = setdevice(grad_moms)
 
 # event timing vector 
 event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,scanner.NRep,1))).float()
-event_time[0,:,0] = 1e-1
+event_time[0,:,0] = 1e-3
 event_time[-1,:,0] = 1e2
 event_time = setdevice(event_time)
 
@@ -188,23 +188,28 @@ def phi_FRP_model(opt_params,aux_params):
         scanner.custom_flip(0,flips_base,spins)
         scanner.custom_relax(spins,dt=0.06)            # relax till ADC (sec)
         
+
+    # only allow for flip at the beginning of repetition        
+    flip_mask = torch.zeros((scanner.T, scanner.NRep)).float()        
+    flip_mask[0,:] = 1
+    flip_mask = setdevice(flip_mask)
+    flips = flips * flip_mask
+        
     scanner.init_flip_tensor_holder()
     scanner.set_flip_tensor(flips)
     
     # gradients
     grad_moms = torch.cumsum(grads,0)
     
-    if use_periodic_grad_moms_cap:
-        fmax = torch.ones([1,1,2]).float().cuda(0)
-        fmax[0,0,0] = sz[0]/2
-        fmax[0,0,1] = sz[1]/2
-
-        grad_moms = torch.sin(grad_moms)*fmax
-
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms)
     
     scanner.adc_mask = adc_mask
+    
+    rf_spoiler = torch.zeros((spins.NSpins, 1, spins.NVox,4,1)).float()
+    rf_spoiler[:,:,:,2:,:] = 1                # preserve longitudinal component
+    rf_spoiler = setdevice(rf_spoiler)
+    
           
     for r in range(NRep):                                   # for all repetitions
         for t in range(T):
@@ -216,7 +221,10 @@ def phi_FRP_model(opt_params,aux_params):
             scanner.relax_and_dephase(spins)
     
             scanner.grad_precess(t,r,spins)
-            scanner.read_signal(t,r,spins)        
+            scanner.read_signal(t,r,spins) 
+            
+        # destroy transverse component
+        spins.M = spins.M * rf_spoiler
         
     scanner.init_reco()
     
@@ -238,13 +246,13 @@ def init_variables():
 
     grads = torch.from_numpy(g).float()
     
-#    grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
-#    grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
-#    
-#    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
-#    padder = scanner.setdevice(padder)
-#    temp = torch.cat((padder,grad_moms),0)
-#    grads = temp[1:,:,:] - temp[:-1,:,:]   
+    grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+    grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+    
+    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
+    padder = scanner.setdevice(padder)
+    temp = torch.cat((padder,grad_moms),0)
+    grads = temp[1:,:,:] - temp[:-1,:,:]   
     
     grads = setdevice(grads)
     grads.requires_grad = True
@@ -260,19 +268,18 @@ def init_variables():
     
     flips = setdevice(flips)
     
-    #event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
     event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
 
-    #event_time[0,:,0] = 1e-1
+    event_time[0,:,0] = 1e-3
     #event_time[-1,:,0] = 1e2
     
     event_time = setdevice(event_time)
     event_time.requires_grad = True
     
-    adc_mask = torch.ones((T,1)).float()*0.1
-#    adc_mask = torch.ones((T,1)).float()*1
-#    adc_mask[:scanner.T-scanner.sz[0]-1] = 0
-#    adc_mask[-1] = 0
+    #adc_mask = torch.ones((T,1)).float()*1.0
+    adc_mask = torch.ones((T,1)).float()*1
+    adc_mask[:scanner.T-scanner.sz[0]-1] = 0
+    adc_mask[-1] = 0
 
     adc_mask = setdevice(adc_mask)
     adc_mask.requires_grad = True     
@@ -282,6 +289,10 @@ def init_variables():
 
     
 # %% # OPTIMIZATION land
+    
+#target = target / 1.85
+#target = target / 3.24
+target = target / 2.5
 
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
 
@@ -294,22 +305,17 @@ opt.learning_rate = 0.01                                        # ADAM step size
 print('<seq> now')
 opt.opti_mode = 'seq'
 
-opt.set_opt_param_idx([0,1,2,3])
-opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
+opt.set_opt_param_idx([0])
+opt.custom_learning_rate = [0.05, 0.01]
 
 opt.set_handles(init_variables, phi_FRP_model)
 
-opt.train_model_with_restarts(nmb_rnd_restart=5, training_iter=10)
-#opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
+#opt.train_model_with_restarts(nmb_rnd_restart=1, training_iter=1)
 
-opt.train_model(training_iter=100)
-#opt.train_model(training_iter=10)
+opt.scanner_opt_params = opt.init_variables()
+opt.train_model(training_iter=50)
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
-#event_time = torch.abs(event_time)  # need to be positive
-
-#opt.scanner_opt_params = init_variables()
-#
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
@@ -317,50 +323,11 @@ reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
 imshow(magimg(target_numpy), 'target')
 imshow(magimg(reco), 'reconstruction')
 
-stop()
+flip_angles = opt.scanner_opt_params[0].detach().cpu().numpy()*180/np.pi
+flip_angles = np.round(flip_angles[0,:])
 
+print(flip_angles)
 
-# %% ###     SAVE ALL ######################################################@
-#############################################################################
-
-host_dir = "../../data/trained_models"
-experiment_id = "t00_magtrans_early"
-
-if not os.path.exists(os.path.join(host_dir,experiment_id)):
-    os.makedirs(os.path.join(host_dir,experiment_id))
-  
-sz = np.array([16,16])                                           # image size
-NRep = sz[1]                                          # number of repetitions
-T = sz[0] + 2                                        # number of events F/R/P
-NSpins = 2                                # number of spin sims in each voxel
-NCoils = 1                                  # number of receive coil elements
-    
-param_dict = dict()
-param_dict['sz'] = sz
-param_dict['NRep'] = NRep
-param_dict['T'] = T
-param_dict['NSpins'] = NSpins
-param_dict['NCoils'] = NCoils
-
-scipy.io.savemat(os.path.join(host_dir,experiment_id,"param_dict.mat"), param_dict)
-
-spins_dict = dict()
-spins_dict['PD'] = spins.PD.cpu().numpy()
-spins_dict['T1'] = spins.T1.cpu().numpy()     
-spins_dict['T2'] = spins.T2.cpu().numpy()
-spins_dict['dB0'] = spins.dB0.cpu().numpy()
-          
-scipy.io.savemat(os.path.join(host_dir,experiment_id,"spins_dict.mat"), spins_dict)
-          
-scanner_dict = dict()
-scanner_dict['adc_mask'] = scanner.adc_mask.detach().cpu().numpy()
-scanner_dict['B1'] = scanner.B1.detach().cpu().numpy()
-scanner_dict['flips'] = flips.detach().cpu().numpy()
-scanner_dict['grads'] = grads.detach().cpu().numpy()
-scanner_dict['event_time'] = event_time.detach().cpu().numpy()
-scanner_dict['reco'] = reco
-          
-scipy.io.savemat(os.path.join(host_dir,experiment_id,"scanner_dict.mat"), scanner_dict)
 
 
 
