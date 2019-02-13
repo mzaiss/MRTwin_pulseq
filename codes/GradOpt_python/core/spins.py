@@ -42,6 +42,7 @@ class SpinSystem():
             m = np.load('../../data/phantom.npy')
             m = cv2.resize(m, dsize=(self.sz[0], self.sz[1]), interpolation=cv2.INTER_CUBIC)
             m = m / np.max(m)
+            m[:,:,1] = 0                                         # PD only real
             self.img = m.copy()
         else:
             self.img = img

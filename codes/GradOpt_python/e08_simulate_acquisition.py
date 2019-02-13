@@ -85,6 +85,7 @@ spins.set_system()
 scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
 scanner.set_adc_mask()
+scanner.adc_mask[:scanner.T-scanner.sz[0]] = 0
 
 # allow for relaxation after last readout event
 scanner.adc_mask[-1] = 0

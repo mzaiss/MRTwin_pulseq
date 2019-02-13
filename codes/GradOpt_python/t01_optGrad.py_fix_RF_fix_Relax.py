@@ -118,6 +118,7 @@ spins.set_system(img=img)
 scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
 scanner.set_adc_mask()
+scanner.adc_mask[:scanner.T-scanner.sz[0]] = 0
 
 scanner.init_coil_sensitivities()
 

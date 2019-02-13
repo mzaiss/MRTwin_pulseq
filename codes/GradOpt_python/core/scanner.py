@@ -11,7 +11,7 @@ class Scanner():
         self.NVox = sz[0]*sz[1]                                 # voxel count
         self.NSpins = NSpins              # number of spin sims in each voxel
         self.NRep = NRep                              # number of repetitions
-        self.T = T                       # number of "actions" with a readout
+        self.T = T                     # number of "actions" within a readout
         self.NCoils = NCoils                # number of receive coil elements
         self.noise_std = noise_std              # additive Gaussian noise std
         
@@ -45,7 +45,7 @@ class Scanner():
         
     def set_adc_mask(self):
         adc_mask = torch.from_numpy(np.ones((self.T,1))).float()
-        adc_mask[:self.T-self.sz[0]] = 0
+        #adc_mask[:self.T-self.sz[0]] = 0
         
         self.adc_mask = self.setdevice(adc_mask)
 
@@ -259,8 +259,8 @@ class Scanner():
     def do_grad_adj_reco(self,t,spins):
         
         # redundant
-        #s = self.signal[:,t,:,:,:] * self.adc_mask[t]
-        s = self.signal[:,t,:,:,:]
+        s = self.signal[:,t,:,:,:] * self.adc_mask[t]
+        #s = self.signal[:,t,:,:,:]
          
         # for now we ignore parallel imaging options here (do naive sum sig over coil)
         s = torch.sum(s, 0)                                                  
@@ -313,6 +313,7 @@ class Scanner():
         
 # variation for supervised learning
 # TODO fix relax tensor -- is batch dependent
+# TODO implement as child class of Scanner class, override methods
 class Scanner_batched():
     
     def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,noise_std,batch_size,use_gpu):
@@ -548,6 +549,7 @@ class Scanner_batched():
         self.reco = self.setdevice(reco)
         
     # XXX
+    # TODO: noise treatment incosistent with Scanner class protocol
     def read_signal(self,t,r,spins):
         if self.adc_mask[t] > 0:
             
@@ -592,3 +594,120 @@ class Scanner_batched():
         self.reco = self.reco + torch.sum(r[:,:,:,:2,0],2)
         
       
+      
+      
+      
+# Fast, but memory inefficient version (also for now does not support parallel imagigng)
+class Scanner_fast(Scanner):
+    
+    def init_gradient_tensor_holder(self):
+        G = torch.zeros((self.T,self.NRep,self.NVox,4,4), dtype=torch.float32)
+        G[:,:,:,2,2] = 1
+        G[:,:,:,3,3] = 1
+         
+        G_adj = torch.zeros((self.T,self.NRep,self.NVox,4,4), dtype=torch.float32)
+        G_adj[:,:,:,2,2] = 1
+        G_adj[:,:,:,3,3] = 1
+         
+        self.G = self.setdevice(G)
+        self.G_adj = self.setdevice(G_adj)
+        
+    def set_gradient_precession_tensor(self,grad_moms):
+        
+        padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
+        padder = self.setdevice(padder)
+        temp = torch.cat((padder,grad_moms),0)
+        grads = temp[1:,:,:] - temp[:-1,:,:]        
+        
+        B0X = torch.unsqueeze(grads[:,:,0],2) * self.rampX
+        B0Y = torch.unsqueeze(grads[:,:,1],2) * self.rampY
+        
+        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
+        
+        B0_grad_cos = torch.cos(B0_grad)
+        B0_grad_sin = torch.sin(B0_grad)
+        
+        # for backward pass
+        B0X = torch.unsqueeze(grad_moms[:,:,0],2) * self.rampX
+        B0Y = torch.unsqueeze(grad_moms[:,:,1],2) * self.rampY
+        
+        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
+        
+        B0_grad_adj_cos = torch.cos(B0_grad)
+        B0_grad_adj_sin = torch.sin(B0_grad)        
+        
+        self.G[:,:,:,0,0] = B0_grad_cos
+        self.G[:,:,:,0,1] = -B0_grad_sin
+        self.G[:,:,:,1,0] = B0_grad_sin
+        self.G[:,:,:,1,1] = B0_grad_cos    
+        
+        # adjoint
+        self.G_adj[:,:,:,0,0] = B0_grad_adj_cos
+        self.G_adj[:,:,:,0,1] = B0_grad_adj_sin
+        self.G_adj[:,:,:,1,0] = -B0_grad_adj_sin
+        self.G_adj[:,:,:,1,1] = B0_grad_adj_cos        
+        
+    def grad_precess(self,t,r,spins):
+        spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)        
+        
+    # TODO: fix
+    def grad_precess_allRep(self,spins):
+        
+        class ExecutionControl(Exception): pass
+        raise ExecutionControl('grad_precess_allRep: WIP not implemented')
+        
+        spins.M = torch.matmul(self.G,spins.M)
+        
+    def read_signal(self,t,r,spins):
+        if self.adc_mask[t] > 0:
+            
+            # parallel imaging disabled for now
+            #sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(0).unsqueeze(4))
+            self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t]))
+            
+            if self.noise_std > 0:
+                
+                class ExecutionControl(Exception): pass
+                raise ExecutionControl('read_signal: WIP noise not supported')
+                
+                noise = self.noise_std*torch.randn(sig.shape).float()
+                #noise[:,2:] = 0
+                noise = self.setdevice(noise)
+                sig += noise  
+            
+     
+        
+    # TODO: fix
+    def read_signal_allRep(self,t,spins):
+        
+        class ExecutionControl(Exception): pass
+        raise ExecutionControl('read_signal_allRep: WIP not implemented')
+        
+        if self.adc_mask[t] > 0:
+            #import pdb; pdb.set_trace()
+            sig = torch.sum(spins.M[:,:,:,:2,0],[0])
+            sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(4))
+            
+            self.signal[:,t,:,:2] = torch.sum(sig,[2]) * self.adc_mask[t]
+            
+            if self.noise_std > 0:
+                noise = self.noise_std*torch.randn(self.signal[:,t,:,:,0].shape).float()
+                noise[:,:,2:] = 0
+                noise = self.setdevice(noise)
+                self.signal[:,t,:,:,0] = self.signal[:,t,:,:,0] + noise
+
+    # reconstruct image readout by readout            
+    def do_grad_adj_reco(self,t,spins):
+        
+        adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        s = self.signal * adc_mask
+        s = torch.sum(s,0)
+        
+        r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,4,self.T*self.NRep*4]), s.view([1,self.T*self.NRep*4,1]))
+        self.reco = r[:,:2,0]
+        
+
+        
+
+
+

@@ -108,7 +108,9 @@ spins.set_system(data_tensor_numpy_cmplx[batch_idx,:,:,:])
 
 scanner = core.scanner.Scanner_batched(sz,NVox,NSpins,NRep,T,NCoils,noise_std,batch_size,use_gpu)
 scanner.get_ramps()
+
 scanner.set_adc_mask()
+scanner.adc_mask[:scanner.T-scanner.sz[0]] = 0
 
 scanner.init_coil_sensitivities()
 

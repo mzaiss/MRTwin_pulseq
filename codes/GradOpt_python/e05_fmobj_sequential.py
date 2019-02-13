@@ -88,6 +88,7 @@ spins.set_system()
 scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
 scanner.set_adc_mask()
+scanner.adc_mask[:scanner.T-scanner.sz[0]] = 0
 
 scanner.init_coil_sensitivities()
 
@@ -163,7 +164,7 @@ target = scanner.reco.clone()
    
 reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
-if True:                                                      # check sanity
+if False:                                                      # check sanity
     imshow(magimg(spins.img), 'original')
     imshow(magimg(reco), 'reconstruction')
     
