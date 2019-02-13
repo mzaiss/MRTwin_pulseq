@@ -39,7 +39,7 @@ def e(gt,x):
 
 # get magnitude image
 def magimg(x):
-  return np.sqrt(np.sum(np.abs(x)**2,2))
+  return (np.sum(np.abs(x)**2,2))**0.5
 
 # device setter
 def setdevice(x):
@@ -167,9 +167,11 @@ target = scanner.reco.clone()
    
 reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
-
-plt.imshow(magimg(spins.img), interpolation='none')
-plt.title('original (proton density) image')
+imPD = spins.PD.cpu().numpy().reshape([sz[0],sz[1]])
+imT2 = spins.T2.cpu().numpy().reshape([sz[0],sz[1]])
+imT1 = spins.T1.cpu().numpy().reshape([sz[0],sz[1]])
+plt.imshow((imT2+1)*imPD, interpolation='none')
+plt.title('original (proton density) image * (T2+1)')
 plt.ion()
 plt.show()
 

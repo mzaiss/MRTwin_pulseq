@@ -136,7 +136,7 @@ print("torch phi =%f" %phi)
 
 ## easy sim, Cartesian grid
 
-sz = np.array([32, 32])                                  # image size (Nx Ny)          
+sz = np.array([16, 16])                                  # image size (Nx Ny)          
 T = sz[0]                                  # number of time points in readout                                                                                                  
 NRep = sz[1]
 
@@ -180,8 +180,8 @@ lbd = 0*1e-2
 
 grad_moms = torch.zeros(NRep,T,2, dtype=torch.float32)
                        
-grad_moms[:,:,0] = torch.linspace(-sz[0]/2,sz[0]/2-1,T).repeat([NRep,1])
-grad_moms[:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,NRep).view(NRep,1).repeat([1,T])
+grad_moms[:,:,0] = torch.linspace((-sz[0]/2),(sz[0]/2-1),int(T)).repeat([NRep,1])
+grad_moms[:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,int(NRep)).view(NRep,1).repeat([1,T])
     
 temp = torch.cat((torch.zeros((NRep,1,2),dtype=torch.float32),grad_moms),1)
 g_t = temp[:,1:,:] - temp[:,:-1,:]
