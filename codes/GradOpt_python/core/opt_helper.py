@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as fnn
+import matplotlib.pyplot as plt
 from torch import optim
 
 # optimization helper class
@@ -90,7 +91,7 @@ class OPT_helper():
         
         for outer_iter in range(nmb_outer_iter):
             #print('restarting... %i%% ready' %(100*outer_iter/float(nmb_outer_iter)))
-            print('restarting... ')
+            print('restarting the model training... ')
             
             self.scanner_opt_params = self.init_variables()
             
@@ -119,9 +120,20 @@ class OPT_helper():
                     best_vars = []
                     for par in self.scanner_opt_params:
                         best_vars.append(par.detach().clone())
+                    
+                    
+                    sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
+                    recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
+                    plt.imshow(magimg(recoimg), interpolation='none')
+                    plt.ion()
+                    fig = plt.gcf()
+                    fig.set_size_inches(1, 1)
+                    plt.show()     
                         
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]
             self.scanner_opt_params[pidx].requires_grad = True
                                    
                                    
+def magimg(x):
+  return np.sqrt(np.sum(np.abs(x)**2,2))

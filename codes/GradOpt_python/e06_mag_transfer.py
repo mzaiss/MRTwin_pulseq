@@ -59,6 +59,8 @@ def imshow(x, title=None):
     if title != None:
         plt.title(title)
     plt.ion()
+    fig = plt.gcf()
+    fig.set_size_inches(1, 1)
     plt.show()     
 
 def stop():
@@ -113,6 +115,9 @@ grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 # Cartesian encoding
 grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
 grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+
+# imshow(grad_moms[T-sz[0]-1:-1,:,0].cpu())
+# imshow(grad_moms[T-sz[0]-1:-1,:,1].cpu())
 
 grad_moms = setdevice(grad_moms)
 
@@ -178,7 +183,7 @@ if False:                                                       # check sanity
     stop()
     
     
-# %% ###     OPTIMIZE ######################################################@
+# %% ###     OPTIMIZATION functions phi and init ######################################################@
 #############################################################################    
     
 def phi_FRP_model(opt_params,aux_params):
@@ -213,24 +218,27 @@ def phi_FRP_model(opt_params,aux_params):
     
     #scanner.adc_mask = adc_mask
           
-    for r in range(NRep):                                   # for all repetitions
-        for t in range(T):
+    for r in range(NRep):                                   # for all repetitions          (this can be seen as a k-space line acquisition)
+        for t in range(T):                                  # for all ADC samples within T (or sample of the kurrent ksapce line)
             
             if scanner.adc_mask[t] == 0:
                 scanner.flip(t,r,spins)
-                delay = torch.abs(event_time[t,r]) + 1e-6
+                delay = torch.abs(event_time[t,r]) + 1e-6  # mz whats that
                 scanner.set_relaxation_tensor(spins,delay)
                 scanner.set_freeprecession_tensor(spins,delay)
-                scanner.relax_and_dephase(spins)
+                scanner.relax_and_dephase(spins)            # mz shouldnt we also relax during the ADC?
     
-            scanner.grad_precess(t,r,spins)
+            scanner.grad_precess(t,r,spins)     
             scanner.read_signal(t,r,spins)        
+            
+#### now one full forward model is calculated and the acquired signals are stored in self.signal
+#### now we can create the reco for this data. Gadjoint was already created during the forward process ( inj set_gradient_precession_tensor) see self.G and self.G_adj
         
     scanner.init_reco()
     
-    for t in range(T-1,-1,-1):
+    for t in range(T-1,-1,-1):              # mz: I dont understand why you do not loop over the repetitions now.
         if scanner.adc_mask[t] > 0:
-            scanner.do_grad_adj_reco(t,spins)
+            scanner.do_grad_adj_reco(t,spins)   # this applies the adjoint operator to the acquired data
             
     loss = (scanner.reco - target)
     phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
@@ -295,8 +303,11 @@ opt.learning_rate = 0.01                                         # ADAM step siz
 # fast track
 # opt.training_iter = 10; opt.training_iter_restarts = 5
 
-print('<seq> now')
+print('<seq> now (with 10 iterations and several random initializations)')
 opt.opti_mode = 'seq'
+
+target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+imshow(magimg(target_numpy), 'target')
 
 #opt.set_opt_param_idx([0,1,2])
 opt.set_opt_param_idx([1])
@@ -307,10 +318,12 @@ opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
 
 stop()
 
+print('<seq> now (10000 iterations with best initialization')
+
 opt.train_model(training_iter=10000)
 #opt.train_model(training_iter=10)
 
-target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+
 #event_time = torch.abs(event_time)  # need to be positive
 
 #opt.scanner_opt_params = init_variables()
