@@ -133,7 +133,7 @@ if False:
 # scanner forward process loop
 for t in range(T):                                          # for all actions
 
-    # flip/relax/dephase only if adc is closed
+    # flip/relax/dephase only if adc is closed (check no longer needed?)
     if scanner.adc_mask[t] == 0:
         scanner.flip_allRep(t,spins)
               

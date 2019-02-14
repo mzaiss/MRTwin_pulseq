@@ -20,7 +20,7 @@ function [kspace, roundError] = kReorder(kList, gradients, yshiftflag)
     roundError = indexList - rescale(gradients, 1, dim);
     
     for m=1:length(kList) % sort acquired sample to k matrix
-        kspace(indexList(1,m), indexList(2,m)) = kList(m);
+        kspace(indexList(2,m), indexList(1,m)) = kList(m);
     end
      
 end

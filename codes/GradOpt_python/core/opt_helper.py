@@ -14,6 +14,7 @@ class OPT_helper():
         
         self.use_periodic_grad_moms_cap = 1
         self.learning_rate = 0.02
+        self.custom_learning_rate = None   # allow for differerent learning rates in different parameter groups
         
         self.opti_mode = 'seq'
         
@@ -62,8 +63,11 @@ class OPT_helper():
         # only optimize a subset of params
         optimizable_params = []
         for i in range(len(self.opt_param_idx)):
-            optimizable_params.append(self.scanner_opt_params[self.opt_param_idx[i]])
-        
+            if self.custom_learning_rate == None:
+                optimizable_params.append(self.scanner_opt_params[self.opt_param_idx[i]] )
+            else:
+                optimizable_params.append({'params':self.scanner_opt_params[self.opt_param_idx[i]], 'lr': self.custom_learning_rate[i]} )
+            
         if self.opti_mode == 'seq':
             self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
         elif self.opti_mode == 'nn':
@@ -98,7 +102,10 @@ class OPT_helper():
             # only optimize a subset of params
             optimizable_params = []
             for i in range(len(self.opt_param_idx)):
-                optimizable_params.append(self.scanner_opt_params[self.opt_param_idx[i]])              
+                if self.custom_learning_rate == None:
+                    optimizable_params.append(self.scanner_opt_params[self.opt_param_idx[i]] )
+                else:
+                    optimizable_params.append({'params':self.scanner_opt_params[self.opt_param_idx[i]], 'lr': self.custom_learning_rate[i]} )          
                 
             if self.opti_mode == 'seq':
                 self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
@@ -132,7 +139,7 @@ class OPT_helper():
                         
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]
-            self.scanner_opt_params[pidx].requires_grad = True
+            self.scanner_opt_params[pidx].requires_grad = True        # needed?
                                    
                                    
 def magimg(x):

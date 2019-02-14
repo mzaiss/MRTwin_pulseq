@@ -146,14 +146,12 @@ if False:
 for r in range(NRep):                                   # for all repetitions
     for t in range(T):                                      # for all actions
     
-        # flip/relax/dephase only if adc is closed
-        if scanner.adc_mask[t] == 0:
-            scanner.flip(t,r,spins)
-                  
-            delay = torch.abs(event_time[t,r]) + 1e-6
-            scanner.set_relaxation_tensor(spins,delay)
-            scanner.set_freeprecession_tensor(spins,delay)
-            scanner.relax_and_dephase(spins)
+        scanner.flip(t,r,spins)
+              
+        delay = torch.abs(event_time[t,r]) + 1e-6
+        scanner.set_relaxation_tensor(spins,delay)
+        scanner.set_freeprecession_tensor(spins,delay)
+        scanner.relax_and_dephase(spins)
             
         scanner.grad_precess(t,r,spins)
         scanner.read_signal(t,r,spins)
@@ -183,7 +181,8 @@ if False:                                                       # check sanity
     stop()
     
     
-# %% ###     OPTIMIZATION functions phi and init ######################################################@
+
+# %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
     
 def phi_FRP_model(opt_params,aux_params):
@@ -216,19 +215,20 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms)
     
-    #scanner.adc_mask = adc_mask
+   
+    scanner.adc_mask = adc_mask
           
     for r in range(NRep):                                   # for all repetitions          (this can be seen as a k-space line acquisition)
         for t in range(T):                                  # for all ADC samples within T (or sample of the kurrent ksapce line)
             
-            if scanner.adc_mask[t] == 0:
-                scanner.flip(t,r,spins)
-                delay = torch.abs(event_time[t,r]) + 1e-6  # mz whats that
-                scanner.set_relaxation_tensor(spins,delay)
-                scanner.set_freeprecession_tensor(spins,delay)
-                scanner.relax_and_dephase(spins)            # mz shouldnt we also relax during the ADC?
+                scanner.relax_and_dephase(spins) # mz shouldnt we also relax during the ADC?
+            scanner.flip(t,r,spins)
+            delay = torch.abs(event_time[t,r]) + 1e-6 # mz whats that
+            scanner.set_relaxation_tensor(spins,delay)
+            scanner.set_freeprecession_tensor(spins,delay)
+            scanner.relax_and_dephase(spins)    
     
-            scanner.grad_precess(t,r,spins)     
+            scanner.grad_precess(t,r,spins)    
             scanner.read_signal(t,r,spins)        
             
 #### now one full forward model is calculated and the acquired signals are stored in self.signal
@@ -260,7 +260,7 @@ def init_variables():
 #    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
 #    padder = scanner.setdevice(padder)
 #    temp = torch.cat((padder,grad_moms),0)
-#    grads = temp[1:,:,:] - temp[:-1,:,:]     
+#    grads = temp[1:,:,:] - temp[:-1,:,:]   
     
     grads = setdevice(grads)
     grads.requires_grad = True
@@ -269,22 +269,29 @@ def init_variables():
     flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     
+
     flips[0,:] = 90*np.pi/180
+
     
     flips = setdevice(flips)
     flips.requires_grad = True
     
     flips = setdevice(flips)
     
-    event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
 
-    event_time[0,:,0] = 1e-1
-    event_time[-1,:,0] = 1e2
+    #event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
+    event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
+
+    #event_time[0,:,0] = 1e-1
+    #event_time[-1,:,0] = 1e2
     
     event_time = setdevice(event_time)
     event_time.requires_grad = True
     
     adc_mask = torch.ones((T,1)).float()*0.1
+#    adc_mask = torch.ones((T,1)).float()*1
+#    adc_mask[:scanner.T-scanner.sz[0]-1] = 0
+#    adc_mask[-1] = 0
 
     adc_mask = setdevice(adc_mask)
     adc_mask.requires_grad = True     
@@ -297,8 +304,8 @@ def init_variables():
 
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
 
-opt.use_periodic_grad_moms_cap = 1                 # do not sample above Nyquist flag
-opt.learning_rate = 0.01                                         # ADAM step size
+opt.use_periodic_grad_moms_cap = 1           # do not sample above Nyquist flag
+opt.learning_rate = 0.01                                        # ADAM step size
 
 # fast track
 # opt.training_iter = 10; opt.training_iter_restarts = 5
@@ -308,19 +315,22 @@ opt.opti_mode = 'seq'
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 imshow(magimg(target_numpy), 'target')
+opt.set_opt_param_idx([0,1,2])
+opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
 
-#opt.set_opt_param_idx([0,1,2])
-opt.set_opt_param_idx([1])
 opt.set_handles(init_variables, phi_FRP_model)
 
-opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
+
+opt.train_model_with_restarts(nmb_rnd_restart=5, training_iter=10)
 #opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
+
+
 
 stop()
 
-print('<seq> now (10000 iterations with best initialization')
+print('<seq> now (100 iterations with best initialization')
 
-opt.train_model(training_iter=10000)
+opt.train_model(training_iter=100)
 #opt.train_model(training_iter=10)
 
 
