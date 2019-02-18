@@ -95,7 +95,10 @@ scanner.init_coil_sensitivities()
 
 # init tensors
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
-flips[0,:] = 90*np.pi/180
+#flips[0,:] = 90*np.pi/180
+
+E1 = torch.exp(-1e-3/spins.T1[0])
+flips[0,:] = torch.acos(E1)
      
 flips = setdevice(flips)
      
@@ -132,8 +135,18 @@ if False:
     scanner.custom_flip(0,flips_base,spins)
     scanner.custom_relax(spins,dt=0.06)                # relax till ADC (sec)
     
+    
+
+    
 # scanner forward process loop
 for r in range(NRep):                                   # for all repetitions
+
+    ss_at_ernst = (1-E1)/(1-E1**2)
+    
+    #spins.M[:,:,:,:,:] = 0
+    #spins.M[:,:,:,3,:] = 1
+    spins.M = (ss_at_ernst * spins.M0).unsqueeze(4)
+
     for t in range(T):                                      # for all actions
     
         scanner.flip(t,r,spins)
@@ -266,7 +279,7 @@ def init_variables():
         if i < sz[1]/2:
             grad_moms[:,i*2,1] = i
             
-    grad_moms[:,:,1] = torch.flip(grad_moms[:,:,1], [1])
+    #grad_moms[:,:,1] = torch.flip(grad_moms[:,:,1], [1])
 
     
     padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
@@ -327,8 +340,8 @@ opt.learning_rate = 0.01                                        # ADAM step size
 print('<seq> now')
 opt.opti_mode = 'seq'
 
-opt.set_opt_param_idx([0,3])
-opt.custom_learning_rate = [0.05, 0.1]
+opt.set_opt_param_idx([0])
+opt.custom_learning_rate = [0.05, 0.05]
 
 opt.set_handles(init_variables, phi_FRP_model)
 
