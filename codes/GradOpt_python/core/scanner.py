@@ -109,10 +109,7 @@ class Scanner():
     # angle = norm of the rotation vector    
     def set_flipAxisAngle_tensor(self,flips):
         
-        
-        # ... greatly simplifies assume rotations in XY plane ...
-        
-
+        # ... greatly simplifies if assume rotations in XY plane ...
         theta = torch.norm(flips,2).unsqueeze(2)
         v = flips / theta
         
@@ -127,35 +124,12 @@ class Scanner():
         self.F[:,:,0,2,2] = 0
         
         # matrix square
-        F2 = torch.matmul(self,F,self,F)
+        F2 = torch.matmul(self.F,self.F)
         self.F = torch.sin(theta) * self.F + (1 - torch.cos(theta))*F2
         
         self.F[:,:,0,0,0] = 1
         self.F[:,:,0,1,1] = 1
         self.F[:,:,0,2,2] = 1  
-        
-return R        
-        
-def get_R(v):
-	theta = np.linalg.norm(v)
-	if theta < eps:
-		R = np.eye(3)
-	else:
-		v = v / theta
-		V = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-		R = np.eye(3) + np.sin(theta) * V + (1 - np.cos(theta)) * np.dot(V, V)
-return R        
-
-        
-        
-        flips_cos = torch.cos(flips)
-        flips_sin = torch.sin(flips)
-        
-        self.F[:,:,0,0,0] = flips_cos
-        self.F[:,:,0,0,2] = flips_sin
-        self.F[:,:,0,2,0] = -flips_sin
-        self.F[:,:,0,2,2] = flips_cos         
-        
         
         
          
