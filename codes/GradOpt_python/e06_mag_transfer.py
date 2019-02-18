@@ -221,7 +221,7 @@ def phi_FRP_model(opt_params,aux_params):
     for r in range(NRep):                                   # for all repetitions          (this can be seen as a k-space line acquisition)
         for t in range(T):                                  # for all ADC samples within T (or sample of the kurrent ksapce line)
             
-                scanner.relax_and_dephase(spins) # mz shouldnt we also relax during the ADC?
+            scanner.relax_and_dephase(spins) # mz shouldnt we also relax during the ADC?
             scanner.flip(t,r,spins)
             delay = torch.abs(event_time[t,r]) + 1e-6 # mz whats that
             scanner.set_relaxation_tensor(spins,delay)
@@ -289,9 +289,9 @@ def init_variables():
     event_time.requires_grad = True
     
     adc_mask = torch.ones((T,1)).float()*0.1
-#    adc_mask = torch.ones((T,1)).float()*1
-#    adc_mask[:scanner.T-scanner.sz[0]-1] = 0
-#    adc_mask[-1] = 0
+    adc_mask = torch.ones((T,1)).float()*1
+    adc_mask[:scanner.T-scanner.sz[0]-1] = 0
+    adc_mask[-1] = 0
 
     adc_mask = setdevice(adc_mask)
     adc_mask.requires_grad = True     
