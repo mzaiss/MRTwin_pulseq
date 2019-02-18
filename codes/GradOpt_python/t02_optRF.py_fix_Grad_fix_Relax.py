@@ -63,7 +63,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([32,32])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
@@ -176,7 +176,7 @@ if False:                                                       # check sanity
     
 def phi_FRP_model(opt_params,aux_params):
     
-    flips,grads,event_time,adc_mask = opt_params
+    flips,grads,event_time,sigmul = opt_params
     use_periodic_grad_moms_cap = aux_params
     
     scanner.init_signal()
@@ -204,11 +204,16 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms)
     
-    scanner.adc_mask = adc_mask
+#    aux = torch.ones((scanner.T, 1)).float()
+#    aux = setdevice(aux)
+#    aux = aux * adc_mask[0]
+#    adc_mask = aux
+#    #adc_mask[:] = adc_mask[0]
+#    scanner.adc_mask = adc_mask
     
-    rf_spoiler = torch.zeros((spins.NSpins, 1, spins.NVox,4,1)).float()
-    rf_spoiler[:,:,:,2:,:] = 1                # preserve longitudinal component
-    rf_spoiler = setdevice(rf_spoiler)
+    spoiler = torch.zeros((spins.NSpins, 1, spins.NVox,4,1)).float()
+    spoiler[:,:,:,2:,:] = 1                # preserve longitudinal component
+    spoiler = setdevice(spoiler)
     
           
     for r in range(NRep):                                   # for all repetitions
@@ -224,9 +229,11 @@ def phi_FRP_model(opt_params,aux_params):
             scanner.read_signal(t,r,spins) 
             
         # destroy transverse component
-        spins.M = spins.M * rf_spoiler
+        spins.M = spins.M * spoiler
         
     scanner.init_reco()
+    
+    scanner.signal = scanner.signal * sigmul
     
     for t in range(T-1,-1,-1):
         if scanner.adc_mask[t] > 0:
@@ -246,8 +253,21 @@ def init_variables():
 
     grads = torch.from_numpy(g).float()
     
+    #grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+    #grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+
     grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
-    grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+    #grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+    #grad_moms[T-sz[0]-1:-1,:,1] = torch_from_numpy(np.array([]))
+    
+    grad_moms[:,:,1] = 0
+    for i in range(1,int(sz[1]/2)+1):
+        grad_moms[:,i*2-1,1] = (-i)
+        if i < sz[1]/2:
+            grad_moms[:,i*2,1] = i
+            
+    grad_moms[:,:,1] = torch.flip(grad_moms[:,:,1], [1])
+
     
     padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
     padder = scanner.setdevice(padder)
@@ -259,7 +279,8 @@ def init_variables():
     
     
     flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
-    flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
+    #flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
+    flips = torch.rand((T,NRep), dtype=torch.float32) * 0.1
     
     #flips[0,:] = 90*np.pi/180
     
@@ -277,23 +298,24 @@ def init_variables():
     event_time.requires_grad = True
     
     #adc_mask = torch.ones((T,1)).float()*1.0
-    adc_mask = torch.ones((T,1)).float()*1
-    adc_mask[:scanner.T-scanner.sz[0]-1] = 0
-    adc_mask[-1] = 0
+    #adc_mask = torch.ones((T,1)).float()*1
+    #adc_mask[:scanner.T-scanner.sz[0]-1] = 0
+    #adc_mask[-1] = 0
 
-    adc_mask = setdevice(adc_mask)
-    adc_mask.requires_grad = True     
+    #adc_mask = setdevice(adc_mask)
+    #adc_mask.requires_grad = True     
+
+    # global signal scaler
+    sigmul = torch.ones((1,1)).float()*1.0
+    sigmul = setdevice(sigmul)
+    sigmul.requires_grad = True 
     
-    return [flips, grads, event_time, adc_mask]
+    return [flips, grads, event_time, sigmul]
     
 
     
 # %% # OPTIMIZATION land
     
-#target = target / 1.85
-#target = target / 3.24
-target = target / 2.5
-
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
 
 opt.use_periodic_grad_moms_cap = 1           # do not sample above Nyquist flag
@@ -305,8 +327,8 @@ opt.learning_rate = 0.01                                        # ADAM step size
 print('<seq> now')
 opt.opti_mode = 'seq'
 
-opt.set_opt_param_idx([0])
-opt.custom_learning_rate = [0.05, 0.01]
+opt.set_opt_param_idx([0,3])
+opt.custom_learning_rate = [0.05, 0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 

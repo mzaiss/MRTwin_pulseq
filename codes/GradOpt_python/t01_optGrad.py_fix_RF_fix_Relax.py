@@ -30,9 +30,10 @@ import core.scanner
 import core.opt_helper
 
 if sys.version_info[0] < 3:
-    reload(core.spins)
-    reload(core.scanner)
-    reload(core.opt_helper)
+    pass
+#    reload(core.spins)
+#    reload(core.scanner)
+#    reload(core.opt_helper)
 else:
     import importlib
     importlib.reload(core.spins)
@@ -219,7 +220,6 @@ if False:
 #############################################################################  
     
 noise_std = 1*1e0                               # additive Gaussian noise std
-NRep = NRep / 1
 
 def phi_FRP_model(opt_params,aux_params):
     
