@@ -46,8 +46,7 @@ class OPT_helper():
         else:
             batch_size = 1
         
-        #self.subjidx = np.random.choice(self.nmb_total_samples_dataset, batch_size, replace=False)
-        self.subjidx = np.random.choice(batch_size, batch_size, replace=False)
+        self.subjidx = np.random.choice(self.nmb_total_samples_dataset, batch_size, replace=False)
         
     def weak_closure(self):
         self.optimizer.zero_grad()
@@ -84,7 +83,7 @@ class OPT_helper():
             print colored("\033[93m recon error = %f \033[0m" %error, 'green')
             
             if show_par:
-                par_group = self.scanner_opt_params[self.opt_param_idx[i]].detach().cpu().numpy()*180/np.pi
+                par_group = self.scanner_opt_params[self.opt_param_idx[0]].detach().cpu().numpy()*180/np.pi
                 par_group = np.round(100*par_group[0,:])/100
                 print(par_group)
         
