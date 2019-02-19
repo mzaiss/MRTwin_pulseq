@@ -233,8 +233,11 @@ ax_t_opt.set_ylabel('transversez component -- optimization')
 # %% ###     OPTIMIZE ######################################################@
 #############################################################################    
     
+global z_comp    
+    
 def phi_FRP_model(opt_params,aux_params):
     
+    global z_comp    
     z_comp = np.zeros((NRep,1))
     t_comp = np.zeros((NRep,1))
     
@@ -321,7 +324,7 @@ def phi_FRP_model(opt_params,aux_params):
     plt.pause(0.01)
 
     
-    return (phi,scanner.reco, error, z_comp)
+    return (phi,scanner.reco, error)
     
 
 def init_variables():
