@@ -63,10 +63,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
-NRep = sz[1]                                          # number of repetitions
+sz = np.array([2,2])                                           # image size
+NRep = 200                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 2                                # number of spin sims in each voxel
+NSpins = 1                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -101,12 +101,14 @@ scanner.init_coil_sensitivities()
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
 #flips[0,:] = 90*np.pi/180
 
-T1 = 4 # = spins.T1[0] ---- seconds
-TR = 2                                                                # seconds
+T1 = 1 # = spins.T1[0] ---- seconds
+TR = 0.05   
+
+spins.T1[:] = 1
 
 E1 = torch.exp(-TR/spins.T1[0])
 flips[0,:] = torch.acos(E1)
-     
+
 flips = setdevice(flips)
      
 scanner.init_flip_tensor_holder()
@@ -147,24 +149,37 @@ spoiler = torch.zeros((spins.NSpins, 1, spins.NVox,4,1)).float()
 spoiler[:,:,:,2:,:] = 1                # preserve longitudinal component
 spoiler = setdevice(spoiler)
 
+
+z_comp = np.zeros((NRep,1))
+t_comp = np.zeros((NRep,1))
+
+ss_at_ernst = (1-E1)/(1-E1**2)
+spins.M[:,:,:,2,:] = (spins.M0[:,:,:,2] * ss_at_ernst).unsqueeze(3)
     
 # scanner forward process loop
 for r in range(NRep):                                   # for all repetitions
 
-    ss_at_ernst = (1-E1)/(1-E1**2)
-    spins.M[:,:,:,3,:] = (spins.M0[:,:,:,3] * ss_at_ernst).unsqueeze(3)
+    #spins.M[:,:,:,2,:] = (spins.M0[:,:,:,2] * ss_at_ernst).unsqueeze(3)
 
     for t in range(T):                                      # for all actions
     
         scanner.flip(t,r,spins)
+        
+        if t == 0:
+            t_comp[r] =  torch.log(torch.sum(spins.M[0,0,0,:2]**2)).detach().cpu()
+            z_comp[r] = spins.M[0,0,0,2].detach().cpu()            
               
-        delay = torch.abs(event_time[t,r]) + 1e-6
+        #delay = torch.abs(event_time[t,r] + 1e-8)
+        delay = torch.abs(event_time[t,r])
         scanner.set_relaxation_tensor(spins,delay)
         scanner.set_freeprecession_tensor(spins,delay)
         scanner.relax_and_dephase(spins)
             
         scanner.grad_precess(t,r,spins)
         scanner.read_signal(t,r,spins)
+        
+        
+
         
     spins.M = spins.M * spoiler
         
@@ -182,7 +197,8 @@ for t in range(T-1,-1,-1):
 
     
 # try to fit this
-target = scanner.reco.clone()
+#target = scanner.reco.clone()
+target = scanner.signal[:,:,:,:2,0].clone()
    
 reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
@@ -193,10 +209,34 @@ if False:                                                       # check sanity
     stop()
     
     
+plt.close("all")    
+    
+fig_orig = plt.figure()  # create a figure object
+ax = fig_orig.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax.plot(z_comp)
+ax.set_ylabel('z component -- forward sim')
+
+fig_opt = plt.figure()  # create a figure object
+ax_opt = fig_opt.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax_opt.set_ylabel('z component -- optimization')
+
+fig_t = plt.figure()  # create a figure object
+ax_t = fig_t.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax_t.plot(t_comp)
+ax_t.set_ylabel('transverse component -- forward sim')
+
+fig_t = plt.figure()  # create a figure object
+ax_t_opt = fig_t.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax_t_opt.set_ylabel('transversez component -- optimization')
+
+    
 # %% ###     OPTIMIZE ######################################################@
 #############################################################################    
     
 def phi_FRP_model(opt_params,aux_params):
+    
+    z_comp = np.zeros((NRep,1))
+    t_comp = np.zeros((NRep,1))
     
     flips,grads,event_time,sigmul = opt_params
     use_periodic_grad_moms_cap = aux_params
@@ -230,14 +270,20 @@ def phi_FRP_model(opt_params,aux_params):
     spoiler[:,:,:,2:,:] = 1                # preserve longitudinal component
     spoiler = setdevice(spoiler)
     
+    #spins.M[:,:,:,2,:] = (spins.M0[:,:,:,2] * ss_at_ernst).unsqueeze(3)
           
     for r in range(NRep):                                   # for all repetitions
     
-        #spins.M[:,:,:,3,:] = (spins.M0[:,:,:,3] * ss_at_ernst).unsqueeze(3)    
+        #spins.M[:,:,:,2,:] = (spins.M0[:,:,:,2] * ss_at_ernst).unsqueeze(3)    
     
         for t in range(T):
             
             scanner.flip(t,r,spins)
+            
+            if t == 0:
+                t_comp[r] =  torch.log(torch.sum(spins.M[0,0,0,:2]**2)).detach().cpu()
+                z_comp[r] = spins.M[0,0,0,2].detach().cpu()
+            
             delay = torch.abs(event_time[t,r]) + 1e-6
             scanner.set_relaxation_tensor(spins,delay)
             scanner.set_freeprecession_tensor(spins,delay)
@@ -249,6 +295,8 @@ def phi_FRP_model(opt_params,aux_params):
         # destroy transverse component
         spins.M = spins.M * spoiler
         
+        #z_comp[r] = spins.M[0,0,0,2].detach().cpu()
+        
     scanner.init_reco()
     
     scanner.signal = scanner.signal * sigmul
@@ -257,13 +305,23 @@ def phi_FRP_model(opt_params,aux_params):
         if scanner.adc_mask[t] > 0:
             scanner.do_grad_adj_reco(t,spins)
             
-    loss = (scanner.reco - target)
+    signal = scanner.signal[:,:,:,:2,0]            
+            
+            
+    loss = (signal - target)
     phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
     
-    ereco = scanner.reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+    #ereco = scanner.reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+    ereco = scanner.signal[:,:,:,:2,0].detach().cpu().numpy()
     error = e(target.cpu().numpy().ravel(),ereco.ravel())     
+
+    ax_opt.plot(z_comp)
+    ax_t_opt.plot(t_comp)
     
-    return (phi,scanner.reco, error)
+    plt.pause(0.01)
+
+    
+    return (phi,scanner.reco, error, z_comp)
     
 
 def init_variables():
@@ -287,7 +345,7 @@ def init_variables():
     grads = setdevice(grads)
     grads.requires_grad = True
     
-    flips = torch.rand((T,NRep), dtype=torch.float32) * 0.1
+    flips = torch.ones((T,NRep), dtype=torch.float32) * np.pi* 45 / 180.0
     
     flips = setdevice(flips)
     flips.requires_grad = True
@@ -322,13 +380,19 @@ print('<seq> now')
 opt.opti_mode = 'seq'
 
 opt.set_opt_param_idx([0])
-opt.custom_learning_rate = [0.02]
+opt.custom_learning_rate = [0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 
 
 opt.scanner_opt_params = opt.init_variables()
+
+opt.custom_learning_rate = [0.1]
+opt.train_model(training_iter=15, show_par=True)
+
+opt.custom_learning_rate = [0.1]
 opt.train_model(training_iter=50, show_par=True)
+
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 
@@ -342,6 +406,8 @@ flip_angles = opt.scanner_opt_params[0].detach().cpu().numpy()*180/np.pi
 flip_angles = np.round(flip_angles[0,:])
 
 print(flip_angles)
+
+plt.plot(z_comp)
 
 
 

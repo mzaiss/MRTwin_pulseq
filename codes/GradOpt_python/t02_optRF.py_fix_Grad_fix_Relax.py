@@ -287,6 +287,7 @@ def init_variables():
 #    
     #grad_moms[T-sz[0]-1:-1,:,1] = torch_from_numpy(np.array([]))
     
+    # centric ordering
 #    grad_moms[:,:,1] = 0
 #    for i in range(1,int(sz[1]/2)+1):
 #        grad_moms[:,i*2-1,1] = (-i)
@@ -294,6 +295,8 @@ def init_variables():
 #            grad_moms[:,i*2,1] = i
             
     #grad_moms[:,:,1] = torch.flip(grad_moms[:,:,1], [1])
+            
+    hgfhgfh
 
     
     padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
@@ -360,7 +363,7 @@ opt.set_handles(init_variables, phi_FRP_model)
 #opt.train_model_with_restarts(nmb_rnd_restart=1, training_iter=1)
 
 opt.scanner_opt_params = opt.init_variables()
-opt.train_model(training_iter=50, show_par=True)
+opt.train_model(training_iter=100, show_par=True)
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 reco = reco.detach().cpu().numpy()

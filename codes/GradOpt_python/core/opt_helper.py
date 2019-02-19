@@ -50,7 +50,7 @@ class OPT_helper():
         
     def weak_closure(self):
         self.optimizer.zero_grad()
-        loss,_,_ = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
+        loss,_,_,_ = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
         loss.backward()
         
         return loss        
@@ -79,7 +79,7 @@ class OPT_helper():
             self.new_batch()
             self.optimizer.step(self.weak_closure)
             
-            _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
+            _,reco,error,_ = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
             print colored("\033[93m recon error = %f \033[0m" %error, 'green')
             
             if show_par:
