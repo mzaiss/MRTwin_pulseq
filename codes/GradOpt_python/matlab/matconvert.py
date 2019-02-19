@@ -9,16 +9,15 @@ import scipy.io
 
 import matplotlib.pyplot as plt
 
-def randomCrop(img, mask, width, height):
-    assert img.shape[0] >= height
-    assert img.shape[1] >= width
-    assert img.shape[0] == mask.shape[0]
-    assert img.shape[1] == mask.shape[1]
-    x = numpy.random.randint(0, img.shape[1] - width)
-    y = numpy.random.randint(0, img.shape[0] - height)
-    img = img[y:y+height, x:x+width]
-    mask = mask[y:y+height, x:x+width]
-    return img, mask
+def randomCrop(img1, img2, img3, width, height):
+    assert img1.shape[0] >= height
+    assert img1.shape[1] >= width
+    x = numpy.random.randint(0, img1.shape[1] - width)
+    y = numpy.random.randint(0, img1.shape[0] - height)
+    img1 = img1[y:y+height, x:x+width]
+    img2 = img2[y:y+height, x:x+width]
+    img3 = img3[y:y+height, x:x+width]
+    return img1, img2, img3
 
 
 
@@ -28,6 +27,10 @@ t1=mat['t1im']
 t2=mat['t2im']
 pd=numpy.real(mat['m0im'])
 phase=numpy.angle(mat['m0im'])
+
+pd=pd[30:150,15:165]
+t1=t1[30:150,15:165]
+t2=t2[30:150,15:165]
 
 f,(axarr) = plt.subplots(2, 2, sharex='all', sharey='all')
 
@@ -42,10 +45,14 @@ axarr[1, 1].set_title('T2')
 f.set_size_inches(6, 5)
 plt.show()     
 
-f,(axarr) = plt.subplots(10, 10, sharex='all', sharey='all')
-for ii in range(10):
-    for jj in range(10):
-        x,y = randomCrop(t1,t1,16,16)
-        axarr[ii,jj].imshow(x)
+data= numpy.zeros((40**2,16,16,3));
+f,(axarr) = plt.subplots(40, 40, sharex='all', sharey='all')
+for ii in range(40):
+    for jj in range(40):
+        pd_c,t1_c,t2_c = randomCrop(pd,t1,t2,16,16)
+        data[ii*40+jj,:,:,0]=pd_c
+        data[ii*40+jj,:,:,1]=t1_c
+        data[ii*40+jj,:,:,2]=t2_c;
+        axarr[ii,jj].imshow(pd_c)
      
-
+numpy.save('num_brain_slice16x16.npy',data)
