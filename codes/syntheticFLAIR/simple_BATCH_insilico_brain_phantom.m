@@ -1,4 +1,6 @@
 % simple BATCH
+load('C2P_FISP_phantom_fracTrue.mat')
+load('C2P_FISP_phantom_results.mat')
 
 figure(1), subplot(2,4,1), imagesc(rot90(t1im)); title('T1');
 subplot(2,4,2), imagesc(rot90(t2im)); title('T2');
