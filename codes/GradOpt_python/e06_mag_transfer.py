@@ -320,13 +320,10 @@ opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 
-
 opt.train_model_with_restarts(nmb_rnd_restart=5, training_iter=10)
 #opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
 
-
-
-stop()
+#stop()
 
 print('<seq> now (100 iterations with best initialization')
 

@@ -305,7 +305,7 @@ def init_variables():
     
     flips = setdevice(flips)
     
-    event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,1))).float()
+    event_time = torch.from_numpy(np.zeros((scanner.T,1))).float()
     #event_time[0,0] = 1e-1
     event_time = setdevice(event_time)
     event_time.requires_grad = False
