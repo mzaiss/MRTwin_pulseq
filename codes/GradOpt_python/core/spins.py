@@ -129,7 +129,7 @@ class SpinSystem_batched():
 
         T1 = torch.ones(self.NVox, dtype=torch.float32)*4
         T2 = torch.ones(self.NVox, dtype=torch.float32)*2
-        T2[0:self.NVox//2] = 0.09
+        #T2[0:self.NVox//2] = 0.09
 
 
         # proper treatment        

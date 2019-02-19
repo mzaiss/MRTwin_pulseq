@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as fnn
+from termcolor import colored
 import matplotlib.pyplot as plt
 from torch import optim
 
@@ -46,16 +47,15 @@ class OPT_helper():
             batch_size = 1
         
         self.subjidx = np.random.choice(self.nmb_total_samples_dataset, batch_size, replace=False)
-        #self.subjidx = np.random.choice(batch_size, batch_size, replace=False)
         
     def weak_closure(self):
         self.optimizer.zero_grad()
-        loss,_,_ = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
+        loss,_,_,_ = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
         loss.backward()
         
         return loss        
         
-    def train_model(self, training_iter = 100):
+    def train_model(self, training_iter = 100, show_par=False):
 
         self.aux_params = [self.use_periodic_grad_moms_cap, self.opti_mode]
         WEIGHT_DECAY = 1e-8
@@ -79,8 +79,13 @@ class OPT_helper():
             self.new_batch()
             self.optimizer.step(self.weak_closure)
             
-            _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
-            print("recon error = %f" %error)
+            _,reco,error,_ = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
+            print colored("\033[93m recon error = %f \033[0m" %error, 'green')
+            
+            if show_par:
+                par_group = self.scanner_opt_params[self.opt_param_idx[0]].detach().cpu().numpy()*180/np.pi
+                par_group = np.round(100*par_group[0,:])/100
+                print(par_group)
         
     def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10):
         

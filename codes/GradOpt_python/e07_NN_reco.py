@@ -192,8 +192,8 @@ img_id = 0
 #tgt_tensor_numpy_cmplx[0,:,:,:] = target.cpu().numpy().reshape([16,16,2])
 
 if False:                                                      # check sanity
-    imshow(magimg(spins.img), 'original')
-    imshow(magimg(reco), 'reconstruction')
+    imshow(magimg(spins.images[img_id,:,:,:]), 'original')
+    imshow(magimg(reco[img_id,:,:,:]), 'reconstruction')
     
     stop()
 
