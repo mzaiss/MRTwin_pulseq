@@ -221,7 +221,6 @@ def phi_FRP_model(opt_params,aux_params):
     for r in range(NRep):                                   # for all repetitions          (this can be seen as a k-space line acquisition)
         for t in range(T):                                  # for all ADC samples within T (or sample of the kurrent ksapce line)
             
-            
             scanner.relax_and_dephase(spins) # mz shouldnt we also relax during the ADC?
             scanner.flip(t,r,spins)
             delay = torch.abs(event_time[t,r]) + 1e-6 # mz whats that
@@ -270,11 +269,7 @@ def init_variables():
     flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     
-
-    flips[0,:] = 90*np.pi/180
-
-    
-    flips = setdevice(flips)
+    #flips[0,:] = 90*np.pi/180
     flips.requires_grad = True
     
     flips = setdevice(flips)
