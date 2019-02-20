@@ -82,7 +82,7 @@ class OPT_helper():
             self.optimizer.step(self.weak_closure)
             
             _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
-            print colored("\033[93m recon error = %f \033[0m" %error, 'green')
+            print(colored("\033[93m recon error = %f \033[0m" %error, 'green'))
             
             if show_par:
                 par_group = self.scanner_opt_params[self.opt_param_idx[0]].detach().cpu().numpy()*180/np.pi
@@ -135,6 +135,7 @@ class OPT_helper():
                     for par in self.scanner_opt_params:
                         best_vars.append(par.detach().clone())
                     
+<<<<<<< HEAD
                     if vis_image:
                         sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
                         recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
@@ -143,6 +144,15 @@ class OPT_helper():
                         fig = plt.gcf()
                         fig.set_size_inches(1, 1)
                         plt.show()     
+=======
+                    
+                    sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
+                    recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
+                    plt.imshow(magimg(recoimg), interpolation='none'                  
+                    fig = plt.gcf()
+                    fig.set_size_inches(1, 1)
+                    plt.show()     
+>>>>>>> 7746bfa6821fb9a79eb1bec8226556f38ffaf34c
                         
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]
