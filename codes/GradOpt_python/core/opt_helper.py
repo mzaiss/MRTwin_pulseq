@@ -80,7 +80,7 @@ class OPT_helper():
             self.optimizer.step(self.weak_closure)
             
             _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
-            print colored("\033[93m recon error = %f \033[0m" %error, 'green')
+            print(colored("\033[93m recon error = %f \033[0m" %error, 'green'))
             
             if show_par:
                 par_group = self.scanner_opt_params[self.opt_param_idx[0]].detach().cpu().numpy()*180/np.pi
@@ -136,8 +136,7 @@ class OPT_helper():
                     
                     sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
                     recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
-                    plt.imshow(magimg(recoimg), interpolation='none')
-                    plt.ion()
+                    plt.imshow(magimg(recoimg), interpolation='none'                  
                     fig = plt.gcf()
                     fig.set_size_inches(1, 1)
                     plt.show()     
