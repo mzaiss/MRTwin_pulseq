@@ -129,10 +129,12 @@ class SpinSystem_batched():
         self.images = images
         
         # set relaxations (unit - seconds) and proton density
-        PD = torch.from_numpy(self.magimg(self.images).reshape([self.batch_size, self.NVox])).float()
 
-        T1 = torch.ones(self.NVox, dtype=torch.float32)*4
-        T2 = torch.ones(self.NVox, dtype=torch.float32)*2
+        #PD = torch.from_numpy(self.magimg(self.images).reshape([self.batch_size, self.NVox])).float()
+        PD = torch.from_numpy(self.images.reshape([self.batch_size, self.NVox])).float()
+        
+        T1 = torch.ones(self.batch_size, self.NVox, dtype=torch.float32)*4
+        T2 = torch.ones(self.batch_size, self.NVox, dtype=torch.float32)*2
         #T2[0:self.NVox//2] = 0.09
 
 
