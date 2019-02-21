@@ -41,7 +41,7 @@ class RecoConvNet_basic(nn.Module):
         batch_size = x.shape[0]
         
         x = x.permute([0,2,1])
-        x = x.view([batch_size,2,self.sz[0],self.sz[1]])
+        x = x.view([batch_size,self.lspec[0],self.sz[0],self.sz[1]])
         
         for l_idx in range(len(self.lspec)-1):
             x = self.conv_layers[l_idx](x)
@@ -50,7 +50,7 @@ class RecoConvNet_basic(nn.Module):
                 x = self.bn_layers[l_idx](x)
                 x = torch.relu(x)
         
-        x = x.view([batch_size,2,self.sz[0]*self.sz[1]])
+        x = x.view([batch_size,self.lspec[-1],self.sz[0]*self.sz[1]])
         x = x.permute([0,2,1])
         
         return x

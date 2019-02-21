@@ -49,6 +49,9 @@ def setdevice(x):
         
     return x
     
+def dbg():
+    import pdb; pdb.set_trace()    
+    
 def imshow(x, title=None):
     plt.imshow(x, interpolation='none')
     if title != None:
@@ -166,7 +169,7 @@ for r in range(NRep):                                   # for all repetitions
         scanner.flip(t,r,spins)
         
         if t == 0:
-            t_comp[r] =  torch.log(torch.sum(spins.M[0,0,0,:2]**2)).detach().cpu()
+            t_comp[r] =  torch.sqrt(torch.sum(spins.M[0,0,0,:2]**2)).detach().cpu()
             z_comp[r] = spins.M[0,0,0,2].detach().cpu()            
               
         #delay = torch.abs(event_time[t,r] + 1e-8)
@@ -211,35 +214,43 @@ if False:                                                       # check sanity
     
 plt.close("all")    
     
-fig_orig = plt.figure()  # create a figure object
-ax = fig_orig.add_subplot(1, 1, 1)  # create an axes object in the figure
-ax.plot(z_comp)
-ax.set_ylabel('z component -- forward sim')
-
-fig_opt = plt.figure()  # create a figure object
-ax_opt = fig_opt.add_subplot(1, 1, 1)  # create an axes object in the figure
-ax_opt.set_ylabel('z component -- optimization')
-
-fig_t = plt.figure()  # create a figure object
-ax_t = fig_t.add_subplot(1, 1, 1)  # create an axes object in the figure
-ax_t.plot(t_comp)
-ax_t.set_ylabel('transverse component -- forward sim')
-
-fig_t = plt.figure()  # create a figure object
-ax_t_opt = fig_t.add_subplot(1, 1, 1)  # create an axes object in the figure
-ax_t_opt.set_ylabel('transversez component -- optimization')
-
     
+if False:
+    fig_orig = plt.figure()  # create a figure object
+    ax = fig_orig.add_subplot(1, 1, 1)  # create an axes object in the figure
+    ax.plot(z_comp)
+    ax.set_ylabel('z component -- forward sim')
+    
+    fig_opt = plt.figure()  # create a figure object
+    ax_opt = fig_opt.add_subplot(1, 1, 1)  # create an axes object in the figure
+    ax_opt.set_ylabel('z component -- optimization')
+    
+    fig_t = plt.figure()  # create a figure object
+    ax_t = fig_t.add_subplot(1, 1, 1)  # create an axes object in the figure
+    ax_t.plot(t_comp)
+    ax_t.set_ylabel('transverse component -- forward sim')
+    
+    fig_t = plt.figure()  # create a figure object
+    ax_t_opt = fig_t.add_subplot(1, 1, 1)  # create an axes object in the figure
+    ax_t_opt.set_ylabel('transversez component -- optimization')
+
+z_comp_sim = z_comp.copy()
+t_comp_sim = t_comp.copy()
+
 # %% ###     OPTIMIZE ######################################################@
 #############################################################################    
     
-global z_comp    
+total_iter = 66
+z_comp_opt = np.zeros((total_iter,NRep,1))
+t_comp_opt = np.zeros((total_iter,NRep,1))
+flip_angles_comp = np.zeros((total_iter,NRep,1))
+
     
 def phi_FRP_model(opt_params,aux_params):
     
-    global z_comp    
-    z_comp = np.zeros((NRep,1))
-    t_comp = np.zeros((NRep,1))
+    global z_comp_opt    
+    global t_comp_opt
+    global flip_angles_comp    
     
     flips,grads,event_time,sigmul = opt_params
     use_periodic_grad_moms_cap = aux_params
@@ -276,16 +287,15 @@ def phi_FRP_model(opt_params,aux_params):
     #spins.M[:,:,:,2,:] = (spins.M0[:,:,:,2] * ss_at_ernst).unsqueeze(3)
           
     for r in range(NRep):                                   # for all repetitions
-    
         #spins.M[:,:,:,2,:] = (spins.M0[:,:,:,2] * ss_at_ernst).unsqueeze(3)    
     
         for t in range(T):
-            
             scanner.flip(t,r,spins)
             
             if t == 0:
-                t_comp[r] =  torch.log(torch.sum(spins.M[0,0,0,:2]**2)).detach().cpu()
-                z_comp[r] = spins.M[0,0,0,2].detach().cpu()
+                z_comp_opt[opt.globepoch,r] = spins.M[0,0,0,2].detach().cpu()
+                t_comp_opt[opt.globepoch,r] = torch.sqrt(torch.sum(spins.M[0,0,0,:2]**2)).detach().cpu()
+                
             
             delay = torch.abs(event_time[t,r]) + 1e-6
             scanner.set_relaxation_tensor(spins,delay)
@@ -299,6 +309,9 @@ def phi_FRP_model(opt_params,aux_params):
         spins.M = spins.M * spoiler
         
         #z_comp[r] = spins.M[0,0,0,2].detach().cpu()
+        
+    flip_angles_est = opt.scanner_opt_params[0].detach().cpu().numpy()*180/np.pi
+    flip_angles_comp[opt.globepoch,:,0] = np.round(flip_angles_est[0,:]*100)/100        
         
     scanner.init_reco()
     
@@ -318,10 +331,10 @@ def phi_FRP_model(opt_params,aux_params):
     ereco = scanner.signal[:,:,:,:2,0].detach().cpu().numpy()
     error = e(target.cpu().numpy().ravel(),ereco.ravel())     
 
-    ax_opt.plot(z_comp)
-    ax_t_opt.plot(t_comp)
+    #ax_opt.plot(z_comp)
+    #ax_t_opt.plot(t_comp)
     
-    plt.pause(0.01)
+    #plt.pause(0.01)
 
     
     return (phi,scanner.reco, error)
@@ -370,7 +383,9 @@ def init_variables():
     
     return [flips, grads, event_time, sigmul]
     
-
+z_comp_opt = z_comp_opt[1:,:,0]
+t_comp_opt = t_comp_opt[1:,:,0]
+flip_angles_comp = flip_angles_comp[1:,:,0]
     
 # %% # OPTIMIZATION land
     
@@ -383,18 +398,18 @@ print('<seq> now')
 opt.opti_mode = 'seq'
 
 opt.set_opt_param_idx([0])
-opt.custom_learning_rate = [0.1]
+opt.custom_learning_rate = [0.05]
 
 opt.set_handles(init_variables, phi_FRP_model)
 
 
 opt.scanner_opt_params = opt.init_variables()
 
-opt.custom_learning_rate = [0.1]
-opt.train_model(training_iter=15, show_par=True)
+opt.custom_learning_rate = [0.05]
+opt.train_model(training_iter=15, show_par=False)
 
-opt.custom_learning_rate = [0.1]
-opt.train_model(training_iter=50, show_par=True)
+opt.custom_learning_rate = [0.05]
+opt.train_model(training_iter=50, show_par=False)
 
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
@@ -411,6 +426,77 @@ flip_angles = np.round(flip_angles[0,:])
 print(flip_angles)
 
 plt.plot(z_comp)
+
+stop()
+
+# %% # PLOT land
+
+#z_comp_sim = z_comp.copy()
+#t_comp_sim = t_comp.copy()
+
+fig_orig = plt.figure()  # create a figure object
+ax = fig_orig.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax.plot(z_comp_sim)
+ax.set_ylabel('z component -- forward sim')
+
+fig_orig = plt.figure()  # create a figure object
+ax = fig_orig.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax.plot(t_comp_sim)
+ax.set_ylabel('t component -- forward sim')
+
+fig_orig = plt.figure()  # create a figure object
+ax = fig_orig.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax.set_ylabel('z component -- optimization evolution')
+
+for i in range(z_comp_opt.shape[0]):
+    ax.plot(z_comp_opt[i,:])
+    
+    #plt.pause(0.5)
+
+fig_orig = plt.figure()  # create a figure object
+ax = fig_orig.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax.set_ylabel('z component -- optimization evolution')
+
+for i in range(z_comp_opt.shape[0]):
+    ax.plot(z_comp_opt[i,:])
+    
+fig_orig = plt.figure()  # create a figure object
+ax = fig_orig.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax.set_ylabel('t component -- optimization evolution')
+
+for i in range(t_comp_opt.shape[0]):
+    ax.plot(t_comp_opt[i,:])
+    
+fig_orig = plt.figure()  # create a figure object
+ax = fig_orig.add_subplot(1, 1, 1)  # create an axes object in the figure
+ax.set_ylabel('flip angles -- optimization evolution')
+
+for i in range(flip_angles_comp.shape[0]):
+    ax.plot(flip_angles_comp[i,:])
+    
+    
+np.save('longitudinal_comp_ernst_sim.npy', z_comp_sim)
+np.save('transverse_comp_ernst_sim.npy', t_comp_sim)
+
+np.save('longitudinal_comp_optimization.npy', z_comp_opt)
+np.save('transverse_comp_optimization.npy', t_comp_opt)
+np.save('flip_angle_changes_optimization.npy', flip_angles_comp)
+
+import scipy.io as sio
+# Create a dictionary
+adict = {}
+adict['longitudinal_comp_ernst_sim'] = z_comp_sim
+adict['transverse_comp_ernst_sim'] = t_comp_sim
+adict['longitudinal_comp_optimization'] = z_comp_opt
+adict['transverse_comp_optimization'] = t_comp_opt
+adict['flip_angle_changes_optimization'] = flip_angles_comp
+
+sio.savemat('ernst_sim.mat', adict)
+
+
+
+
+
 
 
 

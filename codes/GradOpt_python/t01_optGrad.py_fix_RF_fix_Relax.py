@@ -107,7 +107,13 @@ spectrum_save = spectrum.copy()
 spectrum[:,:] = 0
 #spectrum[8:24,8:24] = spectrum_save[8:24,8:24]
 spectrum[4:12,4:12] = spectrum_save[4:12,4:12]
+#spectrum[8:24,8:24] = spectrum_save[8:24,8:24]
 #plt.imshow(np.abs(spectrum))
+
+#spectrum = spectrum_save; spectrum[8:24,8:24] = 0;
+#spectrum = spectrum_save; spectrum[4:12,4:12] = 0;
+spectrum = spectrum + 1e-3
+#spectrum = spectrum_save
 
 #gfdgfd
 
@@ -220,6 +226,11 @@ if False:
 #############################################################################  
     
 noise_std = 1*1e0                               # additive Gaussian noise std
+NRep = NRep / 1
+
+nmb_opt = 5000
+grads_comp = torch.zeros((nmb_opt,T,NRep,2))
+
 
 def phi_FRP_model(opt_params,aux_params):
     
@@ -252,6 +263,8 @@ def phi_FRP_model(opt_params,aux_params):
       grad_moms = torch.sin(grad_moms)*fmax
       #for i in [0,1]:
       #    grad_moms[:,:,i] = boost_fct*fmax[i]*torch.sin(grad_moms[:,:,i])
+      
+    grads_comp[opt.globepoch,:,:,:] = grad_moms
           
     scanner.set_gradient_precession_tensor(grad_moms)
           
@@ -344,10 +357,15 @@ opt.opti_mode = 'seq'
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.set_opt_param_idx([1,3])
+#opt.custom_learning_rate = [0.01, 0.05]
+opt.custom_learning_rate = [0.02, 0.1]
 #opt.set_opt_param_idx([1])
 
 opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
-opt.train_model(training_iter=200)
+opt.train_model(training_iter=50)
+
+#opt.custom_learning_rate = [0.005, 0.01]
+opt.train_model(training_iter=150)
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 #event_time = torch.abs(event_time)  # need to be positive
@@ -373,6 +391,9 @@ if opt.use_periodic_grad_moms_cap:
       fmax[0,0,1] = sz[1]/2
 
       grad_moms = torch.sin(grad_moms)*fmax
+      
+      
+plt.close('all')
         
 grad_moms = grad_moms.numpy()
         

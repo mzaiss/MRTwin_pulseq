@@ -386,7 +386,7 @@ class Scanner_batched():
         
     def set_adc_mask(self):
         adc_mask = torch.from_numpy(np.ones((self.T,1))).float()
-        adc_mask[:self.T-self.sz[0]] = 0
+        #adc_mask[:self.T-self.sz[0]] = 0
         
         self.adc_mask = self.setdevice(adc_mask)
 
@@ -449,21 +449,21 @@ class Scanner_batched():
         self.F[0,:,:,0,2,2] = flips_cos 
          
     def set_relaxation_tensor(self,spins,dt):
-        R = torch.zeros((self.NVox,4,4), dtype=torch.float32) 
+        R = torch.zeros((self.batch_size,self.NVox,4,4), dtype=torch.float32) 
         
         R = self.setdevice(R)
         
         T2_r = torch.exp(-dt/spins.T2)
         T1_r = torch.exp(-dt/spins.T1)
         
-        R[:,3,3] = 1
+        R[:,:,3,3] = 1
         
-        R[:,0,0] = T2_r
-        R[:,1,1] = T2_r
-        R[:,2,2] = T1_r
-        R[:,2,3] = 1 - T1_r
+        R[:,:,0,0] = T2_r
+        R[:,:,1,1] = T2_r
+        R[:,:,2,2] = T1_r
+        R[:,:,2,3] = 1 - T1_r
          
-        R = R.view([1,1,self.NVox,4,4])  # XXXX
+        R = R.view([self.batch_size,1,1,self.NVox,4,4])  # XXXX
         
         self.R = R
         

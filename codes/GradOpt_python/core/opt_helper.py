@@ -73,7 +73,9 @@ class OPT_helper():
         elif self.opti_mode == 'nn':
             self.optimizer = optim.Adam(list(self.NN.parameters()), lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
         elif self.opti_mode == 'seqnn':
-            self.optimizer = optim.Adam(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+            optimizable_params.append({'params':self.NN.parameters(), 'lr': self.learning_rate} )
+            self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+            #self.optimizer = optim.Adam(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
             
         for inner_iter in range(training_iter):
             self.new_batch()
@@ -109,7 +111,7 @@ class OPT_helper():
                 plt.pause(0.05)                
                 
         
-    def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10):
+    def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, vis_image=False):
         
         # init gradients and flip events
         nmb_outer_iter = nmb_rnd_restart
@@ -155,9 +157,18 @@ class OPT_helper():
                     for par in self.scanner_opt_params:
                         best_vars.append(par.detach().clone())
                     
-                    
+
+                    if vis_image:
+                        sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
+                        recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
+                        plt.imshow(magimg(recoimg), interpolation='none')
+                        plt.ion()
+                        fig = plt.gcf()
+                        fig.set_size_inches(1, 1)
+                        plt.show()   
                     sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
                     recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
+                                    
                     plt.imshow(magimg(recoimg), interpolation='none')
                     plt.ion()
                     fig = plt.gcf()
