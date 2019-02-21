@@ -37,7 +37,7 @@ else:
     importlib.reload(core.scanner)
     importlib.reload(core.opt_helper)    
 
-use_gpu = 1
+use_gpu = 0
 
 # NRMSE error function
 def e(gt,x):
@@ -175,7 +175,7 @@ target = scanner.reco.clone()
 reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
 if False:                                                       # check sanity
-    imshow(magimg(spins.img), 'original')
+    imshow(spins.img, 'original')
     imshow(magimg(reco), 'reconstruction')
     
     stop()
@@ -206,7 +206,8 @@ def phi_FRP_model(opt_params,aux_params):
     grad_moms = torch.cumsum(grads,0)
     
     if use_periodic_grad_moms_cap:
-        fmax = torch.ones([1,1,2]).float().cuda(0)
+        fmax = torch.ones([1,1,2]).float()
+        fmax = setdevice(fmax)
         fmax[0,0,0] = sz[0]/2
         fmax[0,0,1] = sz[1]/2
 
@@ -266,13 +267,12 @@ def init_variables():
     grads.requires_grad = True
     
     
-    flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
+    #flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     
     #flips[0,:] = 90*np.pi/180
-    flips.requires_grad = True
-    
     flips = setdevice(flips)
+    flips.requires_grad = True
     
 
     #event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
