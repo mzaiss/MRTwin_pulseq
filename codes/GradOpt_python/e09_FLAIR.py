@@ -37,7 +37,7 @@ else:
     importlib.reload(core.scanner)
     importlib.reload(core.opt_helper)    
 
-use_gpu = 1
+use_gpu = 0
 
 # NRMSE error function
 def e(gt,x):
@@ -73,7 +73,7 @@ def stop():
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 2                                # number of spin sims in each voxel
+NSpins = 10                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -85,10 +85,16 @@ NVox = sz[0]*sz[1]
 #############################################################################
 ## Init spin system and the scanner ::: #####################################
 
-    
-# initialize scanned object
+    # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
-spins.set_system()
+m = np.load('../../data/brainphantom_2D.npy')
+m = cv2.resize(m, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
+m[m < 0] = 0
+spins.set_system(m)
+
+cutoff = 1e-12
+spins.T1[spins.T1<cutoff] = cutoff
+spins.T2[spins.T2<cutoff] = cutoff
 
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
@@ -102,7 +108,8 @@ scanner.init_coil_sensitivities()
 
 # init tensors
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
-flips[0,:] = 90*np.pi/180
+flips[0,:] = 180*np.pi/180  # FLAIR preparation part 1 : 180 degree pulse befor TI (see below)
+flips[1,:] = 90*np.pi/180
      
 flips = setdevice(flips)
      
@@ -123,7 +130,8 @@ grad_moms = setdevice(grad_moms)
 
 # event timing vector 
 event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,scanner.NRep,1))).float()
-event_time[0,:,0] = 1e-1
+event_time[0,:,0] = 2.8     # FLAIR preparation part 2 :added as TI=2.8s
+event_time[1,:,0] = 1e-1  
 event_time[-1,:,0] = 1e2
 event_time = setdevice(event_time)
 
@@ -175,7 +183,7 @@ target = scanner.reco.clone()
 reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
 if False:                                                       # check sanity
-    imshow(magimg(spins.img), 'original')
+    imshow(spins.img, 'original')
     imshow(magimg(reco), 'reconstruction')
     
     stop()
@@ -193,12 +201,11 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.init_signal()
     spins.set_initial_magnetization(NRep=1)
     
-    # always flip 90deg on first action (test)
-    if False:                                 
-        flips_base = torch.ones((1,NRep), dtype=torch.float32) * 90 * np.pi/180
-        scanner.custom_flip(0,flips_base,spins)
-        scanner.custom_relax(spins,dt=0.06)            # relax till ADC (sec)
-        
+    flip_mask = torch.zeros((scanner.T, scanner.NRep)).float()        
+    flip_mask[:2,:] = 1
+    flip_mask = setdevice(flip_mask)
+    flips = flips * flip_mask    
+    
     scanner.init_flip_tensor_holder()
     scanner.set_flip_tensor(flips)
     
@@ -206,7 +213,8 @@ def phi_FRP_model(opt_params,aux_params):
     grad_moms = torch.cumsum(grads,0)
     
     if use_periodic_grad_moms_cap:
-        fmax = torch.ones([1,1,2]).float().cuda(0)
+        fmax = torch.ones([1,1,2]).float()
+        fmax = setdevice(fmax)
         fmax[0,0,0] = sz[0]/2
         fmax[0,0,1] = sz[1]/2
 
@@ -224,7 +232,7 @@ def phi_FRP_model(opt_params,aux_params):
             
             scanner.relax_and_dephase(spins) # mz shouldnt we also relax during the ADC?
             scanner.flip(t,r,spins)
-            delay = torch.abs(event_time[t,r]) + 1e-6 # mz whats that
+            delay = torch.abs(event_time[t,r] + 1e-6) # mz whats that
             scanner.set_relaxation_tensor(spins,delay)
             scanner.set_freeprecession_tensor(spins,delay)
             scanner.relax_and_dephase(spins)    
@@ -270,8 +278,7 @@ def init_variables():
     flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     
-
-    flips[0,:] = 90*np.pi/180
+    flips[0,:] = 180*np.pi/180
 
     
     flips = setdevice(flips)
@@ -281,7 +288,8 @@ def init_variables():
     
 
     #event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
-    event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
+    #event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
+    event_time = torch.from_numpy(0.1*np.ones((scanner.T,scanner.NRep,1))).float()
 
     #event_time[0,:,0] = 1e-1
     #event_time[-1,:,0] = 1e2
@@ -316,26 +324,25 @@ opt.opti_mode = 'seq'
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 imshow(magimg(target_numpy), 'target')
-opt.set_opt_param_idx([0,1,2])
-opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
+opt.set_opt_param_idx([0,2])
+#opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
+opt.custom_learning_rate = [0.05,0.005,0.05,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 
-opt.train_model_with_restarts(nmb_rnd_restart=5, training_iter=10)
-#opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
+opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
+#opt.train_model_with_restarts(nmb_rnd_restart=1, training_iter=1)
 
 #stop()
 
 print('<seq> now (100 iterations with best initialization')
-
-opt.train_model(training_iter=100, do_vis_image=True)
+#opt.scanner_opt_params = opt.init_variables()
+opt.train_model(training_iter=1000, do_vis_image=True)
 #opt.train_model(training_iter=10)
 
 
 #event_time = torch.abs(event_time)  # need to be positive
-
 #opt.scanner_opt_params = init_variables()
-#
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])

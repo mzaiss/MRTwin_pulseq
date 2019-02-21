@@ -36,25 +36,29 @@ class SpinSystem():
       return np.sqrt(np.sum(np.abs(x)**2,2))    
     
     def set_system(self, img=None):
-        
         # load image
         if img is None:
             m = np.load('../../data/phantom.npy')
+            m=m[:,:,0] # PD only real
             m = cv2.resize(m, dsize=(self.sz[0], self.sz[1]), interpolation=cv2.INTER_CUBIC)
-            m = m / np.max(m)
-            m[:,:,1] = 0                                         # PD only real
+            m = m / np.max(m) 
             self.img = m.copy()
+                 
+        #T2[0:self.NVox//2] = 0.09
         else:
             self.img = img
-        
-        # set relaxations (unit - seconds) and proton density
-        
-        # take just real part (if input "img" is complex-valued) for the proton density
-        PD = torch.from_numpy(self.img[:,:,0].reshape([self.NVox])).float()    
-        T1 = torch.ones(self.NVox, dtype=torch.float32)*4
-        T2 = torch.ones(self.NVox, dtype=torch.float32)*2
-        #T2[0:self.NVox//2] = 0.09
-        
+            
+        if self.img.ndim is 2:
+            # set relaxations (unit - seconds) and proton density
+            # take just real part (if input "img" is complex-valued) for the proton density
+            PD = torch.from_numpy(self.img.reshape([self.NVox])).float()
+            T1 = torch.ones(self.NVox, dtype=torch.float32)*4
+            T2 = torch.ones(self.NVox, dtype=torch.float32)*2
+        elif self.img.ndim is 3:  # if there are 3 dims, i is assumed that these are PD,T1,T2
+            PD = torch.from_numpy(self.img[:,:,0].reshape([self.NVox])).float()
+            T1 = torch.from_numpy(self.img[:,:,1].reshape([self.NVox])).float()
+            T2 = torch.from_numpy(self.img[:,:,2].reshape([self.NVox])).float()   
+            self.img=self.img[:,:,0]
         # set NSpins offresonance (from R2)
         factor = (0*1e0*np.pi/180) / self.NSpins
         dB0 = torch.from_numpy(factor*np.arange(0,self.NSpins).reshape([self.NSpins])).float()

@@ -29,6 +29,7 @@ pd=numpy.real(mat['m0im'])
 phase=numpy.angle(mat['m0im'])
 
 pd=pd[30:150,15:165]
+phase=phase[30:150,15:165]
 t1=t1[30:150,15:165]
 t2=t2[30:150,15:165]
 
@@ -45,6 +46,16 @@ axarr[1, 1].set_title('T2')
 f.set_size_inches(6, 5)
 plt.show()     
 
+
+MP = numpy.zeros((120,150,3), dtype=numpy.float32)
+MP[:,:,0]=pd
+MP[:,:,1]=t1/1000
+MP[:,:,2]=t2/1000
+numpy.save('MP.npy',MP)
+
+stop()
+# %% ###     OPTIMIZATION functions phi and init ######################################################
+#############################################################################  
 data= numpy.zeros((40**2,16,16,3));
 f,(axarr) = plt.subplots(40, 40, sharex='all', sharey='all')
 for ii in range(40):

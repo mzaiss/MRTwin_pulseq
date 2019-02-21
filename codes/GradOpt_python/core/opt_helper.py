@@ -55,7 +55,7 @@ class OPT_helper():
         
         return loss        
         
-    def train_model(self, training_iter = 100, show_par=False):
+    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False):
 
         self.aux_params = [self.use_periodic_grad_moms_cap, self.opti_mode]
         WEIGHT_DECAY = 1e-8
@@ -86,6 +86,28 @@ class OPT_helper():
                 par_group = self.scanner_opt_params[self.opt_param_idx[0]].detach().cpu().numpy()*180/np.pi
                 par_group = np.round(100*par_group[0,:])/100
                 print(par_group)
+                
+            if do_vis_image:
+                sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
+                recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
+                plt.imshow(magimg(recoimg), interpolation='none')
+                plt.ion()
+                fig = plt.gcf()
+                fig.set_size_inches(1, 1)
+                plt.show()        
+                
+                plt.imshow(self.scanner_opt_params[0].permute([1,0]).detach().numpy()*180/np.pi)
+                plt.ion()
+                plt.pause(0.05)
+                
+                #plt.imshow(torch.abs(self.scanner_opt_params[2])[:-1,:,0].permute([1,0]).detach().numpy())
+                #plt.ion()
+                #plt.pause(0.05)                
+
+                plt.imshow(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0]).detach().numpy())
+                plt.ion()
+                plt.pause(0.05)                
+                
         
     def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10):
         
@@ -136,10 +158,14 @@ class OPT_helper():
                     
                     sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
                     recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
-                    plt.imshow(magimg(recoimg), interpolation='none'                  
+                    plt.imshow(magimg(recoimg), interpolation='none')
+                    plt.ion()
                     fig = plt.gcf()
                     fig.set_size_inches(1, 1)
                     plt.show()     
+                    
+                    #plt.plot(self.scanner_opt_params[0].permute([1,0]).flatten().detach().numpy()*180/np.pi)
+                    plt.imshow(self.scanner_opt_params[0].permute([1,0]).detach().numpy()*180/np.pi)
                         
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]
