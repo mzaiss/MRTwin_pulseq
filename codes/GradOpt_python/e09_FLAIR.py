@@ -226,7 +226,6 @@ def phi_FRP_model(opt_params,aux_params):
         for t in range(T):                                  # for all ADC samples within T (or sample of the kurrent ksapce line)
             
             
-            scanner.relax_and_dephase(spins) # mz shouldnt we also relax during the ADC?
             scanner.flip(t,r,spins)
             delay = torch.abs(event_time[t,r] + 1e-6) # mz whats that
             scanner.set_relaxation_tensor(spins,delay)
@@ -301,7 +300,7 @@ def init_variables():
     #event_time[0,:,0] = 1e-1
     #event_time[-1,:,0] = 1e2
     
-    event_time[0,:,0] = 5.0     # FLAIR preparation part 2 :added as TI=2.8s
+    event_time[0,:,0] = 2.8     # FLAIR preparation part 2 :added as TI=2.8s
     event_time[1,:,0] = 1e-1  
     event_time[-1,:,0] = 1e2
     
@@ -344,9 +343,7 @@ opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 
-gdfgfdgfd
-
-opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
+#opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
 #opt.train_model_with_restarts(nmb_rnd_restart=1, training_iter=1)
 
 #stop()
@@ -363,6 +360,7 @@ opt.train_model(training_iter=1000, do_vis_image=True)
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
 
+target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 imshow(magimg(target_numpy), 'target')
 imshow(magimg(reco), 'reconstruction')
 
