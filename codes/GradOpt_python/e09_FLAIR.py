@@ -199,7 +199,7 @@ def phi_FRP_model(opt_params,aux_params):
     flip_mask = torch.zeros((scanner.T, scanner.NRep)).float()        
     flip_mask[:2,:] = 1
     flip_mask = setdevice(flip_mask)
-    #flips = flips * flip_mask    
+    flips = flips * flip_mask    
     
     scanner.init_flip_tensor_holder()
     scanner.set_flip_tensor(flips)
@@ -300,7 +300,7 @@ def init_variables():
     #event_time[0,:,0] = 1e-1
     #event_time[-1,:,0] = 1e2
     
-    event_time[0,:,0] = 2.8     # FLAIR preparation part 2 :added as TI=2.8s
+    event_time[0,:,0] = 1     # FLAIR preparation part 2 :added as TI=2.8s
     event_time[1,:,0] = 1e-1  
     event_time[-1,:,0] = 1e2
     

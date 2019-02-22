@@ -82,7 +82,7 @@ class OPT_helper():
             self.optimizer.step(self.weak_closure)
             
             _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
-            print(colored("\033[93m recon error = %f \033[0m" %error, 'green'))
+            print(colored("\033[93m iter %d, recon error = %f \033[0m" % (inner_iter,error), 'green'))
             
             if show_par:
                 par_group = self.scanner_opt_params[self.opt_param_idx[0]].detach().cpu().numpy()*180/np.pi
