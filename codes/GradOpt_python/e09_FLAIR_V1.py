@@ -12,6 +12,15 @@ relaxation and free pression events subject to free variable (dt) that specifies
 the duration of each relax/precess event
 __allow for magnetization transfer over repetitions__
 
+FLAIR V1: 
+target is inverted signal with TI= 2.8s, and full relaxation after last
+task is : start from 180, 90, but only 1 s TI and no recovery at the end
+Thus it has to learn to lengthen both TI and Trecover at the end.
+
+RESULT at mzPC: 
+    TRIAL 1: works okayish, error(500) <~ 14, invents delays at end of T, seemed to only invert central line, seems to acquire 3 lines in one shot
+    
+
 
 """
 
@@ -293,7 +302,7 @@ def init_variables():
     #event_time[-1,:,0] = 1e2
     
     event_time[0,:,0] = 1     # FLAIR preparation part 2 :added as TI=2.8s
-    event_time[1,:,0] = 1e-1  
+   # event_time[1,:,0] = 1e-1  
    # event_time[-1,:,0] = 1e2
     
     event_time = setdevice(event_time)
@@ -329,7 +338,7 @@ opt.opti_mode = 'seq'
 
 opt.set_opt_param_idx([0,2])
 #opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
-opt.custom_learning_rate = [0.5,0.005,0.5,0.1]
+opt.custom_learning_rate = [0.005,0.005,0.5,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
@@ -342,7 +351,7 @@ opt.scanner_opt_params = opt.init_variables()
 
 print('<seq> now (100 iterations with best initialization')
 #opt.scanner_opt_params = opt.init_variables()
-opt.train_model(training_iter=1000, do_vis_image=True)
+opt.train_model(training_iter=300, do_vis_image=True)
 #opt.train_model(training_iter=10)
 
 
@@ -358,6 +367,41 @@ imshow(magimg(reco), 'reconstruction')
 
 stop()
 
+# %% ###     PLOT RESULTS ######################################################@
+#############################################################################
+
+_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
+reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+
+
+f=plt.subplot(141)
+plt.imshow(magimg(target_numpy), interpolation='none')
+plt.title('target')
+f=plt.subplot(142)
+plt.imshow(magimg(reco), interpolation='none')
+plt.title('reco')
+plt.ion()
+   
+plt.subplot(143)
+ax=plt.imshow(opt.scanner_opt_params[0].permute([1,0]).detach().numpy()*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
+plt.ion()
+plt.title('FA [°]')
+plt.clim(-90,270)
+fig = plt.gcf()
+fig.colorbar(ax)
+fig.set_size_inches(12, 3)
+
+
+plt.subplot(144)
+ax=plt.imshow(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0]).detach().numpy(),cmap=plt.get_cmap('nipy_spectral'))
+plt.ion()
+plt.title('TR [s]')
+fig = plt.gcf()
+fig.set_size_inches(18, 5)
+fig.colorbar(ax)
+plt.show()    
+
+print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.abs(opt.scanner_opt_params[0].permute([1,0]).detach().numpy()).sum()*180/np.pi, torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0]).detach().numpy().sum() ))
 
 # %% ###     SAVE ALL ######################################################@
 #############################################################################

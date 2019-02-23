@@ -92,23 +92,31 @@ class OPT_helper():
             if do_vis_image:
                 sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
                 recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
+                                
+                f=plt.subplot(131)
                 plt.imshow(magimg(recoimg), interpolation='none')
+                plt.title('reco')
                 plt.ion()
+                   
+                plt.subplot(132)
+                ax=plt.imshow(self.scanner_opt_params[0].permute([1,0]).detach().numpy()*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
+                plt.ion()
+                plt.title('FA [°]')
+                plt.clim(-90,270)
                 fig = plt.gcf()
-                fig.set_size_inches(1, 1)
-                plt.show()        
+                fig.colorbar(ax)
+                fig.set_size_inches(12, 3)
                 
-                plt.imshow(self.scanner_opt_params[0].permute([1,0]).detach().numpy()*180/np.pi)
+                
+                plt.subplot(133)
+                ax=plt.imshow(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0]).detach().numpy(),cmap=plt.get_cmap('nipy_spectral'))
                 plt.ion()
-                plt.pause(0.05)
-                
-                #plt.imshow(torch.abs(self.scanner_opt_params[2])[:-1,:,0].permute([1,0]).detach().numpy())
-                #plt.ion()
-                #plt.pause(0.05)                
+                plt.title('TR [s]')
+                fig = plt.gcf()
+                fig.set_size_inches(18, 5)
+                fig.colorbar(ax)
+                plt.show()    
 
-                plt.imshow(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0]).detach().numpy())
-                plt.ion()
-                plt.pause(0.05)                
                 
         
     def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, vis_image=False):
