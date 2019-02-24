@@ -37,7 +37,7 @@ else:
     importlib.reload(core.scanner)
     importlib.reload(core.opt_helper)    
 
-use_gpu = 0
+use_gpu = 1
 
 # NRMSE error function
 def e(gt,x):
@@ -46,6 +46,10 @@ def e(gt,x):
 # get magnitude image
 def magimg(x):
   return np.sqrt(np.sum(np.abs(x)**2,2))
+  
+# torch to numpy
+def tonumpy(x):
+    return x.detach().cpu().numpy()
 
 # device setter
 def setdevice(x):
@@ -88,7 +92,17 @@ NVox = sz[0]*sz[1]
     
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
-spins.set_system()
+
+numerical_phantom = np.load('../../data/brainphantom_2D.npy')
+numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
+numerical_phantom[numerical_phantom < 0] = 0
+
+spins.set_system(numerical_phantom)
+
+cutoff = 1e-12
+spins.T1[spins.T1<cutoff] = cutoff
+spins.T2[spins.T2<cutoff] = cutoff
+
 
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
@@ -132,51 +146,21 @@ scanner.set_gradient_precession_tensor(grad_moms)
 
 #############################################################################
 ## Forward process ::: ######################################################
-    
-scanner.init_signal()
-spins.set_initial_magnetization(NRep=1)
-
-# always flip 90deg on first action (test)
-if False:                                 
-    flips_base = torch.ones((1,NRep), dtype=torch.float32) * 90 * np.pi/180
-    scanner.custom_flip(0,flips_base,spins)
-    scanner.custom_relax(spins,dt=0.06)                # relax till ADC (sec)
-    
-# scanner forward process loop
-for r in range(NRep):                                   # for all repetitions
-    for t in range(T):                                      # for all actions
-    
-        scanner.flip(t,r,spins)
-              
-        delay = torch.abs(event_time[t,r]) + 1e-6
-        scanner.set_relaxation_tensor(spins,delay)
-        scanner.set_freeprecession_tensor(spins,delay)
-        scanner.relax_and_dephase(spins)
-            
-        scanner.grad_precess(t,r,spins)
-        scanner.read_signal(t,r,spins)
-        
-
-# init reconstructed image
-scanner.init_reco()
+scanner.forward(spins, event_time)
 
 #############################################################################
 ## Inverse pass, reconstruct image with adjoint operator ::: ################
 # WARNING: so far adjoint is pure gradient-precession based
+scanner.adjoint(spins)
 
-for t in range(T-1,-1,-1):
-    if scanner.adc_mask[t] > 0:
-        scanner.do_grad_adj_reco(t,spins)
-
-    
 # try to fit this
 target = scanner.reco.clone()
    
 reco = scanner.reco.cpu().numpy().reshape([sz[0],sz[1],2])
 
-if False:                                                       # check sanity
-    imshow(spins.img, 'original')
-    imshow(magimg(reco), 'reconstruction')
+if False:                                                        # check sanity
+    imshow(tonumpy(spins.PD).reshape([sz[0],sz[1]]), 'input array: PD')
+    imshow(magimg(reco), 'target image to fit')
     
     stop()
     
@@ -189,9 +173,6 @@ def phi_FRP_model(opt_params,aux_params):
     
     flips,grads,event_time,adc_mask = opt_params
     use_periodic_grad_moms_cap = aux_params
-    
-    scanner.init_signal()
-    spins.set_initial_magnetization(NRep=1)
     
     # always flip 90deg on first action (test)
     if False:                                 
@@ -216,35 +197,18 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms)
     
-   
     scanner.adc_mask = adc_mask
-          
-    for r in range(NRep):                                   # for all repetitions          (this can be seen as a k-space line acquisition)
-        for t in range(T):                                  # for all ADC samples within T (or sample of the kurrent ksapce line)
-            
-            scanner.relax_and_dephase(spins) # mz shouldnt we also relax during the ADC?
-            scanner.flip(t,r,spins)
-            delay = torch.abs(event_time[t,r]) + 1e-6 # mz whats that
-            scanner.set_relaxation_tensor(spins,delay)
-            scanner.set_freeprecession_tensor(spins,delay)
-            scanner.relax_and_dephase(spins)    
+   
+    scanner.forward(spins, event_time)
     
-            scanner.grad_precess(t,r,spins)    
-            scanner.read_signal(t,r,spins)        
-            
-#### now one full forward model is calculated and the acquired signals are stored in self.signal
-#### now we can create the reco for this data. Gadjoint was already created during the forward process ( inj set_gradient_precession_tensor) see self.G and self.G_adj
-        
-    scanner.init_reco()
-    
-    for t in range(T-1,-1,-1):              # mz: I dont understand why you do not loop over the repetitions now.
-        if scanner.adc_mask[t] > 0:
-            scanner.do_grad_adj_reco(t,spins)   # this applies the adjoint operator to the acquired data
+    #### now one full forward model is calculated and the acquired signals are stored in self.signal
+    #### now we can create the reco for this data. Gadjoint was already created during the forward process ( inj set_gradient_precession_tensor) see self.G and self.G_adj
+    scanner.adjoint(spins)
             
     loss = (scanner.reco - target)
     phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
     
-    ereco = scanner.reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+    ereco = tonumpy(scanner.reco).reshape([sz[0],sz[1],2])
     error = e(target.cpu().numpy().ravel(),ereco.ravel())     
     
     return (phi,scanner.reco, error)
@@ -333,7 +297,7 @@ opt.train_model(training_iter=100, do_vis_image=True)
 #
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
-reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+reco = tonumpy(reco).reshape([sz[0],sz[1],2])
 
 imshow(magimg(target_numpy), 'target')
 imshow(magimg(reco), 'reconstruction')
@@ -366,19 +330,19 @@ param_dict['NCoils'] = NCoils
 scipy.io.savemat(os.path.join(host_dir,experiment_id,"param_dict.mat"), param_dict)
 
 spins_dict = dict()
-spins_dict['PD'] = spins.PD.cpu().numpy()
-spins_dict['T1'] = spins.T1.cpu().numpy()     
-spins_dict['T2'] = spins.T2.cpu().numpy()
-spins_dict['dB0'] = spins.dB0.cpu().numpy()
+spins_dict['PD'] = tonumpy(spins.PD)
+spins_dict['T1'] = tonumpy(spins.T1)
+spins_dict['T2'] = tonumpy(spins.T2)
+spins_dict['dB0'] = tonumpy(spins.dB0)
           
 scipy.io.savemat(os.path.join(host_dir,experiment_id,"spins_dict.mat"), spins_dict)
           
 scanner_dict = dict()
-scanner_dict['adc_mask'] = scanner.adc_mask.detach().cpu().numpy()
-scanner_dict['B1'] = scanner.B1.detach().cpu().numpy()
-scanner_dict['flips'] = flips.detach().cpu().numpy()
-scanner_dict['grads'] = grads.detach().cpu().numpy()
-scanner_dict['event_time'] = event_time.detach().cpu().numpy()
+scanner_dict['adc_mask'] = tonumpy(scanner.adc_mask)
+scanner_dict['B1'] = tonumpy(scanner.B1)
+scanner_dict['flips'] = tonumpy(flips)
+scanner_dict['grads'] = tonumpy(grads)
+scanner_dict['event_time'] = tonumpy(event_time)
 scanner_dict['reco'] = reco
           
 scipy.io.savemat(os.path.join(host_dir,experiment_id,"scanner_dict.mat"), scanner_dict)

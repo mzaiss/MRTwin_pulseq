@@ -40,6 +40,9 @@ else:
     importlib.reload(core.scanner)
     importlib.reload(core.nnreco)
     importlib.reload(core.opt_helper)    
+    
+class ExecutionControl(Exception): pass; 
+raise ExecutionControl('Script out of sync with spins/scanner classes')
 
 use_gpu = 1
 
@@ -78,7 +81,7 @@ batch_size = 32     # number of images used at one optimization gradient step
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 2                                        # number of events F/R/P
-NSpins = 2                                # number of spin sims in each voxel
+NSpins = 1                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                        # time interval between actions (seconds)
 

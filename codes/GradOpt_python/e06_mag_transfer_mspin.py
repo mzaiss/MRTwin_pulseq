@@ -37,6 +37,9 @@ else:
     importlib.reload(core.spins)
     importlib.reload(core.scanner)
     importlib.reload(core.opt_helper)    
+    
+class ExecutionControl(Exception): pass; 
+raise ExecutionControl('Script out of sync with spins/scanner classes')
 
 use_gpu = 1
 
@@ -74,7 +77,7 @@ def stop():
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 10                                # number of spin sims in each voxel
+NSpins = 1                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -91,7 +94,7 @@ NVox = sz[0]*sz[1]
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 spins.set_system()
 
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
 scanner.set_adc_mask()
 
@@ -154,8 +157,7 @@ for r in range(NRep):                                   # for all repetitions
         scanner.set_freeprecession_tensor(spins,delay)
         scanner.relax_and_dephase(spins)
             
-        scanner.set_grad_op(t)
-        scanner.grad_precess(r,spins)
+        scanner.grad_precess(t,r,spins)
         scanner.read_signal(t,r,spins)
         
 
@@ -168,7 +170,6 @@ scanner.init_reco()
 
 for t in range(T-1,-1,-1):
     if scanner.adc_mask[t] > 0:
-        scanner.set_grad_adj_op(t)
         scanner.do_grad_adj_reco(t,spins)
 
     
@@ -187,6 +188,56 @@ if False:                                                       # check sanity
 
 # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
+
+class Flip(torch.autograd.Function):
+    
+    mtx = torch.rand(1,1,1,4,4).float().cuda(0)
+    
+    @staticmethod
+    def forward(ctx, x):
+        """Forward pass for the reversible block computes:
+        {x1, x2} = x
+        y1 = x1 + Fm(x2)
+        y2 = x2 + Gm(y1)
+        output = {y1, y2}
+        Parameters
+        ----------
+        ctx : torch.autograd.function.RevNetFunctionBackward
+            The backward pass context object
+        x : TorchTensor
+            Input tensor. Must have channels (2nd dimension) that can be partitioned in two equal partitions
+        Fm : nn.Module
+            Module to use for computation, must retain dimensions such that Fm(X)=Y, X.shape == Y.shape
+        Gm : nn.Module
+            Module to use for computation, must retain dimensions such that Gm(X)=Y, X.shape == Y.shape
+        *weights : TorchTensor
+            weights for Fm and Gm in that order {Fm_w1, ... Fm_wn, Gm_w1, ... Gm_wn}
+        Note
+        ----
+        All tensor/autograd variable input arguments and the output are
+        TorchTensors for the scope of this fuction
+        """
+        # check if possible to partition into two equally sized partitions
+        
+        mtx = torch.rand(1,1,1,4,4).float().cuda(0)
+        output = torch.matmul(mtx, x)
+
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        
+        import pdb; pdb.set_trace()
+        
+        # retrieve weight references
+        Fm, Gm = ctx.Fm, ctx.Gm
+
+        gfdgfdgfd
+
+        return (grad_input, None, None) + FWgrads + GWgrads
+        
+        
+flip = Flip()
     
 def phi_FRP_model(opt_params,aux_params):
     
@@ -215,8 +266,8 @@ def phi_FRP_model(opt_params,aux_params):
 
         grad_moms = torch.sin(grad_moms)*fmax
 
-    scanner.set_gradient_precession_tensor(grad_moms)
     scanner.init_gradient_tensor_holder()          
+    scanner.set_gradient_precession_tensor(grad_moms)       
     
    
     scanner.adc_mask = adc_mask
@@ -231,9 +282,10 @@ def phi_FRP_model(opt_params,aux_params):
             scanner.set_freeprecession_tensor(spins,delay)
             scanner.relax_and_dephase(spins)    
     
-            scanner.set_grad_op(t)
-            scanner.grad_precess(r,spins)    
-            scanner.read_signal(t,r,spins)        
+            spins.M = flip.apply(spins.M)
+    
+            scanner.grad_precess(t,r,spins)    
+            scanner.read_signal(t,r,spins)       
             
 #### now one full forward model is calculated and the acquired signals are stored in self.signal
 #### now we can create the reco for this data. Gadjoint was already created during the forward process ( inj set_gradient_precession_tensor) see self.G and self.G_adj
@@ -242,7 +294,6 @@ def phi_FRP_model(opt_params,aux_params):
     
     for t in range(T-1,-1,-1):              # mz: I dont understand why you do not loop over the repetitions now.
         if scanner.adc_mask[t] > 0:
-            scanner.set_grad_adj_op(t)
             scanner.do_grad_adj_reco(t,spins)   # this applies the adjoint operator to the acquired data
             
     loss = (scanner.reco - target)

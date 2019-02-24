@@ -6,6 +6,10 @@ from termcolor import colored
 import matplotlib.pyplot as plt
 from torch import optim
 
+# torch to numpy
+def tonumpy(x):
+    return x.detach().cpu().numpy()
+
 # optimization helper class
 class OPT_helper():
     def __init__(self,scanner,spins,NN,nmb_total_samples_dataset):
@@ -85,13 +89,13 @@ class OPT_helper():
             print(colored("\033[93m iter %d, recon error = %f \033[0m" % (inner_iter,error), 'green'))
             
             if show_par:
-                par_group = self.scanner_opt_params[self.opt_param_idx[0]].detach().cpu().numpy()*180/np.pi
+                par_group = tonumpy(self.scanner_opt_params[self.opt_param_idx[0]])*180/np.pi
                 par_group = np.round(100*par_group[0,:])/100
                 print(par_group)
                 
             if do_vis_image:
-                sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
-                recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
+                sz=int(np.sqrt(tonumpy(reco).size/2))
+                recoimg = tonumpy(reco).reshape([sz,sz,2])
                                 
                 f=plt.subplot(131)
                 plt.imshow(magimg(recoimg), interpolation='none')
@@ -99,9 +103,9 @@ class OPT_helper():
                 plt.ion()
                    
                 plt.subplot(132)
-                ax=plt.imshow(self.scanner_opt_params[0].permute([1,0]).detach().numpy()*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
+                ax=plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
                 plt.ion()
-                plt.title('FA [°]')
+                plt.title('FA [\N{DEGREE SIGN}]')
                 plt.clim(-90,270)
                 fig = plt.gcf()
                 fig.colorbar(ax)
@@ -109,7 +113,7 @@ class OPT_helper():
                 
                 
                 plt.subplot(133)
-                ax=plt.imshow(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0]).detach().numpy(),cmap=plt.get_cmap('nipy_spectral'))
+                ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
                 plt.ion()
                 plt.title('TR [s]')
                 fig = plt.gcf()
@@ -167,15 +171,15 @@ class OPT_helper():
                     
 
                     if vis_image:
-                        sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
-                        recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
+                        sz=int(np.sqrt(tonumpy(reco).size/2))
+                        recoimg = tonumpy(reco).reshape([sz,sz,2])
                         plt.imshow(magimg(recoimg), interpolation='none')
                         plt.ion()
                         fig = plt.gcf()
                         fig.set_size_inches(1, 1)
                         plt.show()   
-                    sz=int(np.sqrt(reco.detach().cpu().numpy().size/2))
-                    recoimg = reco.detach().cpu().numpy().reshape([sz,sz,2])
+                    sz=int(np.sqrt(tonumpy(reco).size/2))
+                    recoimg = tonumpy(reco).reshape([sz,sz,2])
                                     
                     plt.imshow(magimg(recoimg), interpolation='none')
                     plt.ion()
@@ -183,8 +187,8 @@ class OPT_helper():
                     fig.set_size_inches(1, 1)
                     plt.show()     
                     
-                    #plt.plot(self.scanner_opt_params[0].permute([1,0]).flatten().detach().numpy()*180/np.pi)
-                    plt.imshow(self.scanner_opt_params[0].permute([1,0]).detach().numpy()*180/np.pi)
+                    #plt.plot(tonumpy(self.scanner_opt_params[0].permute([1,0]).flatten())*180/np.pi)
+                    plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi)
                         
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]

@@ -39,6 +39,9 @@ else:
     importlib.reload(core.spins)
     importlib.reload(core.scanner)
     importlib.reload(core.opt_helper)
+    
+class ExecutionControl(Exception): pass; 
+raise ExecutionControl('Script out of sync with spins/scanner classes')
 
 use_gpu = 1
 
@@ -81,7 +84,7 @@ def imshow(x, title=None):
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 2                                        # number of events F/R/P
-NSpins = 2                                # number of spin sims in each voxel
+NSpins = 1                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -256,7 +259,8 @@ def phi_FRP_model(opt_params,aux_params):
       boost_fct = 1
         
       #fmax = sz / 2
-      fmax = torch.ones([1,1,2]).float().cuda(0)
+      fmax = torch.ones([1,1,2]).float()
+      fmax = setdevice(fmax)
       fmax[0,0,0] = sz[0]/2
       fmax[0,0,1] = sz[1]/2
 

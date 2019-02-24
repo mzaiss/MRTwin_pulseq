@@ -46,6 +46,10 @@ def e(gt,x):
 # get magnitude image
 def magimg(x):
   return np.sqrt(np.sum(np.abs(x)**2,2))
+  
+# torch to numpy
+def tonumpy(x):
+    return x.detach().cpu().numpy()
 
 # device setter
 def setdevice(x):
@@ -87,10 +91,12 @@ NVox = sz[0]*sz[1]
 
     # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
-m = np.load('../../data/brainphantom_2D.npy')
-m = cv2.resize(m, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
-m[m < 0] = 0
-spins.set_system(m)
+
+numerical_phantom = np.load('../../data/brainphantom_2D.npy')
+numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
+numerical_phantom[numerical_phantom < 0] = 0
+
+spins.set_system(numerical_phantom)
 
 cutoff = 1e-12
 spins.T1[spins.T1<cutoff] = cutoff
@@ -141,41 +147,13 @@ scanner.set_gradient_precession_tensor(grad_moms)
 #############################################################################
 ## Forward process ::: ######################################################
     
-scanner.init_signal()
-spins.set_initial_magnetization(NRep=1)
-
-   
-# scanner forward process loop
-for r in range(NRep):                                   # for all repetitions
-    for t in range(T):                                      # for all actions
-    
-        scanner.flip(t,r,spins)
-              
-        delay = torch.abs(event_time[t,r] + 1e-6)
-        scanner.set_relaxation_tensor(spins,delay)
-        scanner.set_freeprecession_tensor(spins,delay)
-        scanner.relax_and_dephase(spins)
-            
-        scanner.grad_precess(t,r,spins)
-        scanner.read_signal(t,r,spins)
-        
-
-# init reconstructed image
-scanner.init_reco()
-
-#############################################################################
-## Inverse pass, reconstruct image with adjoint operator ::: ################
-# WARNING: so far adjoint is pure gradient-precession based
-
-for t in range(T-1,-1,-1):
-    if scanner.adc_mask[t] > 0:
-        scanner.do_grad_adj_reco(t,spins)
-
+scanner.forward(spins, event_time)
+scanner.adjoint(spins)
     
 # try to fit this
 target = scanner.reco.clone()
    
-reco = scanner.reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+reco = tonumpy(scanner.reco).reshape([sz[0],sz[1],2])
 
 if False:                                                       # check sanity
     imshow(spins.img, 'original')
@@ -192,9 +170,6 @@ def phi_FRP_model(opt_params,aux_params):
     
     flips,grads,event_time,adc_mask = opt_params
     use_periodic_grad_moms_cap = aux_params
-    
-    scanner.init_signal()
-    spins.set_initial_magnetization(NRep=1)
     
     flip_mask = torch.zeros((scanner.T, scanner.NRep)).float()        
     flip_mask[:2,:] = 1
@@ -219,36 +194,15 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms)
     
-   
-    #scanner.adc_mask = adc_mask
-          
-    for r in range(NRep):                                   # for all repetitions          (this can be seen as a k-space line acquisition)
-        for t in range(T):                                  # for all ADC samples within T (or sample of the kurrent ksapce line)
-            
-            
-            scanner.flip(t,r,spins)
-            delay = torch.abs(event_time[t,r] + 1e-6) # mz whats that
-            scanner.set_relaxation_tensor(spins,delay)
-            scanner.set_freeprecession_tensor(spins,delay)
-            scanner.relax_and_dephase(spins)    
+    # forward/adjoint pass
+    scanner.forward(spins, event_time)
+    scanner.adjoint(spins)
     
-            scanner.grad_precess(t,r,spins)    
-            scanner.read_signal(t,r,spins)        
-            
-#### now one full forward model is calculated and the acquired signals are stored in self.signal
-#### now we can create the reco for this data. Gadjoint was already created during the forward process ( inj set_gradient_precession_tensor) see self.G and self.G_adj
-        
-    scanner.init_reco()
-    
-    for t in range(T-1,-1,-1):              # mz: I dont understand why you do not loop over the repetitions now.
-        if scanner.adc_mask[t] > 0:
-            scanner.do_grad_adj_reco(t,spins)   # this applies the adjoint operator to the acquired data
-            
     loss = (scanner.reco - target)
     phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
     
-    ereco = scanner.reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
-    error = e(target.cpu().numpy().ravel(),ereco.ravel())     
+    ereco = tonumpy(scanner.reco).reshape([sz[0],sz[1],2])
+    error = e(tonumpy(target).ravel(),ereco.ravel())     
     
     return (phi,scanner.reco, error)
     
@@ -324,7 +278,7 @@ opt.learning_rate = 0.01                                        # ADAM step size
 print('<seq> now (with 10 iterations and several random initializations)')
 opt.opti_mode = 'seq'
 
-#target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+#target_numpy = tonumpy(target).reshape([sz[0],sz[1],2])
 #imshow(magimg(target_numpy), 'target')
 
 opt.set_opt_param_idx([0,2])
@@ -350,56 +304,12 @@ opt.train_model(training_iter=1000, do_vis_image=True)
 #opt.scanner_opt_params = init_variables()
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
-reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+reco = tonumpy(reco).reshape([sz[0],sz[1],2])
 
-target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+target_numpy = tonumpy(target).reshape([sz[0],sz[1],2])
 imshow(magimg(target_numpy), 'target')
 imshow(magimg(reco), 'reconstruction')
 
-stop()
-
-
-# %% ###     SAVE ALL ######################################################@
-#############################################################################
-
-host_dir = "../../data/trained_models"
-experiment_id = "t00_magtrans_early"
-
-if not os.path.exists(os.path.join(host_dir,experiment_id)):
-    os.makedirs(os.path.join(host_dir,experiment_id))
-  
-sz = np.array([16,16])                                           # image size
-NRep = sz[1]                                          # number of repetitions
-T = sz[0] + 2                                        # number of events F/R/P
-NSpins = 2                                # number of spin sims in each voxel
-NCoils = 1                                  # number of receive coil elements
-    
-param_dict = dict()
-param_dict['sz'] = sz
-param_dict['NRep'] = NRep
-param_dict['T'] = T
-param_dict['NSpins'] = NSpins
-param_dict['NCoils'] = NCoils
-
-scipy.io.savemat(os.path.join(host_dir,experiment_id,"param_dict.mat"), param_dict)
-
-spins_dict = dict()
-spins_dict['PD'] = spins.PD.cpu().numpy()
-spins_dict['T1'] = spins.T1.cpu().numpy()     
-spins_dict['T2'] = spins.T2.cpu().numpy()
-spins_dict['dB0'] = spins.dB0.cpu().numpy()
-          
-scipy.io.savemat(os.path.join(host_dir,experiment_id,"spins_dict.mat"), spins_dict)
-          
-scanner_dict = dict()
-scanner_dict['adc_mask'] = scanner.adc_mask.detach().cpu().numpy()
-scanner_dict['B1'] = scanner.B1.detach().cpu().numpy()
-scanner_dict['flips'] = flips.detach().cpu().numpy()
-scanner_dict['grads'] = grads.detach().cpu().numpy()
-scanner_dict['event_time'] = event_time.detach().cpu().numpy()
-scanner_dict['reco'] = reco
-          
-scipy.io.savemat(os.path.join(host_dir,experiment_id,"scanner_dict.mat"), scanner_dict)
 
 
 

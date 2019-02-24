@@ -39,7 +39,10 @@ else:
     importlib.reload(core.spins)
     importlib.reload(core.scanner)
     importlib.reload(core.nnreco)
-    importlib.reload(core.opt_helper)    
+    importlib.reload(core.opt_helper)   
+    
+class ExecutionControl(Exception): pass; 
+raise ExecutionControl('Script out of sync with spins/scanner classes')
 
 use_gpu = 1
 

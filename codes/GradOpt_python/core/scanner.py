@@ -735,6 +735,32 @@ class Scanner_fast(Scanner):
         r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,4,self.T*self.NRep*4]), s.view([1,self.T*self.NRep*4,1]))
         self.reco = r[:,:2,0]
         
+    # run throw all repetition/actions and yield signal
+    def forward(self,spins,event_time):
+        self.init_signal()
+        spins.set_initial_magnetization()
+        
+        # scanner forward process loop
+        for r in range(self.NRep):                                   # for all repetitions
+            for t in range(self.T):                                      # for all actions
+                self.flip(t,r,spins)
+                      
+                delay = torch.abs(event_time[t,r] + 1e-6)
+                self.set_relaxation_tensor(spins,delay)
+                self.set_freeprecession_tensor(spins,delay)
+                self.relax_and_dephase(spins)
+                    
+                self.grad_precess(t,r,spins)
+                self.read_signal(t,r,spins)    
+
+    # compute adjoint encoding op-based reco                
+    def adjoint(self,spins):
+        self.init_reco()
+
+        for t in range(self.T-1,-1,-1):
+            if self.adc_mask[t] > 0:
+                self.do_grad_adj_reco(t,spins)        
+        
         
 # Fast, but memory inefficient version (also for now does not support parallel imagigng)
 class Scanner_batched_fast(Scanner_batched):
@@ -863,6 +889,7 @@ class Scanner_batched_fast(Scanner_batched):
         r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([1,self.NVox,4,self.T*self.NRep*4]), s.view([self.batch_size,1,self.T*self.NRep*4,1]))
         
         self.reco = r[:,:,:2,0]
+        
         
     
 #        

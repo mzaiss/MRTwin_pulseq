@@ -30,7 +30,10 @@ else:
     import importlib
     importlib.reload(core.spins)
     importlib.reload(core.scanner)
-    importlib.reload(core.opt_helper)    
+    importlib.reload(core.opt_helper)   
+    
+class ExecutionControl(Exception): pass; 
+raise ExecutionControl('Script out of sync with spins/scanner classes')
 
 use_gpu = 1
 
@@ -240,7 +243,7 @@ t_comp_sim = t_comp.copy()
 # %% ###     OPTIMIZE ######################################################@
 #############################################################################    
     
-total_iter = 66
+total_iter = 660
 z_comp_opt = np.zeros((total_iter,NRep,1))
 t_comp_opt = np.zeros((total_iter,NRep,1))
 flip_angles_comp = np.zeros((total_iter,NRep,1))
@@ -383,10 +386,7 @@ def init_variables():
     
     return [flips, grads, event_time, sigmul]
     
-z_comp_opt = z_comp_opt[1:,:,0]
-t_comp_opt = t_comp_opt[1:,:,0]
-flip_angles_comp = flip_angles_comp[1:,:,0]
-    
+   
 # %% # OPTIMIZATION land
     
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
@@ -429,7 +429,13 @@ plt.plot(z_comp)
 
 stop()
 
+
+
 # %% # PLOT land
+
+z_comp_opt = z_comp_opt[1:,:,0]
+t_comp_opt = t_comp_opt[1:,:,0]
+flip_angles_comp = flip_angles_comp[1:,:,0]
 
 #z_comp_sim = z_comp.copy()
 #t_comp_sim = t_comp.copy()
