@@ -320,14 +320,14 @@ opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 
-opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
+opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10,do_vis_image=True)
 #opt.train_model_with_restarts(nmb_rnd_restart=1, training_iter=1)
 
 #stop()
 
 print('<seq> now (100 iterations with best initialization')
 #opt.scanner_opt_params = opt.init_variables()
-opt.train_model(training_iter=1000, do_vis_image=False)
+opt.train_model(training_iter=1000, do_vis_image=True)
 #opt.train_model(training_iter=10)
 
 

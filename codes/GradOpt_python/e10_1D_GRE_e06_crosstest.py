@@ -37,7 +37,7 @@ else:
     importlib.reload(core.scanner)
     importlib.reload(core.opt_helper)    
 
-use_gpu = 1
+use_gpu = 0
 
 # NRMSE error function
 def e(gt,x):
@@ -64,7 +64,7 @@ def imshow(x, title=None):
         plt.title(title)
     plt.ion()
     fig = plt.gcf()
-    fig.set_size_inches(1, 1)
+    fig.set_size_inches(3, 3)
     plt.show()     
 
 def stop():
@@ -276,8 +276,8 @@ def init_variables():
 # %% # OPTIMIZATION land
 
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
+opt.set_target(reco)
 
-opt.set_target(target)
 opt.use_periodic_grad_moms_cap = 1           # do not sample above Nyquist flag
 opt.learning_rate = 0.01                                        # ADAM step size
 
@@ -301,7 +301,7 @@ opt.train_model_with_restarts(nmb_rnd_restart=5, training_iter=10)
 
 print('<seq> now (100 iterations with best initialization')
 
-opt.train_model(training_iter=1000, do_vis_image=False)
+opt.train_model(training_iter=1000, do_vis_image=True)
 #opt.train_model(training_iter=10)
 
 

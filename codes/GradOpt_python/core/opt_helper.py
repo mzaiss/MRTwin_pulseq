@@ -109,70 +109,15 @@ class OPT_helper():
                 par_group = np.round(100*par_group[0,:])/100
                 print(par_group)
                 
-            if do_vis_image:
-                sz=self.spins.sz
-                recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
-                           
-                ax1=plt.subplot(151)
-                ax=plt.imshow(magimg(self.target), interpolation='none')
-                #plt.clim(0,1)
-                fig = plt.gcf()
-                fig.colorbar(ax)
-                plt.title('target')
-                plt.ion()
+            self.print_status(do_vis_image,reco)
                 
-                plt.subplot(152, sharex=ax1, sharey=ax1)
-                ax=plt.imshow(magimg(recoimg), interpolation='none')
-                plt.clim(np.min(self.target),np.max(self.target))
-                fig = plt.gcf()
-                fig.colorbar(ax)
-                plt.title('reco')
-                plt.ion()
-                   
-                plt.subplot(153)
-                ax=plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
-                plt.ion()
-                plt.title('FA [\N{DEGREE SIGN}]')
-                plt.clim(-90,270)
-                fig = plt.gcf()
-                fig.colorbar(ax)
-                fig.set_size_inches(18, 3)
-                
-                
-                plt.subplot(154)
-                ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
-                plt.ion()
-                plt.title('TR [s]')
-                fig = plt.gcf()
-                fig.set_size_inches(18, 3)
-                fig.colorbar(ax)
-                  
-                
-                ax1=plt.subplot(2, 5, 5)
-                ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[1])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
-                plt.ion()
-                plt.title('gradx')
-                fig = plt.gcf()
-                fig.set_size_inches(18, 3)
-                fig.colorbar(ax)
-               
-                
-                ax1=plt.subplot(2, 5, 10)
-                ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[1])[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
-                plt.ion()
-                plt.title('grady')
-                fig = plt.gcf()
-                fig.set_size_inches(18, 3)
-                fig.colorbar(ax)
-                
-                plt.show() 
 
             self.new_batch()
             self.optimizer.step(self.weak_closure)
 
                 
         
-    def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, vis_image=False):
+    def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, do_vis_image=False):
         
         # init gradients and flip events
         nmb_outer_iter = nmb_rnd_restart
@@ -230,31 +175,74 @@ class OPT_helper():
                         best_vars.append(par.detach().clone())
                     
 
-                    if vis_image:
-                        sz=self.spins.sz
-                        recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
-                        plt.imshow(magimg(recoimg), interpolation='none')
-                        plt.ion()
-                        fig = plt.gcf()
-                        fig.set_size_inches(1, 1)
-                        plt.show()   
-                        
-                        sz=int(np.sqrt(tonumpy(reco).size/2))
-                        recoimg = tonumpy(reco).reshape([sz,sz,2])
-                                        
-                        plt.imshow(magimg(recoimg), interpolation='none')
-                        plt.ion()
-                        fig = plt.gcf()
-                        fig.set_size_inches(1, 1)
-                        plt.show()     
-                        
-                        #plt.plot(tonumpy(self.scanner_opt_params[0].permute([1,0]).flatten())*180/np.pi)
-                        plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi)
+                    self.print_status(do_vis_image,reco)
                         
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]
             self.scanner_opt_params[pidx].requires_grad = True        # needed?
-                                   
+                
+            
+            
+            
+    def print_status(self, do_vis_image=False, reco=None):
+        if do_vis_image:
+            sz=self.spins.sz
+            recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
+                       
+            ax1=plt.subplot(151)
+            ax=plt.imshow(magimg(self.target), interpolation='none')
+            #plt.clim(0,1)
+            fig = plt.gcf()
+            fig.colorbar(ax)
+            plt.title('target')
+            plt.ion()
+            
+            plt.subplot(152, sharex=ax1, sharey=ax1)
+            ax=plt.imshow(magimg(recoimg), interpolation='none')
+            plt.clim(np.min(self.target),np.max(self.target))
+            fig = plt.gcf()
+            fig.colorbar(ax)
+            plt.title('reco')
+            plt.ion()
+               
+            plt.subplot(153)
+            ax=plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
+            plt.ion()
+            plt.title('FA [\N{DEGREE SIGN}]')
+            plt.clim(-90,270)
+            fig = plt.gcf()
+            fig.colorbar(ax)
+            fig.set_size_inches(18, 3)
+            
+            
+            plt.subplot(154)
+            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            plt.ion()
+            plt.title('TR [s]')
+            fig = plt.gcf()
+            fig.set_size_inches(18, 3)
+            fig.colorbar(ax)
+              
+            
+            ax1=plt.subplot(2, 5, 5)
+            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[1])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            plt.ion()
+            plt.title('gradx')
+            fig = plt.gcf()
+            fig.set_size_inches(18, 3)
+            fig.colorbar(ax)
+               
+            
+            ax1=plt.subplot(2, 5, 10)
+            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[1])[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            plt.ion()
+            plt.title('grady')
+            fig = plt.gcf()
+            fig.set_size_inches(18, 3)
+            fig.colorbar(ax)
+            
+        plt.show()                   
                                    
 def magimg(x):
   return np.sqrt(np.sum(np.abs(x)**2,2))
+
