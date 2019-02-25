@@ -66,7 +66,7 @@ def imshow(x, title=None):
         plt.title(title)
     plt.ion()
     fig = plt.gcf()
-    fig.set_size_inches(1, 1)
+    fig.set_size_inches(3, 3)
     plt.show()     
 
 def stop():
