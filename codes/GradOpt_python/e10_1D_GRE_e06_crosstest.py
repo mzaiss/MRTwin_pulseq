@@ -290,7 +290,7 @@ opt.opti_mode = 'seq'
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 imshow(magimg(target_numpy), 'target')
 opt.set_opt_param_idx([0,1,2])
-opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
+opt.custom_learning_rate = [0.05,0.01,0.05,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 

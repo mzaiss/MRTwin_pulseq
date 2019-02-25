@@ -29,6 +29,7 @@ class OPT_helper():
         self.NN = NN
         
         self.optimizer = None
+        self.best_optimizer_state = None
         self.init_variables = None
         self.phi_FRP_model = None
         
@@ -61,11 +62,9 @@ class OPT_helper():
         loss,_,_ = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
         loss.backward()
         
-        return loss        
-        
-    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False):
-
-        self.aux_params = [self.use_periodic_grad_moms_cap, self.opti_mode]
+        return loss 
+            
+    def init_optimizer(self):
         WEIGHT_DECAY = 1e-8
         
         # only optimize a subset of params
@@ -95,7 +94,24 @@ class OPT_helper():
             else:
                 self.optimizer = optim.LBFGS(optimizable_params, lr=self.learning_rate)
             
-            #self.optimizer = optim.Adam(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+            
+            #self.optimizer = optim.Adam(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)            
+        
+        
+        
+    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False):
+
+        self.aux_params = [self.use_periodic_grad_moms_cap, self.opti_mode]
+        self.init_optimizer()
+        
+        # continue optimization if state is saved
+        if self.best_optimizer_state is not None:
+            checkpoint = torch.load("../../results/optimizer_state.tmp")
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+            
+            print('Loading saved optimizer state....')
+            
+
             
         for inner_iter in range(training_iter):
             
@@ -109,14 +125,16 @@ class OPT_helper():
                 par_group = np.round(100*par_group[0,:])/100
                 print(par_group)
                 
+            
             self.print_status(do_vis_image,reco)
-                
+            
 
             self.new_batch()
             self.optimizer.step(self.weak_closure)
 
                 
         
+    
     def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, do_vis_image=False):
         
         # init gradients and flip events
@@ -124,42 +142,16 @@ class OPT_helper():
         nmb_inner_iter = training_iter
         
         self.aux_params = [self.use_periodic_grad_moms_cap, self.opti_mode]
-        WEIGHT_DECAY = 1e-8
         
         best_error = 1000
         
         for outer_iter in range(nmb_outer_iter):
             #print('restarting... %i%% ready' %(100*outer_iter/float(nmb_outer_iter)))
             print('restarting the model training... ')
-            
+
             self.scanner_opt_params = self.init_variables()
-            
-            # only optimize a subset of params
-            optimizable_params = []
-            for i in range(len(self.opt_param_idx)):
-                if self.custom_learning_rate == None:
-                    optimizable_params.append(self.scanner_opt_params[self.opt_param_idx[i]] )
-                else:
-                    optimizable_params.append({'params':self.scanner_opt_params[self.opt_param_idx[i]], 'lr': self.custom_learning_rate[i]} )          
-                
-            if self.opti_mode == 'seq':
-                if self.optimzer_type == 'Adam':
-                    self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
-                else:
-                    self.optimizer = optim.LBFGS(optimizable_params, lr=self.learning_rate)
-            elif self.opti_mode == 'nn':
-                if self.optimzer_type == 'Adam':
-                    self.optimizer = optim.Adam(list(self.NN.parameters()), lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
-                else:
-                    self.optimizer = optim.LBFGS(list(self.NN.parameters()), lr=self.learning_rate)
-                
-            elif self.opti_mode == 'seqnn':
-                
-                if self.optimzer_type == 'Adam':
-                    self.optimizer = optim.Adam(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
-                else:
-                    self.optimizer = optim.LBFGS(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate)
-            
+            self.init_optimizer()
+           
             for inner_iter in range(nmb_inner_iter):
                 self.new_batch()
                 self.optimizer.step(self.weak_closure)
@@ -170,12 +162,16 @@ class OPT_helper():
                     print("recon error = %f" %error)
                     best_error = error
                     
+                    state = {'optimizer': self.optimizer.state_dict()}
+                    torch.save(state, "../../results/optimizer_state.tmp")
+                    self.best_optimizer_state = 'saved'
+                    
                     best_vars = []
                     for par in self.scanner_opt_params:
                         best_vars.append(par.detach().clone())
                     
 
-                    self.print_status(do_vis_image,reco)
+                   self.print_status(do_vis_image,reco)
                         
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]
@@ -244,5 +240,5 @@ class OPT_helper():
         plt.show()                   
                                    
 def magimg(x):
-  return np.sqrt(np.sum(np.abs(x)**2,2))
+
 
