@@ -75,7 +75,7 @@ def stop():
 
 # define setup
 sz = np.array([32,1])                                           # image size
-NRep = 1                                          # number of repetitions
+NRep = 2                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
 NSpins = 2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -93,22 +93,24 @@ NVox = sz[0]*sz[1]
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 
-numerical_phantom = np.load('../../data/brainphantom_2D.npy')
-numerical_phantom = cv2.resize(numerical_phantom, dsize=(32, 32), interpolation=cv2.INTER_CUBIC)
-numerical_phantom = np.expand_dims(numerical_phantom[:,16,:],1)
-numerical_phantom[numerical_phantom < 0] = 0
+#numerical_phantom = np.load('../../data/brainphantom_2D.npy')
+#numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
+#numerical_phantom[numerical_phantom < 0] = 0
+#numerical_phantom[:,:,0]*=numerical_phantom[:,:,0]
+#numerical_phantom[:,:,0]*=numerical_phantom[:,:,0]
+#numerical_phantom[:,:,0]/=np.max(numerical_phantom[:,:,0])
 
-#numerical_phantom = np.zeros((sz[0],sz[1],3))
-#numerical_phantom[10,:,:]=2
-#numerical_phantom[23,:,:]=1
-#numerical_phantom[24,:,:]=1.5
-#numerical_phantom[25,:,:]=1
-#numerical_phantom[30,:,:]=0.1
-#numerical_phantom[28,:,:]=0.3
-#numerical_phantom[29,:,:]=0.6
-#numerical_phantom[30,:,:]=0.3
-#numerical_phantom[31,:,:]=0.1
-#numerical_phantom[:,:,2]*=0.1  # T2=100ms
+numerical_phantom = np.zeros((sz[0],sz[1],3))
+numerical_phantom[10,:,:]=2
+numerical_phantom[23,:,:]=1
+numerical_phantom[24,:,:]=1.5
+numerical_phantom[25,:,:]=1
+numerical_phantom[30,:,:]=0.1
+numerical_phantom[28,:,:]=0.3
+numerical_phantom[29,:,:]=0.6
+numerical_phantom[30,:,:]=0.3
+numerical_phantom[31,:,:]=0.1
+numerical_phantom[:,:,2]*=0.1  # T2=100ms
 #
 ##numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
 #numerical_phantom[numerical_phantom < 0] = 0
@@ -152,9 +154,8 @@ grad_moms[T-sz[0]-1:-1,:,1] = torch.zeros((1,1)).repeat([sz[0],1])
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,scanner.NRep,1))).float()
-event_time[1,:,0] = 1e-2  
-event_time[-1,:,0] = 1e2
+event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
+
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
@@ -232,13 +233,17 @@ def init_variables():
 
     grads = torch.from_numpy(g).float()
     
-#    grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
-#    grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
-#    
-#    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
-#    padder = scanner.setdevice(padder)
-#    temp = torch.cat((padder,grad_moms),0)
-#    grads = temp[1:,:,:] - temp[:-1,:,:]   
+    if 0:  # for sanity checks add gradients like in targetseq
+        grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+        grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+        
+        padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
+        padder = scanner.setdevice(padder)
+        temp = torch.cat((padder,grad_moms),0)
+        grads = temp[1:,:,:] - temp[:-1,:,:]   
+    
+    
+    grads[:,:,1] = 0    
     
     grads = setdevice(grads)
     grads.requires_grad = True
@@ -247,16 +252,12 @@ def init_variables():
     #flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     
-    #flips[0,:] = 90*np.pi/180
+    flips[0,:] = 90*np.pi/180
     flips = setdevice(flips)
     flips.requires_grad = True
     
-
-    #event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
-    event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
-
-    #event_time[0,:,0] = 1e-1
-    #event_time[-1,:,0] = 1e2
+    #event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
+    event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
     
     event_time = setdevice(event_time)
     event_time.requires_grad = True
@@ -289,19 +290,20 @@ opt.opti_mode = 'seq'
 
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 imshow(magimg(target_numpy), 'target')
-opt.set_opt_param_idx([0,1,2])
-opt.custom_learning_rate = [0.05,0.01,0.05,0.1]
+opt.set_opt_param_idx([1])
+opt.custom_learning_rate = [0.01,0.01,0.01,0.1]
+
 
 opt.set_handles(init_variables, phi_FRP_model)
 
-opt.train_model_with_restarts(nmb_rnd_restart=5, training_iter=10)
+opt.train_model_with_restarts(nmb_rnd_restart=5, training_iter=10, do_vis_image=True)
 #opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=2)
 
 #stop()
 
 print('<seq> now (100 iterations with best initialization')
 
-opt.train_model(training_iter=1000, do_vis_image=True)
+opt.train_model(training_iter=200, do_vis_image=True)
 #opt.train_model(training_iter=10)
 
 
@@ -317,6 +319,16 @@ imshow(magimg(target_numpy), 'target')
 imshow(magimg(reco), 'reconstruction')
 
 stop()
+
+# %% ###     PLOT RESULTS ######################################################@
+#############################################################################
+
+_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
+
+opt.print_status(True, reco)
+
+print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.abs(tonumpy(opt.scanner_opt_params[0].permute([1,0]))).sum()*180/np.pi, tonumpy(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0])).sum() ))
+
 
 
 

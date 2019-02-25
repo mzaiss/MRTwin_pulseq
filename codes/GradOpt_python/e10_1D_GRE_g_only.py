@@ -77,7 +77,7 @@ def stop():
 
 # define setup
 sz = np.array([32,1])                                           # image size
-NRep = 1                                          # number of repetitions
+NRep = 2                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
 NSpins = 1                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -94,7 +94,7 @@ NVox = sz[0]*sz[1]
     # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 
-numerical_phantom = np.zeros((sz[0],sz[1],3))
+numerical_phantom = np.ones((sz[0],sz[1],3))*0.01
 numerical_phantom[10,:,:]=2
 numerical_phantom[23,:,:]=1
 numerical_phantom[24,:,:]=1.5
@@ -327,7 +327,7 @@ opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10,do_vis_image=
 
 print('<seq> now (100 iterations with best initialization')
 #opt.scanner_opt_params = opt.init_variables()
-opt.train_model(training_iter=1000, do_vis_image=True)
+opt.train_model(training_iter=200, do_vis_image=True)
 #opt.train_model(training_iter=10)
 
 
@@ -347,37 +347,11 @@ stop()
 #############################################################################
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
-reco = tonumpy(reco.detach).reshape([sz[0],sz[1],2])
 
-
-f=plt.subplot(141)
-plt.imshow(magimg(target_numpy), interpolation='none')
-plt.title('target')
-f=plt.subplot(142)
-plt.imshow(magimg(reco), interpolation='none')
-plt.title('reco')
-plt.ion()
-   
-plt.subplot(143)
-ax=plt.imshow(tonumpy(opt.scanner_opt_params[0].permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
-plt.ion()
-plt.title('FA [°]')
-plt.clim(-90,270)
-fig = plt.gcf()
-fig.colorbar(ax)
-fig.set_size_inches(12, 3)
-
-
-plt.subplot(144)
-ax=plt.imshow(tonumpy(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
-plt.ion()
-plt.title('TR [s]')
-fig = plt.gcf()
-fig.set_size_inches(18, 5)
-fig.colorbar(ax)
-plt.show()    
+opt.print_status(True, reco)
 
 print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.abs(tonumpy(opt.scanner_opt_params[0].permute([1,0]))).sum()*180/np.pi, tonumpy(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0])).sum() ))
+
 
 
 

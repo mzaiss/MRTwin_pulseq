@@ -106,7 +106,7 @@ class OPT_helper():
         
         # continue optimization if state is saved
         if self.best_optimizer_state is not None:
-            checkpoint = torch.load("../../results/optimizer_state.tmp")
+            checkpoint = torch.load("results/optimizer_state.tmp")
             self.optimizer.load_state_dict(checkpoint['optimizer'])
             
             print('Loading saved optimizer state....')
@@ -163,7 +163,7 @@ class OPT_helper():
                     best_error = error
                     
                     state = {'optimizer': self.optimizer.state_dict()}
-                    torch.save(state, "../../results/optimizer_state.tmp")
+                    torch.save(state, "results/optimizer_state.tmp")
                     self.best_optimizer_state = 'saved'
                     
                     best_vars = []
@@ -232,7 +232,6 @@ class OPT_helper():
             ax1=plt.subplot(2, 5, 10)
             ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[1])[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
-            plt.title('grady')
             fig = plt.gcf()
             fig.set_size_inches(18, 3)
             fig.colorbar(ax)
@@ -240,5 +239,5 @@ class OPT_helper():
         plt.show()                   
                                    
 def magimg(x):
-
+    return np.sqrt(np.sum(np.abs(x)**2,2))
 
