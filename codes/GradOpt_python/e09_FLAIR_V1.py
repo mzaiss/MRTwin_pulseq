@@ -14,7 +14,7 @@ __allow for magnetization transfer over repetitions__
 
 FLAIR V1: 
 target is inverted signal with TI= 2.8s, and full relaxation after last
-task is : start from 180, 90, but only 1 s TI and no recovery at the end
+task is : start from 180, 90, but  4 s TI and no recovery at the end
 Thus it has to learn to lengthen both TI and Trecover at the end.
 
 RESULT at mzPC: 
@@ -255,13 +255,13 @@ def init_variables():
     #event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
     event_time = torch.from_numpy(0.1*np.zeros((scanner.T,scanner.NRep,1))).float()
 
-    #event_time[0,:,0] = 2.8
+   # event_time[0,:,0] = 4
     #event_time[0,:,0] = 1e-1
     #event_time[-1,:,0] = 1e2
     
-    event_time[0,:,0] = 1     # FLAIR preparation part 2 :added as TI=2.8s
+    event_time[0,:,0] = 4     # FLAIR preparation part 2 :added as TI=2.8s
    # event_time[1,:,0] = 1e-1  
-   # event_time[-1,:,0] = 1e2
+    event_time[-1,:,0] = 1
     
     event_time = setdevice(event_time)
     event_time.requires_grad = True
