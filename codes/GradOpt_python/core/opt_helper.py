@@ -85,11 +85,11 @@ class OPT_helper():
             #self.optimizer = optim.Adam(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
             
         for inner_iter in range(training_iter):
-            self.new_batch()
-            self.optimizer.step(self.weak_closure)
             
             _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
             print(colored("\033[93m iter %d, recon error = %f \033[0m" % (inner_iter,error), 'green'))
+            
+            
             
             if show_par:
                 par_group = tonumpy(self.scanner_opt_params[self.opt_param_idx[0]])*180/np.pi
@@ -154,6 +154,9 @@ class OPT_helper():
                 
                 plt.show() 
 
+            self.new_batch()
+            self.optimizer.step(self.weak_closure)
+
                 
         
     def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, vis_image=False):
@@ -204,8 +207,8 @@ class OPT_helper():
                     
 
                     if vis_image:
-                        sz=int(np.sqrt(tonumpy(reco).size/2))
-                        recoimg = tonumpy(reco).reshape([sz,sz,2])
+                        sz=self.spins.sz
+                        recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
                         plt.imshow(magimg(recoimg), interpolation='none')
                         plt.ion()
                         fig = plt.gcf()

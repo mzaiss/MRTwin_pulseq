@@ -136,14 +136,17 @@ scanner.init_flip_tensor_holder()
 scanner.set_flip_tensor(flips)
 
 # gradient-driver precession
+# Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
-# Cartesian encoding
 grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+#grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
 if NRep == 1:
     grad_moms[T-sz[0]-1:-1,:,1] = torch.zeros((1,1)).repeat([sz[0],1])
 else:
-    grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+    grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])  
+    
+grad_moms[-1,:,:] = grad_moms[-2,:,:]
     
 imshow(grad_moms[T-sz[0]-1:-1,:,0].cpu())
 imshow(grad_moms[T-sz[0]-1:-1,:,1].cpu())
@@ -202,13 +205,12 @@ def phi_FRP_model(opt_params,aux_params):
     grad_moms[:,:,1] = 0
     
     if use_periodic_grad_moms_cap:
-        pass
-#        fmax = torch.ones([1,1,2]).float()
-#        fmax = setdevice(fmax)
-#        fmax[0,0,0] = sz[0]/2
-#        fmax[0,0,1] = sz[1]/2
+        fmax = torch.ones([1,1,2]).float()
+        fmax = setdevice(fmax)
+        fmax[0,0,0] = sz[0]/2
+        fmax[0,0,1] = sz[1]/2
 #
-#        grad_moms = torch.sin(grad_moms)*fmax
+        grad_moms = torch.sin(grad_moms)*fmax
 
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms)
@@ -233,23 +235,23 @@ def init_variables():
     g = np.random.rand(T,NRep,2) - 0.5
     
     grads = torch.from_numpy(g).float()
-    grads[:,:,1] = 0
     
-#    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
+    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
     
-#    grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
-#    #grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
-#    if NRep == 1:
-#        grad_moms[T-sz[0]-1:-1,:,1] = torch.zeros((1,1)).repeat([sz[0],1])
-#    else:
-#        grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])  
-#        
-#    grad_moms[-1,:,:] = grad_moms[-2,:,:]
+    grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+    #grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+    if NRep == 1:
+        grad_moms[T-sz[0]-1:-1,:,1] = torch.zeros((1,1)).repeat([sz[0],1])
+    else:
+        grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])  
 
-#    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
-#    padder = scanner.setdevice(padder)
-#    temp = torch.cat((padder,grad_moms),0)
-#    grads = temp[1:,:,:] - temp[:-1,:,:]   
+    grad_moms[:,:,1] = 0        
+    grad_moms[-1,:,:] = grad_moms[-2,:,:]
+
+    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
+    padder = scanner.setdevice(padder)
+    temp = torch.cat((padder,grad_moms),0)
+    grads = temp[1:,:,:] - temp[:-1,:,:]   
 #    
     grads = setdevice(grads)
     grads.requires_grad = True
@@ -258,7 +260,7 @@ def init_variables():
     #flips = torch.ones((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     flips = torch.zeros((T,NRep), dtype=torch.float32) * 90 * np.pi/180
     
-   # flips[0,:] = 180*np.pi/180  # FLAIR preparation part 1 : 180 degree pulse befor TI (see below)
+    flips[0,:] = 90*np.pi/180  # FLAIR preparation part 1 : 180 degree pulse befor TI (see below)
    # flips[1,:] = 90*np.pi/180
 
     
@@ -267,14 +269,10 @@ def init_variables():
     
    
 
-    #event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
-    #event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
-    event_time = torch.from_numpy(0.1*np.zeros((scanner.T,scanner.NRep,1))).float()
-
-    #event_time[0,:,0] = 2.8
-    #event_time[0,:,0] = 1e-1
-    #event_time[-1,:,0] = 1e2
-    
+    event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,scanner.NRep,1))).float()
+    event_time[1,:,0] = 1e-2  
+    event_time[-1,:,0] = 1e2
+        
    # event_time[0,:,0] = 1     # FLAIR preparation part 2 :added as TI=2.8s
    # event_time[1,:,0] = 1e-1  
    # event_time[-1,:,0] = 1e2
@@ -311,7 +309,7 @@ opt.opti_mode = 'seq'
 #target_numpy = tonumpy(target).reshape([sz[0],sz[1],2])
 #imshow(magimg(target_numpy), 'target')
 
-opt.set_opt_param_idx([0,1,2])
+opt.set_opt_param_idx([1])
 #opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
 opt.custom_learning_rate = [0.01,0.01,0.01,0.1]
 
