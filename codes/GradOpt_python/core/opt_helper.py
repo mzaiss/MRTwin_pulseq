@@ -100,7 +100,7 @@ class OPT_helper():
                 sz=self.spins.sz
                 recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
                            
-                ax1=plt.subplot(141)
+                ax1=plt.subplot(151)
                 ax=plt.imshow(magimg(self.target), interpolation='none')
                 #plt.clim(0,1)
                 fig = plt.gcf()
@@ -108,7 +108,7 @@ class OPT_helper():
                 plt.title('target')
                 plt.ion()
                 
-                plt.subplot(142, sharex=ax1, sharey=ax1)
+                plt.subplot(152, sharex=ax1, sharey=ax1)
                 ax=plt.imshow(magimg(recoimg), interpolation='none')
                 plt.clim(np.min(self.target),np.max(self.target))
                 fig = plt.gcf()
@@ -116,24 +116,43 @@ class OPT_helper():
                 plt.title('reco')
                 plt.ion()
                    
-                plt.subplot(143)
+                plt.subplot(153)
                 ax=plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
                 plt.ion()
                 plt.title('FA [\N{DEGREE SIGN}]')
                 plt.clim(-90,270)
                 fig = plt.gcf()
                 fig.colorbar(ax)
-                fig.set_size_inches(12, 3)
+                fig.set_size_inches(18, 3)
                 
                 
-                plt.subplot(144)
+                plt.subplot(154)
                 ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
                 plt.ion()
                 plt.title('TR [s]')
                 fig = plt.gcf()
-                fig.set_size_inches(16, 5)
+                fig.set_size_inches(18, 3)
                 fig.colorbar(ax)
-                plt.show()    
+                  
+                
+                ax1=plt.subplot(2, 5, 5)
+                ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[1])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+                plt.ion()
+                plt.title('gradx')
+                fig = plt.gcf()
+                fig.set_size_inches(18, 3)
+                fig.colorbar(ax)
+               
+                
+                ax1=plt.subplot(2, 5, 10)
+                ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[1])[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+                plt.ion()
+                plt.title('grady')
+                fig = plt.gcf()
+                fig.set_size_inches(18, 3)
+                fig.colorbar(ax)
+                
+                plt.show() 
 
                 
         
