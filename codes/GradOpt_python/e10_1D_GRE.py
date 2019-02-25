@@ -104,6 +104,7 @@ numerical_phantom[28,:,:]=0.3
 numerical_phantom[29,:,:]=0.6
 numerical_phantom[30,:,:]=0.3
 numerical_phantom[31,:,:]=0.1
+numerical_phantom[:,0,0] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,1]
 numerical_phantom[:,:,2]*=0.1  # T2=100ms
 
 #numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
@@ -185,7 +186,7 @@ if False:                                                       # check sanity
 def phi_FRP_model(opt_params,aux_params):
     
     flips,grads,event_time,adc_mask = opt_params
-    use_periodic_grad_moms_cap = aux_params
+    use_periodic_grad_moms_cap,_ = aux_params
     
     flip_mask = torch.zeros((scanner.T, scanner.NRep)).float()        
     flip_mask[:2,:] = 1
@@ -202,18 +203,17 @@ def phi_FRP_model(opt_params,aux_params):
     grad_moms[:,:,1] = 0
     
     if use_periodic_grad_moms_cap:
-        pass
-#        fmax = torch.ones([1,1,2]).float()
-#        fmax = setdevice(fmax)
-#        fmax[0,0,0] = sz[0]/2
-#        fmax[0,0,1] = sz[1]/2
-#
-#        grad_moms = torch.sin(grad_moms)*fmax
+        fmax = torch.ones([1,1,2]).float()
+        fmax = setdevice(fmax)
+        fmax[0,0,0] = sz[0]/2
+        fmax[0,0,1] = sz[1]/2
+
+        grad_moms = torch.sin(grad_moms)*fmax
 
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms)
     
-    #scanner.adc_mask = adc_mask
+    scanner.adc_mask = adc_mask
           
     # forward/adjoint pass
     scanner.forward(spins, event_time)
@@ -221,7 +221,7 @@ def phi_FRP_model(opt_params,aux_params):
 
             
     loss = (scanner.reco - target)
-    phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
+    phi = torch.sum(loss.squeeze()**2/NVox)
     
     ereco = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     error = e(tonumpy(target).ravel(),ereco.ravel())     
@@ -268,8 +268,8 @@ def init_variables():
    
 
     #event_time = torch.from_numpy(np.zeros((scanner.T,scanner.NRep,1))).float()
-    #event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
-    event_time = torch.from_numpy(0.1*np.zeros((scanner.T,scanner.NRep,1))).float()
+    event_time = torch.from_numpy(0.1*np.random.rand(scanner.T,scanner.NRep,1)).float()
+    #event_time = torch.from_numpy(0.1*np.zeros((scanner.T,scanner.NRep,1))).float()
 
     #event_time[0,:,0] = 2.8
     #event_time[0,:,0] = 1e-1
@@ -299,7 +299,7 @@ def init_variables():
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
 opt.set_target(reco)
 
-opt.use_periodic_grad_moms_cap = 0           # do not sample above Nyquist flag
+opt.use_periodic_grad_moms_cap = 1           # do not sample above Nyquist flag
 opt.learning_rate = 0.01                                        # ADAM step size
 
 # fast track
@@ -319,7 +319,7 @@ opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 
-#opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
+opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
 #opt.train_model_with_restarts(nmb_rnd_restart=1, training_iter=1)
 
 #stop()
