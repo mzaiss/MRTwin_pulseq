@@ -22,6 +22,7 @@ class OPT_helper():
         self.custom_learning_rate = None   # allow for differerent learning rates in different parameter groups
         
         self.opti_mode = 'seq'
+        self.optimzer_type = 'Adam'
         
         self.scanner = scanner
         self.spins = spins
@@ -76,12 +77,24 @@ class OPT_helper():
                 optimizable_params.append({'params':self.scanner_opt_params[self.opt_param_idx[i]], 'lr': self.custom_learning_rate[i]} )
             
         if self.opti_mode == 'seq':
-            self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+            if self.optimzer_type == 'Adam':
+                self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+            else:
+                self.optimizer = optim.LBFGS(optimizable_params, lr=self.learning_rate)
         elif self.opti_mode == 'nn':
-            self.optimizer = optim.Adam(list(self.NN.parameters()), lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+            if self.optimzer_type == 'Adam':
+                self.optimizer = optim.Adam(list(self.NN.parameters()), lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+            else:
+                self.optimizer = optim.LBFGS(list(self.NN.parameters()), lr=self.learning_rate)
+            
         elif self.opti_mode == 'seqnn':
             optimizable_params.append({'params':self.NN.parameters(), 'lr': self.learning_rate} )
-            self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+            
+            if self.optimzer_type == 'Adam':
+                self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+            else:
+                self.optimizer = optim.LBFGS(optimizable_params, lr=self.learning_rate)
+            
             #self.optimizer = optim.Adam(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
             
         for inner_iter in range(training_iter):
@@ -185,11 +198,22 @@ class OPT_helper():
                     optimizable_params.append({'params':self.scanner_opt_params[self.opt_param_idx[i]], 'lr': self.custom_learning_rate[i]} )          
                 
             if self.opti_mode == 'seq':
-                self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+                if self.optimzer_type == 'Adam':
+                    self.optimizer = optim.Adam(optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+                else:
+                    self.optimizer = optim.LBFGS(optimizable_params, lr=self.learning_rate)
             elif self.opti_mode == 'nn':
-                self.optimizer = optim.Adam(list(self.NN.parameters()), lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+                if self.optimzer_type == 'Adam':
+                    self.optimizer = optim.Adam(list(self.NN.parameters()), lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+                else:
+                    self.optimizer = optim.LBFGS(list(self.NN.parameters()), lr=self.learning_rate)
+                
             elif self.opti_mode == 'seqnn':
-                self.optimizer = optim.Adam(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+                
+                if self.optimzer_type == 'Adam':
+                    self.optimizer = optim.Adam(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate, weight_decay=WEIGHT_DECAY)
+                else:
+                    self.optimizer = optim.LBFGS(list(self.NN.parameters())+optimizable_params, lr=self.learning_rate)
             
             for inner_iter in range(nmb_inner_iter):
                 self.new_batch()
@@ -214,17 +238,18 @@ class OPT_helper():
                         fig = plt.gcf()
                         fig.set_size_inches(1, 1)
                         plt.show()   
-                    sz=int(np.sqrt(tonumpy(reco).size/2))
-                    recoimg = tonumpy(reco).reshape([sz,sz,2])
-                                    
-                    plt.imshow(magimg(recoimg), interpolation='none')
-                    plt.ion()
-                    fig = plt.gcf()
-                    fig.set_size_inches(1, 1)
-                    plt.show()     
-                    
-                    #plt.plot(tonumpy(self.scanner_opt_params[0].permute([1,0]).flatten())*180/np.pi)
-                    plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi)
+                        
+                        sz=int(np.sqrt(tonumpy(reco).size/2))
+                        recoimg = tonumpy(reco).reshape([sz,sz,2])
+                                        
+                        plt.imshow(magimg(recoimg), interpolation='none')
+                        plt.ion()
+                        fig = plt.gcf()
+                        fig.set_size_inches(1, 1)
+                        plt.show()     
+                        
+                        #plt.plot(tonumpy(self.scanner_opt_params[0].permute([1,0]).flatten())*180/np.pi)
+                        plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi)
                         
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]

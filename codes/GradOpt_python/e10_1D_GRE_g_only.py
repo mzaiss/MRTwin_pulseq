@@ -172,11 +172,11 @@ scanner.adjoint(spins)
 # try to fit this
 target = scanner.reco.clone()
    
-reco = tonumpy(scanner.reco).reshape([sz[0],sz[1],2])
+target_reco = tonumpy(target).reshape([sz[0],sz[1],2])
 
 if False:                                                       # check sanity
     imshow(spins.img, 'original')
-    imshow(magimg(reco), 'reconstruction')
+    imshow(magimg(target_reco), 'reconstruction')
     
     stop()
     
@@ -188,7 +188,7 @@ if False:                                                       # check sanity
 def phi_FRP_model(opt_params,aux_params):
     
     flips,grads,event_time,adc_mask = opt_params
-    use_periodic_grad_moms_cap = aux_params
+    use_periodic_grad_moms_cap,_ = aux_params
     
     flip_mask = torch.zeros((scanner.T, scanner.NRep)).float()        
     flip_mask[:2,:] = 1
@@ -223,7 +223,8 @@ def phi_FRP_model(opt_params,aux_params):
 
             
     loss = (scanner.reco - target)
-    phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
+    #phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
+    phi = torch.sum(loss.squeeze()**2/NVox)
     
     ereco = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     error = e(tonumpy(target).ravel(),ereco.ravel())     
@@ -232,26 +233,27 @@ def phi_FRP_model(opt_params,aux_params):
     
 
 def init_variables():
-    g = np.random.rand(T,NRep,2) - 0.5
+    g = (np.random.rand(T,NRep,2) - 0.5)
     
     grads = torch.from_numpy(g).float()
+    grads[:,:,1] = 0
     
-    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
-    
-    grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
-    #grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
-    if NRep == 1:
-        grad_moms[T-sz[0]-1:-1,:,1] = torch.zeros((1,1)).repeat([sz[0],1])
-    else:
-        grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])  
-
-    grad_moms[:,:,1] = 0        
-    grad_moms[-1,:,:] = grad_moms[-2,:,:]
-
-    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
-    padder = scanner.setdevice(padder)
-    temp = torch.cat((padder,grad_moms),0)
-    grads = temp[1:,:,:] - temp[:-1,:,:]   
+#    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
+#    
+#    grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+#    #grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+#    if NRep == 1:
+#        grad_moms[T-sz[0]-1:-1,:,1] = torch.zeros((1,1)).repeat([sz[0],1])
+#    else:
+#        grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])  
+#
+#    grad_moms[:,:,1] = 0        
+#    grad_moms[-1,:,:] = grad_moms[-2,:,:]
+#
+#    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
+#    padder = scanner.setdevice(padder)
+#    temp = torch.cat((padder,grad_moms),0)
+#    grads = temp[1:,:,:] - temp[:-1,:,:]   
 #    
     grads = setdevice(grads)
     grads.requires_grad = True
@@ -295,10 +297,11 @@ def init_variables():
 # %% # OPTIMIZATION land
 
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
-opt.set_target(reco)
+opt.set_target(target_reco)
 
-opt.use_periodic_grad_moms_cap = 0           # do not sample above Nyquist flag
+opt.use_periodic_grad_moms_cap = 1           # do not sample above Nyquist flag
 opt.learning_rate = 0.01                                        # ADAM step size
+opt.optimzer_type = 'Adam'
 
 # fast track
 # opt.training_iter = 10; opt.training_iter_restarts = 5
@@ -317,14 +320,14 @@ opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 
-#opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
+opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10)
 #opt.train_model_with_restarts(nmb_rnd_restart=1, training_iter=1)
 
 #stop()
 
 print('<seq> now (100 iterations with best initialization')
 #opt.scanner_opt_params = opt.init_variables()
-opt.train_model(training_iter=100, do_vis_image=True)
+opt.train_model(training_iter=1000, do_vis_image=False)
 #opt.train_model(training_iter=10)
 
 
