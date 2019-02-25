@@ -171,7 +171,7 @@ class OPT_helper():
                         best_vars.append(par.detach().clone())
                     
 
-                   self.print_status(do_vis_image,reco)
+                    self.print_status(do_vis_image,reco)
                         
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]
