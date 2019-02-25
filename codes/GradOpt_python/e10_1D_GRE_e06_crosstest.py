@@ -100,7 +100,7 @@ spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 #numerical_phantom[:,:,0]*=numerical_phantom[:,:,0]
 #numerical_phantom[:,:,0]/=np.max(numerical_phantom[:,:,0])
 
-numerical_phantom = np.zeros((sz[0],sz[1],3))
+numerical_phantom = np.ones((sz[0],sz[1],3))*0.01
 numerical_phantom[10,:,:]=2
 numerical_phantom[23,:,:]=1
 numerical_phantom[24,:,:]=1.5
@@ -291,7 +291,8 @@ opt.opti_mode = 'seq'
 target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
 imshow(magimg(target_numpy), 'target')
 opt.set_opt_param_idx([1])
-opt.custom_learning_rate = [0.01,0.01,0.01,0.1]
+opt.custom_learning_rate = [0.05,0.01,0.05,0.1]
+opt.custom_learning_rate = [0.01,0.01,0.01,0.01]
 
 
 opt.set_handles(init_variables, phi_FRP_model)
@@ -303,7 +304,7 @@ opt.train_model_with_restarts(nmb_rnd_restart=5, training_iter=10, do_vis_image=
 
 print('<seq> now (100 iterations with best initialization')
 
-opt.train_model(training_iter=200, do_vis_image=True)
+opt.train_model(training_iter=100, do_vis_image=True)
 #opt.train_model(training_iter=10)
 
 
