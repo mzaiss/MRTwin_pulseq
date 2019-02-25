@@ -186,6 +186,10 @@ def phi_FRP_model(opt_params,aux_params):
     flip_mask = setdevice(flip_mask)
     flips = flips * flip_mask    
     
+    flips = flips[:,0].unsqueeze(1).repeat([1, scanner.NRep])
+    
+    event_time = event_time[:,0,0].unsqueeze(1).unsqueeze(2).repeat([1, scanner.NRep, 1])
+    
     scanner.init_flip_tensor_holder()
     scanner.set_flip_tensor(flips)
     

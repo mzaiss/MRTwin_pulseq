@@ -35,6 +35,9 @@ class OPT_helper():
         self.aux_params = None
         self.opt_param_idx = []
         
+    def set_target(self,target):
+        self.target = target
+        
     def set_handles(self,init_variables,phi_FRP_model):
         self.init_variables = init_variables
         self.phi_FRP_model = phi_FRP_model
@@ -94,15 +97,26 @@ class OPT_helper():
                 print(par_group)
                 
             if do_vis_image:
-                sz=int(np.sqrt(tonumpy(reco).size/2))
-                recoimg = tonumpy(reco).reshape([sz,sz,2])
-                                
-                f=plt.subplot(131)
-                plt.imshow(magimg(recoimg), interpolation='none')
+                sz=self.spins.sz
+                recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
+                           
+                ax1=plt.subplot(141)
+                ax=plt.imshow(magimg(self.target), interpolation='none')
+                #plt.clim(0,1)
+                fig = plt.gcf()
+                fig.colorbar(ax)
+                plt.title('target')
+                plt.ion()
+                
+                plt.subplot(142, sharex=ax1, sharey=ax1)
+                ax=plt.imshow(magimg(recoimg), interpolation='none')
+                plt.clim(np.min(self.target),np.max(self.target))
+                fig = plt.gcf()
+                fig.colorbar(ax)
                 plt.title('reco')
                 plt.ion()
                    
-                plt.subplot(132)
+                plt.subplot(143)
                 ax=plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
                 plt.ion()
                 plt.title('FA [\N{DEGREE SIGN}]')
@@ -112,12 +126,12 @@ class OPT_helper():
                 fig.set_size_inches(12, 3)
                 
                 
-                plt.subplot(133)
+                plt.subplot(144)
                 ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
                 plt.ion()
                 plt.title('TR [s]')
                 fig = plt.gcf()
-                fig.set_size_inches(18, 5)
+                fig.set_size_inches(16, 5)
                 fig.colorbar(ax)
                 plt.show()    
 
