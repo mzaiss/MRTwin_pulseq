@@ -76,8 +76,8 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([48,2])                                           # image size
-NRep = 2                                          # number of repetitions
+sz = np.array([32,1])                                           # image size
+NRep = 1                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
 NSpins = 1                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -100,10 +100,10 @@ numerical_phantom[23,:,:]=1
 numerical_phantom[24,:,:]=1.5
 numerical_phantom[25,:,:]=1
 numerical_phantom[30,:,:]=0.1
-numerical_phantom[31,:,:]=0.3
-numerical_phantom[32,:,:]=0.6
-numerical_phantom[33,:,:]=0.3
-numerical_phantom[34,:,:]=0.1
+numerical_phantom[28,:,:]=0.3
+numerical_phantom[29,:,:]=0.6
+numerical_phantom[30,:,:]=0.3
+numerical_phantom[31,:,:]=0.1
 numerical_phantom[:,:,2]*=0.1  # T2=100ms
 
 #numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
@@ -140,8 +140,11 @@ grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 
 # Cartesian encoding
 grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
-grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
-
+if NRep == 1:
+    grad_moms[T-sz[0]-1:-1,:,1] = torch.zeros((1,1)).repeat([sz[0],1])
+else:
+    grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+    
 imshow(grad_moms[T-sz[0]-1:-1,:,0].cpu())
 imshow(grad_moms[T-sz[0]-1:-1,:,1].cpu())
 
@@ -195,6 +198,9 @@ def phi_FRP_model(opt_params,aux_params):
     # gradients
     grad_moms = torch.cumsum(grads,0)
     
+    # dont optimize y  grads
+    grad_moms[:,:,1] = 0
+    
     if use_periodic_grad_moms_cap:
         pass
 #        fmax = torch.ones([1,1,2]).float()
@@ -227,17 +233,24 @@ def init_variables():
     g = np.random.rand(T,NRep,2) - 0.5
     
     grads = torch.from_numpy(g).float()
+    grads[:,:,1] = 0
     
-    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
+#    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
     
-    grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
-    grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+#    grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+#    #grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
+#    if NRep == 1:
+#        grad_moms[T-sz[0]-1:-1,:,1] = torch.zeros((1,1)).repeat([sz[0],1])
+#    else:
+#        grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])  
+#        
+#    grad_moms[-1,:,:] = grad_moms[-2,:,:]
 
-    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
-    padder = scanner.setdevice(padder)
-    temp = torch.cat((padder,grad_moms),0)
-    grads = temp[1:,:,:] - temp[:-1,:,:]   
-    
+#    padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
+#    padder = scanner.setdevice(padder)
+#    temp = torch.cat((padder,grad_moms),0)
+#    grads = temp[1:,:,:] - temp[:-1,:,:]   
+#    
     grads = setdevice(grads)
     grads.requires_grad = True
     
@@ -298,9 +311,9 @@ opt.opti_mode = 'seq'
 #target_numpy = tonumpy(target).reshape([sz[0],sz[1],2])
 #imshow(magimg(target_numpy), 'target')
 
-opt.set_opt_param_idx([0,2])
+opt.set_opt_param_idx([0,1,2])
 #opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
-opt.custom_learning_rate = [0.01,0.01,0.01,0.1]
+opt.custom_learning_rate = [0.01,0.1,0.01,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
