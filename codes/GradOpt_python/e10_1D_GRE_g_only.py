@@ -67,7 +67,7 @@ def imshow(x, title=None):
         plt.title(title)
     plt.ion()
     fig = plt.gcf()
-    fig.set_size_inches(1, 1)
+    fig.set_size_inches(3, 3)
     plt.show()     
 
 def stop():
@@ -320,23 +320,13 @@ opt.train_model(training_iter=200, do_vis_image=True)
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 reco = tonumpy(reco).reshape([sz[0],sz[1],2])
 
-target_numpy = tonumpy(targetSeq.target).reshape([sz[0],sz[1],2])
-imshow(magimg(target_numpy), 'target')
-imshow(magimg(reco), 'reconstruction')
-
-stop()
-
-# %% ###     PLOT RESULTS ######################################################@
-#############################################################################
-
-_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
-
+# plot
 targetSeq.print_status(True, reco=None)
 opt.print_status(True, reco)
-
 
 print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.abs(tonumpy(opt.scanner_opt_params[0].permute([1,0]))).sum()*180/np.pi, tonumpy(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0])).sum() ))
 
 
+stop()
 
 

@@ -41,7 +41,7 @@ class TargetSequenceHolder():
             
             plt.subplot(152, sharex=ax1, sharey=ax1)
             ax=plt.imshow(magimg(recoimg), interpolation='none')
-            plt.clim(np.min(recoimg),np.max(recoimg))
+            plt.clim(np.min(np.abs(recoimg)),np.max(np.abs(recoimg)))
             fig = plt.gcf()
             fig.colorbar(ax)
             plt.title('target sequence result')

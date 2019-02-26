@@ -198,7 +198,7 @@ class OPT_helper():
             
             plt.subplot(152, sharex=ax1, sharey=ax1)
             ax=plt.imshow(magimg(recoimg), interpolation='none')
-            plt.clim(np.min(self.target),np.max(self.target))
+            plt.clim(np.min(np.abs(self.target)),np.max(np.abs(self.target)))
             fig = plt.gcf()
             fig.colorbar(ax)
             plt.title('reco')
