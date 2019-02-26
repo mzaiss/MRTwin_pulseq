@@ -156,8 +156,8 @@ grad_moms[-1,:,:] = grad_moms[-2,:,:]
 grad_moms[:,:,1] = 0
 
     
-imshow(grad_moms[T-sz[0]-1:-1,:,0].cpu())
-imshow(grad_moms[T-sz[0]-1:-1,:,1].cpu())
+#imshow(grad_moms[T-sz[0]-1:-1,:,0].cpu())
+#imshow(grad_moms[T-sz[0]-1:-1,:,1].cpu())
 
 grad_moms = setdevice(grad_moms)
 
@@ -190,14 +190,11 @@ targetSeq.grad_moms = grad_moms
 targetSeq.event_time = event_time
 targetSeq.adc_mask = scanner.adc_mask
 
-if False:                                                       # check sanity
-    imshow(spins.img, 'original')
-    imshow(magimg(tonumpy(targetSeq.target).reshape([sz[0],sz[1],2])), 'reconstruction')
-    
+if False: # check sanity: is target what you expect and is sequence what you expect
+    targetSeq.print_status(True, reco=None)
     stop()
     
     
-
 # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
     
@@ -250,7 +247,7 @@ def phi_FRP_model(opt_params,aux_params):
 
 def init_variables():
     
-    use_gtruth_grads = False
+    use_gtruth_grads = False    # if this is changed also use_periodic_grad_moms_cap must be changed
     if use_gtruth_grads:
         grad_moms = targetSeq.grad_moms.clone()
         

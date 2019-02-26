@@ -36,7 +36,7 @@ class TargetSequenceHolder():
             #plt.clim(0,1)
             fig = plt.gcf()
             fig.colorbar(ax)
-            plt.title('target')
+            plt.title('target sequence result')
             plt.ion()
             
             plt.subplot(152, sharex=ax1, sharey=ax1)
@@ -44,7 +44,7 @@ class TargetSequenceHolder():
             plt.clim(np.min(recoimg),np.max(recoimg))
             fig = plt.gcf()
             fig.colorbar(ax)
-            plt.title('reco')
+            plt.title('target sequence result')
             plt.ion()
                
             plt.subplot(153)
