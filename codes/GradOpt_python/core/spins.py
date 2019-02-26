@@ -18,7 +18,7 @@ class SpinSystem():
         self.PD = None                        # proton density tensor (NVox,)
         self.T1 = None                          # T1 relaxation times (NVox,)
         self.T2 = None                          # T2 relaxation times (NVox,)
-        self.dB0 = None                        # spin off-resonance (NSpins,)
+        self.omega = None                        # spin off-resonance (NSpins,)
         
         self.M0 = None     # initial magnetization state (NSpins,NRep,NVox,4)
         self.M = None       # curent magnetization state (NSpins,NRep,NVox,4)
@@ -58,12 +58,12 @@ class SpinSystem():
             
         # set NSpins offresonance (from R2)
         factor = (0*1e0*np.pi/180) / self.NSpins
-        dB0 = torch.from_numpy(factor*np.arange(0,self.NSpins).reshape([self.NSpins])).float()
+        omega = torch.from_numpy(factor*np.arange(0,self.NSpins).reshape([self.NSpins])).float()
         
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
         self.PD = self.setdevice(PD)
-        self.dB0 = self.setdevice(dB0)
+        self.omega = self.setdevice(omega)
         
     def set_initial_magnetization(self):
         
@@ -109,13 +109,13 @@ class SpinSystem_batched(SpinSystem):
         T2 = torch.from_numpy(T2.reshape([self.batch_size, self.NVox])).float()   
             
         # set NSpins offresonance (from R2)
-        factor = (0*1e0*np.pi/180) / self.NSpins
-        dB0 = torch.from_numpy(factor*np.arange(0,self.NSpins).reshape([self.NSpins])).float()
+        factor = 0
+        omega = torch.from_numpy(factor*np.random.rand(self.NSpins,self.NVox).reshape([self.NSpins,self.NVox])).float()
         
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
         self.PD = self.setdevice(PD)
-        self.dB0 = self.setdevice(dB0)
+        self.omega = self.setdevice(omega)
         
     def set_initial_magnetization(self):
         
