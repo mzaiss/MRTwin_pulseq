@@ -75,6 +75,10 @@ class Scanner():
         rampY = torch.from_numpy(rampY).float()
         rampY = rampY.view([1,1,self.NVox])    
         
+        # 1D case
+        if self.sz[1] == 1:
+            rampY[:,:,:] = 0
+        
         self.rampX = self.setdevice(rampX)
         self.rampY = self.setdevice(rampY)
         
@@ -246,7 +250,7 @@ class Scanner():
         
     def init_signal(self):
         signal = torch.zeros((self.NCoils,self.T,self.NRep,4,1), dtype=torch.float32) 
-        signal[:,:,:,2:,0] = 1                                 # aux dim zero
+        #signal[:,:,:,2:,0] = 1                                 # aux dim zero ()
               
         self.signal = self.setdevice(signal)
         
@@ -568,7 +572,7 @@ class Scanner_batched():
         
     def init_signal(self):
         signal = torch.zeros((self.batch_size,self.NCoils,self.T,self.NRep,4,1), dtype=torch.float32) 
-        signal[:,:,:,:,2:,0] = 1                                 # aux dim zero
+        #signal[:,:,:,:,2:,0] = 1                                 # aux dim zero
               
         self.signal = self.setdevice(signal)
         
@@ -744,8 +748,12 @@ class Scanner_fast(Scanner):
         for r in range(self.NRep):                                   # for all repetitions
             for t in range(self.T):                                      # for all actions
                 self.flip(t,r,spins)
-                      
-                delay = torch.abs(event_time[t,r] + 1e-6)
+                 
+                #delay = event_time[t,r]**2
+                delay = torch.abs(event_time[t,r] + 1e-6) * 1
+                #delay = (torch.abs(event_time[t,r]) + 1e-6)
+                #delay = torch.sqrt((event_time[t,r]) ** 2 + 1e-6)
+                #delay = torch.sqrt((event_time[t,r]) ** 2)
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.relax_and_dephase(spins)
