@@ -124,6 +124,7 @@ spins.T2[spins.T2<cutoff] = cutoff
 R2 = 10.0
 #omega = np.linspace(0,1,NSpins) - 0.5
 omega = np.random.rand(NSpins,NVox) - 0.5
+omega = np.expand_dims(omega[:,0],1).repeat(NVox, axis=1)
 omega = R2 * np.tan ( np.pi  * omega)
 
 #omega = np.random.rand(NSpins,NVox) * 100
