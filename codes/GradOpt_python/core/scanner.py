@@ -250,7 +250,7 @@ class Scanner():
         
     def init_signal(self):
         signal = torch.zeros((self.NCoils,self.T,self.NRep,4,1), dtype=torch.float32) 
-        signal[:,:,:,2:,0] = 1                                 # aux dim zero
+        #signal[:,:,:,2:,0] = 1                                 # aux dim zero ()
               
         self.signal = self.setdevice(signal)
         
@@ -572,7 +572,7 @@ class Scanner_batched():
         
     def init_signal(self):
         signal = torch.zeros((self.batch_size,self.NCoils,self.T,self.NRep,4,1), dtype=torch.float32) 
-        signal[:,:,:,:,2:,0] = 1                                 # aux dim zero
+        #signal[:,:,:,:,2:,0] = 1                                 # aux dim zero
               
         self.signal = self.setdevice(signal)
         
