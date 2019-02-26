@@ -73,7 +73,7 @@ class OPT_helper():
             if self.custom_learning_rate == None:
                 optimizable_params.append(self.scanner_opt_params[self.opt_param_idx[i]] )
             else:
-                optimizable_params.append({'params':self.scanner_opt_params[self.opt_param_idx[i]], 'lr': self.custom_learning_rate[i]} )
+                optimizable_params.append({'params':self.scanner_opt_params[self.opt_param_idx[i]], 'lr': self.custom_learning_rate[self.opt_param_idx[i]]} )
             
         if self.opti_mode == 'seq':
             if self.optimzer_type == 'Adam':
