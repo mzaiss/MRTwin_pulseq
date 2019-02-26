@@ -696,18 +696,16 @@ class Scanner_fast(Scanner):
             
             # parallel imaging disabled for now
             #sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(0).unsqueeze(4))
-            self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t]))
             
             if self.noise_std > 0:
-                
-                class ExecutionControl(Exception): pass
-                raise ExecutionControl('read_signal: WIP noise not supported')
-                
-                noise = self.noise_std*torch.randn(sig.shape).float()
-                #noise[:,2:] = 0
+                noise = self.noise_std*torch.randn(spins.M[:,:,:,:2].shape).float()
                 noise = self.setdevice(noise)
+                sig = spins.M[:,:,:,:2]
                 sig += noise  
             
+                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t]))
+            else:
+                self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t]))
      
         
     # TODO: fix
@@ -837,17 +835,17 @@ class Scanner_batched_fast(Scanner_batched):
             
             # parallel imaging disabled for now
             #sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(0).unsqueeze(4))
-            self.signal[:,0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:,:2],[1,2,3]) * self.adc_mask[t]))
             
             if self.noise_std > 0:
-                
-                class ExecutionControl(Exception): pass
-                raise ExecutionControl('read_signal: WIP noise not supported')
-                
-                noise = self.noise_std*torch.randn(sig.shape).float()
-                #noise[:,2:] = 0
+                noise = self.noise_std*torch.randn(spins.M[:,:,:,:2].shape).float()
                 noise = self.setdevice(noise)
+                sig = spins.M[:,:,:,:2]
                 sig += noise  
+            
+                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t]))
+            else:
+                self.signal[:,0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:,:2],[1,2,3]) * self.adc_mask[t]))
+            
                 
                 
     # XXX
