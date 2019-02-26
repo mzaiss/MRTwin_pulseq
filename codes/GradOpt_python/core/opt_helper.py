@@ -224,7 +224,7 @@ class OPT_helper():
               
             
             ax1=plt.subplot(2, 5, 5)
-            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[1])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(self.scanner_opt_params[1][:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('gradx')
             fig = plt.gcf()
@@ -233,7 +233,7 @@ class OPT_helper():
                
             
             ax1=plt.subplot(2, 5, 10)
-            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[1])[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(self.scanner_opt_params[1][:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             fig = plt.gcf()
             fig.set_size_inches(18, 3)

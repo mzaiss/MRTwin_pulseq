@@ -209,7 +209,8 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.set_flip_tensor(flips)
     
     # gradients
-    grad_moms = torch.cumsum(grads,0)
+    #grad_moms = torch.cumsum(grads,0)
+    grad_moms = grads*1
     
     # dont optimize y  grads
     grad_moms[:,:,1] = 0
@@ -248,18 +249,18 @@ def init_variables():
     if use_gtruth_grads:
         grad_moms = targetSeq.grad_moms.clone()
         
-        padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
-        padder = scanner.setdevice(padder)
-        temp = torch.cat((padder,grad_moms),0)
-        grads = temp[1:,:,:] - temp[:-1,:,:]   
+#        padder = torch.zeros((1,scanner.NRep,2),dtype=torch.float32)
+#        padder = scanner.setdevice(padder)
+#        temp = torch.cat((padder,grad_moms),0)
+#        grads = temp[1:,:,:] - temp[:-1,:,:]   
     else:
-        g = (np.random.rand(T,NRep,2) - 0.5)
+        g = (np.random.rand(T,NRep,2) - 0.5)*2*np.pi
         
-        grads = torch.from_numpy(g).float()
-        grads[:,:,1] = 0        
-        grads = setdevice(grads)
+        grad_moms = torch.from_numpy(g).float()
+        grad_moms[:,:,1] = 0        
+        grad_moms = setdevice(grad_moms)
     
-    grads.requires_grad = True
+    grad_moms.requires_grad = True
     
     flips = targetSeq.flips.clone()
     flips.requires_grad = True
@@ -272,7 +273,7 @@ def init_variables():
     adc_mask = targetSeq.adc_mask.clone()
     adc_mask.requires_grad = True     
     
-    return [flips, grads, event_time, adc_mask]
+    return [flips, grad_moms, event_time, adc_mask]
     
 
     
@@ -317,7 +318,7 @@ opt.train_model(training_iter=200, do_vis_image=True)
 #opt.scanner_opt_params = init_variables()
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
-reco = tonumpy(reco).reshape([sz[0],sz[1],2])
+#reco = tonumpy(reco).reshape([sz[0],sz[1],2])
 
 # plot
 targetSeq.print_status(True, reco=None)
