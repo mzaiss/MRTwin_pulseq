@@ -184,7 +184,10 @@ class OPT_helper():
         if do_vis_image:
             sz=self.spins.sz
             recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
-                       
+
+            # clear previous figure stack            
+            plt.clf()            
+            
             ax1=plt.subplot(151)
             ax=plt.imshow(magimg(self.target), interpolation='none')
             #plt.clim(0,1)
@@ -236,7 +239,8 @@ class OPT_helper():
             fig.set_size_inches(18, 3)
             fig.colorbar(ax)
             
-        plt.show()                   
+            plt.show()
+            plt.pause(0.02)
                                    
 def magimg(x):
     return np.sqrt(np.sum(np.abs(x)**2,2))
