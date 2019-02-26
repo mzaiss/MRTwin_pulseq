@@ -77,7 +77,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([32,2])                                           # image size
+sz = np.array([32,1])                                           # image size
 NRep = 2                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
 NSpins = 1                                # number of spin sims in each voxel
@@ -183,7 +183,8 @@ target = scanner.reco.clone()
    
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder()
-targetSeq.target = target
+targetSeq.target_image = target
+targetSeq.sz = sz
 targetSeq.flips = flips
 targetSeq.grad_moms = grad_moms
 targetSeq.event_time = event_time
@@ -237,12 +238,12 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.adjoint(spins)
 
             
-    loss = (scanner.reco - targetSeq.target)
+    loss = (scanner.reco - targetSeq.target_image)
     #phi = torch.sum((1.0/NVox)*torch.abs(loss.squeeze())**2)
     phi = torch.sum(loss.squeeze()**2/NVox)
     
     ereco = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    error = e(tonumpy(targetSeq.target).ravel(),ereco.ravel())     
+    error = e(tonumpy(targetSeq.target_image).ravel(),ereco.ravel())     
     
     return (phi,scanner.reco, error)
     
@@ -282,7 +283,7 @@ def init_variables():
 # %% # OPTIMIZATION land
 
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
-opt.set_target(tonumpy(targetSeq.target).reshape([sz[0],sz[1],2]))
+opt.set_target(tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],2]))
 
 opt.use_periodic_grad_moms_cap = 1           # do not sample above Nyquist flag
 opt.learning_rate = 0.01                                        # ADAM step size
@@ -333,7 +334,9 @@ stop()
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
+targetSeq.print_status(True, reco=None)
 opt.print_status(True, reco)
+
 
 print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.abs(tonumpy(opt.scanner_opt_params[0].permute([1,0]))).sum()*180/np.pi, tonumpy(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0])).sum() ))
 
