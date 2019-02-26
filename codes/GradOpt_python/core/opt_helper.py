@@ -73,7 +73,7 @@ class OPT_helper():
             if self.custom_learning_rate == None:
                 optimizable_params.append(self.scanner_opt_params[self.opt_param_idx[i]] )
             else:
-                optimizable_params.append({'params':self.scanner_opt_params[self.opt_param_idx[i]], 'lr': self.custom_learning_rate[i]} )
+                optimizable_params.append({'params':self.scanner_opt_params[self.opt_param_idx[i]], 'lr': self.custom_learning_rate[self.opt_param_idx[i]]} )
             
         if self.opti_mode == 'seq':
             if self.optimzer_type == 'Adam':
@@ -198,7 +198,7 @@ class OPT_helper():
             
             plt.subplot(152, sharex=ax1, sharey=ax1)
             ax=plt.imshow(magimg(recoimg), interpolation='none')
-            plt.clim(np.min(self.target),np.max(self.target))
+            plt.clim(np.min(np.abs(self.target)),np.max(np.abs(self.target)))
             fig = plt.gcf()
             fig.colorbar(ax)
             plt.title('reco')
