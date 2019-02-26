@@ -157,22 +157,22 @@ class Scanner():
         self.R = R
         
     def set_freeprecession_tensor(self,spins,dt):
-        P = torch.zeros((self.NSpins,1,1,4,4), dtype=torch.float32)
+        P = torch.zeros((self.NSpins,1,self.NVox,4,4), dtype=torch.float32)
         
         P = self.setdevice(P)
         
-        B0_nspins = spins.omega.view([self.NSpins])
+        B0_nspins = spins.omega.view([self.NSpins,self.NVox])
         
         B0_nspins_cos = torch.cos(B0_nspins*dt)
         B0_nspins_sin = torch.sin(B0_nspins*dt)
          
-        P[:,0,0,0,0] = B0_nspins_cos
-        P[:,0,0,0,1] = -B0_nspins_sin
-        P[:,0,0,1,0] = B0_nspins_sin
-        P[:,0,0,1,1] = B0_nspins_cos
+        P[:,0,:,0,0] = B0_nspins_cos
+        P[:,0,:,0,1] = -B0_nspins_sin
+        P[:,0,:,1,0] = B0_nspins_sin
+        P[:,0,:,1,1] = B0_nspins_cos
          
-        P[:,0,0,2,2] = 1
-        P[:,0,0,3,3] = 1         
+        P[:,0,:,2,2] = 1
+        P[:,0,:,3,3] = 1         
          
         self.P = P
          
@@ -472,22 +472,22 @@ class Scanner_batched():
         self.R = R
         
     def set_freeprecession_tensor(self,spins,dt):
-        P = torch.zeros((self.NSpins,1,1,4,4), dtype=torch.float32)
+        P = torch.zeros((self.NSpins,1,self.NVox,4,4), dtype=torch.float32)
         
         P = self.setdevice(P)
         
-        B0_nspins = spins.omega.view([self.NSpins])
+        B0_nspins = spins.omega.view([self.NSpins,self.NVox])
         
         B0_nspins_cos = torch.cos(B0_nspins*dt)
         B0_nspins_sin = torch.sin(B0_nspins*dt)
          
-        P[:,0,0,0,0] = B0_nspins_cos
-        P[:,0,0,0,1] = -B0_nspins_sin
-        P[:,0,0,1,0] = B0_nspins_sin
-        P[:,0,0,1,1] = B0_nspins_cos
+        P[:,0,:,0,0] = B0_nspins_cos
+        P[:,0,:,0,1] = -B0_nspins_sin
+        P[:,0,:,1,0] = B0_nspins_sin
+        P[:,0,:,1,1] = B0_nspins_cos
          
-        P[:,0,0,2,2] = 1
-        P[:,0,0,3,3] = 1        
+        P[:,0,:,2,2] = 1
+        P[:,0,:,3,3] = 1           
          
         P = P.unsqueeze(0)  # XXXX
          

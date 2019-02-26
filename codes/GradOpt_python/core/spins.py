@@ -109,8 +109,8 @@ class SpinSystem_batched(SpinSystem):
         T2 = torch.from_numpy(T2.reshape([self.batch_size, self.NVox])).float()   
             
         # set NSpins offresonance (from R2)
-        factor = (0*1e0*np.pi/180) / self.NSpins
-        omega = torch.from_numpy(factor*np.arange(0,self.NSpins).reshape([self.NSpins])).float()
+        factor = 0
+        omega = torch.from_numpy(factor*np.random.rand(self.NSpins,self.NVox).reshape([self.NSpins,self.NVox])).float()
         
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
