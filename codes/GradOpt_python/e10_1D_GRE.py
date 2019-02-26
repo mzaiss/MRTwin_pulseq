@@ -91,31 +91,34 @@ NVox = sz[0]*sz[1]
 #############################################################################
 ## Init spin system and the scanner ::: #####################################
 
-    # initialize scanned object
+# initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 
-numerical_phantom = np.ones((sz[0],sz[1],3))*0.01
-numerical_phantom[10,:,:]=2
-numerical_phantom[23,:,:]=1
-numerical_phantom[24,:,:]=1.5
-numerical_phantom[25,:,:]=1
-numerical_phantom[30,:,:]=0.1
-numerical_phantom[28,:,:]=0.3
-numerical_phantom[29,:,:]=0.6
-numerical_phantom[30,:,:]=0.3
-numerical_phantom[31,:,:]=0.1
-#numerical_phantom[:,0,0] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,1]
-numerical_phantom[:,:,2]*=0.1  # T2=100ms
-
+numerical_phantom = np.load('../../data/brainphantom_2D.npy')
+numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[0]), interpolation=cv2.INTER_CUBIC)
 #numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
 numerical_phantom[numerical_phantom < 0] = 0
+row=22
+h1=numerical_phantom[:,:,0].copy()
+h1[:,row]*=2
+plt.imshow(h1[:,:])
+plt.show()
+numerical_phantom=numerical_phantom[:,row,:].reshape(sz[0],1,3).copy()
 
+plt.plot(numerical_phantom[:,:,0], label='PD')
+plt.plot(numerical_phantom[:,:,1], label='T1')
+plt.plot(numerical_phantom[:,:,2], label='T2')
+plt.show()
+
+numerical_phantom[numerical_phantom < 0] = 0
 spins.set_system(numerical_phantom)
 
 cutoff = 1e-12
 spins.T1[spins.T1<cutoff] = cutoff
 spins.T2[spins.T2<cutoff] = cutoff
+# end initialize scanned object
 
+# scanner setup
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
 scanner.set_adc_mask()
@@ -318,7 +321,7 @@ opt.custom_learning_rate = [0.01,0.01,0.01,0.1]
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
-opt.train_model_with_restarts(nmb_rnd_restart=15, training_iter=10, do_vis_image=True)
+opt.train_model_with_restarts(nmb_rnd_restart=500, training_iter=500, do_vis_image=True)
 #opt.train_model_with_restarts(nmb_rnd_restart=1, training_iter=1)
 
 #stop()
