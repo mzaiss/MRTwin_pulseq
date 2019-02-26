@@ -121,14 +121,15 @@ spins.T1[spins.T1<cutoff] = cutoff
 spins.T2[spins.T2<cutoff] = cutoff
 
 
-R2 = 1000.0
-omega = np.linspace(0,1,NSpins) - 0.5
+R2 = 10.0
+#omega = np.linspace(0,1,NSpins) - 0.5
+omega = np.random.rand(NSpins,NVox) - 0.5
 omega = R2 * np.tan ( np.pi  * omega)
 
-omega = np.random.rand(NSpins,NVox) * 1000
+#omega = np.random.rand(NSpins,NVox) * 100
 
 spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
-#spins.omega[torch.abs(spins.omega) > 1e3] = 0
+spins.omega[torch.abs(spins.omega) > 1e3] = 0
 spins.omega = setdevice(spins.omega)
 
 
@@ -173,7 +174,7 @@ grad_moms = setdevice(grad_moms)
 
 # event timing vector 
 event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,scanner.NRep,1))).float()
-event_time[1,:,0] = 1e-2  
+event_time[1,:,0] = 1e-1  
 event_time[-1,:,0] = 1e4
 event_time = setdevice(event_time)
 
