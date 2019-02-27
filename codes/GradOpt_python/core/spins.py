@@ -58,7 +58,7 @@ class SpinSystem():
             
         # set NSpins offresonance (from R2)
         factor = (0*1e0*np.pi/180) / self.NSpins
-        omega = torch.from_numpy(factor*np.arange(0,self.NSpins).reshape([self.NSpins])).float()
+        omega = torch.from_numpy(factor*np.random.rand(self.NSpins,self.NVox).reshape([self.NSpins,self.NVox])).float()
         
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
