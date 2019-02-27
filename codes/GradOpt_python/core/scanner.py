@@ -34,6 +34,8 @@ class Scanner():
         self.signal = None                # measured signal (NCoils,T,NRep,4)
         self.reco =  None                       # reconstructed image (NVox,) 
         
+        self.ROI_signal = None                # measured signal (NCoils,T,NRep,4)
+        
         self.use_gpu =  use_gpu
         
     # device setter
@@ -742,6 +744,8 @@ class Scanner_fast(Scanner):
         self.init_signal()
         spins.set_initial_magnetization()
         
+        #self.ROI_signal = np.zeros((self.T,self.NRep,2)) # for z and trans magnetization
+        
         # scanner forward process loop
         for r in range(self.NRep):                                   # for all repetitions
             for t in range(self.T):                                      # for all actions
@@ -758,6 +762,9 @@ class Scanner_fast(Scanner):
                     
                 self.grad_precess(t,r,spins)
                 self.read_signal(t,r,spins)    
+                
+                #self.ROI_signal[t,r,0] =  torch.sqrt(torch.sum(spins.M[0,0,0,:2]**2)).detach().cpu()
+                #self.ROI_signal[t,r,1]  = spins.M[0,0,0,2].detach().cpu()   
 
     # compute adjoint encoding op-based reco                
     def adjoint(self,spins):
