@@ -78,9 +78,9 @@ def stop():
 
 # define setup
 sz = np.array([32,1])                                           # image size
-NRep = 2                                          # number of repetitions
+NRep = 3                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 1024                                # number of spin sims in each voxel
+NSpins = 256                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -118,14 +118,18 @@ cutoff = 1e-12
 spins.T1[spins.T1<cutoff] = cutoff
 spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
-spins.T2*=10
+spins.T2*=10000
 
 
 #begin nspins with R*
-R2 = 10.0
+R2 = 20.0
 omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5
-#omega = np.random.rand(NSpins,NVox) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+
+#omega = np.random.rand(NSpins,NVox) - 0.5
+#omega*=0.999 
+#omega = np.expand_dims(omega[:,0],1).repeat(NVox, axis=1)
+
 omega = R2 * np.tan ( np.pi  * omega)
 
 #omega = np.random.rand(NSpins,NVox) * 100
@@ -151,7 +155,9 @@ scanner.init_coil_sensitivities()
 # init tensors
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
 flips[0,:] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
-flips[1,:] = 180*np.pi/180  # SE preparation part 2 : 180 degree refocus
+flips[0,1] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
+flips[0,2] = 0*np.pi/180  # SE preparation part 1 : 90 degree excitation
+#flips[1,:] = 180*np.pi/180  # SE preparation part 2 : 180 degree refocus
      
 flips = setdevice(flips)
      
@@ -181,7 +187,7 @@ grad_moms = setdevice(grad_moms)
 
 # event timing vector 
 event_time = torch.from_numpy(1e-2*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[0,:,0] = 1e-1  
+#event_time[0,:,0] = 1e1  
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
@@ -206,9 +212,16 @@ targetSeq.grad_moms = grad_moms
 targetSeq.event_time = event_time
 targetSeq.adc_mask = scanner.adc_mask
 
-if False: # check sanity: is target what you expect and is sequence what you expect
+if True: # check sanity: is target what you expect and is sequence what you expect
     targetSeq.print_status(True, reco=None)
-    stop()
+    
+    #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:4]), label='x')
+    for i in range(3):
+        ax=plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep]) )
+        plt.title("ROI_def %d" % scanner.ROI_def)
+        plt.show()
+    
+    #stop()
     
     
 # %% ###     OPTIMIZATION functions phi and init ######################################################
@@ -285,7 +298,8 @@ def init_variables():
     flips.requires_grad = True
    
     event_time = targetSeq.event_time.clone()
-    event_time = torch.from_numpy(1e-3*np.random.rand(scanner.T,scanner.NRep,1)).float()
+    #event_time = torch.from_numpy(1e-3*np.random.rand(scanner.T,scanner.NRep,1)).float()
+    event_time*=0.9
     event_time = setdevice(event_time)
     event_time.requires_grad = True
 
@@ -363,3 +377,16 @@ for i in range(3):
     plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,:,0]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep])),tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep,1]), label='x')
     plt.title("ROI_def %d" % scanner.ROI_def)
     plt.show()
+
+
+
+ 
+scanner_dict = dict()
+scanner_dict['adc_mask'] = scanner.adc_mask.detach().cpu().numpy()
+scanner_dict['B1'] = scanner.B1.detach().cpu().numpy()
+scanner_dict['flips'] = flips.detach().cpu().numpy()
+scanner_dict['grads'] = grads.detach().cpu().numpy()
+scanner_dict['event_time'] = event_time.detach().cpu().numpy()
+scanner_dict['reco'] = reco
+          
+scipy.io.savemat(os.path.join(host_dir,experiment_id,"scanner_dict.mat"), scanner_dict)

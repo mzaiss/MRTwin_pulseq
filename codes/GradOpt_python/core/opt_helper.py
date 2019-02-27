@@ -190,6 +190,7 @@ class OPT_helper():
             
             ax1=plt.subplot(151)
             ax=plt.imshow(magimg(self.target), interpolation='none')
+            plt.clim(np.min(np.abs(self.target)),np.max(np.abs(self.target)))
             #plt.clim(0,1)
             fig = plt.gcf()
             fig.colorbar(ax)

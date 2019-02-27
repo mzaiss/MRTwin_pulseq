@@ -35,6 +35,7 @@ class Scanner():
         self.reco =  None                       # reconstructed image (NVox,) 
         
         self.ROI_signal = None                # measured signal (NCoils,T,NRep,4)
+        self.ROI_def = 1
         
         self.use_gpu =  use_gpu
         
@@ -255,6 +256,10 @@ class Scanner():
         #signal[:,:,:,2:,0] = 1                                 # aux dim zero ()
               
         self.signal = self.setdevice(signal)
+        
+        self.ROI_signal = torch.zeros((self.T+1,self.NRep,5), dtype=torch.float32) # for trans magnetization
+        self.ROI_signal = self.setdevice(self.ROI_signal)
+        self.ROI_def= int((self.sz[0]/2)*self.sz[1]+ self.sz[1]/2)
         
     def init_reco(self):
         reco = torch.zeros((self.NVox,2), dtype = torch.float32)
@@ -743,14 +748,19 @@ class Scanner_fast(Scanner):
     def forward(self,spins,event_time):
         self.init_signal()
         spins.set_initial_magnetization()
+    
         
-        #self.ROI_signal = np.zeros((self.T,self.NRep,2)) # for z and trans magnetization
         
+                         
         # scanner forward process loop
         for r in range(self.NRep):                                   # for all repetitions
+            
+            self.ROI_signal[0,r,0] =   0
+            self.ROI_signal[0,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+            
             for t in range(self.T):                                      # for all actions
                 self.flip(t,r,spins)
-                 
+                
                 #delay = event_time[t,r]**2
                 delay = torch.abs(event_time[t,r] + 1e-6) * 1
                 #delay = (torch.abs(event_time[t,r]) + 1e-6)
@@ -763,9 +773,10 @@ class Scanner_fast(Scanner):
                 self.grad_precess(t,r,spins)
                 self.read_signal(t,r,spins)    
                 
-                #self.ROI_signal[t,r,0] =  torch.sqrt(torch.sum(spins.M[0,0,0,:2]**2)).detach().cpu()
-                #self.ROI_signal[t,r,1]  = spins.M[0,0,0,2].detach().cpu()   
-
+                self.ROI_signal[t+1,r,0] =   delay
+                self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+                 
+             
     # compute adjoint encoding op-based reco                
     def adjoint(self,spins):
         self.init_reco()
