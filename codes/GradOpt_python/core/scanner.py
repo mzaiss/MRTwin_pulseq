@@ -483,7 +483,7 @@ class Scanner_batched():
         
         P = self.setdevice(P)
         
-        B0_nspins = spins.omega.view([self.NSpins,1])
+        B0_nspins = spins.omega.view([self.NSpins])
         
         B0_nspins_cos = torch.cos(B0_nspins*dt)
         B0_nspins_sin = torch.sin(B0_nspins*dt)
