@@ -78,7 +78,7 @@ def stop():
 
 # define setup
 sz = np.array([32,1])                                           # image size
-NRep = 3                                          # number of repetitions
+NRep = 2                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
 NSpins = 256                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -122,7 +122,7 @@ spins.T2*=10000
 
 
 #begin nspins with R*
-R2 = 20.0
+R2 = 10.0
 omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 
@@ -154,9 +154,9 @@ scanner.init_coil_sensitivities()
 
 # init tensors
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
-flips[0,:] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
-flips[0,1] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
-flips[0,2] = 0*np.pi/180  # SE preparation part 1 : 90 degree excitation
+flips[0,0] = 270*np.pi/180  # SE preparation part 1 : 90 degree excitation
+flips[24,0] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
+flips[0,1] = 0*np.pi/180  # SE preparation part 1 : 90 degree excitation
 #flips[1,:] = 180*np.pi/180  # SE preparation part 2 : 180 degree refocus
      
 flips = setdevice(flips)
@@ -178,6 +178,8 @@ grad_moms[-1,:,:] = grad_moms[-2,:,:]
 
 # dont optimize y  grads
 grad_moms[:,:,1] = 0
+grad_moms[:,0:1,0] = 0
+
 
     
 #imshow(grad_moms[T-sz[0]-1:-1,:,0].cpu())
@@ -186,7 +188,7 @@ grad_moms[:,:,1] = 0
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(1e-2*np.ones((scanner.T,scanner.NRep,1))).float()
+event_time = torch.from_numpy(2*1e-2*np.ones((scanner.T,scanner.NRep,1))).float()
 #event_time[0,:,0] = 1e1  
 event_time = setdevice(event_time)
 
@@ -217,9 +219,12 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:4]), label='x')
     for i in range(3):
-        ax=plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep]) )
+        plt.subplot(1, 3, i+1)
+        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep]) )
         plt.title("ROI_def %d" % scanner.ROI_def)
-        plt.show()
+        fig = plt.gcf()
+        fig.set_size_inches(16, 3)
+    plt.show()
     
     #stop()
     
@@ -365,12 +370,14 @@ stop()
 # %% # plot M as function of events
 
 #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:4]), label='x')
-for i in range(3):
-    ax=plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep]) )
-    plt.title("ROI_def %d" % scanner.ROI_def)
-    plt.show()
     
-
+for i in range(3):
+    plt.subplot(1, 3, i+1)
+    plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep]) )
+    plt.title("ROI_def %d" % scanner.ROI_def)
+    fig = plt.gcf()
+    fig.set_size_inches(16, 3)
+plt.show()
 
 # %% # plot M as function of time
 for i in range(3):
