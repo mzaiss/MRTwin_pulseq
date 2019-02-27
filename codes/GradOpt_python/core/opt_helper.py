@@ -243,10 +243,11 @@ class OPT_helper():
             plt.show()
             plt.pause(0.02)
             
+            legs=['x','y','z']
             for i in range(3):
                 plt.subplot(1, 3, i+1)
                 plt.plot(tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) )
-                plt.title("ROI_def %d" % self.scanner.ROI_def)
+                plt.title("ROI_def %d, %s" % (self.scanner.ROI_def,legs[i]))
                 fig = plt.gcf()
                 fig.set_size_inches(16, 3)
             plt.show()
