@@ -32,10 +32,9 @@ else:
     importlib.reload(core.scanner)
     importlib.reload(core.opt_helper)   
     
-class ExecutionControl(Exception): pass; 
-raise ExecutionControl('Script out of sync with spins/scanner classes')
-
-use_gpu = 1
+use_gpu = 0
+if core.opt_helper.get_cuda_mem_GB() > 3:
+    use_gpu = 1
 
 # NRMSE error function
 def e(gt,x):
@@ -84,14 +83,17 @@ NVox = sz[0]*sz[1]
 #############################################################################
 ## Init spin system and the scanner ::: #####################################
 
+
+numerical_phantom = np.load('../../data/brainphantom_2D.npy')
+numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[0]), interpolation=cv2.INTER_CUBIC)
+numerical_phantom[numerical_phantom < 0] = 0
     
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
-spins.set_system()
+spins.set_system(numerical_phantom)
 
 # uniform PD
 spins.PD[:] = 1
-spins.img[:,:,0] = 1
 
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.get_ramps()
@@ -142,7 +144,7 @@ scanner.set_gradient_precession_tensor(grad_moms)
 ## Forward process ::: ######################################################
     
 scanner.init_signal()
-spins.set_initial_magnetization(NRep=1)
+spins.set_initial_magnetization()
 
 # always flip 90deg on first action (test)
 if False:                                 
@@ -256,10 +258,9 @@ def phi_FRP_model(opt_params,aux_params):
     global flip_angles_comp    
     
     flips,grads,event_time,sigmul = opt_params
-    use_periodic_grad_moms_cap = aux_params
     
     scanner.init_signal()
-    spins.set_initial_magnetization(NRep=1)
+    spins.set_initial_magnetization()
     
     # always flip 90deg on first action (test)
     if False:                                 
@@ -412,13 +413,13 @@ opt.custom_learning_rate = [0.05]
 opt.train_model(training_iter=50, show_par=False)
 
 
-target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
-
-_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
-reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
-
-imshow(magimg(target_numpy), 'target')
-imshow(magimg(reco), 'reconstruction')
+#target_numpy = target.cpu().numpy().reshape([sz[0],sz[1],2])
+#
+#_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
+#reco = reco.detach().cpu().numpy().reshape([sz[0],sz[1],2])
+#
+#imshow(magimg(target_numpy), 'target')
+#imshow(magimg(reco), 'reconstruction')
 
 flip_angles = opt.scanner_opt_params[0].detach().cpu().numpy()*180/np.pi
 flip_angles = np.round(flip_angles[0,:])

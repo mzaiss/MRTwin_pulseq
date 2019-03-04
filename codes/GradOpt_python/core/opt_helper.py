@@ -9,6 +9,10 @@ from torch import optim
 # torch to numpy
 def tonumpy(x):
     return x.detach().cpu().numpy()
+    
+def get_cuda_mem_GB():
+    return torch.cuda.get_device_properties(0).total_memory / 1024.0**3
+
 
 # optimization helper class
 class OPT_helper():
