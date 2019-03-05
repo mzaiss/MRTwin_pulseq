@@ -210,7 +210,12 @@ class OPT_helper():
             plt.ion()
                
             plt.subplot(153)
-            ax=plt.imshow(tonumpy(self.scanner_opt_params[0].permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
+            try:
+                FA=self.scanner_opt_params[0][:,:,0]
+            except:
+                FA=self.scanner_opt_params[0]
+            
+            ax=plt.imshow(tonumpy(FA.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('FA [\N{DEGREE SIGN}]')
             plt.clim(-90,270)

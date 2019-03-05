@@ -78,10 +78,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([32,1])                                           # image size
-NRep = 2                                          # number of repetitions
+sz = np.array([16,16])                                           # image size
+NRep = 16                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 512                                # number of spin sims in each voxel
+NSpins = 128                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -97,33 +97,21 @@ NVox = sz[0]*sz[1]
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 
 numerical_phantom = np.load('../../data/brainphantom_2D.npy')
-numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[0]), interpolation=cv2.INTER_CUBIC)
+numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
 #numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
 numerical_phantom[numerical_phantom < 0] = 0
-row=22
-h1=numerical_phantom[:,:,0].copy()
-h1[:,row]*=2
-plt.imshow(h1[:,:])
-plt.show()
-numerical_phantom=numerical_phantom[:,row,:].reshape(sz[0],1,3).copy()
-
-plt.plot(numerical_phantom[:,:,0], label='PD')
-plt.plot(numerical_phantom[:,:,1], label='T1')
-plt.plot(numerical_phantom[:,:,2], label='T2')
-plt.show()
-
-numerical_phantom[numerical_phantom < 0] = 0
+numerical_phantom=np.swapaxes(numerical_phantom,0,1)
 spins.set_system(numerical_phantom)
 
 cutoff = 1e-12
 spins.T1[spins.T1<cutoff] = cutoff
 spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
-#spins.T2*=10000
-
+spins.T2*=1
+imshow(numerical_phantom[:,:,0], title="PD")
 
 #begin nspins with R*
-R2 = 10.0
+R2 = 30.0
 omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 
@@ -149,22 +137,31 @@ scanner.set_adc_mask()
 
 # allow for relaxation after last readout event
 scanner.adc_mask[:scanner.T-scanner.sz[0]-1] = 0
-scanner.adc_mask[:11] = 0
+#scanner.adc_mask[:3] = 0
 scanner.adc_mask[-1] = 0
 
 scanner.init_coil_sensitivities()
 
+
+
+#phi = 45 * np.pi/180
+#alpha = 90 * np.pi/180
+
+flips = torch.zeros((T,NRep,2), dtype=torch.float32) 
+#flips[0,0,0] = np.cos(phi)*alpha 
+#flips[0,0,1] = np.sin(phi)*alpha
 # init tensors
-flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
-flips[0,:] = 270*np.pi/180  # SE preparation part 1 : 90 degree excitation
-flips[10,:] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
+flips[0,0,0] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
+flips[0,0,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase
+flips[0,1:,0] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
 #flips[0,:] = 0*np.pi/180  # SE preparation part 1 : 90 degree excitation
-#flips[1,:] = 180*np.pi/180  # SE preparation part 2 : 180 degree refocus
-     
+#flips[1,:] = 180*np.pi/180  # SE preparation part 2 : 180 degree refocus    
+
 flips = setdevice(flips)
-     
+
 scanner.init_flip_tensor_holder()
-scanner.set_flip_tensor(flips)
+scanner.set_flipXY_tensor(flips)
+
 
 # gradient-driver precession
 # Cartesian encoding
@@ -176,22 +173,22 @@ if NRep == 1:
 else:
     grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
     
-grad_moms[-1,:,:] = grad_moms[-2,:,:]
+    
+#grad_moms[-1,:,:] = grad_moms[-2,:,:]
+
+grad_moms[:,0,:] = -grad_moms[:,0,:]/2  # RARE: rewinder after 90 degree half length, half gradmom
 
 # dont optimize y  grads
-grad_moms[:,:,1] = 0
+#grad_moms[:,:,1] = 0
 
-
-
-    
 #imshow(grad_moms[T-sz[0]-1:-1,:,0].cpu())
 #imshow(grad_moms[T-sz[0]-1:-1,:,1].cpu())
 
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(2*1e-2*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[-1,:,0] = 1e1  
+event_time = torch.from_numpy(1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
+event_time[:,0,0] = 0.5*1e-3  
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
@@ -245,14 +242,14 @@ def phi_FRP_model(opt_params,aux_params):
 #    flips = flips * flip_mask    
     
     scanner.init_flip_tensor_holder()
-    scanner.set_flip_tensor(flips)
+    scanner.set_flipXY_tensor(flips)
     
     # gradients
     #grad_moms = torch.cumsum(grads,0)
     grad_moms = grads*1
     
     # dont optimize y  grads
-    grad_moms[:,:,1] = 0
+    #grad_moms[:,:,1] = 0
     
     if use_periodic_grad_moms_cap:
         fmax = torch.ones([1,1,2]).float()
@@ -296,7 +293,7 @@ def init_variables():
         g = (np.random.rand(T,NRep,2) - 0.5)*2*np.pi
         
         grad_moms = torch.from_numpy(g).float()
-        grad_moms[:,:,1] = 0        
+        #grad_moms[:,:,1] = 0        
         grad_moms = setdevice(grad_moms)
     
     grad_moms.requires_grad = True
@@ -306,7 +303,9 @@ def init_variables():
    
     event_time = targetSeq.event_time.clone()
     #event_time = torch.from_numpy(1e-3*np.random.rand(scanner.T,scanner.NRep,1)).float()
-    event_time*=0.5
+    #event_time*=0.5
+    #event_time[:,0,0] = 0.4*1e-3  
+    
     event_time = setdevice(event_time)
     event_time.requires_grad = True
 
@@ -343,7 +342,7 @@ opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 
-opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=10,do_vis_image=True)
+#opt.train_model_with_restarts(nmb_rnd_restart=2, training_iter=10,do_vis_image=True)
 #opt.train_model_with_restarts(nmb_rnd_restart=1, training_iter=1)
 
 #stop()

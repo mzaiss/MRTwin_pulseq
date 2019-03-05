@@ -78,10 +78,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([32,1])                                           # image size
-NRep = 2                                          # number of repetitions
+sz = np.array([16,16])                                           # image size
+NRep = 16                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 512                                # number of spin sims in each voxel
+NSpins = 128                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -97,22 +97,10 @@ NVox = sz[0]*sz[1]
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 
 numerical_phantom = np.load('../../data/brainphantom_2D.npy')
-numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[0]), interpolation=cv2.INTER_CUBIC)
+numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
 #numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
 numerical_phantom[numerical_phantom < 0] = 0
-row=22
-h1=numerical_phantom[:,:,0].copy()
-h1[:,row]*=2
-plt.imshow(h1[:,:])
-plt.show()
-numerical_phantom=numerical_phantom[:,row,:].reshape(sz[0],1,3).copy()
 
-plt.plot(numerical_phantom[:,:,0], label='PD')
-plt.plot(numerical_phantom[:,:,1], label='T1')
-plt.plot(numerical_phantom[:,:,2], label='T2')
-plt.show()
-
-numerical_phantom[numerical_phantom < 0] = 0
 spins.set_system(numerical_phantom)
 
 cutoff = 1e-12
@@ -149,7 +137,7 @@ scanner.set_adc_mask()
 
 # allow for relaxation after last readout event
 scanner.adc_mask[:scanner.T-scanner.sz[0]-1] = 0
-scanner.adc_mask[:11] = 0
+scanner.adc_mask[:3] = 0
 scanner.adc_mask[-1] = 0
 
 scanner.init_coil_sensitivities()
@@ -157,7 +145,7 @@ scanner.init_coil_sensitivities()
 # init tensors
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
 flips[0,:] = 270*np.pi/180  # SE preparation part 1 : 90 degree excitation
-flips[10,:] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
+flips[3,:] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
 #flips[0,:] = 0*np.pi/180  # SE preparation part 1 : 90 degree excitation
 #flips[1,:] = 180*np.pi/180  # SE preparation part 2 : 180 degree refocus
      
@@ -179,7 +167,7 @@ else:
 grad_moms[-1,:,:] = grad_moms[-2,:,:]
 
 # dont optimize y  grads
-grad_moms[:,:,1] = 0
+#grad_moms[:,:,1] = 0
 
 
 
@@ -252,7 +240,7 @@ def phi_FRP_model(opt_params,aux_params):
     grad_moms = grads*1
     
     # dont optimize y  grads
-    grad_moms[:,:,1] = 0
+    #grad_moms[:,:,1] = 0
     
     if use_periodic_grad_moms_cap:
         fmax = torch.ones([1,1,2]).float()
@@ -296,7 +284,7 @@ def init_variables():
         g = (np.random.rand(T,NRep,2) - 0.5)*2*np.pi
         
         grad_moms = torch.from_numpy(g).float()
-        grad_moms[:,:,1] = 0        
+        #grad_moms[:,:,1] = 0        
         grad_moms = setdevice(grad_moms)
     
     grad_moms.requires_grad = True
@@ -337,7 +325,7 @@ opt.opti_mode = 'seq'
 
 opt.set_opt_param_idx([2])
 #opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
-opt.custom_learning_rate = [0.01,0.01,0.001,0.01]
+opt.custom_learning_rate = [0.01,0.01,0.01,0.01]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()

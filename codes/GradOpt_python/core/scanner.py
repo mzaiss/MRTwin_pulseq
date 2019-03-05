@@ -142,7 +142,7 @@ class Scanner():
         self.F[:,:,0,2,2] += 1  
         self.F[:,:,0,3,3] = 1
         
-    def set_flipXY_tensor(self,input_flips,use_angles=False):
+    def set_flipXY_tensor(self,input_flips,use_angles=True):
         
         if use_angles:
             flips = torch.zeros(input_flips.shape).float()
