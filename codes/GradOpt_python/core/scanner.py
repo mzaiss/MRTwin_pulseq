@@ -499,6 +499,69 @@ class Scanner_batched():
         self.F[0,:,:,0,0,2] = flips_sin
         self.F[0,:,:,0,2,0] = -flips_sin
         self.F[0,:,:,0,2,2] = flips_cos 
+        
+    def set_flipAxisAngle_tensor(self,flips):
+        
+        # ... greatly simplifies if assume rotations in XY plane ...
+        theta = torch.norm(flips,dim=2).unsqueeze(2)
+        v = flips / theta
+        theta = theta.unsqueeze(2).unsqueeze(2)
+        
+        self.F[0,:,:,0,0,0] = 0
+        self.F[0,:,:,0,0,1] = -v[:,:,2]
+        self.F[0,:,:,0,0,2] = v[:,:,1]
+        self.F[0,:,:,0,1,0] = v[:,:,2]
+        self.F[0,:,:,0,1,1] = 0
+        self.F[0,:,:,0,1,2] = -v[:,:,0]
+        self.F[0,:,:,0,2,0] = -v[:,:,1]
+        self.F[0,:,:,0,2,1] = v[:,:,0]
+        self.F[0,:,:,0,2,2] = 0
+        
+        # matrix square
+        F2 = torch.matmul(self.F,self.F)
+        self.F = torch.sin(theta) * self.F + (1 - torch.cos(theta))*F2
+        
+        self.F[0,:,:,0,0,0] += 1
+        self.F[0,:,:,0,1,1] += 1
+        self.F[0,:,:,0,2,2] += 1  
+        self.F[0,:,:,0,3,3] = 1
+        
+    def set_flipXY_tensor(self,input_flips,use_angles=True):
+        
+        if use_angles:
+            flips = torch.zeros(input_flips.shape).float()
+            flips = self.setdevice(flips)
+            
+            alpha = input_flips[:,:,0]
+            flips[:,:,0] = torch.cos(input_flips[:,:,1])*alpha
+            flips[:,:,1] = torch.sin(input_flips[:,:,1])*alpha
+        else:
+            flips = input_flips
+            
+        # ... greatly simplifies if assume rotations in XY plane ...
+        theta = torch.norm(flips,dim=2).unsqueeze(2)
+        v = flips / theta
+        v[torch.isnan(v)] = 0                        # handle 0 angle rotations
+        theta = theta.unsqueeze(2).unsqueeze(2)
+        
+        self.F[0,:,:,0,0,0] = 0
+        self.F[0,:,:,0,0,1] = 0
+        self.F[0,:,:,0,0,2] = v[:,:,1]
+        self.F[0,:,:,0,1,0] = 0
+        self.F[0,:,:,0,1,1] = 0
+        self.F[0,:,:,0,1,2] = -v[:,:,0]
+        self.F[0,:,:,0,2,0] = -v[:,:,1]
+        self.F[0,:,:,0,2,1] = v[:,:,0]
+        self.F[0,:,:,0,2,2] = 0
+
+        # matrix square
+        F2 = torch.matmul(self.F,self.F)
+        self.F = torch.sin(theta) * self.F + (1 - torch.cos(theta))*F2
+
+        self.F[0,:,:,0,0,0] += 1
+        self.F[0,:,:,0,1,1] += 1
+        self.F[0,:,:,0,2,2] += 1
+        self.F[0,:,:,0,3,3] = 1        
          
     def set_relaxation_tensor(self,spins,dt):
         R = torch.zeros((self.batch_size,self.NVox,4,4), dtype=torch.float32) 
