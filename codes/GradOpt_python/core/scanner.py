@@ -142,8 +142,18 @@ class Scanner():
         self.F[:,:,0,2,2] += 1  
         self.F[:,:,0,3,3] = 1
         
-    def set_flipXY_tensor(self,flips):
-
+    def set_flipXY_tensor(self,input_flips,use_angles=False):
+        
+        if use_angles:
+            flips = torch.zeros(input_flips.shape).float()
+            flips = self.setdevice(flips)
+            
+            alpha = input_flips[:,:,0]
+            flips[:,:,0] = torch.cos(input_flips[:,:,1])*alpha
+            flips[:,:,1] = torch.sin(input_flips[:,:,1])*alpha
+        else:
+            flips = input_flips
+            
         # ... greatly simplifies if assume rotations in XY plane ...
         theta = torch.norm(flips,dim=2).unsqueeze(2)
         v = flips / theta
@@ -168,6 +178,7 @@ class Scanner():
         self.F[:,:,0,1,1] += 1
         self.F[:,:,0,2,2] += 1
         self.F[:,:,0,3,3] = 1
+        
         
          
     def set_relaxation_tensor(self,spins,dt):
