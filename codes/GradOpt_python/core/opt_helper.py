@@ -8,7 +8,6 @@ from torch import optim
 import os, sys
 import scipy
 
-
 if sys.version_info[0] < 3:
     import cPickle as pickle
 else:
@@ -317,8 +316,18 @@ class OPT_helper():
         except:
             print('save_param_reco_history: directory already exists')
             
+        param_reco_history = self.param_reco_history
+        
+        aux_info = dict()
+        aux_info['sz'] = self.scanner.sz
+        aux_info['NRep'] = self.scanner.NRep
+        aux_info['T'] = self.scanner.T
+        aux_info['target'] = self.target
+        aux_info['ROI_def'] = self.scanner.ROI_def
+        
         f = open(os.path.join(path,"param_reco_history.pdb"), "wb")
-        pickle.dump(self.param_reco_history, f)
+        pickle.dump((param_reco_history, aux_info), f)
+        f.close()
                                    
 
 
