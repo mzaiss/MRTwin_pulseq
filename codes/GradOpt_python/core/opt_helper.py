@@ -315,7 +315,7 @@ class OPT_helper():
         try:
             os.mkdir(path)
         except:
-            print('export_to_matlab: directory already exists')
+            print('save_param_reco_history: directory already exists')
             
         f = open(os.path.join(path,"param_reco_history.pdb"), "wb")
         pickle.dump(self.param_reco_history, f)
