@@ -719,7 +719,7 @@ classdef Sequence < handle
                         [tc,ic]=mr.calcRfCenter(rf);
                         t=rf.t + rf.delay;
                         tc=tc + rf.delay;
-                        plot(tFactor*(t0+t),abs(rf.signal),'Parent',ax(2));
+                        plot(tFactor*(t0+t),abs(rf.signal),'Parent',ax(2),'Marker','x');
                         plot(tFactor*(t0+t), angle(rf.signal    *exp(1i*rf.phaseOffset).*exp(1i*2*pi*rf.t    *rf.freqOffset)),...
                              tFactor*(t0+tc),angle(rf.signal(ic)*exp(1i*rf.phaseOffset).*exp(1i*2*pi*rf.t(ic)*rf.freqOffset)),'xb',...
                              'Parent',ax(3));

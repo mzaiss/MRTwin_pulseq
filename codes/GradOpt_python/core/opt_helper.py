@@ -283,6 +283,8 @@ class OPT_helper():
             for i in range(3):
                 plt.subplot(1, 3, i+1)
                 plt.plot(tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) )
+                if (i==2):
+                    plt.plot(tonumpy(self.scanner.ROI_signal[:,:,5]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) ) 
                 plt.title("ROI_def %d, %s" % (self.scanner.ROI_def,legs[i]))
                 fig = plt.gcf()
                 fig.set_size_inches(16, 3)
@@ -297,10 +299,11 @@ class OPT_helper():
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
         scanner_dict['B1'] = tonumpy(self.scanner.B1)
         scanner_dict['flips'] = tonumpy(self.scanner_opt_params[0])
-        scanner_dict['event_times'] = tonumpy(self.scanner_opt_params[1])
-        scanner_dict['grad_moms'] = tonumpy(self.scanner_opt_params[2])
+        scanner_dict['grad_moms'] = tonumpy(self.scanner_opt_params[1])
+        scanner_dict['event_times'] = tonumpy(self.scanner_opt_params[2])
         scanner_dict['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
+        scanner_dict['sz'] = self.scanner.sz
 
         path=os.path.join('./out/',experiment_id)
         try:
