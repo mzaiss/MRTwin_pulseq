@@ -86,16 +86,16 @@ for rep=1:NRep
 
     gradmoms = double(scanner_dict.grad_moms);
 
-    % first two extra events
+    % first two extra events T(1:2)
     % first
-      idx=1;
+      idx=1; % T(1)
       rf = mr.makeBlockPulse(scanner_dict.flips(idx,rep,1),'Duration',1e-3,'PhaseOffset',scanner_dict.flips(idx,rep,2));
       seq.addBlock(rf);
-      seq.addBlock(mr.makeDelay(scanner_dict.event_times(1,1)))
+      seq.addBlock(mr.makeDelay(scanner_dict.event_times(rep,idx)))
     % second      
-        idx=2;
-        gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx,rep,1),'Duration',scanner_dict.event_times(1,idx),'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx,rep,2),'Duration',scanner_dict.event_times(1,idx),'system',sys);
+        idx=2; % T(2)
+        gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx,rep,1),'Duration',scanner_dict.event_times(rep,idx),'system',sys);
+        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx,rep,2),'Duration',scanner_dict.event_times(rep,idx),'system',sys);
       seq.addBlock(gxPre,gyPre);
       
     % line acquisition T(3:end-1)
@@ -104,13 +104,10 @@ for rep=1:NRep
         adc = mr.makeAdc(1,'Duration',dur,'Delay',gx.riseTime);
       seq.addBlock(gx,adc);
       
-    % last extra event      
+    % last extra event  T(end)
         gxPost = mr.makeTrapezoid('x','Area',gradmoms(end,rep,1),'Duration',0.001,'system',sys);
         gyPost = mr.makeTrapezoid('y','Area',gradmoms(end,rep,2),'Duration',0.001,'system',sys);
       seq.addBlock(gxPost,gyPost);
-      
-
-    
 
 end
 
