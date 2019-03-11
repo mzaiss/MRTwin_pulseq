@@ -63,7 +63,8 @@ Nx = SeqOpts.resolution(1); Ny = SeqOpts.resolution(2);
 
 %% APPROACH B: line read approach
 % we have to calculate the actually necessary gradients from the grad moms
-% this is 
+% this is easy when using the AREA of the pulseqgrads  and gradmoms*deltak
+
 % init sequence and system
 seq = mr.Sequence();
 % ADC duration (controls TR/TE)
@@ -73,18 +74,13 @@ adc_dur=2560; %us
 deltak=1/SeqOpts.FOV;
 % read gradient
 
-dt=1e-3;
-
-% TR delay (probably computet wrong..)
-delayTR=ceil((SeqOpts.TR)/seq.gradRasterTime)*seq.gradRasterTime;
-
 T = size(scanner_dict.grad_moms,1);
 NRep = size(scanner_dict.grad_moms,2);
 
 % put blocks together
 for rep=1:NRep
 
-    gradmoms = double(scanner_dict.grad_moms);
+    gradmoms = double(scanner_dict.grad_moms)*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
 
     % first two extra events T(1:2)
     % first
