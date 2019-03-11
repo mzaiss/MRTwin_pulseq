@@ -342,7 +342,9 @@ class Scanner():
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
         padder = self.setdevice(padder)
         temp = torch.cat((padder,grad_moms),0)
-        grads = temp[1:,:,:] - temp[:-1,:,:]        
+        #grads = temp[1:,:,:] - temp[:-1,:,:]      
+        grads=grad_moms
+        grad_moms=torch.cumsum(grads,0)
         
         B0X = torch.unsqueeze(grads[:,:,0],2) * self.rampX
         B0Y = torch.unsqueeze(grads[:,:,1],2) * self.rampY
@@ -388,7 +390,7 @@ class Scanner():
               
         self.signal = self.setdevice(signal)
         
-        self.ROI_signal = torch.zeros((self.T+1,self.NRep,5), dtype=torch.float32) # for trans magnetization
+        self.ROI_signal = torch.zeros((self.T+1,self.NRep,6), dtype=torch.float32) # for trans magnetization
         self.ROI_signal = self.setdevice(self.ROI_signal)
         self.ROI_def= int((self.sz[0]/2)*self.sz[1]+ self.sz[1]/2)
         
@@ -842,7 +844,9 @@ class Scanner_fast(Scanner):
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
         padder = self.setdevice(padder)
         temp = torch.cat((padder,grad_moms),0)
-        grads = temp[1:,:,:] - temp[:-1,:,:]        
+        #grads = temp[1:,:,:] - temp[:-1,:,:]         
+        grads=grad_moms
+        grad_moms=torch.cumsum(grads,0)
         
         B0X = torch.unsqueeze(grads[:,:,0],2) * self.rampX
         B0Y = torch.unsqueeze(grads[:,:,1],2) * self.rampY
@@ -938,7 +942,7 @@ class Scanner_fast(Scanner):
         for r in range(self.NRep):                                   # for all repetitions
             
             self.ROI_signal[0,r,0] =   0
-            self.ROI_signal[0,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+            self.ROI_signal[0,r,1:5] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
             
             for t in range(self.T):                                      # for all actions
                 self.flip(t,r,spins)
@@ -953,6 +957,9 @@ class Scanner_fast(Scanner):
                 
                 self.ROI_signal[t+1,r,0] =   delay
                 self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+
+                self.ROI_signal[t+1,r,1:5] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t+1,r,5] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
                 
     def forward_mem(self,spins,event_time):
         self.init_signal()
@@ -992,8 +999,7 @@ class Scanner_fast(Scanner):
                 
         self.lastM = spins.M.clone()
                  
-             
-    # compute adjoint encoding op-based reco                
+    # compute adjoint encoding op-based reco    <            
     def adjoint(self,spins):
         self.init_reco()
 

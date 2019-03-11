@@ -1,50 +1,139 @@
 
 clear all; close all;
 
-addpath  ../../SequenceSIM
-addpath  ../../SequenceSIM/3rdParty/pulseq-master/matlab/
+mrizero_git_dir = 'D:\root\ZAISS_LABLOG\LOG_MPI\27_MRI_zero\mrizero_tueb';
 
-host_dir = '../../../data/trained_models';
-seq_dir = '../../../data/trained_seq';
-experiment_id = 't00_magtrans_early';
+addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
+addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
-param_dict = load([host_dir,'/',experiment_id,'/','param_dict.mat']);
-spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
-scanner_dict = load([host_dir,'/',experiment_id,'/','scanner_dict.mat']);
+seq_dir = [mrizero_git_dir '\codes\GradOpt_python\out\'];
+experiment_id = 'RARE_FA_OPT_fixrep1_90';
+experiment_id = 'RARE_baseline';
+
+%param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
+%spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
+scanner_dict = load([seq_dir,'/',experiment_id,'/','scanner_dict.mat']);
 
 % gradient tranform
-learned_grads = scanner_dict.grads;
+grad_moms = scanner_dict.grad_moms;
 
-grad_moms = cumsum(learned_grads,2);
-
-fmax = param_dict.sz / 2;                                                                                % cap the grad_moms to [-1..1]*sz/2
-for i = 1:2
-  grad_moms(:,:,i) = fmax(i)*tanh(grad_moms(:,:,i));                                                                        % soft threshold
-  %grad_moms(abs(grad_moms(:,i)) > fmax(i),i) = sign(grad_moms(abs(grad_moms(:,i)) > fmax(i),i))*fmax(i);  % hard threshold, this part is nondifferentiable
+if 0  % only when gradients were optimized, make sure gradmoms are between -res/2 res/2
+    fmax = scanner_dict.sz / 2;                                                                                % cap the grad_moms to [-1..1]*sz/2
+    for i = 1:2
+      grad_moms(:,:,i) = fmax(i)*tanh(grad_moms(:,:,i));                                                                        % soft threshold
+      %grad_moms(abs(grad_moms(:,i)) > fmax(i),i) = sign(grad_moms(abs(grad_moms(:,i)) > fmax(i),i))*fmax(i);  % hard threshold, this part is nondifferentiable
+    end
 end
 
-
-
+figure,
+colormap 'jet'
+subplot(2,3,1), imagesc(scanner_dict.flips(:,:,1)'); title('Flips'); colorbar
+subplot(2,3,4), imagesc(scanner_dict.flips(:,:,2)'); title('Phases');colorbar
+subplot(2,3,2), imagesc(scanner_dict.event_times'); title('delays');colorbar
+subplot(2,3,3), imagesc(grad_moms(:,:,1)');         title('gradmomx');colorbar
+subplot(2,3,6), imagesc(grad_moms(:,:,2)');          title('gradmomy');colorbar
+set(gcf,'OuterPosition',[431         379        1040         513])
 %% plug learned gradients into the sequence constructor
 % close all
-seq_fn = [host_dir,'/',experiment_id,'/','base.seq'];
+seq_fn = [seq_dir,'/',experiment_id,'/','base.seq'];
 
-SeqOpts.resolution = param_dict.sz;                                                                                            % matrix size
+SeqOpts.resolution = double(scanner_dict.sz);                                                                                            % matrix size
 SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 10e-3;          % fix
 SeqOpts.TR = 10000e-3;       % fix
 SeqOpts.FlipAngle = pi/2;    % fix
 
-% init sequence and system
-seq = mr.Sequence();
+% set system limits
+% had to slow down ramps and increase adc_duration to avoid stimulation
+sys = mr.opts('MaxGrad',36,'GradUnit','mT/m',...
+    'MaxSlew',140,'SlewUnit','T/m/s',...
+    'rfRingdownTime', 20e-6, 'rfDeadTime', 100e-6, ...
+    'adcDeadTime', 20e-6);
 
-% rf pulse
-rf = mr.makeBlockPulse(SeqOpts.FlipAngle,'Duration',1e-3);
 
 %gradients
 Nx = SeqOpts.resolution(1); Ny = SeqOpts.resolution(2);
 
+% ok, there are two ways to do it now:
+% APPROACH A: each gradient event is an individual block, with ramp up and down,
+% this would be necessary for free gradient moms
+
+% APPROACH B: we assume at least line acquisition in each repetition, thus the
+% 16 actions within one repetition are played out as one gradient event
+% with 16 samples
+
+%% APPROACH B: line read approach
+% we have to calculate the actually necessary gradients from the grad moms
+% this is easy when using the AREA of the pulseqgrads  and gradmoms*deltak
+
+% init sequence and system
+seq = mr.Sequence();
+% ADC duration (controls TR/TE)
+adc_dur=2560; %us
+
+% Define other gradients and ADC events
 deltak=1/SeqOpts.FOV;
+% read gradient
+
+T = size(scanner_dict.grad_moms,1);
+NRep = size(scanner_dict.grad_moms,2);
+
+% put blocks together
+for rep=1:NRep
+
+    gradmoms = double(scanner_dict.grad_moms)*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
+
+    % first two extra events T(1:2)
+    % first
+      idx_T=1; % T(1)
+      rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2));
+      seq.addBlock(rf);
+      seq.addBlock(mr.makeDelay(scanner_dict.event_times(rep,idx_T)))
+      % alternatively slice selective:
+        %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
+        % see writeHASTE.m      
+      
+    % second      
+        idx_T=2; % T(2)
+        gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(rep,idx_T),'system',sys);
+        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(rep,idx_T),'system',sys);
+      seq.addBlock(gxPre,gyPre);
+      
+    % line acquisition T(3:end-1)
+        idx_T=3:size(gradmoms,1)-1; % T(2)
+        dur=sum(scanner_dict.event_times(3:end-1,rep));
+        gx = mr.makeTrapezoid('x','Area',sum(gradmoms(idx_T,rep,1),1),'Duration',dur,'system',sys);
+        adc = mr.makeAdc(numel(idx_T),'Duration',dur,'Delay',gx.riseTime);
+      seq.addBlock(gx,adc);
+      
+    % last extra event  T(end)
+        idx_T=size(gradmoms,1); % T(2)
+        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',0.001,'system',sys);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',0.001,'system',sys);
+      seq.addBlock(gxPost,gyPost);
+
+end
+
+%write sequence
+seq.write(seq_fn);
+
+seq.plot();
+subplot(3,2,1), title(experiment_id,'Interpreter','none');
+
+
+return
+
+
+
+%% FIRST approach of full individual gradmoms
+
+% Define other gradients and ADC events
+deltak=1/SeqOpts.FOV;
+gx = mr.makeTrapezoid('x','FlatArea',Nx*deltak,'FlatTime',adc_dur*1e-6,'system',sys);
+adc = mr.makeAdc(Nx,'Duration',gx.flatTime,'Delay',gx.riseTime,'system',sys);
+gxPre = mr.makeTrapezoid('x','Area',-gx.area/2,'system',sys);
+phaseAreas = ((0:Ny-1)-Ny/2)*deltak;
+
 dt=1e-3;
 riseTime = 10e-36; % use the same rise times for all gradients, so we can neglect them
 adc = mr.makeAdc(1,'Duration',dt,'Delay',riseTime);

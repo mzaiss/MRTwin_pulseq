@@ -41,7 +41,7 @@ else:
     importlib.reload(core.scanner)
     importlib.reload(core.opt_helper)    
 
-use_gpu = 1
+use_gpu = 0
 
 # NRMSE error function
 def e(gt,x):
@@ -78,10 +78,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
-NRep = 16                                          # number of repetitions
+sz = np.array([24,24])                                           # image size
+NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 256                                # number of spin sims in each voxel
+NSpins = 64                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -107,7 +107,7 @@ cutoff = 1e-12
 spins.T1[spins.T1<cutoff] = cutoff
 spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
-spins.T1*=10000
+spins.T1*=1
 spins.T2*=1
 imshow(numerical_phantom[:,:,0], title="PD")
 
@@ -168,16 +168,17 @@ scanner.set_flipXY_tensor(flips)
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
-grad_moms[T-sz[0]-1:-1,:,0] = torch.linspace(-int(sz[0]/2),int(sz[0]/2)-1,int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+# xgradmom
+grad_moms[T-sz[0]-1:-1,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep])
+# ygradmom
 if NRep == 1:
     grad_moms[T-sz[0]-1:-1,:,1] = torch.zeros((1,1)).repeat([sz[0],1])
 else:
-    grad_moms[T-sz[0]-1:-1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep)).repeat([sz[0],1])
-    
-    
-#grad_moms[-1,:,:] = grad_moms[-2,:,:]
+    grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
+    grad_moms[-1,:,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
+        
+grad_moms[1,0,0] = -torch.ones((1,1))*sz[0]/2  # RARE: rewinder after 90 degree half length, half gradmom
 
-grad_moms[:,0,:] = -grad_moms[:,0,:]/2  # RARE: rewinder after 90 degree half length, half gradmom
 
 # dont optimize y  grads
 #grad_moms[:,:,1] = 0
@@ -188,8 +189,8 @@ grad_moms[:,0,:] = -grad_moms[:,0,:]/2  # RARE: rewinder after 90 degree half le
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[:,0,0] = 0.5*1e-3  
+event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
+event_time[:,0,0] = 0.1*1e-3  
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
@@ -410,7 +411,7 @@ for i in range(3):
 # %% # save optimized parameter history
 experiment_id = 'RARE_FA_OPT_fixrep1_90'
 #opt.save_param_reco_history(experiment_id)
-    
+opt.export_to_matlab(experiment_id)
     
     
 
