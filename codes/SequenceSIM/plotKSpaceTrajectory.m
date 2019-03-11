@@ -9,11 +9,11 @@ function [] = plotKSpaceTrajectory(gradients, resolution, plotIndices)
     end
 
     if plotIndices == 1
-        plotcoords = (gradients+0.5)*resolution;
-        fprintf('k-trajectory (indices) max: %.2f, min: %.2f\n', max(max(plotcoords)), min(min(plotcoords)));
+        plotcoords = (gradients+0.5)*resolution; 
     else 
         plotcoords = gradients;
     end
+    fprintf('k-trajectory (indices) max: %.2f, min: %.2f\n', max(max(plotcoords)), min(min(plotcoords)));
     
     figure;
     p = plot(plotcoords(1,:),plotcoords(2,:), '-o');

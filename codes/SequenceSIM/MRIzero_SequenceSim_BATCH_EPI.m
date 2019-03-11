@@ -6,7 +6,7 @@
 % (:,:,2) -> T1
 % (:,:,3) -> T2
 
-resolution = 16; % 100x100 take runs ~12s on a single core
+resolution = 128; % 100x100 take runs ~12s on a single core
 PD = phantom(resolution);
 NSpins=1;
 
@@ -15,9 +15,9 @@ NSpins=1;
 % PD(resolution/2, resolution/2)=1;
 
 PD(PD<0) = 0;
-T1 = PD*1;
-T2 = PD*.1;
-T2star = PD*10000;
+T1 = PD*4;
+T2 = PD*1;
+T2star = PD*1;
 
 % T1 = (PD+phantom([0.5 0.2 0.3 -0.4 -0.4 45], resolution))*2;
 % T2 = (PD+phantom([1 0.1 0.2 0.4 0.5 0], resolution))*0.35;
@@ -32,8 +32,8 @@ SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 15e-3;
 SeqOpts.TR = 500e-3;
 SeqOpts.ETL = resolution;
-SeqOpts.FlipAngle = pi/2;
-SeqOpts.FlipAngle1 = pi/2;
+SeqOpts.FlipAngle = 60*pi/180;
+SeqOpts.FlipAngle1 = 60*pi/180;
 SeqOpts.FlipAngle2 = pi;
 SeqOpts.Order = 'increase'; % increase, center, center_in, (half)
 filename = 'epi.seq';
@@ -44,7 +44,7 @@ sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
 sequence.plot();
 % sequence.sound();
 %% run simulation
-seqFilename = '../GradOpt/seq/learned_grad.seq';
+seqFilename = 'epi.seq';
 tic;
 [kList, gradients] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, NSpins);
 toc;

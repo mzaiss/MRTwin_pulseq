@@ -8,7 +8,7 @@ function [] = plotSimulationResult(PD, kspace)
         subplot(2,4,1);
         imshow(PD); % reference image
         subplot(2,4,2);
-        Y = fftshift(fft2(fftshift(PD))); % kspace of reference image
+        Y = fftshift(fft2((PD))); % kspace of reference image
 
         % absolute, Re and Im values of kspace of reference image
         imagesc(abs(Y)); 

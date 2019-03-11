@@ -1,5 +1,5 @@
 seq=mr.Sequence();              % Create a new sequence object
-fov=250e-3; Nx=256; Ny=256;     % Define FOV and resolution
+fov=220e-3; Nx=64; Ny=64;     % Define FOV and resolution
 alpha=10;                       % flip angle
 sliceThickness=3e-3;            % slice
 TE=[7.38 9.84]*1e-3;                % give a vector here to have multiple TEs (e.g. for field mapping)
@@ -40,6 +40,25 @@ rf_phase=0;
 rf_inc=0;
 
 % Loop over phase encodes and define sequence blocks
+for i=1:Ny
+    for c=1:length(TE)
+        rf.phaseOffset=rf_phase/180*pi;
+        adc.phaseOffset=rf_phase/180*pi;
+        rf_inc=mod(rf_inc+rfSpoilingInc, 360.0);
+        rf_phase=mod(rf_phase+rf_inc, 360.0);
+        %
+        seq.addBlock(rf,gz);
+        gyPre = mr.makeTrapezoid('y','Area',phaseAreas(i),'Duration',2e-3,'system',sys);
+        seq.addBlock(gxPre,gyPre,gzReph);
+        seq.addBlock(mr.makeDelay(delayTE(c)));
+        seq.addBlock(gx,adc);
+        gyPre.amplitude=-gyPre.amplitude;
+        seq.addBlock(mr.makeDelay(delayTR(c)),gxSpoil,gyPre,gzSpoil)
+    end
+end
+
+seq.addBlock(mr.makeDelay(5));
+
 for i=1:Ny
     for c=1:length(TE)
         rf.phaseOffset=rf_phase/180*pi;
