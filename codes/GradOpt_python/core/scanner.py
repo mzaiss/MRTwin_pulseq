@@ -839,7 +839,7 @@ class Scanner_fast(Scanner):
         self.G = self.setdevice(G)
         self.G_adj = self.setdevice(G_adj)
         
-    def set_gradient_precession_tensor(self,grad_moms):
+    def set_gradient_precession_tensor(self,grad_moms,refocusing=False):
         
         k=torch.cumsum(grad_moms,0)
         
@@ -852,7 +852,11 @@ class Scanner_fast(Scanner):
         B0_grad_sin = torch.sin(B0_grad)
         
         # for backward pass
-        B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
+        if refocusing:
+            B0X = torch.unsqueeze(k[:,:,0]-self.sz[0]/2,2) * self.rampX
+        else:
+            B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
+            
         B0Y = torch.unsqueeze(k[:,:,1],2) * self.rampY
         
         B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
@@ -910,7 +914,7 @@ class Scanner_fast(Scanner):
                         last_r = r-1
                         
                     # flip
-                    f = self.F[t,r,:,:,:]
+                    f = self.F[t,r,:,:,:].detach().clone()
                         
                     if t == 0 and r == 0:
                         self.G_adj[t,r,:,:,:] = self.G_adj[last_t,last_r,:,:,:]
