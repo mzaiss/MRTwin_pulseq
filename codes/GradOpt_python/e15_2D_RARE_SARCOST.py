@@ -107,8 +107,8 @@ cutoff = 1e-12
 spins.T1[spins.T1<cutoff] = cutoff
 spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
-spins.T1*=10000
-spins.T2*=10
+spins.T1*=1
+spins.T2*=1
 imshow(numerical_phantom[:,:,0], title="PD")
 
 #begin nspins with R*
@@ -176,13 +176,8 @@ if NRep == 1:
 else:
     grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
     grad_moms[-1,:,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
-    
-    
-#grad_moms[-1,:,:] = grad_moms[-2,:,:]
-    
-#grad_moms[1,:,0] = torch.ones((1,1))*-sz[0] # RARE: rewinder after 90 degree half length, half gradmom
-grad_moms[1,0,0] = -np.floor(torch.ones((1,1))*-sz[0]/2)  # RARE: rewinder after 90 degree half length, half gradmom
-
+        
+grad_moms[1,0,0] = -torch.ones((1,1))*sz[0]/2+1  # RARE: rewinder after 90 degree half length, half gradmom
 
 # dont optimize y  grads
 #grad_moms[:,:,1] = 0
@@ -193,8 +188,8 @@ grad_moms[1,0,0] = -np.floor(torch.ones((1,1))*-sz[0]/2)  # RARE: rewinder after
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[:,0,0] = 0.5*1e-3  
+event_time = torch.from_numpy(0.6*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
+event_time[:,0,0] = 0.3*1e-3  
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()

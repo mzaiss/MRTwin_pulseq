@@ -88,25 +88,31 @@ for rep=1:NRep
 
     % first two extra events T(1:2)
     % first
-      idx=1; % T(1)
-      rf = mr.makeBlockPulse(scanner_dict.flips(idx,rep,1),'Duration',1e-3,'PhaseOffset',scanner_dict.flips(idx,rep,2));
+      idx_T=1; % T(1)
+      rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2));
       seq.addBlock(rf);
-      seq.addBlock(mr.makeDelay(scanner_dict.event_times(rep,idx)))
+      seq.addBlock(mr.makeDelay(scanner_dict.event_times(rep,idx_T)))
+      % alternatively slice selective:
+        %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
+        % see writeHASTE.m      
+      
     % second      
-        idx=2; % T(2)
-        gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx,rep,1),'Duration',scanner_dict.event_times(rep,idx),'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx,rep,2),'Duration',scanner_dict.event_times(rep,idx),'system',sys);
+        idx_T=2; % T(2)
+        gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(rep,idx_T),'system',sys);
+        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(rep,idx_T),'system',sys);
       seq.addBlock(gxPre,gyPre);
       
     % line acquisition T(3:end-1)
-        dur=sum(scanner_dict.event_times(1,3:end-1));
-        gx = mr.makeTrapezoid('x','Area',sum(gradmoms(3:end-1,rep,1),1),'Duration',dur,'system',sys);
-        adc = mr.makeAdc(1,'Duration',dur,'Delay',gx.riseTime);
+        idx_T=3:size(gradmoms,1)-1; % T(2)
+        dur=sum(scanner_dict.event_times(3:end-1,rep));
+        gx = mr.makeTrapezoid('x','Area',sum(gradmoms(idx_T,rep,1),1),'Duration',dur,'system',sys);
+        adc = mr.makeAdc(numel(idx_T),'Duration',dur,'Delay',gx.riseTime);
       seq.addBlock(gx,adc);
       
     % last extra event  T(end)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(end,rep,1),'Duration',0.001,'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(end,rep,2),'Duration',0.001,'system',sys);
+        idx_T=size(gradmoms,1); % T(2)
+        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',0.001,'system',sys);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',0.001,'system',sys);
       seq.addBlock(gxPost,gyPost);
 
 end
