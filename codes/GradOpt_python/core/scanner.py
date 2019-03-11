@@ -741,15 +741,10 @@ class Scanner_fast(Scanner):
         
     def set_gradient_precession_tensor(self,grad_moms):
         
-        padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
-        padder = self.setdevice(padder)
-        temp = torch.cat((padder,grad_moms),0)
-        #grads = temp[1:,:,:] - temp[:-1,:,:]         
-        grads=grad_moms
-        grad_moms=torch.cumsum(grads,0)
+        k=torch.cumsum(grad_moms,0)
         
-        B0X = torch.unsqueeze(grads[:,:,0],2) * self.rampX
-        B0Y = torch.unsqueeze(grads[:,:,1],2) * self.rampY
+        B0X = torch.unsqueeze(grad_moms[:,:,0],2) * self.rampX
+        B0Y = torch.unsqueeze(grad_moms[:,:,1],2) * self.rampY
         
         B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
         
@@ -757,8 +752,8 @@ class Scanner_fast(Scanner):
         B0_grad_sin = torch.sin(B0_grad)
         
         # for backward pass
-        B0X = torch.unsqueeze(grad_moms[:,:,0],2) * self.rampX
-        B0Y = torch.unsqueeze(grad_moms[:,:,1],2) * self.rampY
+        B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
+        B0Y = torch.unsqueeze(k[:,:,1],2) * self.rampY
         
         B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
         
