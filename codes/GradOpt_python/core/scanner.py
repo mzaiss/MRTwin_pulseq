@@ -876,7 +876,7 @@ class Scanner_fast(Scanner):
         self.G_adj[:,:,:,1,1] = B0_grad_adj_cos
         
     # do full flip/gradprecess adjoint integrating over all repetition grad/flip history
-    def set_gradient_precession_tensor_adjhistory(self,grad_moms,event_time,spins):
+    def set_gradient_precession_tensor_adjhistory(self,grad_moms):
         
         B0X = torch.unsqueeze(grad_moms[:,:,0],2) * self.rampX
         B0Y = torch.unsqueeze(grad_moms[:,:,1],2) * self.rampY
@@ -900,21 +900,14 @@ class Scanner_fast(Scanner):
         
         for r in range(self.NRep):
             for t in range(self.T):
-                # flip
-                f = self.F[t,r,:,:,:]
+                f = self.F[t,r,:,:,:]                                    # flip
                     
                 if t == 0 and r == 0:
                     pass
                 else:
                     propagator = torch.matmul(f, propagator)
 
-                # relax
-                #delay = torch.abs(event_time[t,r] + 1e-6) * 1    
-                #self.set_relaxation_tensor(spins,delay)
-                #self.G_adj[t,r,:,:,:] = torch.matmul(self.R, self.G_adj[t,r,:,:,:])
-                
-                # grads
-                propagator = torch.matmul(self.G[t,r,:,:,:],propagator)
+                propagator = torch.matmul(self.G[t,r,:,:,:],propagator) # grads
                 
                 self.G_adj[t,r,:,:,:] = propagator
                 
