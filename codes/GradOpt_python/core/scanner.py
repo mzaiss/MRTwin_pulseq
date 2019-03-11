@@ -869,7 +869,73 @@ class Scanner_fast(Scanner):
         self.G_adj[:,:,:,0,0] = B0_grad_adj_cos
         self.G_adj[:,:,:,0,1] = B0_grad_adj_sin
         self.G_adj[:,:,:,1,0] = -B0_grad_adj_sin
-        self.G_adj[:,:,:,1,1] = B0_grad_adj_cos        
+        self.G_adj[:,:,:,1,1] = B0_grad_adj_cos
+        
+    # do full flip/gradprecess adjoint integrating over all repetition grad/flip history
+    def set_gradient_precession_tensor_adjhistory(self,grad_moms,event_time,spins):
+        
+        B0X = torch.unsqueeze(grad_moms[:,:,0],2) * self.rampX
+        B0Y = torch.unsqueeze(grad_moms[:,:,1],2) * self.rampY
+        
+        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
+        
+        B0_grad_cos = torch.cos(B0_grad)
+        B0_grad_sin = torch.sin(B0_grad)
+        
+        self.G[:,:,:,0,0] = B0_grad_cos
+        self.G[:,:,:,0,1] = -B0_grad_sin
+        self.G[:,:,:,1,0] = B0_grad_sin
+        self.G[:,:,:,1,1] = B0_grad_cos
+
+
+        if True:
+            self.G_adj[:,:,:,2,2] = 1
+            self.G_adj[:,:,:,3,3] = 1
+            
+            for r in range(self.NRep):
+                for t in range(self.T):
+                    
+                    last_r = r
+                    last_t = t - 1
+                    
+                    if t == 0 and r == 0:
+                        self.G_adj[0,0,:,0,0] = 1
+                        self.G_adj[0,0,:,1,1] = 1
+                        
+                        last_t = 0
+                        last_r = 0
+                        
+                    if t == 0 and r > 0:
+                        last_t = self.T-1
+                        last_r = r-1
+                        
+                        #last_t = 0
+                        #last_r = r
+                        #self.G_adj[t,r,:,0,0] = 1
+                        #self.G_adj[t,r,:,1,1] = 1                    
+                        
+                    # flip
+                    f = self.F[t,r,:,:,:]
+                    #f[:,2:,:] = 0
+                    #f[:,:,2:] = 0
+                        
+                    if t == 0 and r == 0:
+                        #self.G_adj[t,r,:,:,:] = self.G_adj[last_t,last_r,:,:,:]
+                        self.G_adj[t,r,:,:,:] = torch.matmul(f, self.G_adj[last_t,last_r,:,:,:])
+                    else:
+                        self.G_adj[t,r,:,:,:] = torch.matmul(f, self.G_adj[last_t,last_r,:,:,:])
+    
+                    # relax
+                    #delay = torch.abs(event_time[t,r] + 1e-6) * 1    
+                    #self.set_relaxation_tensor(spins,delay)
+                    #self.G_adj[t,r,:,:,:] = torch.matmul(self.R, self.G_adj[t,r,:,:,:])
+                    
+                    # grads
+                    self.G_adj[t,r,:,:,:] = torch.matmul(self.G[t,r,:,:,:],self.G_adj[t,r,:,:,:])
+                    
+            self.G_adj = self.G_adj.permute([0,1,2,4,3])
+                
+
         
     def grad_precess(self,t,r,spins):
         spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)        
@@ -997,10 +1063,17 @@ class Scanner_fast(Scanner):
     # compute adjoint encoding op-based reco    <            
     def adjoint(self,spins):
         self.init_reco()
+        
+        adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        s = self.signal * adc_mask
+        s = torch.sum(s,0)
+        
+        r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,4,self.T*self.NRep*4]), s.view([1,self.T*self.NRep*4,1]))
+        self.reco = r[:,:2,0]        
 
-        for t in range(self.T-1,-1,-1):
-            if self.adc_mask[t] > 0:
-                self.do_grad_adj_reco(t,spins)        
+#        for t in range(self.T-1,-1,-1):
+#            if self.adc_mask[t] > 0:
+#                self.do_grad_adj_reco(t,spins)        
         
         
 # Fast, but memory inefficient version (also for now does not support parallel imagigng)
