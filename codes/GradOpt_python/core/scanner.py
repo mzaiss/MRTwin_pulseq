@@ -951,7 +951,7 @@ class Scanner_fast(Scanner):
                 self.read_signal(t,r,spins)    
                 
                 self.ROI_signal[t+1,r,0] =   delay
-                self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
 
                 self.ROI_signal[t+1,r,1:5] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
                 self.ROI_signal[t+1,r,5] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
