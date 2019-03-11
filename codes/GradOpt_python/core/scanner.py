@@ -909,19 +909,12 @@ class Scanner_fast(Scanner):
                         last_t = self.T-1
                         last_r = r-1
                         
-                        #last_t = 0
-                        #last_r = r
-                        #self.G_adj[t,r,:,0,0] = 1
-                        #self.G_adj[t,r,:,1,1] = 1                    
-                        
                     # flip
                     f = self.F[t,r,:,:,:]
-                    #f[:,2:,:] = 0
-                    #f[:,:,2:] = 0
                         
                     if t == 0 and r == 0:
-                        #self.G_adj[t,r,:,:,:] = self.G_adj[last_t,last_r,:,:,:]
-                        self.G_adj[t,r,:,:,:] = torch.matmul(f, self.G_adj[last_t,last_r,:,:,:])
+                        self.G_adj[t,r,:,:,:] = self.G_adj[last_t,last_r,:,:,:]
+                        #self.G_adj[t,r,:,:,:] = torch.matmul(f, self.G_adj[last_t,last_r,:,:,:])
                     else:
                         self.G_adj[t,r,:,:,:] = torch.matmul(f, self.G_adj[last_t,last_r,:,:,:])
     
