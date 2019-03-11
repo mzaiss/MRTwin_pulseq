@@ -8,6 +8,8 @@
 
 #include <math.h>		// fabs etc
 
+#include <functional> // for bind1st
+
 ExternalSequence::PrintFunPtr ExternalSequence::print_fun = &ExternalSequence::defaultPrint;
 const int ExternalSequence::MAX_LINE_SIZE = 256;
 const char ExternalSequence::COMMENT_CHAR = '#';
