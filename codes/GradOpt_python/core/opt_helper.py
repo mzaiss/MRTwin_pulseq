@@ -23,6 +23,9 @@ def get_cuda_mem_GB():
 def magimg(x):
     return np.sqrt(np.sum(np.abs(x)**2,2))
 
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
+
 # optimization helper class
 class OPT_helper():
     def __init__(self,scanner,spins,NN,nmb_total_samples_dataset):
@@ -219,7 +222,7 @@ class OPT_helper():
             # clear previous figure stack            
             plt.clf()            
             
-            ax1=plt.subplot(151)
+            ax1=plt.subplot(251)
             ax=plt.imshow(magimg(self.target), interpolation='none')
             plt.clim(np.min(np.abs(self.target)),np.max(np.abs(self.target)))
             #plt.clim(0,1)
@@ -228,12 +231,29 @@ class OPT_helper():
             plt.title('target')
             plt.ion()
             
-            plt.subplot(152, sharex=ax1, sharey=ax1)
+            ax1=plt.subplot(256)
+            ax=plt.imshow(phaseimg(self.target), interpolation='none')
+            plt.clim(-np.pi,np.pi) 
+            #plt.clim(0,1)
+            fig = plt.gcf()
+            fig.colorbar(ax)
+            plt.title('target phase')
+            plt.ion()
+            
+            plt.subplot(252, sharex=ax1, sharey=ax1)
             ax=plt.imshow(magimg(recoimg), interpolation='none')
             plt.clim(np.min(np.abs(self.target)),np.max(np.abs(self.target)))
             fig = plt.gcf()
             fig.colorbar(ax)
             plt.title('reco')
+            plt.ion()
+            
+            plt.subplot(257, sharex=ax1, sharey=ax1)
+            ax=plt.imshow(phaseimg(recoimg), interpolation='none')
+            plt.clim(-np.pi,np.pi) 
+            fig = plt.gcf()
+            fig.colorbar(ax)
+            plt.title('reco phase')
             plt.ion()
                
             plt.subplot(153)
