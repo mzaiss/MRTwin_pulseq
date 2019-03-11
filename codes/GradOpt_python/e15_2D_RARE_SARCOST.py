@@ -78,10 +78,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 128                                # number of spin sims in each voxel
+NSpins = 64                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -177,7 +177,8 @@ else:
     grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
     grad_moms[-1,:,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
         
-grad_moms[1,0,0] = -torch.ones((1,1))*sz[0]/2+1  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[1,0,0] = -torch.ones((1,1))*sz[0]/2  # RARE: rewinder after 90 degree half length, half gradmom
+
 
 # dont optimize y  grads
 #grad_moms[:,:,1] = 0
@@ -188,8 +189,8 @@ grad_moms[1,0,0] = -torch.ones((1,1))*sz[0]/2+1  # RARE: rewinder after 90 degre
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(0.6*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[:,0,0] = 0.3*1e-3  
+event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
+event_time[:,0,0] = 0.1*1e-3  
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()

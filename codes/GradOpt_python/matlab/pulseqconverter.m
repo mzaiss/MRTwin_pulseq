@@ -8,6 +8,7 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 seq_dir = [mrizero_git_dir '\codes\GradOpt_python\out\'];
 experiment_id = 'RARE_FA_OPT_fixrep1_90';
+experiment_id = 'RARE_baseline';
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
@@ -117,6 +118,7 @@ end
 seq.write(seq_fn);
 
 seq.plot();
+subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 
 return
