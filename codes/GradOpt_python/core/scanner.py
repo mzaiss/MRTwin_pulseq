@@ -2,7 +2,106 @@ import numpy as np
 import torch
 
 
-torch.cuda.get_device_properties(0)
+class FlipClass(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, f, x, scanner):
+        ctx.f = f.clone()
+        ctx.scanner = scanner
+
+        return torch.matmul(f,x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
+        
+        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = torch.sum(gf,[0,2])
+        
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
+        
+        return (gf, gx, None) 
+  
+class RelaxClass(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, f, x, delay, t, scanner):
+        ctx.f = f.clone()
+        ctx.delay = delay
+        ctx.scanner = scanner
+        ctx.t = t
+        ctx.thresh = 1e-2
+        
+        if ctx.delay > ctx.thresh or ctx.t == 0:
+            ctx.M = x.clone()
+            
+        ctx.M = x.clone()
+
+        return torch.matmul(f,x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        gx = torch.matmul(ctx.f.permute([0,1,3,2]),grad_output)
+        
+        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = torch.sum(gf,[0])
+        
+        if ctx.delay > ctx.thresh or ctx.t == 0:
+            ctx.scanner.lastM = ctx.M
+        else:
+            d1 = ctx.f[0,:,0,0]
+            id1 = 1/d1
+            #id1[d1<1e-5] = 1
+            id1[ctx.scanner.tmask == 0] = 0
+            
+            d3 = ctx.f[0,:,2,2]
+            id3 = 1/d3
+            id3[d3<1e-5] = 1
+            id3 = id3.view([1,ctx.scanner.NVox])
+            
+            ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,ctx.scanner.NVox,1])
+            #ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.scanner.lastM[:,0,:,3,0]
+            ctx.scanner.lastM[:,0,:,2,0] = ctx.M[:,0,:,2,0]
+            #ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,3,2]),ctx.scanner.lastM)
+            
+        return (gf, gx, None, None, None) 
+  
+class DephaseClass(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, f, x, scanner):
+        ctx.f = f.clone()
+        ctx.scanner = scanner
+
+        return torch.matmul(f,x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        gx = torch.matmul(ctx.f.permute([0,1,2,4,3]),grad_output)
+        
+        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = torch.sum(gf,[2],keepdim=True)
+        
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
+        
+        return (gf, gx, None) 
+  
+class GradPrecessClass(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, f, x, scanner):
+        ctx.f = f.clone()
+        ctx.scanner = scanner
+
+        return torch.matmul(f,x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
+        
+        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = torch.sum(gf,[0,1])
+        
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
+        
+        return (gf, gx, None) 
+  
 
 # HOW we measure
 class Scanner():
@@ -38,6 +137,7 @@ class Scanner():
         
         self.ROI_signal = None                # measured signal (NCoils,T,NRep,4)
         self.ROI_def = 1
+        self.lastM = None
         
         self.use_gpu =  use_gpu
         
@@ -834,9 +934,6 @@ class Scanner_fast(Scanner):
         self.init_signal()
         spins.set_initial_magnetization()
     
-        
-        
-                         
         # scanner forward process loop
         for r in range(self.NRep):                                   # for all repetitions
             
@@ -846,11 +943,7 @@ class Scanner_fast(Scanner):
             for t in range(self.T):                                      # for all actions
                 self.flip(t,r,spins)
                 
-                #delay = event_time[t,r]**2
                 delay = torch.abs(event_time[t,r] + 1e-6) * 1
-                #delay = (torch.abs(event_time[t,r]) + 1e-6)
-                #delay = torch.sqrt((event_time[t,r]) ** 2 + 1e-6)
-                #delay = torch.sqrt((event_time[t,r]) ** 2)
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.relax_and_dephase(spins)
@@ -860,6 +953,44 @@ class Scanner_fast(Scanner):
                 
                 self.ROI_signal[t+1,r,0] =   delay
                 self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+                
+    def forward_mem(self,spins,event_time):
+        self.init_signal()
+        spins.set_initial_magnetization()
+    
+        # scanner forward process loop
+        for r in range(self.NRep):                                   # for all repetitions
+            
+            self.ROI_signal[0,r,0] =   0
+            self.ROI_signal[0,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+            
+            for t in range(self.T):                                      # for all actions
+                spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
+                
+                delay = torch.abs(event_time[t,r] + 1e-6) * 1
+                self.set_relaxation_tensor(spins,delay)
+                self.set_freeprecession_tensor(spins,delay)
+                
+                spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self)
+                spins.M = DephaseClass.apply(self.P,spins.M,self)
+                    
+                spins.M = GradPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
+                self.read_signal(t,r,spins)    
+                
+                self.ROI_signal[t+1,r,0] =   delay
+                self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16  
+                
+                
+        # kill numerically unstable parts of M vector for backprop
+        self.tmask = torch.ones((self.NVox)).float()
+        self.tmask = self.setdevice(self.tmask)
+        
+        self.tmask[spins.T1 < 1e-8] = 0
+        self.tmask[spins.T2 < 1e-8] = 0
+        
+        spins.M *= self.tmask.view([1,1,self.NVox,1,1])
+                
+        self.lastM = spins.M.clone()
                  
              
     # compute adjoint encoding op-based reco                
@@ -1014,6 +1145,5 @@ class Scanner_batched_fast(Scanner_batched):
 #        r = torch.matmul(self.G_adj.permute([0,2,1,3,4]), s)
 #        self.reco = self.reco + torch.sum(r[:,:,:,:2,0],2)
         
-
 
 
