@@ -6,7 +6,7 @@
 % (:,:,2) -> T1
 % (:,:,3) -> T2
 
-resolution = 48; % 100x100 take runs ~12s on a single core
+resolution = 128; % 100x100 take runs ~12s on a single core
 PD = phantom(resolution);
 NSpins=1;
 
@@ -15,9 +15,9 @@ NSpins=1;
 % PD(resolution/2, resolution/2)=1;
 
 PD(PD<0) = 0;
-T1 = PD*2;
-T2 = PD*0.1;
-T2star = PD*10000;
+T1 = PD*4;
+T2 = PD*1;
+T2star = PD*1;
 
 % T1 = (PD+phantom([0.5 0.2 0.3 -0.4 -0.4 45], resolution))*2;
 % T2 = (PD+phantom([1 0.1 0.2 0.4 0.5 0], resolution))*0.35;
@@ -32,27 +32,29 @@ SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 15e-3;
 SeqOpts.TR = 500e-3;
 SeqOpts.ETL = resolution;
-SeqOpts.FlipAngle = pi/2;
-SeqOpts.FlipAngle1 = pi/2;
+SeqOpts.FlipAngle = 60*pi/180;
+SeqOpts.FlipAngle1 = 60*pi/180;
 SeqOpts.FlipAngle2 = pi;
 SeqOpts.Order = 'increase'; % increase, center, center_in, (half)
-filename = 'epi2.seq';
+filename = 'epi.seq';
 seqFilename = fullfile(pwd, filename);
 
 
-sequence = WriteEPI2SequenceWithPulseq(SeqOpts, seqFilename);
+sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
 sequence.plot();
-
+% sequence.sound();
 %% run simulation
+seqFilename = 'epi.seq';
 tic;
 [kList, gradients] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, NSpins);
 toc;
-
 
 %% reconstruction
 %kspace = reshape(kList,[resolution resolution]);
 kspace = kReorder(kList, gradients);
 
+%% regridding
+kspace = k_regrid(kList, gradients, resolution);
 
 %% plot results
 plotSimulationResult(PD, kspace./NSpins);
@@ -68,9 +70,21 @@ plotSimulationResult(PD, kspace./NSpins);
 % figure, imagesc(abs(nonuniformIDFT(kList, gradients, resolution))), title('nonuniformIDFT');
 
 %% plot kspace-trajectory
-plotKSpaceTrajectory(gradients, resolution, 0);
+plotKSpaceTrajectory(gradients, resolution, 1);
 
-%% comparison 
+%% nonuniform IDFT
+res_nuidft = nonuniformIDFT(kList, gradients, resolution);
+figure
+subplot(1,2,1), imagesc1t(abs(res_nuidft)), axis('image'), title('non-uniform IDFT');
+subplot(1,2,2), imagesc1t(abs(PD)), axis('image'), title('REF (PD)');
+
+
+%% comparison with pulseq trajectory
+[ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
+
+% figure; plot(ktraj'); % plot the entire k-space trajectory
+figure; plot(ktraj(1,:),ktraj(2,:),'b'); % a 2D plot
+hold;plot(ktraj_adc(1,:),ktraj_adc(2,:),'r.');
 
 %% comparison of reco result with filtered original kspace
 filterfunc1 = @(x,y) exp(-abs(y)/10); % exponential decay in PE direction

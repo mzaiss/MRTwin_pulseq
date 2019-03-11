@@ -1,7 +1,7 @@
 
 clear all; close all;
 
-mrizero_git_dir = 'D:\root\ZAISS_LABLOG\LOG_MPI\27_MRI_zero\mrizero_tueb';
+mrizero_git_dir = 'C:\Users\fmglang\Desktop\mrizero_tueb';
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
@@ -86,7 +86,14 @@ for rep=1:NRep
     % first two extra events T(1:2)
     % first
       idx_T=1; % T(1)
-      rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2));
+      
+      if rep == 1
+          use = 'excitation';
+      else
+          use = 'refocusing';
+      end
+      
+      rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
       seq.addBlock(rf);
       seq.addBlock(mr.makeDelay(scanner_dict.event_times(rep,idx_T)))
       % alternatively slice selective:

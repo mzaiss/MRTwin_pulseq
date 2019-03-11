@@ -46,14 +46,8 @@ void BlochSimulator::RunSimulation(ExternalSequence& sequence, std::vector<KSpac
         // Pseudo-Spoiler (NOT PHYSICALLY REASONABLE!)
         // set Mx=My=0 if any z gradient is applied
         else if(seqBlock->isTrapGradient(2)) {
-            //Mx = MatrixXd::Zero(referenceVolume->GetNumberOfRows(), referenceVolume->GetNumberOfColumns());
-            //My = Mx;
-            for (uint32_t row = 0; row < referenceVolume->GetNumberOfRows(); row++) {
-                for (uint32_t col = 0; col < referenceVolume->GetNumberOfColumns(); col++) {
-                    Mx(row, col) = 0;
-                    My(row, col) = 0;
-                }
-            }
+			Mx = MatrixXd::Zero(referenceVolume->GetNumberOfRows()*referenceVolume->GetNumberOfColumns(), numSpins);
+			My = Mx;
         }
         else if(~seqBlock->isADC() && (seqBlock->isTrapGradient(0)|| seqBlock->isTrapGradient(1))) {
             // Gradients needs to be calculated for each pixel
@@ -207,18 +201,21 @@ void BlochSimulator::ApplyBlochSimulationPixel(uint32_t row, uint32_t col, uint3
 	Vector3d Mi(Mx(imgIdx, spin), My(imgIdx, spin), Mz(imgIdx, spin));
 	Vector3d M;
 	switch (type)
-	{
+	{ // FG: use always full bloch solution (matrix exp)
 	case FULL:
 		M = SolveBlochEquation(Mi, A, C, t);
 		break;
 	case PRECESS:
 		M = Precess(Mi, A, t);
+		//M = SolveBlochEquation(Mi, A, C, t);
 		break;
 	case RELAX:
 		M = Relax(Mi, A, referenceVolume->GetProtonDensityValue(row, col), t);
+		//M = SolveBlochEquation(Mi, A, C, t);
 		break;
     case DEPHASE:
 		M = Dephase(Mi, A, t);
+		//M = SolveBlochEquation(Mi, A, C, t);
 		break;
 	default:
 		break;
