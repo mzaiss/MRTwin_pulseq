@@ -891,46 +891,34 @@ class Scanner_fast(Scanner):
         self.G[:,:,:,1,0] = B0_grad_sin
         self.G[:,:,:,1,1] = B0_grad_cos
 
+        self.G_adj[:,:,:,2,2] = 1
+        self.G_adj[:,:,:,3,3] = 1
+        self.G_adj[0,0,:,0,0] = 1
+        self.G_adj[0,0,:,1,1] = 1
+        
+        propagator = self.G_adj[0,0,:,:,:]
+        
+        for r in range(self.NRep):
+            for t in range(self.T):
+                # flip
+                f = self.F[t,r,:,:,:]
+                    
+                if t == 0 and r == 0:
+                    pass
+                else:
+                    propagator = torch.matmul(f, propagator)
 
-        if True:
-            self.G_adj[:,:,:,2,2] = 1
-            self.G_adj[:,:,:,3,3] = 1
-            
-            for r in range(self.NRep):
-                for t in range(self.T):
-                    
-                    last_r = r
-                    last_t = t - 1
-                    
-                    if t == 0 and r == 0:
-                        self.G_adj[0,0,:,0,0] = 1
-                        self.G_adj[0,0,:,1,1] = 1
-                        
-                        last_t = 0
-                        last_r = 0
-                        
-                    if t == 0 and r > 0:
-                        last_t = self.T-1
-                        last_r = r-1
-                        
-                    # flip
-                    f = self.F[t,r,:,:,:].detach().clone()
-                        
-                    if t == 0 and r == 0:
-                        self.G_adj[t,r,:,:,:] = self.G_adj[last_t,last_r,:,:,:]
-                        #self.G_adj[t,r,:,:,:] = torch.matmul(f, self.G_adj[last_t,last_r,:,:,:])
-                    else:
-                        self.G_adj[t,r,:,:,:] = torch.matmul(f, self.G_adj[last_t,last_r,:,:,:])
-    
-                    # relax
-                    #delay = torch.abs(event_time[t,r] + 1e-6) * 1    
-                    #self.set_relaxation_tensor(spins,delay)
-                    #self.G_adj[t,r,:,:,:] = torch.matmul(self.R, self.G_adj[t,r,:,:,:])
-                    
-                    # grads
-                    self.G_adj[t,r,:,:,:] = torch.matmul(self.G[t,r,:,:,:],self.G_adj[t,r,:,:,:])
-                    
-            self.G_adj = self.G_adj.permute([0,1,2,4,3])
+                # relax
+                #delay = torch.abs(event_time[t,r] + 1e-6) * 1    
+                #self.set_relaxation_tensor(spins,delay)
+                #self.G_adj[t,r,:,:,:] = torch.matmul(self.R, self.G_adj[t,r,:,:,:])
+                
+                # grads
+                propagator = torch.matmul(self.G[t,r,:,:,:],propagator)
+                
+                self.G_adj[t,r,:,:,:] = propagator
+                
+        self.G_adj = self.G_adj.permute([0,1,2,4,3])
                 
 
         
