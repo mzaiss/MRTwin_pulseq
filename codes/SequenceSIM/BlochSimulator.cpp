@@ -53,8 +53,8 @@ void BlochSimulator::RunSimulation(ExternalSequence& sequence, std::vector<KSpac
             // Gradients needs to be calculated for each pixel
 			ApplyEventToVolume(seqBlock); 
 			// Todo: take ramp times into account
-            ky += (seqBlock->GetGradEvent(1).flatTime) * (seqBlock->GetGradEvent(1).amplitude)*1e-6 * referenceVolume->GetPixelSize();
-            kx += (seqBlock->GetGradEvent(0).flatTime) * (seqBlock->GetGradEvent(0).amplitude)*1e-6 * referenceVolume->GetPixelSize();
+            ky += (seqBlock->GetGradEvent(1).flatTime + seqBlock->GetGradEvent(1).rampUpTime) * (seqBlock->GetGradEvent(1).amplitude)*1e-6 * referenceVolume->GetPixelSize();
+            kx += (seqBlock->GetGradEvent(0).flatTime + seqBlock->GetGradEvent(0).rampUpTime) * (seqBlock->GetGradEvent(0).amplitude)*1e-6 * referenceVolume->GetPixelSize();
 		}
 		else { // No Gradients ? -> run faster global function
 			ApplyGlobalEventToVolume(seqBlock);
@@ -80,7 +80,7 @@ void BlochSimulator::AcquireKSpaceLine(std::vector<KSpaceEvent>& kSpace, SeqBloc
 	int numCols = referenceVolume->GetNumberOfColumns();
 	int numRows = referenceVolume->GetNumberOfRows();
 	double pixelSize = referenceVolume->GetPixelSize();
-	double GradientTimeStep = (seqBlock->GetDuration()*1e-6) / seqBlock->GetADCEvent().numSamples;
+	double GradientTimeStep = (seqBlock->GetGradEvent(0).flatTime + seqBlock->GetGradEvent(0).rampUpTime) / seqBlock->GetADCEvent().numSamples * 1e-6;
 	for (uint32_t adcSample = 0; adcSample < seqBlock->GetADCEvent().numSamples; adcSample++){
 		////////////////////////////////////////////////////////////////////////////////////////
 		// TODO: Parallelize
