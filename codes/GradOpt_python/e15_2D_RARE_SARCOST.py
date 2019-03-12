@@ -154,7 +154,7 @@ flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 # init tensors
 flips[0,0,0] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
 flips[0,0,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase
-flips[0,1:,0] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
+flips[1,:,0] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
 #flips[0,:] = 0*np.pi/180  # SE preparation part 1 : 90 degree excitation
 #flips[1,:] = 180*np.pi/180  # SE preparation part 2 : 180 degree refocus    
 
@@ -190,7 +190,8 @@ grad_moms = setdevice(grad_moms)
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[:,0,0] = 0.1*1e-3  
+event_time[0,0,0] = 0.1*1e-3  
+event_time[1:,0,0] = 0*1e-3  
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
