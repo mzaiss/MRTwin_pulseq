@@ -41,7 +41,7 @@ else:
     importlib.reload(core.scanner)
     importlib.reload(core.opt_helper)    
 
-use_gpu = 0
+use_gpu = 1
 
 # NRMSE error function
 def e(gt,x):
@@ -81,7 +81,7 @@ def stop():
 sz = np.array([16,16])                                           # image size
 NRep = 16                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 128                                # number of spin sims in each voxel
+NSpins = 32                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -109,6 +109,9 @@ spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 spins.T2*=1
 imshow(numerical_phantom[:,:,0], title="PD")
+
+#spins.T1[spins.T1==cutoff] = torch.max(spins.T1)
+#spins.T2[spins.T2==cutoff] = torch.max(spins.T2)
 
 #begin nspins with R*
 R2 = 30.0
@@ -187,8 +190,10 @@ grad_moms[:,0,:] = -grad_moms[:,0,:]/2  # RARE: rewinder after 90 degree half le
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[:,0,0] = 0.5*1e-3  
+event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
+event_time[0,0,0] = (sz[0]/2 + 2)*0.2*1e-3
+#event_time[1:,0,0] = 0.2*1e-3
+event_time[-1,:,0] = 0.4*1e-3 
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
@@ -225,7 +230,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-    #stop()
+    stop()
     
     
 # %% ###     OPTIMIZATION functions phi and init ######################################################
@@ -265,7 +270,7 @@ def phi_FRP_model(opt_params,aux_params):
     #scanner.adc_mask = adc_mask
           
     # forward/adjoint pass
-    scanner.forward(spins, event_time)
+    scanner.forward_mem(spins, event_time)
     scanner.adjoint(spins)
 
             
@@ -298,7 +303,11 @@ def init_variables():
     
     grad_moms.requires_grad = True
     
-    flips = targetSeq.flips.clone()
+    #flips = targetSeq.flips.clone()
+    flips = torch.zeros((T,NRep,2), dtype=torch.float32) 
+    flips[0,0,0] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
+    flips[0,0,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase
+    flips = setdevice(flips)
     flips.requires_grad = True
    
     event_time = targetSeq.event_time.clone()
@@ -334,7 +343,7 @@ opt.opti_mode = 'seq'
 #target_numpy = tonumpy(target).reshape([sz[0],sz[1],2])
 #imshow(magimg(target_numpy), 'target')
 
-opt.set_opt_param_idx([2])
+opt.set_opt_param_idx([0])
 #opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
 opt.custom_learning_rate = [0.01,0.01,0.001,0.01]
 
@@ -388,7 +397,7 @@ for i in range(3):
     plt.show()
 
 # %% # export to matlab
-    experiment_id='test1/'
+experiment_id='test1/'
 scanner_dict = dict()
 scanner_dict['adc_mask'] = scanner.adc_mask.detach().cpu().numpy()
 scanner_dict['B1'] = scanner.B1.detach().cpu().numpy()

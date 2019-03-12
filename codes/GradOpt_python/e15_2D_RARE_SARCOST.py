@@ -190,8 +190,9 @@ grad_moms = setdevice(grad_moms)
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[0,0,0] = 0.1*1e-3  
-event_time[1:,0,0] = 0*1e-3  
+event_time[0,0,0] = (sz[0]/2 + 2)*0.2*1e-3
+#event_time[1:,0,0] = 0.2*1e-3
+event_time[-1,:,0] = 0.4*1e-3
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()

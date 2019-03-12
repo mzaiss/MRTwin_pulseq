@@ -120,7 +120,7 @@ omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 
 #omega = np.random.rand(NSpins,NVox) - 0.5
-omega*=0.9
+omega*=0.999
 #omega = np.expand_dims(omega[:,0],1).repeat(NVox, axis=1)
 
 omega = R2 * np.tan ( np.pi  * omega)
@@ -193,8 +193,9 @@ grad_moms = setdevice(grad_moms)
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[0,0,0] = 0.1*1e-3  
-event_time[1:,0,0] = 0*1e-3  
+event_time[0,0,0] = (sz[0]/2 + 2)*0.2*1e-3
+#event_time[1:,0,0] = 0.2*1e-3
+event_time[-1,:,0] = 0.4*1e-3
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
@@ -246,8 +247,9 @@ def phi_FRP_model(opt_params,aux_params):
     use_periodic_grad_moms_cap,_ = aux_params
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()        
-    flip_mask[1:,:,:] = 0
-    flip_mask[0,0,:] = 0
+    flip_mask[2:,:,:] = 0
+    flip_mask[0,:,:] = 0
+    flip_mask[1,:,1] = 0                                        # all phases 0
     flip_mask = setdevice(flip_mask)
     flips = flips * flip_mask    
     
@@ -424,12 +426,15 @@ for i in range(3):
 # %% # save optimized parameter history
 experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad'
 #opt.save_param_reco_history(experiment_id)
+
+opt.scanner_opt_params[0][0,0,:] = 90*np.pi/180
 opt.export_to_matlab(experiment_id)
     
     
 
 # %% # export to matlab
-experiment_id='RARE_FA_OPT_fixrep1_90_target'
+#experiment_id='RARE_FA_OPT_fixrep1_90_adjflipgrad'
+experiment_id='RARE_FA_OPT_fixrep1_90_balanced'
 scanner_dict = dict()
 scanner_dict['adc_mask'] = scanner.adc_mask.detach().cpu().numpy()
 scanner_dict['B1'] = scanner.B1.detach().cpu().numpy()

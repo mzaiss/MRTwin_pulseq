@@ -11,8 +11,13 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
-experiment_id = 'RARE_FA_OPT_fixrep1_90';
-experiment_id = 'RARE_baseline';
+%experiment_id = 'RARE_FA_OPT_fixrep1_90';
+%experiment_id = 'RARE_baseline';
+%experiment_id = 'RARE_FA_OPT_fixrep1_90_varflip';
+experiment_id = 'RARE_FA_OPT_fixrep1_90_balanced';
+
+
+
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
@@ -99,8 +104,10 @@ for rep=1:NRep
           use = 'refocusing';
       end
       
-      rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
-      seq.addBlock(rf);
+      if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
+        rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
+        seq.addBlock(rf);
+      end
       seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
       % alternatively slice selective:
         %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
@@ -108,6 +115,13 @@ for rep=1:NRep
       
     % second      
         idx_T=2; % T(2)
+        
+        if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
+          rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
+          seq.addBlock(rf);
+        end
+        seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))      
+        
         gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
         gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
       seq.addBlock(gxPre,gyPre);
@@ -210,6 +224,9 @@ return
 
 %% CONVENTIONAL
 
+cum_grad_moms = cumsum([double(scanner_dict.grad_moms)],1);
+cum_grad_moms = cum_grad_moms(find(scanner_dict.adc_mask),:,:);
+
 % seqFilename='tse.seq'
 seqFilename=seq_fn;
 
@@ -221,11 +238,16 @@ PD = phantom(sz(1));
 
 PD(PD<0) = 0;
 T1 = 1e6*PD*2; T1(:) = 1;
-T2 = 1e6*PD*2; T2(:) = 1;
+T2 = 1e6*PD*2; T2(:) = 10.1;
 InVol = double(cat(3,PD,T1,T2));
 
 numSpins = 1;
 [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
+gradMoms = reshape(gradMoms,2,sz(1),sz(2));
+%gradMoms(1,:,2:end) = gradMoms(1,:,2:end) - 0.5;
+%gradMoms(1,:,3) = gradMoms(1,:,3) + 1;
+%gradMoms(1,:,13) = gradMoms(1,:,13) + 1;
+%gradMoms = reshape(permute(cum_grad_moms,[3,1,2]),[2,prod(sz)]);
 
 resolution = sz(1);
 
