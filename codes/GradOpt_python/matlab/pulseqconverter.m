@@ -7,7 +7,7 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 seq_dir = [mrizero_git_dir '\codes\GradOpt_python\out\'];
-experiment_id = 'RARE_FA_OPT_fixrep1_90';
+% experiment_id = 'RARE_FA_OPT_fixrep1_90';
 experiment_id = 'RARE_baseline';
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
@@ -195,7 +195,7 @@ return
 %% CONVENTIONAL
 
 % close all
-
+sz = double(scanner_dict.sz);
 PD = phantom(sz(1));
 %PD = abs(gtruth_m);
 
@@ -205,7 +205,7 @@ T2 = 1e6*PD*2; T2(:) = 1;
 InVol = double(cat(3,PD,T1,T2));
 
 numSpins = 1;
-[kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
+[kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seq_fn, 1);
 
 resolution = sz(1);
 
@@ -237,8 +237,9 @@ clc
 %%  E'E
 PD1 = phantom(sz(1));
 
-PD = abs(gtruth_m);
 
+% PD = abs(gtruth_m);
+PD = phantom(sz(1));
 %PD(17:32,:) = 0; PD(:,17:32) = 0;
 %PD(1:16,:) = 0; PD(:,1:16) = 0;
 
@@ -257,7 +258,7 @@ numSpins = 11;
 [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
 
 %kList = reshape(kList, [NRep, T]);
-kList = reshape(kList, [T, NRep]);
+kList = reshape(kList, [sz(1), sz(2)]);
 
 reco = 0;
 PD1 = eye(sz(1));

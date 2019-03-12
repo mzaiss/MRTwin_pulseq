@@ -36,12 +36,12 @@ seq=mr.Sequence(system);
 
 %% Sequence events
 % Some sequence parameters are defined using standard MATLAB variables
-fov=256e-3;
-Nx=128; Ny=128; necho=16; Nslices=1;
+fov=220e-3;
+Nx=24; Ny=24; necho=24; Nslices=1;
 rflip=180;
 if (numel(rflip)==1), rflip=rflip+zeros([1 necho]); end
 sliceThickness=5e-3;
-TE=12e-3; TR=2000e-3;
+TE=15e-3; TR=2000e-3;
 TEeff=60e-3;
 k0=round(TEeff/TE);
 PEtype='linear';
@@ -189,7 +189,7 @@ delayTR = mr.makeDelay(TRfill);
 
 %% Define sequence blocks
 % Next, the blocks are put together to form the sequence
-for kex=0:nex % MZ: we start at 0 to have one dummy
+for kex=1:nex % MZ: we start at 0 to have one dummy
     for s=1:Nslices
         rfex.freqOffset=GSex.amplitude*sliceThickness*(s-1-(Nslices-1)/2);
         rfref.freqOffset=GSref.amplitude*sliceThickness*(s-1-(Nslices-1)/2);
