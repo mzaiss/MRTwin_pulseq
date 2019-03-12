@@ -326,6 +326,7 @@ class OPT_helper():
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
         scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
+        scanner_dict['signal'] = tonumpy(self.scanner.signal)
 
         path=os.path.join('./out/',experiment_id)
         try:
