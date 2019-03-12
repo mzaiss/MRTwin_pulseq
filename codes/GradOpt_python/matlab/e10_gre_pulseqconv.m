@@ -1,18 +1,16 @@
 
 clear all; close all;
 
-if isunix
-  mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
-else
-  mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
-end
+%mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
+mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
-experiment_id = 'RARE_FA_OPT_fixrep1_90';
-experiment_id = 'RARE_baseline';
+experiment_id = 'GRE90_target';
+
+
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
@@ -24,9 +22,9 @@ sz = double(scanner_dict.sz);
 grad_moms = scanner_dict.grad_moms;
 
 if 0  % only when gradients were optimized, make sure gradmoms are between -res/2 res/2
-    fmax = scanner_dict.sz / 2;                                                                                % cap the grad_moms to [-1..1]*sz/2
+    fmax = scanner_dict.sz / 2;                                                                          % cap the grad_moms to [-1..1]*sz/2
     for i = 1:2
-      grad_moms(:,:,i) = fmax(i)*tanh(grad_moms(:,:,i));                                                                        % soft threshold
+      grad_moms(:,:,i) = fmax(i)*tanh(grad_moms(:,:,i));                                                                    % soft threshold
       %grad_moms(abs(grad_moms(:,i)) > fmax(i),i) = sign(grad_moms(abs(grad_moms(:,i)) > fmax(i),i))*fmax(i);  % hard threshold, this part is nondifferentiable
     end
 end
@@ -52,7 +50,7 @@ SeqOpts.FlipAngle = pi/2;    % fix
 % set system limits
 % had to slow down ramps and increase adc_duration to avoid stimulation
 sys = mr.opts('MaxGrad',36,'GradUnit','mT/m',...
-    'MaxSlew',140*1000000000,'SlewUnit','T/m/s',...
+    'MaxSlew',140*1000000,'SlewUnit','T/m/s',...
     'rfRingdownTime', 20e-6, 'rfDeadTime', 100e-6, ...
     'adcDeadTime', 20e-6);
 
@@ -93,37 +91,31 @@ for rep=1:NRep
     % first
       idx_T=1; % T(1)
       
-      if rep == 1
-          use = 'excitation';
-      else
-          use = 'refocusing';
-      end
+      use = 'excitation';
       
       rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
       seq.addBlock(rf);
-      seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
+      seq.addBlock(mr.makeDelay(scanner_dict.event_times(rep,idx_T)))
       % alternatively slice selective:
         %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
         % see writeHASTE.m      
       
     % second      
-        idx_T=2; % T(2)
-        gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+      idx_T=2; % T(2)
+      gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+      gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
       seq.addBlock(gxPre,gyPre);
       
     % line acquisition T(3:end-1)
-        idx_T=3:size(gradmoms,1)-1; % T(2)
-        dur=sum(scanner_dict.event_times(3:end-1,rep));
-        gx = mr.makeTrapezoid('x','Area',sum(gradmoms(idx_T,rep,1),1),'Duration',dur,'system',sys);
-        adc = mr.makeAdc(numel(idx_T),'Duration',dur,'Delay',gx.riseTime);
+      idx_T=3:size(gradmoms,1)-1; % T(2)
+      dur=sum(scanner_dict.event_times(3:end-1,rep));
+      gx = mr.makeTrapezoid('x','Area',sum(gradmoms(idx_T,rep,1),1),'Duration',dur,'system',sys);
+      adc = mr.makeAdc(numel(idx_T),'Duration',dur,'Delay',gx.riseTime);
       seq.addBlock(gx,adc);
       
     % last extra event  T(end)
-        idx_T=size(gradmoms,1); % T(2)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-      seq.addBlock(gxPost,gyPost);
+      idx_T=size(gradmoms,1); % T(2)
+      seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))  
 
 end
 
@@ -136,84 +128,12 @@ subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 return
 
-%% new single-function call for trajectory calculation
-[ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
-
-% plot k-spaces
-
-figure; plot(ktraj'); % plot the entire k-space trajectory
-figure; plot(ktraj(1,:),ktraj(2,:),'b',...
-             ktraj_adc(1,:),ktraj_adc(2,:),'r.'); % a 2D plot
-axis('equal'); % enforce aspect ratio for the correct trajectory display
-
-
-
-
-%% FIRST approach of full individual gradmoms
-
-% Define other gradients and ADC events
-deltak=1/SeqOpts.FOV;
-gx = mr.makeTrapezoid('x','FlatArea',Nx*deltak,'FlatTime',adc_dur*1e-6,'system',sys);
-adc = mr.makeAdc(Nx,'Duration',gx.flatTime,'Delay',gx.riseTime,'system',sys);
-gxPre = mr.makeTrapezoid('x','Area',-gx.area/2,'system',sys);
-phaseAreas = ((0:Ny-1)-Ny/2)*deltak;
-
-dt=1e-3;
-riseTime = 10e-36; % use the same rise times for all gradients, so we can neglect them
-adc = mr.makeAdc(1,'Duration',dt,'Delay',riseTime);
-
-% TR delay (probably computet wrong..)
-delayTR=ceil((SeqOpts.TR)/seq.gradRasterTime)*seq.gradRasterTime;
-
-clear gradXevent gradYevent
-
-gradXevent=mr.makeTrapezoid('x','FlatArea',-deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
-gradYevent=mr.makeTrapezoid('y','FlatArea',deltak,'FlatTime',dt-2*riseTime,'RiseTime', riseTime);
-
-amplitude = abs(gradXevent.amplitude);
-
-T = param_dict.T;
-NRep = sz(2);
-
-% put blocks together
-for rep=1:NRep
-    seq.addBlock(rf);
-    
-    learned_grads = scanner_dict.grads;
-    learned_grads = learned_grads * 1; % 1s
-    
-    
-    % TANH correct ?????
-    
-    figure(11), scatter(learned_grads(:,rep,1),learned_grads(:,rep,2)); title('gradmoms'); hold on;
-    cum_grad_moms = cumsum([learned_grads],2) * 1; % 1s
-    figure(111), scatter(cum_grad_moms(:,rep,2)+sz(1)/2,cum_grad_moms(:,rep,1)+sz(1)/2,'Displayname','from BlochSim'); title('cumgradmoms'); hold on;
-    
-    for kx = 1:T
-      
-      gradXevent.amplitude=1*learned_grads(kx,rep,1)*amplitude;
-      gradYevent.amplitude=1*learned_grads(kx,rep,2)*amplitude;
-
-      seq.addBlock(gradXevent,gradYevent,adc);
-    end
-    
-    seq.addBlock(mr.makeDelay(delayTR))
-end
-
-%write sequence
-seq.write(seq_fn);
-
-seq.plot();
-
-
-return
 
 %% CONVENTIONAL
 
 % seqFilename='tse.seq'
 seqFilename=seq_fn;
 
-sz=[24 24]
 % close all
 
 PD = phantom(sz(1));
@@ -262,37 +182,9 @@ spectrum = spectrum(:);
 reco = adjoint_mtx*spectrum;
 reco = reshape(reco,sz);
 
-%{
-adjoint_mtx = reshape(adjoint_mtx,[prod(sz),sz(1),sz(2)]);
-
-reco = 0;
-for rep = 1:NRep
-  y = kList(:,rep);
-  reco = reco + adjoint_mtx(:,:,rep)*y;
-end
-
-reco = reshape(reco,sz);
-%}
 
 figure(1),
   imagesc(abs(reco));
-
-  
-  
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
