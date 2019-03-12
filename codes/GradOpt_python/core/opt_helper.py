@@ -299,6 +299,7 @@ class OPT_helper():
             plt.show()
             plt.pause(0.02)
             
+            
             legs=['x','y','z']
             for i in range(3):
                 plt.subplot(1, 3, i+1)
@@ -324,6 +325,7 @@ class OPT_helper():
         scanner_dict['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
+        scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
 
         path=os.path.join('./out/',experiment_id)
         try:
