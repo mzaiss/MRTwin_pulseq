@@ -120,7 +120,7 @@ omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 
 #omega = np.random.rand(NSpins,NVox) - 0.5
-omega*=0.999
+omega*=0.9
 #omega = np.expand_dims(omega[:,0],1).repeat(NVox, axis=1)
 
 omega = R2 * np.tan ( np.pi  * omega)
