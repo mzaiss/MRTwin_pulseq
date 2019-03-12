@@ -1,13 +1,13 @@
 
 clear all; close all;
 
-mrizero_git_dir = 'C:\Users\fmglang\Desktop\mrizero_tueb';
+mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
-seq_dir = [mrizero_git_dir '\codes\GradOpt_python\out\'];
-% experiment_id = 'RARE_FA_OPT_fixrep1_90';
+seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
+experiment_id = 'RARE_FA_OPT_fixrep1_90';
 experiment_id = 'RARE_baseline';
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
@@ -35,7 +35,7 @@ subplot(2,3,6), imagesc(grad_moms(:,:,2)');          title('gradmomy');colorbar
 set(gcf,'OuterPosition',[431         379        1040         513])
 %% plug learned gradients into the sequence constructor
 % close all
-seq_fn = [seq_dir,'/',experiment_id,'/','base.seq'];
+seq_fn = [seq_dir,'/',experiment_id,'/','pulseq.seq'];
 
 SeqOpts.resolution = double(scanner_dict.sz);                                                                                            % matrix size
 SeqOpts.FOV = 220e-3;
@@ -46,7 +46,7 @@ SeqOpts.FlipAngle = pi/2;    % fix
 % set system limits
 % had to slow down ramps and increase adc_duration to avoid stimulation
 sys = mr.opts('MaxGrad',36,'GradUnit','mT/m',...
-    'MaxSlew',140,'SlewUnit','T/m/s',...
+    'MaxSlew',140*1000000,'SlewUnit','T/m/s',...
     'rfRingdownTime', 20e-6, 'rfDeadTime', 100e-6, ...
     'adcDeadTime', 20e-6);
 
@@ -130,6 +130,17 @@ subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 return
 
+%% new single-function call for trajectory calculation
+[ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
+
+% plot k-spaces
+
+figure; plot(ktraj'); % plot the entire k-space trajectory
+figure; plot(ktraj(1,:),ktraj(2,:),'b',...
+             ktraj_adc(1,:),ktraj_adc(2,:),'r.'); % a 2D plot
+axis('equal'); % enforce aspect ratio for the correct trajectory display
+
+
 
 
 %% FIRST approach of full individual gradmoms
@@ -191,11 +202,14 @@ seq.plot();
 
 return
 
-
 %% CONVENTIONAL
 
+% seqFilename='tse.seq'
+seqFilename=seq_fn;
+
+sz=[24 24]
 % close all
-sz = double(scanner_dict.sz);
+
 PD = phantom(sz(1));
 %PD = abs(gtruth_m);
 
@@ -205,7 +219,7 @@ T2 = 1e6*PD*2; T2(:) = 1;
 InVol = double(cat(3,PD,T1,T2));
 
 numSpins = 1;
-[kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seq_fn, 1);
+[kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
 
 resolution = sz(1);
 
@@ -216,6 +230,7 @@ gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
 
 kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) +1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
 % kReco = griddata(field(:,1),field(:,2),real(kList),X,Y) +1j*griddata(field(:,1),field(:,2),imag(kList),X,Y) ;
+%kReco=reshape(kList,sz)
 kReco(isnan(kReco))=0;
 
 figure, subplot(2,2,1), imagesc(abs(fft2(fftshift(kReco))));
@@ -237,9 +252,8 @@ clc
 %%  E'E
 PD1 = phantom(sz(1));
 
+PD = abs(gtruth_m);
 
-% PD = abs(gtruth_m);
-PD = phantom(sz(1));
 %PD(17:32,:) = 0; PD(:,17:32) = 0;
 %PD(1:16,:) = 0; PD(:,1:16) = 0;
 
@@ -258,7 +272,7 @@ numSpins = 11;
 [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, numSpins);
 
 %kList = reshape(kList, [NRep, T]);
-kList = reshape(kList, [sz(1), sz(2)]);
+kList = reshape(kList, [T, NRep]);
 
 reco = 0;
 PD1 = eye(sz(1));
