@@ -7,17 +7,16 @@ class FlipClass(torch.autograd.Function):
     def forward(ctx, f, x, scanner):
         ctx.f = f.clone()
         ctx.scanner = scanner
-
+        
         return torch.matmul(f,x)
 
     @staticmethod
     def backward(ctx, grad_output):
         gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
         
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[0,2])
-        
-        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
         
         return (gf, gx, None) 
   
@@ -58,8 +57,10 @@ class RelaxClass(torch.autograd.Function):
             
             ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,ctx.scanner.NVox,1])
             ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.scanner.lastM[:,0,:,3,0]
+            
             #ctx.scanner.lastM[:,0,:,2,0] = ctx.M[:,0,:,2,0]
             #ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,3,2]),ctx.scanner.lastM)
+            #ctx.scanner.lastM = ctx.M
             
         return (gf, gx, None, None, None)  
   
@@ -68,36 +69,55 @@ class DephaseClass(torch.autograd.Function):
     def forward(ctx, f, x, scanner):
         ctx.f = f.clone()
         ctx.scanner = scanner
-
+        
         return torch.matmul(f,x)
 
     @staticmethod
     def backward(ctx, grad_output):
         gx = torch.matmul(ctx.f.permute([0,1,2,4,3]),grad_output)
         
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
+        
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[2],keepdim=True)
         
+        return (gf, gx, None) 
+    
+class B0InhomoClass(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, f, x, scanner):
+        ctx.f = f.clone()
+        ctx.scanner = scanner
+        
+        return torch.matmul(f,x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        gx = torch.matmul(ctx.f.permute([0,1,2,4,3]),grad_output)
+        
         ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
         
-        return (gf, gx, None) 
-  
+        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = torch.sum(gf,[2],keepdim=True)
+        
+        return (gf, gx, None)     
+    
+
 class GradPrecessClass(torch.autograd.Function):
     @staticmethod
     def forward(ctx, f, x, scanner):
         ctx.f = f.clone()
         ctx.scanner = scanner
-
+        
         return torch.matmul(f,x)
 
     @staticmethod
     def backward(ctx, grad_output):
         gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
         
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[0,1])
-        
-        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
         
         return (gf, gx, None) 
   
@@ -421,6 +441,18 @@ class Scanner():
         reco = torch.zeros((self.NVox,2), dtype = torch.float32)
         
         self.reco = self.setdevice(reco)
+        
+    def do_ifft_reco(self):
+        spectrum = self.signal
+        spectrum = spectrum[0,self.adc_mask.flatten()>0,:,:2,0]
+        space = torch.ifft(spectrum,2)
+        output = space.clone()
+        output[:self.sz[0]//2,:self.sz[1]//2,:] = space[-self.sz[0]//2:,-self.sz[1]//2:,:]
+        output[:self.sz[0]//2,-self.sz[1]//2:,:] = space[-self.sz[0]//2:,:self.sz[1]//2,:]
+        output[-self.sz[0]//2:,:self.sz[1]//2,:] = space[:self.sz[0]//2,-self.sz[1]//2:,:]
+        output[-self.sz[0]//2:,-self.sz[1]//2:,:] = space[:self.sz[0]//2,:self.sz[1]//2,:] 
+        
+        return output
         
     def read_signal(self,t,r,spins):
         if self.adc_mask[t] > 0:
@@ -1049,8 +1081,7 @@ class Scanner_fast(Scanner):
                 
                 spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self)
                 spins.M = DephaseClass.apply(self.P,spins.M,self)
-                
-                # TODO B0 inhomo!!
+                spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                     
                 spins.M = GradPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
                 self.read_signal(t,r,spins)    
