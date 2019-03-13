@@ -53,7 +53,7 @@ class TargetSequenceHolder():
             except:
                 FA=self.flips
                 
-            ax=plt.imshow(tonumpy(FA*180/np.pi),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(np.transpose(tonumpy(FA*180/np.pi),[1,0]),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('FA [\N{DEGREE SIGN}]')
             plt.clim(-90,270)
