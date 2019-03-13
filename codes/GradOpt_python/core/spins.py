@@ -5,7 +5,7 @@ import cv2
 def throw(msg):
     class ExecutionControl(Exception): pass
     raise ExecutionControl(msg)
-
+    
 # WHAT we measure
 class SpinSystem():
     
@@ -40,10 +40,10 @@ class SpinSystem():
     
     def set_system(self, input_array=None):
         
-        if np.any(input_array < 0):
+        if np.any(input_array[:,:,:3] < 0):
             throw('ERROR: SpinSystem: set_system: some of the values in <input_array> are smaller than zero')
             
-        if input_array.shape[-1] == 3:                    # full specificiation
+        if input_array.shape[-1] > 2:                    # full specificiation
             PD = input_array[...,0]
             T1 = input_array[...,1]
             T2 = input_array[...,2]
@@ -60,10 +60,18 @@ class SpinSystem():
         factor = (0*1e0*np.pi/180) / self.NSpins
         omega = torch.from_numpy(factor*np.random.rand(self.NSpins,self.NVox).reshape([self.NSpins,self.NVox])).float()
         
+        B0inhomo = torch.zeros((self.NVox)).float()
+        
+        # also susceptibilities
+        if input_array.shape[-1] == 4:
+            B0inhomo = input_array[...,3]
+            B0inhomo = torch.from_numpy(B0inhomo.reshape([self.NVox])).float()
+        
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
         self.PD = self.setdevice(PD)
         self.omega = self.setdevice(omega)
+        self.B0inhomo = self.setdevice(B0inhomo)
         
     def set_initial_magnetization(self):
         

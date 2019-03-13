@@ -13,9 +13,8 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
 %experiment_id = 'RARE_FA_OPT_fixrep1_90';
 %experiment_id = 'RARE_baseline';
-%experiment_id = 'RARE_FA_OPT_fixrep1_90_varflip';
-% experiment_id = 'RARE_FA_OPT_fixrep1_90_balanced';
-experiment_id='RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled'
+experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
+%experiment_id = 'RARE_FA_OPT_fixrep1_90_balanced';
 
 
 

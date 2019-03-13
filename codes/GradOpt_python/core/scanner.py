@@ -140,6 +140,11 @@ class Scanner():
         
         self.use_gpu =  use_gpu
         
+        # preinit tensors
+        # Spatial inhomogeneity component
+        S = torch.zeros((1,1,self.NVox,4,4), dtype=torch.float32)
+        self.SB0 = self.setdevice(S)
+        
     # device setter
     def setdevice(self,x):
         if self.use_gpu:
@@ -291,7 +296,6 @@ class Scanner():
         
     def set_freeprecession_tensor(self,spins,dt):
         P = torch.zeros((self.NSpins,1,1,4,4), dtype=torch.float32)
-        
         P = self.setdevice(P)
         
         B0_nspins = spins.omega[:,0].view([self.NSpins])
@@ -308,7 +312,26 @@ class Scanner():
         P[:,0,0,3,3] = 1         
          
         self.P = P
+        
+    def set_B0inhomogeneity_tensor(self,spins,delay):
+        S = torch.zeros((1,1,self.NVox,4,4), dtype=torch.float32)
+        S = self.setdevice(S)
+        
+        B0_inhomo = spins.B0inhomo.view([self.NVox])
+        
+        B0_nspins_cos = torch.cos(B0_inhomo*delay)
+        B0_nspins_sin = torch.sin(B0_inhomo*delay)
          
+        S[0,0,:,0,0] = B0_nspins_cos
+        S[0,0,:,0,1] = -B0_nspins_sin
+        S[0,0,:,1,0] = B0_nspins_sin
+        S[0,0,:,1,1] = B0_nspins_cos
+         
+        S[0,0,:,2,2] = 1
+        S[0,0,:,3,3] = 1         
+         
+        self.SB0 = S
+        
     
     def init_gradient_tensor_holder(self):
         G = torch.zeros((self.NRep,self.NVox,4,4), dtype=torch.float32)
@@ -375,6 +398,7 @@ class Scanner():
     def relax_and_dephase(self,spins):
         
         spins.M = torch.matmul(self.R,spins.M)
+        spins.M = torch.matmul(self.SB0,spins.M)
         spins.M = torch.matmul(self.P,spins.M)
         
     def grad_precess(self,r,spins):
@@ -993,6 +1017,7 @@ class Scanner_fast(Scanner):
                 delay = torch.abs(event_time[t,r] + 1e-6) * 1
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
+                self.set_B0inhomogeneity_tensor(spins,delay)
                 self.relax_and_dephase(spins)
                     
                 self.grad_precess(t,r,spins)
@@ -1020,9 +1045,12 @@ class Scanner_fast(Scanner):
                 delay = torch.abs(event_time[t,r] + 1e-6) * 1
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
+                self.set_B0inhomogeneity_tensor(spins,delay)
                 
                 spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self)
                 spins.M = DephaseClass.apply(self.P,spins.M,self)
+                
+                # TODO B0 inhomo!!
                     
                 spins.M = GradPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
                 self.read_signal(t,r,spins)    
