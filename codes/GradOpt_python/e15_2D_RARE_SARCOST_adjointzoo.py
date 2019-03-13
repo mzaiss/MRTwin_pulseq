@@ -190,8 +190,9 @@ else:
     grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
     grad_moms[-1,:,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
         
-grad_moms[1,0,0] = -torch.ones((1,1))*sz[0]/2  # RARE: rewinder after 90 degree half length, half gradmom
-
+grad_moms[0,0,0] = -torch.ones((1,1))*sz[0]/2  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[1,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[-1,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
 
 # dont optimize y  grads
 #grad_moms[:,:,1] = 0
@@ -297,8 +298,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 1e4
-            
+    lbd = 1e3
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
