@@ -123,6 +123,7 @@ spins.T2[spins.T2<cutoff] = cutoff
 spins.T1*=1
 spins.T2*=1
 imshow(numerical_phantom[:,:,0], title="PD")
+imshow(numerical_phantom[:,:,3], title="inhom")
 
 #begin nspins with R*
 R2 = 30.0
@@ -248,7 +249,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-    stop()
+   # stop()
     
     
     
