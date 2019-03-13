@@ -12,9 +12,9 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
 %experiment_id = 'RARE_FA_OPT_fixrep1_90';
-%experiment_id = 'RARE_baseline';
-experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
-%experiment_id = 'RARE_FA_OPT_fixrep1_90_balanced';
+experiment_id = 'RARE_baseline';
+% experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
+experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
 
 
 
@@ -138,9 +138,10 @@ for rep=1:NRep
       
     % last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep)/2,'system',sys);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep)/2,'system',sys);
       seq.addBlock(gxPost,gyPost);
+      seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)/2))
 
 end
 

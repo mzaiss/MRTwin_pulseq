@@ -110,7 +110,7 @@ numerical_phantom=np.swapaxes(numerical_phantom,0,1)
 B0inhomo = np.zeros((sz[0],sz[1],1)).astype(np.float32)
 B0inhomo = (np.random.rand(sz[0],sz[1]) - 0.5)
 B0inhomo = ndimage.filters.gaussian_filter(B0inhomo,1)        # smooth it a bit
-B0inhomo = B0inhomo*1500 / np.max(B0inhomo)
+B0inhomo = B0inhomo*150 / np.max(B0inhomo)
 B0inhomo = np.expand_dims(B0inhomo,2)
 numerical_phantom = np.concatenate((numerical_phantom,B0inhomo),2)
 
@@ -126,7 +126,7 @@ imshow(numerical_phantom[:,:,0], title="PD")
 imshow(numerical_phantom[:,:,3], title="inhom")
 
 #begin nspins with R*
-R2 = 30.0
+R2dash = 30.0
 omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 
@@ -135,7 +135,7 @@ omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.9
 #omega = np.expand_dims(omega[:,0],1).repeat(NVox, axis=1)
 
-omega = R2 * np.tan ( np.pi  * omega)
+omega = R2dash * np.tan ( np.pi  * omega)
 
 #omega = np.random.rand(NSpins,NVox) * 100
 if NSpins==1:

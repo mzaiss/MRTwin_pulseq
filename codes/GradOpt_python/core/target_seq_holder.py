@@ -10,6 +10,9 @@ def tonumpy(x):
 def magimg(x):
     return np.sqrt(np.sum(np.abs(x)**2,2))
 
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
+
 class TargetSequenceHolder():
     def __init__(self):
         
@@ -36,15 +39,15 @@ class TargetSequenceHolder():
             #plt.clim(0,1)
             fig = plt.gcf()
             fig.colorbar(ax)
-            plt.title('target')
+            plt.title('target reco')
             plt.ion()
             
             plt.subplot(152, sharex=ax1, sharey=ax1)
-            ax=plt.imshow(magimg(recoimg), interpolation='none')
-            plt.clim(np.min(np.abs(recoimg)),np.max(np.abs(recoimg)))
+            ax=plt.imshow(phaseimg(recoimg), interpolation='none')
+            plt.clim(-np.pi,np.pi)
             fig = plt.gcf()
             fig.colorbar(ax)
-            plt.title('target sequence result')
+            plt.title('target reco phase')
             plt.ion()
                
             plt.subplot(153)
