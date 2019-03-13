@@ -13,8 +13,8 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
 %experiment_id = 'RARE_FA_OPT_fixrep1_90';
 %experiment_id = 'RARE_baseline';
-%experiment_id = 'RARE_FA_OPT_fixrep1_90_varflip';
-experiment_id = 'RARE_FA_OPT_fixrep1_90_balanced';
+experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
+%experiment_id = 'RARE_FA_OPT_fixrep1_90_balanced';
 
 
 
@@ -244,7 +244,7 @@ InVol = double(cat(3,PD,T1,T2));
 numSpins = 1;
 [kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
 gradMoms = reshape(gradMoms,2,sz(1),sz(2));
-%gradMoms(1,:,2:end) = gradMoms(1,:,2:end) - 0.5;
+gradMoms(1,:,2:end) = gradMoms(1,:,2:end) - 0.5;
 %gradMoms(1,:,3) = gradMoms(1,:,3) + 1;
 %gradMoms(1,:,13) = gradMoms(1,:,13) + 1;
 %gradMoms = reshape(permute(cum_grad_moms,[3,1,2]),[2,prod(sz)]);
