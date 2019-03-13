@@ -33,7 +33,7 @@ class RelaxClass(torch.autograd.Function):
         if ctx.delay > ctx.thresh or ctx.t == 0:
             ctx.M = x.clone()
             
-        ctx.M = x.clone()
+        #ctx.M = x.clone()
 
         return torch.matmul(f,x)
 
@@ -49,20 +49,19 @@ class RelaxClass(torch.autograd.Function):
         else:
             d1 = ctx.f[0,:,0,0]
             id1 = 1/d1
-            #id1[d1<1e-5] = 1
             id1[ctx.scanner.tmask == 0] = 0
             
             d3 = ctx.f[0,:,2,2]
             id3 = 1/d3
-            id3[d3<1e-5] = 1
+            id3[ctx.scanner.tmask == 0] = 0
             id3 = id3.view([1,ctx.scanner.NVox])
             
             ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,ctx.scanner.NVox,1])
-            #ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.scanner.lastM[:,0,:,3,0]
-            ctx.scanner.lastM[:,0,:,2,0] = ctx.M[:,0,:,2,0]
+            ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.scanner.lastM[:,0,:,3,0]
+            #ctx.scanner.lastM[:,0,:,2,0] = ctx.M[:,0,:,2,0]
             #ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,3,2]),ctx.scanner.lastM)
             
-        return (gf, gx, None, None, None) 
+        return (gf, gx, None, None, None)  
   
 class DephaseClass(torch.autograd.Function):
     @staticmethod
