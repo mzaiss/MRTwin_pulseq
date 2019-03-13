@@ -242,8 +242,8 @@ T2 = 1e6*PD*2; T2(:) = 10.1;
 InVol = double(cat(3,PD,T1,T2));
 
 numSpins = 1;
-[kList, gradMoms] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
-gradMoms = reshape(gradMoms,2,sz(1),sz(2));
+[kList, kloc] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
+kloc = reshape(kloc,2,sz(1),sz(2));
 %gradMoms(1,:,2:end) = gradMoms(1,:,2:end) - 0.5;
 %gradMoms(1,:,3) = gradMoms(1,:,3) + 1;
 %gradMoms(1,:,13) = gradMoms(1,:,13) + 1;
@@ -252,18 +252,18 @@ gradMoms = reshape(gradMoms,2,sz(1),sz(2));
 resolution = sz(1);
 
 kList(isnan(kList))=0;
-gradMomsScaled = (gradMoms+0.5)*resolution;  % calculate grad moms to FoV
+klocScaled = (kloc+0.5)*resolution;  % calculate grad moms to FoV
 
 [X,Y] = meshgrid(1:resolution);
 
-kReco = griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),real(kList),X,Y) +1j*griddata(gradMomsScaled(1,:),gradMomsScaled(2,:),imag(kList),X,Y) ;
+kReco = griddata(klocScaled(1,:),klocScaled(2,:),real(kList),X,Y) +1j*griddata(klocScaled(1,:),klocScaled(2,:),imag(kList),X,Y) ;
 % kReco = griddata(field(:,1),field(:,2),real(kList),X,Y) +1j*griddata(field(:,1),field(:,2),imag(kList),X,Y) ;
 %kReco=reshape(kList,sz)
 kReco(isnan(kReco))=0;
 
 figure, subplot(2,2,1), imagesc(fftshift(abs(fft2(fftshift(kReco)))));
-subplot(2,2,2), scatter(gradMoms(1,:),gradMoms(2,:)); title('gradMoms');
-figure(111), scatter(gradMomsScaled(2,:),gradMomsScaled(1,:),'.'); title('gradMomsScaled: circles from cumsum(g), dots from BlochSim');
+subplot(2,2,2), scatter(kloc(1,:),kloc(2,:)); title('k location (cumsum gradMoms)');
+figure(111), scatter(klocScaled(2,:),klocScaled(1,:),'.'); title('k loc scaled: circles from cumsum(g), dots from BlochSim');
 
 spectrum = reshape(kList,sz);
 
