@@ -6,7 +6,7 @@
 % (:,:,2) -> T1
 % (:,:,3) -> T2
 
-resolution = 128; % 100x100 take runs ~12s on a single core
+resolution = 24; % 100x100 take runs ~12s on a single core
 PD = phantom(resolution);
 NSpins=1;
 
@@ -30,21 +30,21 @@ InVol = cat(3,PD,T1,T2);
 SeqOpts.resolution = resolution;
 SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 15e-3;
-SeqOpts.TR = 500e-3;
+SeqOpts.TR = 1000e-3;
 SeqOpts.ETL = resolution;
-SeqOpts.FlipAngle = 60*pi/180;
-SeqOpts.FlipAngle1 = 60*pi/180;
+SeqOpts.FlipAngle = 90*pi/180;
+SeqOpts.FlipAngle1 = 90*pi/180;
 SeqOpts.FlipAngle2 = pi;
 SeqOpts.Order = 'increase'; % increase, center, center_in, (half)
-filename = 'epi.seq';
+filename = 'tse.seq';
 seqFilename = fullfile(pwd, filename);
 
 
-sequence = WriteEPISequenceWithPulseq(SeqOpts, seqFilename);
+sequence = WriteTSESequenceWithPulseq(SeqOpts, seqFilename);
 sequence.plot();
 % sequence.sound();
 %% run simulation
-seqFilename = 'epi.seq';
+% seqFilename = 'epi.seq';
 tic;
 [kList, gradients] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, NSpins);
 toc;
@@ -70,7 +70,7 @@ plotSimulationResult(PD, kspace./NSpins);
 % figure, imagesc(abs(nonuniformIDFT(kList, gradients, resolution))), title('nonuniformIDFT');
 
 %% plot kspace-trajectory
-plotKSpaceTrajectory(gradients, resolution, 1);
+plotKSpaceTrajectory(gradients, resolution, 0);
 
 %% nonuniform IDFT
 res_nuidft = nonuniformIDFT(kList, gradients, resolution);
@@ -80,7 +80,7 @@ subplot(1,2,2), imagesc1t(abs(PD)), axis('image'), title('REF (PD)');
 
 
 %% comparison with pulseq trajectory
-[ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
+[ktraj_adc, ktraj, t_excitation, t_refocusing] = sequence.calculateKspace();
 
 % figure; plot(ktraj'); % plot the entire k-space trajectory
 figure; plot(ktraj(1,:),ktraj(2,:),'b'); % a 2D plot

@@ -33,7 +33,7 @@ class RelaxClass(torch.autograd.Function):
         if ctx.delay > ctx.thresh or ctx.t == 0:
             ctx.M = x.clone()
             
-        ctx.M = x.clone()
+        #ctx.M = x.clone()
 
         return torch.matmul(f,x)
 
@@ -49,20 +49,19 @@ class RelaxClass(torch.autograd.Function):
         else:
             d1 = ctx.f[0,:,0,0]
             id1 = 1/d1
-            #id1[d1<1e-5] = 1
             id1[ctx.scanner.tmask == 0] = 0
             
             d3 = ctx.f[0,:,2,2]
             id3 = 1/d3
-            id3[d3<1e-5] = 1
+            id3[ctx.scanner.tmask == 0] = 0
             id3 = id3.view([1,ctx.scanner.NVox])
             
             ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,ctx.scanner.NVox,1])
-            #ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.scanner.lastM[:,0,:,3,0]
-            ctx.scanner.lastM[:,0,:,2,0] = ctx.M[:,0,:,2,0]
+            ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.scanner.lastM[:,0,:,3,0]
+            #ctx.scanner.lastM[:,0,:,2,0] = ctx.M[:,0,:,2,0]
             #ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,3,2]),ctx.scanner.lastM)
             
-        return (gf, gx, None, None, None) 
+        return (gf, gx, None, None, None)  
   
 class DephaseClass(torch.autograd.Function):
     @staticmethod
@@ -410,9 +409,9 @@ class Scanner():
                 noise = self.setdevice(noise)
                 sig += noise  
             
-            self.signal[:,t,r,:2] = (torch.sum(sig,[2]) * self.adc_mask[t])
+            self.signal[:,t,r,:2] = (torch.sum(sig,[2]) * self.adc_mask[t]) / self.NSpins
       
-        
+    # obsolete
     def read_signal_allRep(self,t,spins):
         
         if self.adc_mask[t] > 0:
@@ -783,7 +782,7 @@ class Scanner_batched():
             sig = torch.sum(spins.M[:,:,0,:,:2,0],[1])
             sig = torch.matmul(self.B1.unsqueeze(0),sig.unsqueeze(1).unsqueeze(1).unsqueeze(5))
             
-            self.signal[:,:,t,r,:2] = (torch.sum(sig,[3]) * self.adc_mask[t])
+            self.signal[:,:,t,r,:2] = (torch.sum(sig,[3]) * self.adc_mask[t]) / self.NSpins
             
             if self.noise_std > 0:
                 noise = self.noise_std*torch.randn(self.signal[:,:,t,r,:,0].shape).float()
@@ -792,6 +791,7 @@ class Scanner_batched():
                 self.signal[:,:,t,r,:,0] = self.signal[:,:,t,r,:,0] + noise        
         
     # XXX  -- slow
+    # obsolete
     def read_signal_allRep(self,t,spins):
         
         if self.adc_mask[t] > 0:
@@ -942,12 +942,13 @@ class Scanner_fast(Scanner):
                 sig = spins.M[:,:,:,:2]
                 sig += noise  
             
-                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t]))
+                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t])) / self.NSpins
             else:
-                self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t]))
+                self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins
      
         
     # TODO: fix
+    # obsolete
     def read_signal_allRep(self,t,spins):
         
         class ExecutionControl(Exception): pass
@@ -1134,9 +1135,9 @@ class Scanner_batched_fast(Scanner_batched):
                 sig = spins.M[:,:,:,:2]
                 sig += noise  
             
-                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t]))
+                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t])) / self.NSpins
             else:
-                self.signal[:,0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:,:2],[1,2,3]) * self.adc_mask[t]))
+                self.signal[:,0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:,:2],[1,2,3]) * self.adc_mask[t])) / self.NSpins
             
                 
                 
