@@ -409,9 +409,9 @@ class Scanner():
                 noise = self.setdevice(noise)
                 sig += noise  
             
-            self.signal[:,t,r,:2] = (torch.sum(sig,[2]) * self.adc_mask[t])
+            self.signal[:,t,r,:2] = (torch.sum(sig,[2]) * self.adc_mask[t]) / self.NSpins
       
-        
+    # obsolete
     def read_signal_allRep(self,t,spins):
         
         if self.adc_mask[t] > 0:
@@ -782,7 +782,7 @@ class Scanner_batched():
             sig = torch.sum(spins.M[:,:,0,:,:2,0],[1])
             sig = torch.matmul(self.B1.unsqueeze(0),sig.unsqueeze(1).unsqueeze(1).unsqueeze(5))
             
-            self.signal[:,:,t,r,:2] = (torch.sum(sig,[3]) * self.adc_mask[t])
+            self.signal[:,:,t,r,:2] = (torch.sum(sig,[3]) * self.adc_mask[t]) / self.NSpins
             
             if self.noise_std > 0:
                 noise = self.noise_std*torch.randn(self.signal[:,:,t,r,:,0].shape).float()
@@ -791,6 +791,7 @@ class Scanner_batched():
                 self.signal[:,:,t,r,:,0] = self.signal[:,:,t,r,:,0] + noise        
         
     # XXX  -- slow
+    # obsolete
     def read_signal_allRep(self,t,spins):
         
         if self.adc_mask[t] > 0:
@@ -941,12 +942,13 @@ class Scanner_fast(Scanner):
                 sig = spins.M[:,:,:,:2]
                 sig += noise  
             
-                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t]))
+                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t])) / self.NSpins
             else:
-                self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t]))
+                self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins
      
         
     # TODO: fix
+    # obsolete
     def read_signal_allRep(self,t,spins):
         
         class ExecutionControl(Exception): pass
@@ -1133,9 +1135,9 @@ class Scanner_batched_fast(Scanner_batched):
                 sig = spins.M[:,:,:,:2]
                 sig += noise  
             
-                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t]))
+                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t])) / self.NSpins
             else:
-                self.signal[:,0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:,:2],[1,2,3]) * self.adc_mask[t]))
+                self.signal[:,0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:,:2],[1,2,3]) * self.adc_mask[t])) / self.NSpins
             
                 
                 
