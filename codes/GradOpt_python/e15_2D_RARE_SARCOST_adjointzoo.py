@@ -21,6 +21,7 @@ import os, sys
 import numpy as np
 import scipy
 import scipy.io
+from scipy import ndimage
 import torch
 import cv2
 import matplotlib.pyplot as plt
@@ -104,6 +105,15 @@ numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[1]), interpola
 #numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
 numerical_phantom[numerical_phantom < 0] = 0
 numerical_phantom=np.swapaxes(numerical_phantom,0,1)
+
+# inhomogeneity (in Hz)
+B0inhomo = np.zeros((sz[0],sz[1],1)).astype(np.float32)
+B0inhomo = (np.random.rand(sz[0],sz[1]) - 0.5)
+B0inhomo = ndimage.filters.gaussian_filter(B0inhomo,1)        # smooth it a bit
+B0inhomo = B0inhomo*1500 / np.max(B0inhomo)
+B0inhomo = np.expand_dims(B0inhomo,2)
+numerical_phantom = np.concatenate((numerical_phantom,B0inhomo),2)
+
 spins.set_system(numerical_phantom)
 
 cutoff = 1e-12
@@ -120,7 +130,7 @@ omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 
 #omega = np.random.rand(NSpins,NVox) - 0.5
-omega*=0.9
+omega*=0.999
 #omega = np.expand_dims(omega[:,0],1).repeat(NVox, axis=1)
 
 omega = R2 * np.tan ( np.pi  * omega)
@@ -147,7 +157,6 @@ scanner.adc_mask[-1] = 0
 scanner.init_coil_sensitivities()
 
 
-
 #phi = 45 * np.pi/180
 #alpha = 90 * np.pi/180
 
@@ -157,6 +166,7 @@ flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 # init tensors
 flips[0,0,0] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
 flips[0,0,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase
+
 flips[1,:,0] = 180*np.pi/180  # SE preparation part 1 : 90 degree excitation
 #flips[0,:] = 0*np.pi/180  # SE preparation part 1 : 90 degree excitation
 #flips[1,:] = 180*np.pi/180  # SE preparation part 2 : 180 degree refocus    
@@ -234,7 +244,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-    #stop()
+    stop()
     
     
     
@@ -287,7 +297,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 1e5
+    lbd = 1e4
             
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))
