@@ -7,17 +7,16 @@ class FlipClass(torch.autograd.Function):
     def forward(ctx, f, x, scanner):
         ctx.f = f.clone()
         ctx.scanner = scanner
-
+        
         return torch.matmul(f,x)
 
     @staticmethod
     def backward(ctx, grad_output):
         gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
         
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[0,2])
-        
-        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
         
         return (gf, gx, None) 
   
@@ -58,8 +57,10 @@ class RelaxClass(torch.autograd.Function):
             
             ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,ctx.scanner.NVox,1])
             ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.scanner.lastM[:,0,:,3,0]
+            
             #ctx.scanner.lastM[:,0,:,2,0] = ctx.M[:,0,:,2,0]
             #ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,3,2]),ctx.scanner.lastM)
+            #ctx.scanner.lastM = ctx.M
             
         return (gf, gx, None, None, None)  
   
@@ -68,17 +69,17 @@ class DephaseClass(torch.autograd.Function):
     def forward(ctx, f, x, scanner):
         ctx.f = f.clone()
         ctx.scanner = scanner
-
+        
         return torch.matmul(f,x)
 
     @staticmethod
     def backward(ctx, grad_output):
         gx = torch.matmul(ctx.f.permute([0,1,2,4,3]),grad_output)
         
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
+        
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[2],keepdim=True)
-        
-        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
         
         return (gf, gx, None) 
   
@@ -87,17 +88,16 @@ class GradPrecessClass(torch.autograd.Function):
     def forward(ctx, f, x, scanner):
         ctx.f = f.clone()
         ctx.scanner = scanner
-
+        
         return torch.matmul(f,x)
 
     @staticmethod
     def backward(ctx, grad_output):
         gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
         
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[0,1])
-        
-        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
         
         return (gf, gx, None) 
   
