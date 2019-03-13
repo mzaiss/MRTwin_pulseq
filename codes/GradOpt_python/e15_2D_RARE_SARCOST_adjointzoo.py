@@ -192,7 +192,7 @@ else:
     grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
     grad_moms[-1,:,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
         
-grad_moms[0,0,0] =grad_moms[0,0,0]- torch.ones((1,1))*sz[0]/2  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[0,0,0] = torch.ones((1,1))*sz[0]/2 + torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
 
 grad_moms[1,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
 grad_moms[-1,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
@@ -206,12 +206,22 @@ grad_moms[-1,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree h
 
 grad_moms = setdevice(grad_moms)
 
+
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[0,0,0] = (sz[0]/2 + 2)*0.2*1e-3
+event_time[0,:,0] = 0.2*1e-3
+event_time[1,:,0] = 0.4*1e-3
+event_time[0,0,0] = (sz[0]/2)*0.2*1e-3 + (0.4*1e-3)
 #event_time[1:,0,0] = 0.2*1e-3
 event_time[-1,:,0] = 0.4*1e-3
 event_time = setdevice(event_time)
+
+TE2_90   = torch.sum(event_time[0,0,0])  # time after 90 until 180
+TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1,0]) # time after 180 til center k-space
+TE2_180_2= torch.sum(event_time[int(sz[0]/2+3):,1,0])+event_time[0,1,0] # time after center k-space til next 180
+
+TR=torch.sum(event_time[1:,1,0])
+
 
 scanner.init_gradient_tensor_holder()
 
@@ -438,7 +448,7 @@ for i in range(3):
     plt.show()
     
 # %% # save optimized parameter history
-experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled'
+experiment_id = 'RARE_baseline'
 #opt.save_param_reco_history(experiment_id)
 
 opt.scanner_opt_params[0][0,0,:] = 90*np.pi/180

@@ -14,7 +14,7 @@ seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
 %experiment_id = 'RARE_FA_OPT_fixrep1_90';
 experiment_id = 'RARE_baseline';
 % experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
-experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
+%  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
 
 
 
@@ -54,13 +54,15 @@ SeqOpts.TE = 10e-3;          % fix
 SeqOpts.TR = 10000e-3;       % fix
 SeqOpts.FlipAngle = pi/2;    % fix
 
+
 % set system limits
+button = questdlg('Generate for Scanner or Simulation?','MaxSlewrate check','Scanner','Simulation','Simulation');
+if strcmp(button,'Scanner') maxSlew=140; else maxSlew=140*1000000000; end; sprintf('sys.maxSlew %d',maxSlew)
 % had to slow down ramps and increase adc_duration to avoid stimulation
 sys = mr.opts('MaxGrad',36,'GradUnit','mT/m',...
-    'MaxSlew',140*1000000000,'SlewUnit','T/m/s',...
+    'MaxSlew',maxSlew,'SlewUnit','T/m/s',...
     'rfRingdownTime', 20e-6, 'rfDeadTime', 100e-6, ...
     'adcDeadTime', 20e-6);
-
 
 %gradients
 Nx = SeqOpts.resolution(1); Ny = SeqOpts.resolution(2);
@@ -97,14 +99,9 @@ for rep=1:NRep
     % first two extra events T(1:2)
     % first
       idx_T=1; % T(1)
-      
-      if rep == 1
-          use = 'excitation';
-      else
-          use = 'refocusing';
-      end
-      
+          
       if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
+        use = 'excitation';
         rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
         seq.addBlock(rf);
       end
@@ -118,7 +115,7 @@ for rep=1:NRep
       
     % second      
         idx_T=2; % T(2)
-        
+        use = 'refocusing';
         if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
           rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
           seq.addBlock(rf);
@@ -127,7 +124,7 @@ for rep=1:NRep
         
         gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
         gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-      seq.addBlock(gxPre,gyPre);
+        seq.addBlock(gxPre,gyPre);
       
     % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-1; % T(2)
@@ -138,10 +135,10 @@ for rep=1:NRep
       
     % last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep)/2,'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep)/2,'system',sys);
+        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
       seq.addBlock(gxPost,gyPost);
-      seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)/2))
+     
 
 end
 
@@ -242,13 +239,14 @@ PD = phantom(sz(1));
 
 PD(PD<0) = 0;
 T1 = 1e6*PD*2; T1(:) = 1;
-T2 = 1e6*PD*2; T2(:) = 10.1;
+T2 = 1e6*PD*2; T2(:) = 0.1;
 InVol = double(cat(3,PD,T1,T2));
 
 numSpins = 1;
 [kList, kloc] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
 kloc = reshape(kloc,2,sz(1),sz(2));
-kloc(1,:,:) = kloc(1,:,:) - 1.5;
+kloc(1,:,:) = kloc(1,:,:) -1.5
+% kloc=ktraj_adc/max(ktraj_adc(:))*0.5;
 %gradMoms(1,:,3) = gradMoms(1,:,3) + 1;
 %gradMoms(1,:,13) = gradMoms(1,:,13) + 1;
 %gradMoms = reshape(permute(cum_grad_moms,[3,1,2]),[2,prod(sz)]);
