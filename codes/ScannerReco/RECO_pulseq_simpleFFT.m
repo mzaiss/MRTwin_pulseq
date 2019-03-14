@@ -22,8 +22,8 @@ data = data_coils_last;
 
 %% show kspace data
 figure(101)
-subplot(2,2,1), imagesc1t(rot90(abs(data(:,:,1)))), title('coil 1'), axis('image')
-subplot(2,2,2), imagesc1t(rot90(abs(data(:,:,2)))), title('coil 2'), axis('image')
+subplot(2,2,1), imagesc(rot90(abs(data(:,:,1)))), title('coil 1'), axis('image')
+subplot(2,2,2), imagesc(rot90(abs(data(:,:,2)))), title('coil 2'), axis('image')
 
 %% Reconstruct coil images
 
@@ -51,4 +51,4 @@ end
 sos=abs(sum(images.^2,ndims(images)).^(1/2));
 sos=sos./max(sos(:));
 figure(101), subplot(2,2,3)
-imagesc1t(rot90(sos)), title('reco coilcombination'), axis('image')
+imagesc(rot90(sos)), title('reco coilcombination'), axis('image')

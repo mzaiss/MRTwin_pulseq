@@ -16,9 +16,6 @@ experiment_id = 'RARE_baseline';
 % experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
 %  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
 
-
-
-
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
 scanner_dict = load([seq_dir,'/',experiment_id,'/','scanner_dict.mat']);
@@ -91,6 +88,15 @@ deltak=1/SeqOpts.FOV;
 T = size(scanner_dict.grad_moms,1);
 NRep = size(scanner_dict.grad_moms,2);
 
+gxPre = mr.makeTrapezoid('x','Area',sz(1)/SeqOpts.FOV,'Duration',scanner_dict.event_times(1,1),'system',sys);
+     
+if strcmp(button,'Scanner')
+    addrise=gxPre.riseTime;
+else
+    addrise=0;
+end
+
+
 % put blocks together
 for rep=1:NRep
 
@@ -123,20 +129,22 @@ for rep=1:NRep
         seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))      
         
         gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'RiseTime',addrise);
         seq.addBlock(gxPre,gyPre);
       
     % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-1; % T(2)
         dur=sum(scanner_dict.event_times(3:end-1,rep));
         gx = mr.makeTrapezoid('x','Area',sum(gradmoms(idx_T,rep,1),1),'Duration',dur,'system',sys);
-        adc = mr.makeAdc(numel(idx_T),'Duration',dur,'Delay',gx.riseTime);
+%         adc = mr.makeAdc(numel(idx_T),'Duration',dur-2*gx.riseTime-2*gx.fallTime,'Delay',2*gx.riseTime);
+        adc = mr.makeAdc(numel(idx_T),'Duration',dur,'Delay',0);
+      
       seq.addBlock(gx,adc);
       
     % last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
         gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'RiseTime',addrise);
       seq.addBlock(gxPost,gyPost);
      
 
@@ -157,8 +165,8 @@ return
 % plot k-spaces
 
 figure; plot(ktraj'); % plot the entire k-space trajectory
-figure; plot(ktraj(1,:),ktraj(2,:),'b',...
-             ktraj_adc(1,:),ktraj_adc(2,:),'r.'); % a 2D plot
+figure; plot(ktraj(1,:),ktraj(2,:),'c',...
+             ktraj_adc(1,:),ktraj_adc(2,:),'g.'); % a 2D plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
 
 
@@ -239,13 +247,13 @@ PD = phantom(sz(1));
 
 PD(PD<0) = 0;
 T1 = 1e6*PD*2; T1(:) = 1;
-T2 = 1e6*PD*2; T2(:) = 0.1;
+T2 = 1e6*PD*2; T2(:) = 1;
 InVol = double(cat(3,PD,T1,T2));
 
 numSpins = 1;
 [kList, kloc] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
 kloc = reshape(kloc,2,sz(1),sz(2));
-kloc(1,:,:) = kloc(1,:,:) -1.5
+kloc(1,:,:) = kloc(1,:,:) 
 % kloc=ktraj_adc/max(ktraj_adc(:))*0.5;
 %gradMoms(1,:,3) = gradMoms(1,:,3) + 1;
 %gradMoms(1,:,13) = gradMoms(1,:,13) + 1;
