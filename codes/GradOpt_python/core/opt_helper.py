@@ -58,6 +58,8 @@ class OPT_helper():
         
         self.param_reco_history = []
         
+        self.target_seq_holder = None
+        
     def set_handles(self,init_variables,phi_FRP_model):
         self.init_variables = init_variables
         self.phi_FRP_model = phi_FRP_model
@@ -304,6 +306,8 @@ class OPT_helper():
             for i in range(3):
                 plt.subplot(1, 3, i+1)
                 plt.plot(tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) )
+                if (i==0) and (self.target_seq_holder is not None):
+                    plt.plot(tonumpy(self.target_seq_holder.ROI_signal[:,:,1]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) ) 
                 if (i==2):
                     plt.plot(tonumpy(self.scanner.ROI_signal[:,:,5]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) ) 
                 plt.title("ROI_def %d, %s" % (self.scanner.ROI_def,legs[i]))

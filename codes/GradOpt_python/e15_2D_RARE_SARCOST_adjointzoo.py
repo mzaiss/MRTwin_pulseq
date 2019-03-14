@@ -82,7 +82,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([24,24])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
 NSpins = 64                                # number of spin sims in each voxel
@@ -246,6 +246,8 @@ targetSeq.flips = flips
 targetSeq.grad_moms = grad_moms
 targetSeq.event_time = event_time
 targetSeq.adc_mask = scanner.adc_mask
+targetSeq.ROI_signal=scanner.ROI_signal.clone()
+
 
 if True: # check sanity: is target what you expect and is sequence what you expect
     targetSeq.print_status(True, reco=None)
@@ -312,7 +314,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 1e1
+    lbd = 0.3*1e1
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -385,6 +387,7 @@ opt.use_periodic_grad_moms_cap = 0           # do not sample above Nyquist flag
 opt.learning_rate = 0.01                                        # ADAM step size
 opt.optimzer_type = 'Adam'
 
+opt.target_seq_holder=targetSeq
 # fast track
 # opt.training_iter = 10; opt.training_iter_restarts = 5
 
@@ -449,6 +452,7 @@ for i in range(3):
     
 # %% # save optimized parameter history
 experiment_id = 'RARE_baseline'
+experiment_id='RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled'
 #opt.save_param_reco_history(experiment_id)
 
 opt.scanner_opt_params[0][0,0,:] = 90*np.pi/180

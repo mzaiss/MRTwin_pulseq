@@ -23,6 +23,9 @@ class TargetSequenceHolder():
         self.event_time = None
         self.adc_mask = None
         
+        self.ROI_signal = None                # measured signal (NCoils,T,NRep,4)
+        self.ROI_def = 1
+        
     def print_status(self, do_vis_image=False, reco=None):
         if do_vis_image:
             #sz=self.spins.sz
@@ -93,3 +96,4 @@ class TargetSequenceHolder():
             plt.show()
             plt.pause(0.02)
             
+    
