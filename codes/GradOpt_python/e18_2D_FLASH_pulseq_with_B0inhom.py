@@ -21,11 +21,11 @@ import os, sys
 import numpy as np
 import scipy
 import scipy.io
+from  scipy import ndimage
 import torch
 import cv2
 import matplotlib.pyplot as plt
 from torch import optim
-
 import core.spins
 import core.scanner
 import core.opt_helper
@@ -121,8 +121,13 @@ spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 spins.T1*=1
 spins.T2*=1
-imshow(numerical_phantom[:,:,0], title="PD")
-imshow(numerical_phantom[:,:,3], title="inhom")
+plt.subplot(121)
+plt.imshow(numerical_phantom[:,:,0], interpolation='none')
+plt.title("PD")
+plt.subplot(122)
+plt.imshow(numerical_phantom[:,:,3], interpolation='none')
+plt.title("inhom")
+plt.show()
 
 #begin nspins with R*
 R2 = 30.0
@@ -156,8 +161,11 @@ scanner.adc_mask[-1] = 0
 
 scanner.init_coil_sensitivities()
 
-flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 90*np.pi/180  # GRE preparation part 1 : 90 degree excitation 
+flips = (torch.rand((T,NRep,2), dtype=torch.float32)- 0.5)*2*np.pi   # randomw init
+#flips = torch.zeros((T,NRep,2), dtype=torch.float32)   # randomw init
+flips[0,:,0] = 5*np.pi/180  # FLASH preparation part 1 : 5 degree excitation 
+flips[1:,:,0] = 0
+flips[1:,:,1] = 0
 
 flips = setdevice(flips)
 
@@ -196,8 +204,8 @@ grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[:2,:,0] = 1e-2  
+event_time = torch.from_numpy(0.5*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
+#event_time[:2,:,0] = 1e-2  
 event_time[-1,:,0] = 1e2
 event_time = setdevice(event_time)
 
@@ -247,8 +255,8 @@ def phi_FRP_model(opt_params,aux_params):
     use_periodic_grad_moms_cap,_ = aux_params
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()        
-#    flip_mask[2:,:,:] = 0
-#    flip_mask[0,:,:] = 0
+    flip_mask[1:,:,:] = 0
+   #flip_mask[0,:,:] = 0
 #    flip_mask[1,:,1] = 0                                        # all phases 0
     flip_mask = setdevice(flip_mask)
     flips = flips * flip_mask    
@@ -256,7 +264,7 @@ def phi_FRP_model(opt_params,aux_params):
     #flips.data[0,0,0] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
     #flips.data[0,0,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase    
     
-    flips[0,0,:] += 90*np.pi/180
+    #flips[0,0,:] += 90*np.pi/180
     
     scanner.init_flip_tensor_holder()
     scanner.set_flipXY_tensor(flips)
@@ -287,7 +295,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 1e1
+    lbd = 0
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -339,6 +347,7 @@ def init_variables():
     event_time = targetSeq.event_time.clone()
     #event_time = torch.from_numpy(1e-7*np.random.rand(scanner.T,scanner.NRep,1)).float()
     #event_time*=0.5
+    event_time[-1,:,0] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
     #event_time[:,0,0] = 0.4*1e-3  
     
     event_time = setdevice(event_time)
@@ -371,7 +380,7 @@ opt.opti_mode = 'seq'
 
 opt.set_opt_param_idx([0])
 #opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
-opt.custom_learning_rate = [0.2,0.01,0.001,0.01]
+opt.custom_learning_rate = [0.01,0.01,0.001,0.01]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()

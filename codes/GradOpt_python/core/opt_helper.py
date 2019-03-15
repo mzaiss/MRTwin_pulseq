@@ -258,15 +258,26 @@ class OPT_helper():
             plt.title('reco phase')
             plt.ion()
                
-            plt.subplot(153)
+            
             try:
                 FA=self.scanner_opt_params[0][:,:,0]
+                phi=self.scanner_opt_params[0][:,:,1]
             except:
                 FA=self.scanner_opt_params[0]
-            
+                phi=self.scanner_opt_params[0][:,:,1]
+            plt.subplot(253)
             ax=plt.imshow(tonumpy(FA.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('FA [\N{DEGREE SIGN}]')
+            plt.clim(-180,270)
+            fig = plt.gcf()
+            fig.colorbar(ax)
+            fig.set_size_inches(18, 3)
+            
+            plt.subplot(258)
+            ax=plt.imshow(tonumpy(phi.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
+            plt.ion()
+            plt.title('phase [\N{DEGREE SIGN}]')
             plt.clim(-180,270)
             fig = plt.gcf()
             fig.colorbar(ax)
