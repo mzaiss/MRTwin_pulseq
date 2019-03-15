@@ -61,6 +61,11 @@ sys = mr.opts('MaxGrad',36,'GradUnit','mT/m',...
     'rfRingdownTime', 20e-6, 'rfDeadTime', 100e-6, ...
     'adcDeadTime', 20e-6);
 
+sys2 = mr.opts('MaxGrad',36,'GradUnit','mT/m',...
+    'MaxSlew',maxSlew/3,'SlewUnit','T/m/s',...
+    'rfRingdownTime', 20e-6, 'rfDeadTime', 100e-6, ...
+    'adcDeadTime', 20e-6);
+
 %gradients
 Nx = SeqOpts.resolution(1); Ny = SeqOpts.resolution(2);
 
@@ -129,23 +134,22 @@ for rep=1:NRep
         seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))      
         
         gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'RiseTime',addrise);
+        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys2);
         seq.addBlock(gxPre,gyPre);
       
     % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-1; % T(2)
         dur=sum(scanner_dict.event_times(3:end-1,rep));
         gx = mr.makeTrapezoid('x','Area',sum(gradmoms(idx_T,rep,1),1),'Duration',dur,'system',sys);
-%         adc = mr.makeAdc(numel(idx_T),'Duration',dur-2*gx.riseTime-2*gx.fallTime,'Delay',2*gx.riseTime);
-        adc = mr.makeAdc(numel(idx_T),'Duration',dur,'Delay',0);
+        adc = mr.makeAdc(numel(idx_T),'Duration',dur-2*gx.riseTime-2*gx.fallTime,'Delay',2*gx.riseTime);
       
-      seq.addBlock(gx,adc);
+        seq.addBlock(gx,adc);
       
     % last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
         gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'RiseTime',addrise);
-      seq.addBlock(gxPost,gyPost);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys2);
+        seq.addBlock(gxPost,gyPost);
      
 
 end
@@ -171,8 +175,89 @@ axis('equal'); % enforce aspect ratio for the correct trajectory display
 
 
 
+%% CONVENTIONAL RECO
 
-%% FIRST approach of full individual gradmoms
+cum_grad_moms = cumsum([double(scanner_dict.grad_moms)],1);
+cum_grad_moms = cum_grad_moms(find(scanner_dict.adc_mask),:,:);
+
+% seqFilename='tse.seq'
+seqFilename=seq_fn;
+
+sz=[24 24]
+% close all
+
+PD = phantom(sz(1));
+%PD = abs(gtruth_m);
+
+PD(PD<0) = 0;
+T1 = 1e6*PD*2; T1(:) = 1;
+T2 = 1e6*PD*2; T2(:) = 1;
+InVol = double(cat(3,PD,T1,T2));
+
+numSpins = 1;
+[kList, kloc] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
+kloc = reshape(kloc,2,sz(1),sz(2));
+kloc(1,:,:) = kloc(1,:,:) 
+% kloc=ktraj_adc/max(ktraj_adc(:))*0.5;
+%gradMoms(1,:,3) = gradMoms(1,:,3) + 1;
+%gradMoms(1,:,13) = gradMoms(1,:,13) + 1;
+%gradMoms = reshape(permute(cum_grad_moms,[3,1,2]),[2,prod(sz)]);
+
+resolution = sz(1);
+
+kList(isnan(kList))=0;
+klocScaled = (kloc+0.5)*resolution;  % calculate grad moms to FoV
+
+[X,Y] = meshgrid(1:resolution);
+
+kReco = griddata(klocScaled(1,:),klocScaled(2,:),real(kList),X,Y) +1j*griddata(klocScaled(1,:),klocScaled(2,:),imag(kList),X,Y) ;
+% kReco = griddata(field(:,1),field(:,2),real(kList),X,Y) +1j*griddata(field(:,1),field(:,2),imag(kList),X,Y) ;
+%kReco=reshape(kList,sz)
+kReco(isnan(kReco))=0;
+
+figure, subplot(2,2,1), imagesc(fftshift(abs(fft2(fftshift(kReco)))));
+subplot(2,2,2), scatter(kloc(1,:),kloc(2,:)); title('k location (cumsum gradMoms)');
+figure(111), scatter(klocScaled(2,:),klocScaled(1,:),'.'); title('k loc scaled: circles from cumsum(g), dots from BlochSim');
+
+spectrum = reshape(kList,sz);
+
+%% ADJOINT RECO
+adjoint_mtx = scanner_dict.adjoint_mtx;
+adjoint_mtx = adjoint_mtx(:,1:2,find(scanner_dict.adc_mask),:,1:2);
+adjoint_mtx = adjoint_mtx(:,1,:,:,1) + 1i*adjoint_mtx(:,1,:,:,2);
+adjoint_mtx = reshape(adjoint_mtx,[prod(sz),prod(sz)]);
+
+signal_opt = squeeze(scanner_dict.signal(:,find(scanner_dict.adc_mask),:,1) + 1i*scanner_dict.signal(:,find(scanner_dict.adc_mask),:,2));
+
+kList = reshape(kList,sz);
+
+spectrum = reshape(kList,sz);
+%spectrum = signal_opt;
+spectrum = spectrum(:);
+
+reco = adjoint_mtx*spectrum;
+reco = reshape(reco,sz);
+
+%{
+adjoint_mtx = reshape(adjoint_mtx,[prod(sz),sz(1),sz(2)]);
+
+reco = 0;
+for rep = 1:NRep
+  y = kList(:,rep);
+  reco = reco + adjoint_mtx(:,:,rep)*y;
+end
+
+reco = reshape(reco,sz);
+%}
+
+figure(1),
+  imagesc(abs(reco));
+
+  
+  
+  
+
+%% FIRST approach of full individual gradmoms (WIP)
 
 % Define other gradients and ADC events
 deltak=1/SeqOpts.FOV;
@@ -230,90 +315,6 @@ seq.plot();
 
 
 return
-
-%% CONVENTIONAL
-
-cum_grad_moms = cumsum([double(scanner_dict.grad_moms)],1);
-cum_grad_moms = cum_grad_moms(find(scanner_dict.adc_mask),:,:);
-
-% seqFilename='tse.seq'
-seqFilename=seq_fn;
-
-sz=[24 24]
-% close all
-
-PD = phantom(sz(1));
-%PD = abs(gtruth_m);
-
-PD(PD<0) = 0;
-T1 = 1e6*PD*2; T1(:) = 1;
-T2 = 1e6*PD*2; T2(:) = 1;
-InVol = double(cat(3,PD,T1,T2));
-
-numSpins = 1;
-[kList, kloc] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
-kloc = reshape(kloc,2,sz(1),sz(2));
-kloc(1,:,:) = kloc(1,:,:) 
-% kloc=ktraj_adc/max(ktraj_adc(:))*0.5;
-%gradMoms(1,:,3) = gradMoms(1,:,3) + 1;
-%gradMoms(1,:,13) = gradMoms(1,:,13) + 1;
-%gradMoms = reshape(permute(cum_grad_moms,[3,1,2]),[2,prod(sz)]);
-
-resolution = sz(1);
-
-kList(isnan(kList))=0;
-klocScaled = (kloc+0.5)*resolution;  % calculate grad moms to FoV
-
-[X,Y] = meshgrid(1:resolution);
-
-kReco = griddata(klocScaled(1,:),klocScaled(2,:),real(kList),X,Y) +1j*griddata(klocScaled(1,:),klocScaled(2,:),imag(kList),X,Y) ;
-% kReco = griddata(field(:,1),field(:,2),real(kList),X,Y) +1j*griddata(field(:,1),field(:,2),imag(kList),X,Y) ;
-%kReco=reshape(kList,sz)
-kReco(isnan(kReco))=0;
-
-figure, subplot(2,2,1), imagesc(fftshift(abs(fft2(fftshift(kReco)))));
-subplot(2,2,2), scatter(kloc(1,:),kloc(2,:)); title('k location (cumsum gradMoms)');
-figure(111), scatter(klocScaled(2,:),klocScaled(1,:),'.'); title('k loc scaled: circles from cumsum(g), dots from BlochSim');
-
-spectrum = reshape(kList,sz);
-
-%%
-adjoint_mtx = scanner_dict.adjoint_mtx;
-adjoint_mtx = adjoint_mtx(:,1:2,find(scanner_dict.adc_mask),:,1:2);
-adjoint_mtx = adjoint_mtx(:,1,:,:,1) + 1i*adjoint_mtx(:,1,:,:,2);
-adjoint_mtx = reshape(adjoint_mtx,[prod(sz),prod(sz)]);
-
-signal_opt = squeeze(scanner_dict.signal(:,find(scanner_dict.adc_mask),:,1) + 1i*scanner_dict.signal(:,find(scanner_dict.adc_mask),:,2));
-
-kList = reshape(kList,sz);
-
-spectrum = reshape(kList,sz);
-%spectrum = signal_opt;
-spectrum = spectrum(:);
-
-reco = adjoint_mtx*spectrum;
-reco = reshape(reco,sz);
-
-%{
-adjoint_mtx = reshape(adjoint_mtx,[prod(sz),sz(1),sz(2)]);
-
-reco = 0;
-for rep = 1:NRep
-  y = kList(:,rep);
-  reco = reco + adjoint_mtx(:,:,rep)*y;
-end
-
-reco = reshape(reco,sz);
-%}
-
-figure(1),
-  imagesc(abs(reco));
-
-  
-  
-  
-
-
 
 
 
