@@ -164,11 +164,16 @@ scanner.init_coil_sensitivities()
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[0,:,0] = 90*np.pi/180  # GRE preparation part 1 : 90 degree excitation 
 
+# randomize pulse phases
+flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
+
 flips = setdevice(flips)
 
 scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)
 
+# rotate ADC according to excitation phase
+scanner.set_ADC_rot_tensor(-flips[0,:,1])
 
 # gradient-driver precession
 # Cartesian encoding
@@ -242,7 +247,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-   # stop()
+    stop()
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
     

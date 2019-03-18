@@ -157,6 +157,7 @@ class Scanner():
         self.ROI_signal = None                # measured signal (NCoils,T,NRep,4)
         self.ROI_def = 1
         self.lastM = None
+        self.AF = None
         
         self.use_gpu =  use_gpu
         
@@ -294,6 +295,18 @@ class Scanner():
         self.F[:,:,0,2,2] += 1
         self.F[:,:,0,3,3] = 1
         
+    # rotate ADC phase to conform phase of the excitation
+    def set_ADC_rot_tensor(self,input_phase):
+        AF = torch.zeros((self.NRep,4,4))
+        
+        AF[:,0,0] = torch.cos(input_phase)
+        AF[:,0,1] = -torch.sin(input_phase)
+        AF[:,1,0] = torch.sin(input_phase)
+        AF[:,1,1] = torch.cos(input_phase)
+        
+        self.AF = self.setdevice(AF)
+        
+
 
     def set_relaxation_tensor(self,spins,dt):
         R = torch.zeros((self.NVox,4,4), dtype=torch.float32) 
@@ -1059,7 +1072,11 @@ class Scanner_fast(Scanner):
                 #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
 
                 self.ROI_signal[t+1,r,1:5] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                self.ROI_signal[t+1,r,5] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
+                self.ROI_signal[t+1,r,5] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
+                
+        # rotate ADC phase according to phase of the excitation if necessary
+        if self.AF is not None:
+            self.signal = torch.matmul(self.AF,self.signal)
                 
     def forward_mem(self,spins,event_time):
         self.init_signal()
