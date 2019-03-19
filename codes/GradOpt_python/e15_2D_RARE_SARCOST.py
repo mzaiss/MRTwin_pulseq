@@ -21,6 +21,7 @@ import os, sys
 import numpy as np
 import scipy
 import scipy.io
+from scipy import ndimage
 import torch
 import cv2
 import matplotlib.pyplot as plt
@@ -133,17 +134,12 @@ spins.omega = setdevice(spins.omega)
 
 
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
-scanner.get_ramps()
 scanner.set_adc_mask()
 
 # allow for relaxation after last readout event
 scanner.adc_mask[:scanner.T-scanner.sz[0]-1] = 0
 #scanner.adc_mask[:3] = 0
 scanner.adc_mask[-1] = 0
-
-scanner.init_coil_sensitivities()
-
-
 
 #phi = 45 * np.pi/180
 #alpha = 90 * np.pi/180
@@ -209,13 +205,7 @@ scanner.adjoint(spins)
 target = scanner.reco.clone()
    
 # save sequence parameters and target image to holder object
-targetSeq = core.target_seq_holder.TargetSequenceHolder()
-targetSeq.target_image = target
-targetSeq.sz = sz
-targetSeq.flips = flips
-targetSeq.grad_moms = grad_moms
-targetSeq.event_time = event_time
-targetSeq.adc_mask = scanner.adc_mask
+targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
 
 if True: # check sanity: is target what you expect and is sequence what you expect
     targetSeq.print_status(True, reco=None)
@@ -241,15 +231,11 @@ def phi_FRP_model(opt_params,aux_params):
     use_periodic_grad_moms_cap,_ = aux_params
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()        
-    flip_mask[1:,:,:] = 0
-    flip_mask[0,0,:] = 0
+    flip_mask[2:,:,:] = 0
+    flip_mask[0,:,:] = 0
+    flip_mask[1,:,1] = 0                                        # all phases 0
     flip_mask = setdevice(flip_mask)
-    flips = flips * flip_mask    
-    
-    #flips.data[0,0,0] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
-    #flips.data[0,0,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase    
-    
-    flips[0,0,:] += 90*np.pi/180
+    flips.register_hook(lambda x: flip_mask*x)
     
     scanner.init_flip_tensor_holder()
     scanner.set_flipXY_tensor(flips)
@@ -278,7 +264,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 1e5
+    lbd = 1e4
             
     loss_image = (scanner.reco - targetSeq.target_image)
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -413,6 +399,7 @@ for i in range(3):
 # %% # save optimized parameter history
 experiment_id = 'RARE_FA_OPT_fixrep1_90'
 #opt.save_param_reco_history(experiment_id)
+opt.scanner_opt_params[0][0,0,:] = 90*np.pi/180
 opt.export_to_matlab(experiment_id)
     
     

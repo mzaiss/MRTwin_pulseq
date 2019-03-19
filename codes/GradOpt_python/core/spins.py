@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import cv2
 
 def throw(msg):
     class ExecutionControl(Exception): pass
@@ -8,7 +7,6 @@ def throw(msg):
     
 # WHAT we measure
 class SpinSystem():
-    
     def __init__(self,sz,NVox,NSpins,use_gpu):
         
         self.sz = sz                                             # image size
@@ -33,10 +31,6 @@ class SpinSystem():
             x = x.cuda(0)
             
         return x
-    
-    # get magnitude image
-    def magimg(self, x):
-      return np.sqrt(np.sum(np.abs(x)**2,2))    
     
     def set_system(self, input_array=None):
         
@@ -66,7 +60,11 @@ class SpinSystem():
         if input_array.shape[-1] == 4:
             B0inhomo = input_array[...,3]
             B0inhomo = torch.from_numpy(B0inhomo.reshape([self.NVox])).float()
-        
+            
+        # find and store in mask locations with zero PD
+        PD0_mask = PD.reshape([self.sz[0],self.sz[1]]) > 1e-6
+
+        self.PD0_mask = self.setdevice(PD0_mask)
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
         self.PD = self.setdevice(PD)

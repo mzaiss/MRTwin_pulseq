@@ -138,10 +138,13 @@ class OPT_helper():
         # main optimization loop
         for inner_iter in range(training_iter):
             
+            # evaluate initial image state before doing optimizer step
             if inner_iter == 0:
                 _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
             print(colored("\033[93m iter %d, recon error = %f \033[0m" % (inner_iter,self.last_error), 'green'))
             
+            
+            # save entire history of optimized params/reco images
             if save_intermediary_results:
                     
                 saved_state = dict()
@@ -234,7 +237,7 @@ class OPT_helper():
             plt.ion()
             
             ax1=plt.subplot(256)
-            ax=plt.imshow(phaseimg(self.target), interpolation='none')
+            ax=plt.imshow(tonumpy(self.spins.PD0_mask)*phaseimg(self.target), interpolation='none')
             plt.clim(-np.pi,np.pi) 
             #plt.clim(0,1)
             fig = plt.gcf()
@@ -251,7 +254,7 @@ class OPT_helper():
             plt.ion()
             
             plt.subplot(257, sharex=ax1, sharey=ax1)
-            ax=plt.imshow(phaseimg(recoimg), interpolation='none')
+            ax=plt.imshow(tonumpy(self.spins.PD0_mask)*phaseimg(recoimg), interpolation='none')
             plt.clim(-np.pi,np.pi) 
             fig = plt.gcf()
             fig.colorbar(ax)
@@ -259,10 +262,10 @@ class OPT_helper():
             plt.ion()
                
             
-            try:
+            if self.scanner_opt_params[0].dim() == 3:
                 FA=self.scanner_opt_params[0][:,:,0]
                 phi=self.scanner_opt_params[0][:,:,1]
-            except:
+            else:
                 FA=self.scanner_opt_params[0]
                 phi=self.scanner_opt_params[0][:,:,1]
             plt.subplot(253)
@@ -350,6 +353,7 @@ class OPT_helper():
             print('export_to_matlab: directory already exists')
         scipy.io.savemat(os.path.join(path,"scanner_dict.mat"), scanner_dict)
         
+    # save entire history of the optimized parameters
     def save_param_reco_history(self, experiment_id):
         path=os.path.join('./out/',experiment_id)
         try:

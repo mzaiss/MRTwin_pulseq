@@ -106,7 +106,7 @@ numerical_phantom[28,:,:]=0.3
 numerical_phantom[29,:,:]=0.6
 numerical_phantom[30,:,:]=0.3
 numerical_phantom[31,:,:]=0.1
-numerical_phantom[:,:,2]*=0.1  # T2=100ms
+numerical_phantom[:,:,2]*=1000.1  # T2=100ms
 
 numerical_phantom = np.load('../../data/brainphantom_2D.npy')
 numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[0]), interpolation=cv2.INTER_CUBIC)
@@ -121,13 +121,14 @@ spins.T1[spins.T1<cutoff] = cutoff
 spins.T2[spins.T2<cutoff] = cutoff
 
 
-R2 = 10.0
-#omega = np.linspace(0,1,NSpins) - 0.5
-omega = np.random.rand(NSpins,NVox) - 0.5
-omega = np.expand_dims(omega[:,0],1).repeat(NVox, axis=1)
+R2 = 100.0
+omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5
+#omega = np.random.rand(NSpins,NVox) - 0.5
+omega = np.expand_dims(omega,1).repeat(NVox, axis=1)
+#omega = np.expand_dims(omega[:,0],1).repeat(NVox, axis=1)
 omega = R2 * np.tan ( np.pi  * omega)
 
-#omega = np.random.rand(NSpins,NVox) * 100
+#mega = np.random.rand(NSpins,NVox) * 1000
 
 spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
 spins.omega[torch.abs(spins.omega) > 1e3] = 0
@@ -135,14 +136,11 @@ spins.omega = setdevice(spins.omega)
 
 
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
-scanner.get_ramps()
 scanner.set_adc_mask()
 
 # allow for relaxation after last readout event
 scanner.adc_mask[:scanner.T-scanner.sz[0]-1] = 0
 scanner.adc_mask[-1] = 0
-
-scanner.init_coil_sensitivities()
 
 # init tensors
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
@@ -175,7 +173,7 @@ grad_moms = setdevice(grad_moms)
 
 # event timing vector 
 event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,scanner.NRep,1))).float()
-event_time[1,:,0] = 1e-1  
+event_time[1,:,0] = 1e0  
 event_time[-1,:,0] = 1e4
 event_time = setdevice(event_time)
 
@@ -196,13 +194,10 @@ scanner.adjoint(spins)
 target = scanner.reco.clone()
    
 # save sequence parameters and target image to holder object
-targetSeq = core.target_seq_holder.TargetSequenceHolder()
-targetSeq.target = target
-targetSeq.flips = flips
-targetSeq.grad_moms = grad_moms
-targetSeq.event_time = event_time
-targetSeq.adc_mask = scanner.adc_mask
+targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
 
+
+plt.close('all')
 if True:                                                       # check sanity
     #imshow(spins.images[:,:,0], 'original')
     imshow(magimg(tonumpy(targetSeq.target).reshape([sz[0],sz[1],2])), 'reconstruction')
@@ -220,7 +215,7 @@ def phi_FRP_model(opt_params,aux_params):
     flip_mask = torch.zeros((scanner.T, scanner.NRep)).float()        
     flip_mask[:2,:] = 1
     flip_mask = setdevice(flip_mask)
-    flips = flips * flip_mask    
+    flips.register_hook(lambda x: flip_mask*x)
     
     scanner.init_flip_tensor_holder()
     scanner.set_flip_tensor(flips)

@@ -122,14 +122,11 @@ spins.T2[spins.T2<cutoff] = cutoff
 
 
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
-scanner.get_ramps()
 scanner.set_adc_mask()
 
 # allow for relaxation after last readout event
 scanner.adc_mask[:scanner.T-scanner.sz[0]-1] = 0
 scanner.adc_mask[-1] = 0
-
-scanner.init_coil_sensitivities()
 
 # init tensors
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180

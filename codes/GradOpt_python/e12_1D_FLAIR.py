@@ -119,14 +119,11 @@ spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
-scanner.get_ramps()
 scanner.set_adc_mask()
 
 # allow for relaxation after last readout event
 scanner.adc_mask[:scanner.T-scanner.sz[0]-1] = 0
 scanner.adc_mask[-1] = 0
-
-scanner.init_coil_sensitivities()
 
 # init tensors
 flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
@@ -193,7 +190,7 @@ def phi_FRP_model(opt_params,aux_params):
     flip_mask = torch.zeros((scanner.T, scanner.NRep)).float()        
     flip_mask[:2,:] = 1
     flip_mask = setdevice(flip_mask)
-    flips = flips * flip_mask    
+    flips.register_hook(lambda x: flip_mask*x)
     
     scanner.init_flip_tensor_holder()
     scanner.set_flip_tensor(flips)
