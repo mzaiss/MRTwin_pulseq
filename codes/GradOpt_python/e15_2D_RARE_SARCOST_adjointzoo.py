@@ -85,7 +85,7 @@ def stop():
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 32                                # number of spin sims in each voxel
+NSpins = 64                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -266,7 +266,7 @@ def phi_FRP_model(opt_params,aux_params):
     flip_mask[0,:,:] = 0
     flip_mask[1,:,1] = 0                                        # all phases 0
     flip_mask = setdevice(flip_mask)
-    flips.register_hook(lambda x: flip_mask*x)
+    flips.zero_grad_mask = flip_mask
     
     scanner.init_flip_tensor_holder()
     scanner.set_flipXY_tensor(flips)

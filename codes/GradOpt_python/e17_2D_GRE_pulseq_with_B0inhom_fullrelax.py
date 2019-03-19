@@ -249,7 +249,7 @@ def phi_FRP_model(opt_params,aux_params):
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()        
     flip_mask = setdevice(flip_mask)
-    flips.register_hook(lambda x: flip_mask*x)
+    flips.zero_grad_mask = flip_mask
     
     #flips.data[0,0,0] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
     #flips.data[0,0,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase    
