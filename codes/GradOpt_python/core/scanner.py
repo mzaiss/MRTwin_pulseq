@@ -32,7 +32,7 @@ class Scanner():
         self.signal = None                # measured signal (NCoils,T,NRep,4)
         self.reco =  None                       # reconstructed image (NVox,) 
         
-        self.ROI_signal = None                # measured signal (NCoils,T,NRep,4)
+        self.ROI_signal = None            # measured signal (NCoils,T,NRep,4)
         self.ROI_def = 1
         self.lastM = None
         self.AF = None
@@ -148,6 +148,48 @@ class Scanner():
         self.F[:,:,0,1,1] += 1
         self.F[:,:,0,2,2] += 1
         self.F[:,:,0,3,3] = 1        
+        
+    # flip operator with B1plus inhomogeneity
+    def set_flip_tensor_withB1plus(self,input_flips):
+        if not hasattr(self,'B1plus'):
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('set_flip_tensor_withB1plus: set B1plus before use')
+    
+        Fglob = torch.zeros((self.T,self.NRep,1,4,4), dtype=torch.float32)
+        
+        Fglob[:,:,:,3,3] = 1
+        Fglob[:,:,:,1,1] = 1
+         
+        Fglob = self.setdevice(Fglob)
+        
+        vx = torch.cos(input_flips[:,:,1])
+        vy = torch.sin(input_flips[:,:,1])
+        
+        Fglob[:,:,0,0,0] = 0
+        Fglob[:,:,0,0,1] = 0
+        Fglob[:,:,0,0,2] = vy
+        Fglob[:,:,0,1,0] = 0
+        Fglob[:,:,0,1,1] = 0
+        Fglob[:,:,0,1,2] = -vx
+        Fglob[:,:,0,2,0] = -vy
+        Fglob[:,:,0,2,1] = vx
+        Fglob[:,:,0,2,2] = 0
+    
+        # matrix square
+        F2 = torch.matmul(Fglob,Fglob)
+        
+        theta = input_flips[:,:,0]
+        theta = theta.unsqueeze(2).unsqueeze(2).unsqueeze(2)
+        
+        theta = theta * self.B1plus.view([1,1,self.NVox,1,1])
+        
+        F = torch.sin(theta)*Fglob + (1 - torch.cos(theta))*F2
+        self.F = self.setdevice(F)       
+    
+        self.F[:,:,:,0,0] += 1
+        self.F[:,:,:,1,1] += 1
+        self.F[:,:,:,2,2] += 1
+        self.F[:,:,:,3,3] = 1          
         
     # use Rodriguez' rotation formula to compute rotation around arbitrary axis
     # flips are now (T,NRep,3) -- axis angle representation
