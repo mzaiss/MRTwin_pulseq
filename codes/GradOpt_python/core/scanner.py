@@ -94,8 +94,10 @@ class Scanner():
         
     def init_intravoxel_dephasing_ramps(self):
         dim = torch.sqrt(torch.tensor(self.NSpins).float())
+        
+        off = 1 / dim
         if dim == torch.floor(dim):
-            xv, yv = torch.meshgrid([torch.linspace(-1,1,dim.int()), torch.linspace(-1,1,dim.int())])
+            xv, yv = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
             intravoxel_dephasing_ramp = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
         else:
             class ExecutionControl(Exception): pass
@@ -103,6 +105,7 @@ class Scanner():
             
             intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
             
+        #intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
         intravoxel_dephasing_ramp /= torch.from_numpy(self.sz).float().unsqueeze(0)
             
         self.intravoxel_dephasing_ramp = self.setdevice(intravoxel_dephasing_ramp)    
@@ -548,7 +551,7 @@ class Scanner_fast(Scanner):
         self.IVP[:,0,0,1,0] = IVP_nspins_sin
         self.IVP[:,0,0,1,1] = IVP_nspins_cos
          
-        spins.M = torch.matmul(self.IVP,spins.M)        
+        spins.M = torch.matmul(self.IVP,spins.M)
         
         
     # TODO: fix
