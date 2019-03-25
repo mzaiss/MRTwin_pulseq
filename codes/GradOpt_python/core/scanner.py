@@ -46,6 +46,7 @@ class Scanner():
         
         # set linear gradient ramps
         self.init_ramps()
+        self.init_intravoxel_dephasing_ramps()
         self.init_coil_sensitivities()
         
     # device setter
@@ -90,6 +91,13 @@ class Scanner():
         
         self.rampX = self.setdevice(rampX)
         self.rampY = self.setdevice(rampY)
+        
+    def init_intravoxel_dephasing_ramps(self):
+        
+        intravoxel_dephasing_ramp = 2*(torch.rand(self.NSpins,2) - 0.5)
+        intravoxel_dephasing_ramp[:,0] /= self.sz[0]
+        intravoxel_dephasing_ramp[:,1] /= self.sz[1]
+        self.intravoxel_dephasing_ramp = self.setdevice(intravoxel_dephasing_ramp)        
         
     # function is obsolete: deprecate in future, this dummy is for backward compat
     def get_ramps(self):
@@ -421,9 +429,18 @@ class Scanner_fast(Scanner):
         G_adj = torch.zeros((self.T,self.NRep,self.NVox,4,4), dtype=torch.float32)
         G_adj[:,:,:,2,2] = 1
         G_adj[:,:,:,3,3] = 1
-         
+        
         self.G = self.setdevice(G)
         self.G_adj = self.setdevice(G_adj)
+        
+        # intravoxel precession
+        IVP = torch.zeros((self.NSpins,1,1,4,4), dtype=torch.float32)
+        IVP = self.setdevice(IVP)
+        
+        IVP[:,0,0,2,2] = 1
+        IVP[:,0,0,3,3] = 1
+        
+        self.IVP = IVP
         
     def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False):
         
@@ -464,6 +481,9 @@ class Scanner_fast(Scanner):
         self.G_adj[:,:,:,0,1] = B0_grad_adj_sin
         self.G_adj[:,:,:,1,0] = -B0_grad_adj_sin
         self.G_adj[:,:,:,1,1] = B0_grad_adj_cos
+        
+        # save grad_moms for intravoxel precession op
+        self.grad_moms_for_intravoxel_precession = grad_moms
         
     # do full flip/gradprecess adjoint integrating over all repetition grad/flip history
     def set_gradient_precession_tensor_adjhistory(self,grad_moms):
@@ -506,7 +526,24 @@ class Scanner_fast(Scanner):
 
         
     def grad_precess(self,t,r,spins):
-        spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)        
+        spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)
+        
+    # intravoxel gradient-driven precession
+    def grad_intravoxel_precess(self,t,r,spins):
+        
+        intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0) * self.intravoxel_dephasing_ramp
+        intra_b0 = torch.sum(intra_b0,1)
+        
+        IVP_nspins_cos = torch.cos(intra_b0)
+        IVP_nspins_sin = torch.sin(intra_b0)
+         
+        self.IVP[:,0,0,0,0] = IVP_nspins_cos
+        self.IVP[:,0,0,0,1] = -IVP_nspins_sin
+        self.IVP[:,0,0,1,0] = IVP_nspins_sin
+        self.IVP[:,0,0,1,1] = IVP_nspins_cos
+         
+        spins.M = torch.matmul(self.IVP,spins.M)        
+        
         
     # TODO: fix
     def grad_precess_allRep(self,spins):
@@ -563,6 +600,7 @@ class Scanner_fast(Scanner):
                 self.relax_and_dephase(spins)
                     
                 self.grad_precess(t,r,spins)
+                self.grad_intravoxel_precess(t,r,spins)
                 self.read_signal(t,r,spins)    
                 
                 self.ROI_signal[t+1,r,0] =   delay
