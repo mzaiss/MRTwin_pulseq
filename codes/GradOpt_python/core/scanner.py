@@ -94,7 +94,7 @@ class Scanner():
         
     def init_intravoxel_dephasing_ramps(self):
         
-        intravoxel_dephasing_ramp = 2*(torch.rand(self.NSpins,2) - 0.5)
+        intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
         intravoxel_dephasing_ramp[:,0] /= self.sz[0]
         intravoxel_dephasing_ramp[:,1] /= self.sz[1]
         self.intravoxel_dephasing_ramp = self.setdevice(intravoxel_dephasing_ramp)        
@@ -523,8 +523,6 @@ class Scanner_fast(Scanner):
                 
         self.G_adj = self.G_adj.permute([0,1,2,4,3])
                 
-
-        
     def grad_precess(self,t,r,spins):
         spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)
         
