@@ -98,6 +98,9 @@ class Scanner():
             xv, yv = torch.meshgrid([torch.linspace(-1,1,dim.int()), torch.linspace(-1,1,dim.int())])
             intravoxel_dephasing_ramp = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
         else:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('init_intravoxel_dephasing_ramps: sqrt(NSpins) should be integer!')
+            
             intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
             
         intravoxel_dephasing_ramp /= torch.from_numpy(self.sz).float().unsqueeze(0)
