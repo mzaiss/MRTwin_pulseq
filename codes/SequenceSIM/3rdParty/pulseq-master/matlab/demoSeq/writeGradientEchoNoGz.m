@@ -1,12 +1,12 @@
 seq=mr.Sequence();              % Create a new sequence object
-fov=220e-3; Nx=64; Ny=64;     % Define FOV and resolution
+fov=220e-3; Nx=32; Ny=32;     % Define FOV and resolution
 alpha=10;                       % flip angle
 sliceThickness=3e-3;            % slice
 TE=[7.38]*1e-3;                % give a vector here to have multiple TEs (e.g. for field mapping)
 TR=100e-3;                       % only a single value for now
 
 % more in-depth parameters
-rfSpoilingInc=0;              % RF spoiling increment
+rfSpoilingInc=117;              % RF spoiling increment
 
 % set system limits
 sys = mr.opts('MaxGrad', 28, 'GradUnit', 'mT/m', ...
@@ -26,6 +26,7 @@ phaseAreas = ((0:Ny-1)-Ny/2)*deltak;
 
 % gradient spoiling
 gxSpoil=mr.makeTrapezoid('x','Area',2*Nx*deltak,'system',sys);
+gzSpoil=mr.makeTrapezoid('z','Area',4/sliceThickness,'system',sys);
 
 
 % Calculate timing
@@ -52,7 +53,7 @@ for i=1:Ny
         seq.addBlock(mr.makeDelay(delayTE(c)));
         seq.addBlock(gx,adc);
         gyPre.amplitude=-gyPre.amplitude;
-        seq.addBlock(mr.makeDelay(delayTR(c)))
+        seq.addBlock(mr.makeDelay(delayTR(c)),gxSpoil,gyPre)
     end
 end
 

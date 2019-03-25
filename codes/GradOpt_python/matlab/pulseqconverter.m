@@ -13,6 +13,7 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
 %experiment_id = 'RARE_FA_OPT_fixrep1_90';
 experiment_id = 'RARE_baseline';
+% experiment_id = 'GRE_base';
 % experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
 %  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
 
@@ -183,7 +184,7 @@ cum_grad_moms = cum_grad_moms(find(scanner_dict.adc_mask),:,:);
 % seqFilename='tse.seq'
 seqFilename=seq_fn;
 
-sz=[24 24]
+sz=double(scanner_dict.sz)
 % close all
 
 PD = phantom(sz(1));
@@ -212,7 +213,7 @@ klocScaled = (kloc+0.5)*resolution;  % calculate grad moms to FoV
 
 kReco = griddata(klocScaled(1,:),klocScaled(2,:),real(kList),X,Y) +1j*griddata(klocScaled(1,:),klocScaled(2,:),imag(kList),X,Y) ;
 % kReco = griddata(field(:,1),field(:,2),real(kList),X,Y) +1j*griddata(field(:,1),field(:,2),imag(kList),X,Y) ;
-%kReco=reshape(kList,sz)
+kReco=reshape(kList,sz)
 kReco(isnan(kReco))=0;
 
 figure, subplot(2,2,1), imagesc(fftshift(abs(fft2(fftshift(kReco)))));

@@ -325,7 +325,7 @@ class OPT_helper():
                 if (i==0) and (self.target_seq_holder is not None):
                     plt.plot(tonumpy(self.target_seq_holder.ROI_signal[:,:,1]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) ) 
                 if (i==2):
-                    plt.plot(tonumpy(self.scanner.ROI_signal[:,:,5]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) ) 
+                    plt.plot(tonumpy(self.scanner.ROI_signal[:,:,5]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]),'--') 
                 plt.title("ROI_def %d, %s" % (self.scanner.ROI_def,legs[i]))
                 fig = plt.gcf()
                 fig.set_size_inches(16, 3)

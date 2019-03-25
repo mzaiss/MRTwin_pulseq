@@ -81,10 +81,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([24,24])                                           # image size
+sz = np.array([20,20])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 3                                        # number of events F/R/P
-NSpins = 64                                # number of spin sims in each voxel
+NSpins = 128                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 #dt = 0.0001                         # time interval between actions (seconds)
 
@@ -158,17 +158,19 @@ scanner.adc_mask[:scanner.T-scanner.sz[0]-1] = 0
 #scanner.adc_mask[:3] = 0
 scanner.adc_mask[-1] = 0
 
-flips = (torch.rand((T,NRep,2), dtype=torch.float32)- 0.5)*2*np.pi   # randomw init
-#flips = torch.zeros((T,NRep,2), dtype=torch.float32)   # randomw init
-flips[0,:,0] = 5*np.pi/180  # FLASH preparation part 1 : 5 degree excitation 
-flips[1:,:,0] = 0
-flips[1:,:,1] = 0
+flips = torch.zeros((T,NRep,2), dtype=torch.float32)
+flips[0,:,0] = 20*np.pi/180  # GRE preparation part 1 : 1 degree excitation 
+
+# randomize pulse phases
+#flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 flips = setdevice(flips)
 
 scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)
 
+# rotate ADC according to excitation phase
+scanner.set_ADC_rot_tensor(-flips[0,:,1])
 
 # gradient-driver precession
 # Cartesian encoding
@@ -201,9 +203,9 @@ grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))
 grad_moms = setdevice(grad_moms)
 
 # event timing vector 
-event_time = torch.from_numpy(0.5*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
+event_time = torch.from_numpy(1*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
 #event_time[:2,:,0] = 1e-2  
-event_time[-1,:,0] = 1e2
+event_time[-1,:,0] = 1e0
 event_time = setdevice(event_time)
 
 scanner.init_gradient_tensor_holder()
@@ -236,7 +238,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-   # stop()
+    #stop()
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
     
@@ -254,8 +256,6 @@ def phi_FRP_model(opt_params,aux_params):
     
     #flips.data[0,0,0] = 90*np.pi/180  # SE preparation part 1 : 90 degree excitation
     #flips.data[0,0,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase    
-    
-    #flips[0,0,:] += 90*np.pi/180
     
     scanner.init_flip_tensor_holder()
     scanner.set_flipXY_tensor(flips)
@@ -281,6 +281,16 @@ def phi_FRP_model(opt_params,aux_params):
     #scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=True)
     
     #scanner.adc_mask = adc_mask
+    
+    event_time_mask = torch.ones((scanner.T, scanner.NRep, 1)).float()        
+    event_time_mask[2:-1,:] = 0
+   #flip_mask[0,:,:] = 0
+#    flip_mask[1,:,1] = 0                                        # all phases 0
+    event_time_mask = setdevice(event_time_mask)
+    event_time.zero_grad_mask = event_time_mask
+    
+    #event_time[0,0,0] = torch.abs(event_time[0,0,0]) + 1e-4
+    
           
     # forward/adjoint pass
     scanner.forward(spins, event_time)
@@ -338,11 +348,11 @@ def init_variables():
     event_time = targetSeq.event_time.clone()
     #event_time = torch.from_numpy(1e-7*np.random.rand(scanner.T,scanner.NRep,1)).float()
     #event_time*=0.5
-    event_time[-1,:,0] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
+   #event_time[-1,:,0] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
     #event_time[:,0,0] = 0.4*1e-3  
     
     event_time = setdevice(event_time)
-    #event_time.requires_grad = True
+    event_time.requires_grad = True
 
     adc_mask = targetSeq.adc_mask.clone()
     #adc_mask.requires_grad = True     
@@ -360,6 +370,7 @@ opt.use_periodic_grad_moms_cap = 0           # do not sample above Nyquist flag
 opt.learning_rate = 0.01                                        # ADAM step size
 opt.optimzer_type = 'Adam'
 
+opt.target_seq_holder=targetSeq
 # fast track
 # opt.training_iter = 10; opt.training_iter_restarts = 5
 
@@ -369,7 +380,7 @@ opt.opti_mode = 'seq'
 #target_numpy = tonumpy(target).reshape([sz[0],sz[1],2])
 #imshow(magimg(target_numpy), 'target')
 
-opt.set_opt_param_idx([0])
+opt.set_opt_param_idx([0,2])  # RF, grad, time, ADC
 #opt.custom_learning_rate = [0.1,0.01,0.1,0.1]
 opt.custom_learning_rate = [0.01,0.01,0.001,0.01]
 
@@ -423,10 +434,10 @@ for i in range(3):
     plt.show()
     
 # %% # save optimized parameter history
-experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled'
+experiment_id = 'GRE_base'
 #opt.save_param_reco_history(experiment_id)
 
-opt.scanner_opt_params[0][0,0,:] = 90*np.pi/180
+#opt.scanner_opt_params[0][0,0,:] = 90*np.pi/180
 opt.export_to_matlab(experiment_id)
     
     
