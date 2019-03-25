@@ -93,7 +93,15 @@ class Scanner():
         self.rampY = self.setdevice(rampY)
         
     def init_intravoxel_dephasing_ramps(self):
-        intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5) / torch.from_numpy(self.sz).float().unsqueeze(0)
+        dim = torch.sqrt(torch.tensor(self.NSpins).float())
+        if dim == torch.floor(dim):
+            xv, yv = torch.meshgrid([torch.linspace(-1,1,dim.int()), torch.linspace(-1,1,dim.int())])
+            intravoxel_dephasing_ramp = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
+        else:
+            intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
+            
+        intravoxel_dephasing_ramp /= torch.from_numpy(self.sz).float().unsqueeze(0)
+            
         self.intravoxel_dephasing_ramp = self.setdevice(intravoxel_dephasing_ramp)    
         
     # function is obsolete: deprecate in future, this dummy is for backward compat
