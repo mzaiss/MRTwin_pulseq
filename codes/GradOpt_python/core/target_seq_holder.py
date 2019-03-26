@@ -68,7 +68,7 @@ class TargetSequenceHolder():
             
             
             plt.subplot(154)
-            ax=plt.imshow(tonumpy(torch.abs(self.event_time)[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(torch.abs(self.event_time).permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('TR [s]')
             fig = plt.gcf()

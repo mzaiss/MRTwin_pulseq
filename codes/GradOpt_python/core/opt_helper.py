@@ -290,7 +290,7 @@ class OPT_helper():
             
             
             plt.subplot(154)
-            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2]).permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('TR [s]')
             fig = plt.gcf()
@@ -326,7 +326,7 @@ class OPT_helper():
                 if (i==0) and (self.target_seq_holder is not None):
                     plt.plot(tonumpy(self.target_seq_holder.ROI_signal[:,:,1]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) ) 
                 if (i==2):
-                    plt.plot(tonumpy(self.scanner.ROI_signal[:,:,5]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]),'--') 
+                    plt.plot(tonumpy(self.scanner.ROI_signal[:,:,4]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]),'--') 
                 plt.title("ROI_def %d, %s" % (self.scanner.ROI_def,legs[i]))
                 fig = plt.gcf()
                 fig.set_size_inches(16, 3)
