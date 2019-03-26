@@ -105,6 +105,10 @@ class Scanner():
             
             intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
             
+        # remove coupling w.r.t. R2
+        permvec = np.random.choice(self.NSpins,self.NSpins,replace=False)
+        intravoxel_dephasing_ramp = intravoxel_dephasing_ramp[permvec,:]
+            
         #intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
         intravoxel_dephasing_ramp /= torch.from_numpy(self.sz).float().unsqueeze(0)
             
