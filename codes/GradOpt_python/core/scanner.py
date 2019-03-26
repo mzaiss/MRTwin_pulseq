@@ -581,30 +581,23 @@ class Scanner_fast(Scanner):
         self.reco = r[:,:2,0]
         
     # run throw all repetition/actions and yield signal
-    def do_dummy_scans(self,spins,nrep=0,tr=0,fa=0):
-        
-        tr = self.setdevice(torch.tensor(tr).float())
-        fa = self.setdevice(torch.tensor(fa).float())
-        
+    def do_dummy_scans(self,spins,event_time,nrep=0):
         spins.set_initial_magnetization()
         
-        Fdummy = torch.zeros((1,1,1,3,3), dtype=torch.float32)
-        flips_cos = torch.cos(fa)
-        flips_sin = torch.sin(fa)
-        Fdummy[0,0,0,0,0] = flips_cos
-        Fdummy[0,0,0,0,2] = flips_sin
-        Fdummy[0,0,0,2,0] = -flips_sin
-        Fdummy[0,0,0,2,2] = flips_cos 
+        for nr in range(nrep):
+            for r in range(self.NRep):                                   # for all repetitions
+                for t in range(self.T):                                      # for all actions
+                    self.flip(t,r,spins)
+                    
+                    delay = torch.abs(event_time[t,r]) + 1e-6
+                    self.set_relaxation_tensor(spins,delay)
+                    self.set_freeprecession_tensor(spins,delay)
+                    self.set_B0inhomogeneity_tensor(spins,delay)
+                    self.relax_and_dephase(spins)
+                        
+                    self.grad_precess(t,r,spins)
+                    self.grad_intravoxel_precess(t,r,spins)
 
-        delay = torch.abs(tr) + 1e-6
-        self.set_relaxation_tensor(spins,delay)
-        self.set_freeprecession_tensor(spins,delay)
-        self.set_B0inhomogeneity_tensor(spins,delay)
-        
-        # scanner forward process loop
-        for r in range(nrep):
-            spins.M = torch.matmul(Fdummy,spins.M)
-            self.relax_and_dephase(spins)
 
         
     # run throw all repetition/actions and yield signal
