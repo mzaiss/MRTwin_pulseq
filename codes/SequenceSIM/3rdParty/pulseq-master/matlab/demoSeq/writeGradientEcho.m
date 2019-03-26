@@ -1,5 +1,5 @@
 seq=mr.Sequence();              % Create a new sequence object
-fov=220e-3; Nx=24; Ny=24;     % Define FOV and resolution
+fov=220e-3; Nx=16; Ny=16;     % Define FOV and resolution
 alpha=10;                       % flip angle
 sliceThickness=5e-3;            % slice
 TE=[10]*1e-3;                % give a vector here to have multiple TEs (e.g. for field mapping)
@@ -43,9 +43,12 @@ rf_inc=0;
 for i=1:Ny
     for c=1:length(TE)
         rf.phaseOffset=rf_phase/180*pi;
+        AA(i)=rf_phase;
         adc.phaseOffset=rf_phase/180*pi;
         rf_inc=mod(rf_inc+rfSpoilingInc, 360.0);
         rf_phase=mod(rf_phase+rf_inc, 360.0);
+        
+        
         %
         seq.addBlock(rf,gz);
         gyPre = mr.makeTrapezoid('y','Area',phaseAreas(i),'Duration',2e-3,'system',sys);

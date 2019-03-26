@@ -12,7 +12,7 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
 %experiment_id = 'RARE_FA_OPT_fixrep1_90';
-experiment_id = 'RARE_baseline';
+experiment_id = 'FLASH_target';
 % experiment_id = 'GRE_base';
 % experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
 %  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
@@ -96,13 +96,6 @@ NRep = size(scanner_dict.grad_moms,2);
 
 gxPre = mr.makeTrapezoid('x','Area',sz(1)/SeqOpts.FOV,'Duration',scanner_dict.event_times(1,1),'system',sys);
      
-if strcmp(button,'Scanner')
-    addrise=gxPre.riseTime;
-else
-    addrise=0;
-end
-
-
 % put blocks together
 for rep=1:NRep
 
