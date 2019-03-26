@@ -635,7 +635,7 @@ class Scanner_fast(Scanner):
             for t in range(self.T):                                      # for all actions
                 spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                 
-                delay = torch.abs(event_time[t,r] + 1e-6) * 1
+                delay = torch.abs(event_time[t,r]) + 1e-6
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)

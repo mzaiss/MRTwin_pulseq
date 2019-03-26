@@ -25,13 +25,6 @@ import core.scanner
 import core.opt_helper
 import core.target_seq_holder
 
-if sys.version_info[0] < 3:
-    reload(core.spins)
-    reload(core.scanner)
-    reload(core.opt_helper)
-else:
-    import importlib
-
 use_gpu = 0
 
 # NRMSE error function
@@ -164,11 +157,11 @@ scanner.set_flipXY_tensor(flips)
 scanner.set_ADC_rot_tensor(-flips[0,:,1]) #GRE/FID specific
 
 # event timing vector 
-event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep,1))).float()
-event_time[-1,:,0] = 1e0           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
+event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time[-1,:] = 1e0           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
 event_time = setdevice(event_time)
 
-TR=torch.sum(event_time[:,1,0])
+TR=torch.sum(event_time[:,1])
 
 # gradient-driver precession
 # Cartesian encoding
@@ -231,14 +224,14 @@ def init_variables():
     flips.zero_grad_mask = flip_mask
       
     event_time = targetSeq.event_time.clone()
-    #event_time = torch.from_numpy(1e-7*np.random.rand(scanner.T,scanner.NRep,1)).float()
+    #event_time = torch.from_numpy(1e-7*np.random.rand(scanner.T,scanner.NRep)).float()
     #event_time*=0.5
-    #event_time[:,0,0] = 0.4*1e-3  
-    #event_time[-2,:,0] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
+    #event_time[:,0] = 0.4*1e-3  
+    #event_time[-2,:] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
     event_time = setdevice(event_time)
     event_time.requires_grad = True
     
-    event_time_mask = torch.ones((scanner.T, scanner.NRep, 1)).float()        
+    event_time_mask = torch.ones((scanner.T, scanner.NRep)).float()        
     event_time_mask[2:-2,:] = 0
     event_time_mask = setdevice(event_time_mask)
     event_time.zero_grad_mask = event_time_mask

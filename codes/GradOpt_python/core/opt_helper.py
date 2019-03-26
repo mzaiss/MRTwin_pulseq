@@ -290,7 +290,7 @@ class OPT_helper():
             
             
             plt.subplot(154)
-            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2])[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2]).permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('TR [s]')
             fig = plt.gcf()
