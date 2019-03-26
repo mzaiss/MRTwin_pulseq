@@ -16,11 +16,11 @@ class Scanner():
         self.adc_mask = None         # ADC signal acquisition event mask (T,)
         self.rampX = None        # spatial encoding linear gradient ramp (sz)
         self.rampY = None
-        self.F = None                              # flip tensor (T,NRep,4,4)
-        self.R = None                          # relaxation tensor (NVox,4,4)
-        self.P = None                   # free precession tensor (NSpins,4,4)
-        self.G = None            # gradient precession tensor (NRep,NVox,4,4)
-        self.G_adj = None         # adjoint gradient operator (NRep,NVox,4,4)
+        self.F = None                              # flip tensor (T,NRep,3,3)
+        self.R = None                          # relaxation tensor (NVox,3,3)
+        self.P = None                   # free precession tensor (NSpins,3,3)
+        self.G = None            # gradient precession tensor (NRep,NVox,3,3)
+        self.G_adj = None         # adjoint gradient operator (NRep,NVox,3,3)
 
         self.B0_grad_cos = None  # accum phase due to gradients (T,NRep,NVox)
         self.B0_grad_sin = None
@@ -29,10 +29,10 @@ class Scanner():
         
         self.B1 = None          # coil sensitivity profiles (NCoils,NVox,2,2)
 
-        self.signal = None                # measured signal (NCoils,T,NRep,4)
+        self.signal = None                # measured signal (NCoils,T,NRep,3)
         self.reco =  None                       # reconstructed image (NVox,) 
         
-        self.ROI_signal = None            # measured signal (NCoils,T,NRep,4)
+        self.ROI_signal = None            # measured signal (NCoils,T,NRep,3)
         self.ROI_def = 1
         self.lastM = None
         self.AF = None
@@ -41,7 +41,7 @@ class Scanner():
         
         # preinit tensors
         # Spatial inhomogeneity component
-        S = torch.zeros((1,1,self.NVox,4,4), dtype=torch.float32)
+        S = torch.zeros((1,1,self.NVox,3,3), dtype=torch.float32)
         self.SB0 = self.setdevice(S)
         
         # set linear gradient ramps
@@ -123,9 +123,8 @@ class Scanner():
         self.B1 = self.setdevice(B1)
         
     def init_flip_tensor_holder(self):
-        F = torch.zeros((self.T,self.NRep,1,4,4), dtype=torch.float32)
+        F = torch.zeros((self.T,self.NRep,1,3,3), dtype=torch.float32)
         
-        F[:,:,0,3,3] = 1
         F[:,:,0,1,1] = 1
          
         self.F = self.setdevice(F)
@@ -166,7 +165,6 @@ class Scanner():
         self.F[:,:,0,0,0] += 1
         self.F[:,:,0,1,1] += 1
         self.F[:,:,0,2,2] += 1
-        self.F[:,:,0,3,3] = 1        
         
     # flip operator with B1plus inhomogeneity
     def set_flip_tensor_withB1plus(self,input_flips):
@@ -174,9 +172,8 @@ class Scanner():
             class ExecutionControl(Exception): pass
             raise ExecutionControl('set_flip_tensor_withB1plus: set B1plus before use')
     
-        Fglob = torch.zeros((self.T,self.NRep,1,4,4), dtype=torch.float32)
+        Fglob = torch.zeros((self.T,self.NRep,1,3,3), dtype=torch.float32)
         
-        Fglob[:,:,:,3,3] = 1
         Fglob[:,:,:,1,1] = 1
          
         Fglob = self.setdevice(Fglob)
@@ -208,7 +205,6 @@ class Scanner():
         self.F[:,:,:,0,0] += 1
         self.F[:,:,:,1,1] += 1
         self.F[:,:,:,2,2] += 1
-        self.F[:,:,:,3,3] = 1          
         
     # use Rodriguez' rotation formula to compute rotation around arbitrary axis
     # flips are now (T,NRep,3) -- axis angle representation
@@ -237,11 +233,10 @@ class Scanner():
         self.F[:,:,0,0,0] += 1
         self.F[:,:,0,1,1] += 1
         self.F[:,:,0,2,2] += 1  
-        self.F[:,:,0,3,3] = 1
         
     # rotate ADC phase to conform phase of the excitation
     def set_ADC_rot_tensor(self,input_phase):
-        AF = torch.zeros((self.NRep,4,4))
+        AF = torch.zeros((self.NRep,3,3))
         
         AF[:,0,0] = torch.cos(input_phase)
         AF[:,0,1] = -torch.sin(input_phase)
@@ -251,26 +246,23 @@ class Scanner():
         self.AF = self.setdevice(AF)
         
     def set_relaxation_tensor(self,spins,dt):
-        R = torch.zeros((self.NVox,4,4), dtype=torch.float32) 
+        R = torch.zeros((self.NVox,3,3), dtype=torch.float32) 
         
         R = self.setdevice(R)
         
         T2_r = torch.exp(-dt/spins.T2)
         T1_r = torch.exp(-dt/spins.T1)
         
-        R[:,3,3] = 1
-        
         R[:,0,0] = T2_r
         R[:,1,1] = T2_r
         R[:,2,2] = T1_r
-        R[:,2,3] = 1 - T1_r
          
-        R = R.view([1,self.NVox,4,4])
+        R = R.view([1,self.NVox,3,3])
         
         self.R = R
         
     def set_freeprecession_tensor(self,spins,dt):
-        P = torch.zeros((self.NSpins,1,1,4,4), dtype=torch.float32)
+        P = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
         P = self.setdevice(P)
         
         B0_nspins = spins.omega[:,0].view([self.NSpins])
@@ -284,12 +276,11 @@ class Scanner():
         P[:,0,0,1,1] = B0_nspins_cos
          
         P[:,0,0,2,2] = 1
-        P[:,0,0,3,3] = 1         
          
         self.P = P
         
     def set_B0inhomogeneity_tensor(self,spins,delay):
-        S = torch.zeros((1,1,self.NVox,4,4), dtype=torch.float32)
+        S = torch.zeros((1,1,self.NVox,3,3), dtype=torch.float32)
         S = self.setdevice(S)
         
         B0_inhomo = spins.B0inhomo.view([self.NVox])
@@ -303,19 +294,16 @@ class Scanner():
         S[0,0,:,1,1] = B0_nspins_cos
          
         S[0,0,:,2,2] = 1
-        S[0,0,:,3,3] = 1         
          
         self.SB0 = S
         
     
     def init_gradient_tensor_holder(self):
-        G = torch.zeros((self.NRep,self.NVox,4,4), dtype=torch.float32)
+        G = torch.zeros((self.NRep,self.NVox,3,3), dtype=torch.float32)
         G[:,:,2,2] = 1
-        G[:,:,3,3] = 1
          
-        G_adj = torch.zeros((self.NRep,self.NVox,4,4), dtype=torch.float32)
+        G_adj = torch.zeros((self.NRep,self.NVox,3,3), dtype=torch.float32)
         G_adj[:,:,2,2] = 1
-        G_adj[:,:,3,3] = 1
          
         self.G = self.setdevice(G)
         self.G_adj = self.setdevice(G_adj)
@@ -369,6 +357,8 @@ class Scanner():
     def relax_and_dephase(self,spins):
         
         spins.M = torch.matmul(self.R,spins.M)
+        spins.M[:,:,:,2,0] += (1 - self.R[:,:,2,2]).view([1,1,self.NVox]) * spins.MZ0
+        
         spins.M = torch.matmul(self.SB0,spins.M)
         spins.M = torch.matmul(self.P,spins.M)
         
@@ -376,12 +366,12 @@ class Scanner():
         spins.M = torch.matmul(self.G[r,:,:,:],spins.M)        
         
     def init_signal(self):
-        signal = torch.zeros((self.NCoils,self.T,self.NRep,4,1), dtype=torch.float32) 
+        signal = torch.zeros((self.NCoils,self.T,self.NRep,3,1), dtype=torch.float32) 
         #signal[:,:,:,2:,0] = 1                                 # aux dim zero ()
               
         self.signal = self.setdevice(signal)
         
-        self.ROI_signal = torch.zeros((self.T+1,self.NRep,6), dtype=torch.float32) # for trans magnetization
+        self.ROI_signal = torch.zeros((self.T+1,self.NRep,5), dtype=torch.float32) # for trans magnetization
         self.ROI_signal = self.setdevice(self.ROI_signal)
         self.ROI_def= int((self.sz[0]/2)*self.sz[1]+ self.sz[1]/2)
         
@@ -433,23 +423,20 @@ class Scanner():
 class Scanner_fast(Scanner):
     
     def init_gradient_tensor_holder(self):
-        G = torch.zeros((self.T,self.NRep,self.NVox,4,4), dtype=torch.float32)
+        G = torch.zeros((self.T,self.NRep,self.NVox,3,3), dtype=torch.float32)
         G[:,:,:,2,2] = 1
-        G[:,:,:,3,3] = 1
          
-        G_adj = torch.zeros((self.T,self.NRep,self.NVox,4,4), dtype=torch.float32)
+        G_adj = torch.zeros((self.T,self.NRep,self.NVox,3,3), dtype=torch.float32)
         G_adj[:,:,:,2,2] = 1
-        G_adj[:,:,:,3,3] = 1
         
         self.G = self.setdevice(G)
         self.G_adj = self.setdevice(G_adj)
         
         # intravoxel precession
-        IVP = torch.zeros((self.NSpins,1,1,4,4), dtype=torch.float32)
+        IVP = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
         IVP = self.setdevice(IVP)
         
         IVP[:,0,0,2,2] = 1
-        IVP[:,0,0,3,3] = 1
         
         self.IVP = IVP
         
@@ -513,7 +500,6 @@ class Scanner_fast(Scanner):
         self.G[:,:,:,1,1] = B0_grad_cos
 
         self.G_adj[:,:,:,2,2] = 1
-        self.G_adj[:,:,:,3,3] = 1
         self.G_adj[0,0,:,0,0] = 1
         self.G_adj[0,0,:,1,1] = 1
         
@@ -586,7 +572,7 @@ class Scanner_fast(Scanner):
         s = self.signal * adc_mask
         s = torch.sum(s,0)
         
-        r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,4,self.T*self.NRep*4]), s.view([1,self.T*self.NRep*4,1]))
+        r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
         self.reco = r[:,:2,0]
         
     # run throw all repetition/actions and yield signal
@@ -597,7 +583,7 @@ class Scanner_fast(Scanner):
         # scanner forward process loop
         for r in range(self.NRep):                                   # for all repetitions
             self.ROI_signal[0,r,0] =   0
-            self.ROI_signal[0,r,1:5] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+            self.ROI_signal[0,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
             
             for t in range(self.T):                                      # for all actions
                 self.flip(t,r,spins)
@@ -615,8 +601,8 @@ class Scanner_fast(Scanner):
                 self.ROI_signal[t+1,r,0] =   delay
                 #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
 
-                self.ROI_signal[t+1,r,1:5] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                self.ROI_signal[t+1,r,5] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
+                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t+1,r,4] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
                 
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -630,7 +616,7 @@ class Scanner_fast(Scanner):
         for r in range(self.NRep):                                   # for all repetitions
             
             self.ROI_signal[0,r,0] =   0
-            self.ROI_signal[0,r,1:5] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+            self.ROI_signal[0,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
             
             for t in range(self.T):                                      # for all actions
                 spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
@@ -640,7 +626,7 @@ class Scanner_fast(Scanner):
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
                 
-                spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self)
+                spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
                 spins.M = DephaseClass.apply(self.P,spins.M,self)
                 spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                     
@@ -650,8 +636,8 @@ class Scanner_fast(Scanner):
                 self.ROI_signal[t+1,r,0] =   delay
                 #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
 
-                self.ROI_signal[t+1,r,1:5] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                self.ROI_signal[t+1,r,5] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
+                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t+1,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
                 
                 
         # kill numerically unstable parts of M vector for backprop
@@ -671,7 +657,7 @@ class Scanner_fast(Scanner):
         s = self.signal * adc_mask
         s = torch.sum(s,0)
         
-        r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,4,self.T*self.NRep*4]), s.view([1,self.T*self.NRep*4,1]))
+        r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
         self.reco = r[:,:2,0]        
 
 # AUX classes
@@ -698,10 +684,11 @@ class FlipClass(torch.autograd.Function):
   
 class RelaxClass(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, f, x, delay, t, scanner):
+    def forward(ctx, f, x, delay, t, scanner, spins):
         ctx.f = f.clone()
         ctx.delay = delay
         ctx.scanner = scanner
+        ctx.spins = spins
         ctx.t = t
         ctx.thresh = 1e-2
         
@@ -728,7 +715,7 @@ class RelaxClass(torch.autograd.Function):
             id3 = id3.view([1,ctx.scanner.NVox])
             
             ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,ctx.scanner.NVox,1])
-            ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.scanner.lastM[:,0,:,3,0]
+            ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.spins.MZ0[:,0,:,0,0]
             
             ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
             

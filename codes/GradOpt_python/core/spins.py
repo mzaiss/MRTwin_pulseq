@@ -18,8 +18,8 @@ class SpinSystem():
         self.T2 = None                          # T2 relaxation times (NVox,)
         self.omega = None                        # spin off-resonance (NSpins,)
         
-        self.M0 = None     # initial magnetization state (NSpins,NRep,NVox,4)
-        self.M = None       # curent magnetization state (NSpins,NRep,NVox,4)
+        self.M0 = None     # initial magnetization state (NSpins,NRep,NVox,3)
+        self.M = None       # curent magnetization state (NSpins,NRep,NVox,3)
         
         # aux
         self.R2 = None
@@ -73,27 +73,32 @@ class SpinSystem():
         
     def set_initial_magnetization(self):
         
-        M0 = torch.zeros((self.NSpins,1,self.NVox,4), dtype=torch.float32)
+        M0 = torch.zeros((self.NSpins,1,self.NVox,3), dtype=torch.float32)
         M0 = self.setdevice(M0)
         
         # set initial longitudinal magnetization value
-        M0[:,:,:,2:] = 1
-        M0[:,:,:,2:] = M0[:,:,:,2:] * self.PD.view([self.NVox,1])    # weight by proton density
+        M0[:,:,:,2] = 1
+        M0[:,:,:,2] = M0[:,:,:,2] * self.PD.view([1,1,self.NVox])    # weight by proton density
         
-        M = M0.clone().view([self.NSpins,1,self.NVox,4,1])
+        M = M0.clone().view([self.NSpins,1,self.NVox,3,1])
+        
+        MZ0 = M0[:,:,:,2].clone()
         
         self.M0 = M0
         self.M = self.setdevice(M)
+        self.MZ0 = self.setdevice(MZ0)
         
         
 
 # child SpinSystem class for batch image processing        
 # variation for supervised learning
 class SpinSystem_batched(SpinSystem):
-    
+      
     def __init__(self,sz,NVox,NSpins,batch_size,use_gpu):
         
         super(SpinSystem, self).__init__(sz,NVox,NSpins,use_gpu)
+        
+        throw('ERROR: SpinSystem_batched: out of sync 4 -> 3')
         self.batch_size = batch_size
         
     def set_system(self, input_array):

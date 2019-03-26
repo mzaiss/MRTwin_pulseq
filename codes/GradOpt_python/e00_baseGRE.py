@@ -193,7 +193,7 @@ targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_mo
 if True: # check sanity: is target what you expect and is sequence what you expect
     targetSeq.print_status(True, reco=None)
     
-    #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:4]), label='x')
+    #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
     for i in range(3):
         plt.subplot(1, 3, i+1)
         plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep]) )
