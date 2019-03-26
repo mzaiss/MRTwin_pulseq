@@ -2,6 +2,8 @@ import numpy as np
 import torch
 from termcolor import colored
 import matplotlib.pyplot as plt
+import os
+import scipy
 # target images / sequence parameters holder
 # torch to numpy
 def tonumpy(x):
@@ -16,6 +18,7 @@ def phaseimg(x):
 class TargetSequenceHolder():
     def __init__(self,flips,event_time,grad_moms,scanner,spins,target):
         
+        self.scanner = scanner
         self.target_image = target
         self.sz = scanner.sz
         self.flips = flips.clone()
@@ -95,4 +98,23 @@ class TargetSequenceHolder():
             plt.show()
             plt.pause(0.02)
             
-    
+    # save current optimized parameter state to matlab array
+    def export_to_matlab(self, experiment_id):
+        scanner_dict = dict()
+        scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
+        scanner_dict['B1'] = tonumpy(self.scanner.B1)
+        scanner_dict['flips'] = tonumpy(self.flips)
+        scanner_dict['event_times'] = np.abs(tonumpy(self.event_time))
+        scanner_dict['grad_moms'] = tonumpy(self.grad_moms)
+        scanner_dict['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+        scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
+        scanner_dict['sz'] = self.scanner.sz
+        scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
+        scanner_dict['signal'] = tonumpy(self.scanner.signal)
+
+        path=os.path.join('./out/',experiment_id)
+        try:
+            os.mkdir(path)
+        except:
+            print('export_to_matlab: directory already exists')
+        scipy.io.savemat(os.path.join(path,"scanner_dict.mat"), scanner_dict)
