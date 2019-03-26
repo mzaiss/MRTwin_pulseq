@@ -93,11 +93,22 @@ class Scanner():
         self.rampY = self.setdevice(rampY)
         
     def init_intravoxel_dephasing_ramps(self):
+        dim = torch.sqrt(torch.tensor(self.NSpins).float())
         
-        intravoxel_dephasing_ramp = 2*(torch.rand(self.NSpins,2) - 0.5)
-        intravoxel_dephasing_ramp[:,0] /= self.sz[0]
-        intravoxel_dephasing_ramp[:,1] /= self.sz[1]
-        self.intravoxel_dephasing_ramp = self.setdevice(intravoxel_dephasing_ramp)        
+        off = 1 / dim
+        if dim == torch.floor(dim):
+            xv, yv = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
+            intravoxel_dephasing_ramp = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
+        else:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('init_intravoxel_dephasing_ramps: sqrt(NSpins) should be integer!')
+            
+            intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
+            
+        #intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
+        intravoxel_dephasing_ramp /= torch.from_numpy(self.sz).float().unsqueeze(0)
+            
+        self.intravoxel_dephasing_ramp = self.setdevice(intravoxel_dephasing_ramp)    
         
     # function is obsolete: deprecate in future, this dummy is for backward compat
     def get_ramps(self):
@@ -523,8 +534,6 @@ class Scanner_fast(Scanner):
                 
         self.G_adj = self.G_adj.permute([0,1,2,4,3])
                 
-
-        
     def grad_precess(self,t,r,spins):
         spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)
         
@@ -542,7 +551,7 @@ class Scanner_fast(Scanner):
         self.IVP[:,0,0,1,0] = IVP_nspins_sin
         self.IVP[:,0,0,1,1] = IVP_nspins_cos
          
-        spins.M = torch.matmul(self.IVP,spins.M)        
+        spins.M = torch.matmul(self.IVP,spins.M)
         
         
     # TODO: fix
