@@ -353,6 +353,7 @@ class Scanner():
         
     def relax(self,spins):
         spins.M = torch.matmul(self.R,spins.M)
+        spins.M[:,:,:,2,0] += (1 - self.R[:,:,2,2]).view([1,1,self.NVox]) * spins.MZ0
         
     def relax_and_dephase(self,spins):
         
