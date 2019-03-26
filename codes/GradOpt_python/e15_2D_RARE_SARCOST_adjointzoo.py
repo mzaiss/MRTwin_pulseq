@@ -193,6 +193,8 @@ grad_moms[0,0,0] = torch.ones((1,1))*sz[0]/2 + torch.ones((1,1))*sz[0]  # RARE: 
 grad_moms[1,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
 grad_moms[-1,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
 
+scanner.intravoxel_dephasing_ramp *= 5
+
 
 # dont optimize y  grads
 #grad_moms[:,:,1] = 0
@@ -249,7 +251,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-   # stop()
+    stop()
     
     
     

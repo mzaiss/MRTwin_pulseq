@@ -150,12 +150,12 @@ class OPT_helper():
             if save_intermediary_results:
                     
                 saved_state = dict()
-                if 0 in self.opt_param_idx:
-                    saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[0])
                 if 1 in self.opt_param_idx:
-                    saved_state['event_times'] = tonumpy(self.scanner_opt_params[1])
+                    saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
                 if 2 in self.opt_param_idx:
-                    saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[2])
+                    saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
+                if 3 in self.opt_param_idx:
+                    saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3])
                     
                 legs=['x','y','z']
                 for i in range(3):
@@ -264,12 +264,12 @@ class OPT_helper():
             plt.ion()
                
             
-            if self.scanner_opt_params[0].dim() == 3:
-                FA=self.scanner_opt_params[0][:,:,0]
-                phi=self.scanner_opt_params[0][:,:,1]
+            if self.scanner_opt_params[1].dim() == 3:
+                FA=self.scanner_opt_params[1][:,:,0]
+                phi=self.scanner_opt_params[1][:,:,1]
             else:
-                FA=self.scanner_opt_params[0]
-                phi=self.scanner_opt_params[0][:,:,1]
+                FA=self.scanner_opt_params[1]
+                phi=self.scanner_opt_params[1][:,:,1]
             plt.subplot(253)
             ax=plt.imshow(tonumpy(FA.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
@@ -299,7 +299,7 @@ class OPT_helper():
               
             
             ax1=plt.subplot(2, 5, 5)
-            ax=plt.imshow(tonumpy(self.scanner_opt_params[1][:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(self.scanner_opt_params[3][:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('gradx')
             fig = plt.gcf()
@@ -308,8 +308,9 @@ class OPT_helper():
                
             
             ax1=plt.subplot(2, 5, 10)
-            ax=plt.imshow(tonumpy(self.scanner_opt_params[1][:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(self.scanner_opt_params[3][:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
+            plt.title('grady')
             fig = plt.gcf()
             fig.set_size_inches(18, 3)
             fig.colorbar(ax)
@@ -339,9 +340,9 @@ class OPT_helper():
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
         scanner_dict['B1'] = tonumpy(self.scanner.B1)
-        scanner_dict['flips'] = tonumpy(self.scanner_opt_params[0])
-        scanner_dict['grad_moms'] = tonumpy(self.scanner_opt_params[1])
-        scanner_dict['event_times'] = tonumpy(self.scanner_opt_params[2])
+        scanner_dict['flips'] = tonumpy(self.scanner_opt_params[1])
+        scanner_dict['event_times'] = np.abs(tonumpy(self.scanner_opt_params[2]))
+        scanner_dict['grad_moms'] = tonumpy(self.scanner_opt_params[3])
         scanner_dict['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
