@@ -221,12 +221,12 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     plt.show()
     
     #save optimized parameter history
-    experiment_id = 'FLASH_target_nogradspoil_noRF'
+    experiment_id = 'FLASH_spoiled_lowSAR'
     #opt.save_param_reco_history(experiment_id)
     targetSeq.export_to_matlab(experiment_id)
                 
     
-    stop()
+#    stop()
     
     
     # %% ###     OPTIMIZATION functions phi and init ######################################################
@@ -288,7 +288,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.init_flip_tensor_holder()
     scanner.set_flipXY_tensor(flips)    
     # rotate ADC according to excitation phase
-    scanner.set_ADC_rot_tensor(-flips[0,:,1])  # GRE/FID specific, this must be the excitation pulse
+    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
           
     if use_periodic_grad_moms_cap:
         fmax = torch.ones([1,1,2]).float()
