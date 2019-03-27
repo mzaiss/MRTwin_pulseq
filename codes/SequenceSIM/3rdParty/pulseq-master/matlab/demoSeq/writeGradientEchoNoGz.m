@@ -1,6 +1,6 @@
 seq=mr.Sequence();              % Create a new sequence object
-fov=220e-3; Nx=32; Ny=32;     % Define FOV and resolution
-alpha=10;                       % flip angle
+fov=220e-3; Nx=16; Ny=16;     % Define FOV and resolution
+alpha=5;                       % flip angle
 sliceThickness=3e-3;            % slice
 TE=[7.38]*1e-3;                % give a vector here to have multiple TEs (e.g. for field mapping)
 TR=100e-3;                       % only a single value for now
@@ -53,7 +53,7 @@ for i=1:Ny
         seq.addBlock(mr.makeDelay(delayTE(c)));
         seq.addBlock(gx,adc);
         gyPre.amplitude=-gyPre.amplitude;
-        seq.addBlock(mr.makeDelay(delayTR(c)),gxSpoil,gyPre)
+        seq.addBlock(mr.makeDelay(delayTR(c)),gxSpoil,gyPre,gzSpoil)
     end
 end
 
@@ -85,10 +85,10 @@ else
 end
 
 %% prepare sequence export
-seq.setDefinition('FOV', [fov fov sliceThickness]*1e3);
+%seq.setDefinition('FOV', [fov fov sliceThickness]*1e3);
 seq.setDefinition('Name', 'gre');
 
-seq.write('gre.seq')       % Write to pulseq file
+seq.write('gre_nogz.seq')       % Write to pulseq file
 
 %seq.install('siemens');
 return
