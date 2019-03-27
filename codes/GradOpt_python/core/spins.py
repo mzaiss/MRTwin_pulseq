@@ -27,8 +27,8 @@ class SpinSystem():
         
     # device setter
     def setdevice(self,x):
-        if self.use_gpu:
-            x = x.cuda(0)
+        if self.use_gpu > 0:
+            x = x.cuda(self.use_gpu-1)
             
         return x
     
