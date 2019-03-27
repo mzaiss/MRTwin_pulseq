@@ -529,7 +529,7 @@ class Scanner_fast(Scanner):
     def grad_precess(self,t,r,spins):
         spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)
         
-    def set_grad_intravoxel_precess_tensor(self,t,r,spins):
+    def set_grad_intravoxel_precess_tensor(self,t,r):
         
         intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0) * self.intravoxel_dephasing_ramp
         intra_b0 = torch.sum(intra_b0,1)
@@ -661,10 +661,9 @@ class Scanner_fast(Scanner):
                 spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                 
                 self.set_grad_intravoxel_precess_tensor(t,r)
-                spins.M = torch.matmul(self.IVP,spins.M)                
                     
                 spins.M = GradPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
-                spins.M = GradIntravoxelPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
+                spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
                 self.read_signal(t,r,spins)    
                 
                 self.ROI_signal[t+1,r,0] =   delay
@@ -682,6 +681,10 @@ class Scanner_fast(Scanner):
         self.tmask[spins.T2 < 1e-2] = 1
         
         self.lastM = spins.M.clone()
+        
+        # rotate ADC phase according to phase of the excitation if necessary
+        if self.AF is not None:
+            self.signal = torch.matmul(self.AF,self.signal)        
                  
     # compute adjoint encoding op-based reco    <            
     def adjoint(self,spins):
@@ -729,12 +732,15 @@ class RelaxClass(torch.autograd.Function):
         if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
             ctx.M = x.clone()
             
-        return torch.matmul(f,x)
+        out = torch.matmul(f,x)
+        out[:,:,:,2,0] += (1 - f[:,:,2,2]).view([1,1,scanner.NVox]) * spins.MZ0
+            
+        return out
 
     @staticmethod
     def backward(ctx, grad_output):
         gx = torch.matmul(ctx.f.permute([0,1,3,2]),grad_output)
-        
+      
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[0])
         
@@ -749,11 +755,11 @@ class RelaxClass(torch.autograd.Function):
             id3 = id3.view([1,ctx.scanner.NVox])
             
             ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,ctx.scanner.NVox,1])
-            ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.spins.MZ0[:,0,:,0,0]
+            ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.spins.MZ0[:,0,:]
             
             ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
             
-        return (gf, gx, None, None, None)  
+        return (gf, gx, None, None, None, None)  
   
 class DephaseClass(torch.autograd.Function):
     @staticmethod
@@ -802,11 +808,11 @@ class GradIntravoxelPrecessClass(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
+        gx = torch.matmul(ctx.f.permute([0,1,2,4,3]),grad_output)
         
-        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
-        gf = torch.sum(gf,[0,1])
+        gf = torch.sum(gf,[1,2],keepdim=True)
         
         return (gf, gx, None)
     
@@ -825,6 +831,6 @@ class B0InhomoClass(torch.autograd.Function):
         ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
         
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
-        gf = torch.sum(gf,[2],keepdim=True)
+        gf = torch.sum(gf,[0],keepdim=True)
         
         return (gf, gx, None)     
