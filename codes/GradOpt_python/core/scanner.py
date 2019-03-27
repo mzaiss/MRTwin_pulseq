@@ -51,8 +51,8 @@ class Scanner():
         
     # device setter
     def setdevice(self,x):
-        if self.use_gpu: 
-            x = x.cuda(0)
+        if self.use_gpu > 0:
+            x = x.cuda(self.use_gpu-1)
         return x        
         
     def set_adc_mask(self):
@@ -93,7 +93,7 @@ class Scanner():
         self.rampY = self.setdevice(rampY)
         
     def init_intravoxel_dephasing_ramps(self):
-        dim = torch.sqrt(torch.tensor(self.NSpins).float())
+        dim = self.setdevice(torch.sqrt(torch.tensor(self.NSpins).float()))
         
         off = 1 / dim
         if dim == torch.floor(dim):
