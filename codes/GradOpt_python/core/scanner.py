@@ -529,8 +529,7 @@ class Scanner_fast(Scanner):
     def grad_precess(self,t,r,spins):
         spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)
         
-    # intravoxel gradient-driven precession
-    def grad_intravoxel_precess(self,t,r,spins):
+    def set_grad_intravoxel_precess_tensor(self,t,r,spins):
         
         intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0) * self.intravoxel_dephasing_ramp
         intra_b0 = torch.sum(intra_b0,1)
@@ -542,7 +541,11 @@ class Scanner_fast(Scanner):
         self.IVP[:,0,0,0,1] = -IVP_nspins_sin
         self.IVP[:,0,0,1,0] = IVP_nspins_sin
         self.IVP[:,0,0,1,1] = IVP_nspins_cos
-         
+   
+        
+    # intravoxel gradient-driven precession
+    def grad_intravoxel_precess(self,t,r,spins):
+        self.set_grad_intravoxel_precess_tensor(t,r)
         spins.M = torch.matmul(self.IVP,spins.M)
         
         
@@ -656,8 +659,12 @@ class Scanner_fast(Scanner):
                 spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
                 spins.M = DephaseClass.apply(self.P,spins.M,self)
                 spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
+                
+                self.set_grad_intravoxel_precess_tensor(t,r)
+                spins.M = torch.matmul(self.IVP,spins.M)                
                     
                 spins.M = GradPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
+                spins.M = GradIntravoxelPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
                 self.read_signal(t,r,spins)    
                 
                 self.ROI_signal[t+1,r,0] =   delay
@@ -784,6 +791,24 @@ class GradPrecessClass(torch.autograd.Function):
         gf = torch.sum(gf,[0,1])
         
         return (gf, gx, None) 
+  
+class GradIntravoxelPrecessClass(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, f, x, scanner):
+        ctx.f = f.clone()
+        ctx.scanner = scanner
+        
+        return torch.matmul(f,x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
+        
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
+        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = torch.sum(gf,[0,1])
+        
+        return (gf, gx, None)
     
 class B0InhomoClass(torch.autograd.Function):
     @staticmethod
