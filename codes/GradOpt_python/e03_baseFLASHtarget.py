@@ -98,12 +98,17 @@ spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 #numerical_phantom = np.concatenate((numerical_phantom,B0inhomo),2)
 #
 #np.save('../../data/brainphantom_inhomo_2D.npy',numerical_phantom)
-
 numerical_phantom = np.load('../../data/brainphantom_inhomo_2D.npy')
 
-numerical_phantom[:,:,3] *=12
-
-spins.set_system(numerical_phantom)
+real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
+for i in range(5):
+    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
+    if i != 3:
+        t[t < 0] = 0
+    real_phantom_resized[:,:,i] = t
+    
+spins.set_system(real_phantom_resized)
 
 cutoff = 1e-12
 spins.T1[spins.T1<cutoff] = cutoff
@@ -112,10 +117,10 @@ spins.T2[spins.T2<cutoff] = cutoff
 spins.T1*=1
 spins.T2*=1
 plt.subplot(121)
-plt.imshow(numerical_phantom[:,:,0], interpolation='none')
+plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
 plt.title("PD")
 plt.subplot(122)
-plt.imshow(numerical_phantom[:,:,3], interpolation='none')
+plt.imshow(real_phantom_resized[:,:,3], interpolation='none')
 plt.title("inhom")
 plt.show()
 
@@ -150,6 +155,8 @@ scanner.adc_mask[-2:] = 0
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+#flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
+
 
 # randomize RF phases
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180   # GRE/FID specific phase cycling??
@@ -161,7 +168,7 @@ scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)
 
 # rotate ADC according to excitation phase
-scanner.set_ADC_rot_tensor(-flips[0,:,1]) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -219,7 +226,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     targetSeq.export_to_matlab(experiment_id)
                 
     
-#    stop()
+    stop()
     
     
     # %% ###     OPTIMIZATION functions phi and init ######################################################

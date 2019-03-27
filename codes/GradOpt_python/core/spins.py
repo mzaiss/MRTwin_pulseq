@@ -57,7 +57,7 @@ class SpinSystem():
         B0inhomo = torch.zeros((self.NVox)).float()
         
         # also susceptibilities
-        if input_array.shape[-1] == 4:
+        if input_array.shape[-1] > 3:
             B0inhomo = input_array[...,3]
             B0inhomo = torch.from_numpy(B0inhomo.reshape([self.NVox])).float()
             
