@@ -601,7 +601,7 @@ class Scanner_fast(Scanner):
                         
                     self.grad_precess(t,r,spins)
                     self.grad_intravoxel_precess(t,r,spins)
-
+            #spins.M[:,:,:,:2,:]=0;  # full spoiling of xy
 
         
     # run throw all repetition/actions and yield signal
