@@ -8,6 +8,7 @@ Created on Tue Jan 29 14:38:26 2019
 experiment desciption:
 
 2D imaging: GRE with spoilers and random phase cycling
+GRE90spoiled_relax2s
 
 """
 
@@ -68,7 +69,7 @@ def stop():
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 8**2                                # number of spin sims in each voxel
+NSpins = 25**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -82,19 +83,33 @@ NVox = sz[0]*sz[1]
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 
-numerical_phantom = np.load('../../data/brainphantom_2D.npy')
-numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
-#numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
-numerical_phantom[numerical_phantom < 0] = 0
-numerical_phantom=np.swapaxes(numerical_phantom,0,1)
+#numerical_phantom = np.load('../../data/brainphantom_2D.npy')
+#numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
+##numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
+#numerical_phantom[numerical_phantom < 0] = 0
+#numerical_phantom=np.swapaxes(numerical_phantom,0,1)
+#
+## inhomogeneity (in Hz)
+#B0inhomo = np.zeros((sz[0],sz[1],1)).astype(np.float32)
+#B0inhomo = (np.random.rand(sz[0],sz[1]) - 0.5)
+#B0inhomo = ndimage.filters.gaussian_filter(B0inhomo,1)        # smooth it a bit
+#B0inhomo = B0inhomo/np.max(B0inhomo)*2*np.pi*15 
+#B0inhomo = np.expand_dims(B0inhomo,2)
+##B0inhomo *=0
+#numerical_phantom = np.concatenate((numerical_phantom,B0inhomo),2)
+#
+#np.save('../../data/brainphantom_inhomo_2D.npy',numerical_phantom)
+numerical_phantom = np.load('../../data/brainphantom_inhomo_2D.npy')
 
-# inhomogeneity (in Hz)
-B0inhomo = np.zeros((sz[0],sz[1],1)).astype(np.float32)
-B0inhomo = (np.random.rand(sz[0],sz[1]) - 0.5)
-B0inhomo = ndimage.filters.gaussian_filter(B0inhomo,1)        # smooth it a bit
-B0inhomo = B0inhomo*150 / np.max(B0inhomo)
-B0inhomo = np.expand_dims(B0inhomo,2)
-numerical_phantom = np.concatenate((numerical_phantom,B0inhomo),2)
+real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
+for i in range(5):
+    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
+    if i != 3:
+        t[t < 0] = 0
+    real_phantom_resized[:,:,i] = t
+    
+spins.set_system(real_phantom_resized)
 
 spins.set_system(numerical_phantom)
 
@@ -105,15 +120,15 @@ spins.T2[spins.T2<cutoff] = cutoff
 spins.T1*=1
 spins.T2*=1
 plt.subplot(121)
-plt.imshow(numerical_phantom[:,:,0], interpolation='none')
+plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
 plt.title("PD")
 plt.subplot(122)
-plt.imshow(numerical_phantom[:,:,3], interpolation='none')
+plt.imshow(real_phantom_resized[:,:,3], interpolation='none')
 plt.title("inhom")
 plt.show()
 
 #begin nspins with R*
-R2 = 30.0
+R2 = 0.0
 omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5    # cutoff might bee needed for opt.
 #omega = np.random.rand(NSpins,NVox) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
@@ -134,7 +149,6 @@ spins.omega = setdevice(spins.omega)
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
 scanner.set_adc_mask()
 
-
 # begin sequence definition
 
 # allow for relaxation and spoiling in the first two and last two events (after last readout event)
@@ -143,10 +157,13 @@ scanner.adc_mask[-2:] = 0
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+#flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
+
 
 # randomize RF phases
-flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180   # GRE/FID specific phase cycling??
+#flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180   # GRE/FID specific phase cycling??
+#flips[0,:,1] = torch.tensor([0,117,351,342, 90,315,297, 36,252,225,315,162,126,207, 45,  0]).float()*np.pi/180
 
 flips = setdevice(flips)
 
@@ -154,11 +171,13 @@ scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)
 
 # rotate ADC according to excitation phase
-scanner.set_ADC_rot_tensor(-flips[0,:,1]) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[-1,:] = 1e0           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
+event_time[1,:] = 1e-3
+event_time[-2,:] = 1e-3
+event_time[-1,:] = 2           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])
@@ -170,6 +189,8 @@ grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 grad_moms[1,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
 grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
 grad_moms[2:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
+grad_moms[-2,:,0] = torch.ones(1)*sz[0]*3      # GRE/FID specific, SPOILER
+grad_moms[-2,:,1] = torch.ones(1)*sz[0]*3      # GRE/FID specific, SPOILER
 grad_moms = setdevice(grad_moms)
 
 # end sequence 
@@ -202,7 +223,13 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-    #stop()
+    #save optimized parameter history
+    experiment_id = 'FLASH_spoiled_lowSAR'
+    #opt.save_param_reco_history(experiment_id)
+    targetSeq.export_to_matlab(experiment_id)
+                
+    
+#    stop()
     
     
     # %% ###     OPTIMIZATION functions phi and init ######################################################
@@ -264,7 +291,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.init_flip_tensor_holder()
     scanner.set_flipXY_tensor(flips)    
     # rotate ADC according to excitation phase
-    scanner.set_ADC_rot_tensor(-flips[0,:,1])  # GRE/FID specific, this must be the excitation pulse
+    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
           
     if use_periodic_grad_moms_cap:
         fmax = torch.ones([1,1,2]).float()
@@ -281,7 +308,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 1e1         # switch on of SAR cost
+    lbd = 10e1*0         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -308,8 +335,8 @@ opt.use_periodic_grad_moms_cap = 0           # GRE/FID specific, do not sample a
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([1,2,3]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.1,0.1,0.01,0.01]
+opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
+opt.custom_learning_rate = [0.01,0.01,0.01,0.01]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
@@ -329,7 +356,7 @@ stop()
 
 # %% # save optimized parameter history
 
-experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled'
+experiment_id = 'GRE90spoiled_relax2s'
 #opt.save_param_reco_history(experiment_id)
 opt.export_to_matlab(experiment_id)
             
