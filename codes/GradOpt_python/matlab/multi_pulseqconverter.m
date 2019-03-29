@@ -13,7 +13,7 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 experiment_id = 'FLASH_spoiled_lowSAR64_1kspins_multistep';
-%experiment_id = 'FLASH_spoiled_lowSAR32_1kspins_multistep';
+% experiment_id = 'FLASH_spoiled_lowSAR32_1kspins_multistep';
 %experiment_id = 'FLASH_spoiled_lowSAR_multistep';
 
 ni = 30;
@@ -30,14 +30,9 @@ k = 1;
 idxarray = [1:10,20:10:840];
 idxarray = 1:niter;
 
-for ni =  idxarray
-  
-  idx = double(ni);
-  %print(idx);
+idxarray = 1:50;
 
-  % plug learned gradients into the sequence constructor
-  % close all
-  seq_fn = [seq_dir,'/',experiment_id,'/','seqiter',num2str(k),'.seq'];
+  seq_fn = [seq_dir,'/',experiment_id,'_50.seq'];
   k = k + 1;
 
   SeqOpts.resolution = double(sz);                                                                                            % matrix size
@@ -45,7 +40,6 @@ for ni =  idxarray
   SeqOpts.TE = 10e-3;          % fix
   SeqOpts.TR = 10000e-3;       % fix
   SeqOpts.FlipAngle = pi/2;    % fix
-
 
   % set system limits
   button = 'Scanner';
@@ -84,11 +78,23 @@ for ni =  idxarray
   % Define other gradients and ADC events
   deltak=1/SeqOpts.FOV;
   % read gradient
+
+
+for ni =  idxarray
+  
+  idx = double(ni)
+  %print(idx);
+
+  % plug learned gradients into the sequence constructor
+  % close all
+
   
   flips = double(squeeze(scanner_dict.flips(idx,:,:,:)));
   event_times = double(squeeze(scanner_dict.event_times(idx,:,:)));
   gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
 
+  seq.addBlock(mr.makeDelay(4));
+  
   % put blocks together
   for rep=1:NRep
 
@@ -142,11 +148,29 @@ for ni =  idxarray
   end
 
   %write sequence
-  seq.write(seq_fn);
-  
-  pause(2);
 
   %seq.plot();
   %subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 end
+
+seq.write(seq_fn);
+pause(2);
+
+%% check whether the timing of the sequence is correct
+[ok, error_report]=seq.checkTiming;
+
+if (ok)
+    fprintf('Timing check passed successfully\n');
+else
+    fprintf('Timing check failed! Error listing follows:\n');
+    fprintf([error_report{:}]);
+    fprintf('\n');
+end
+
+%% very optional slow step, but useful for testing during development e.g. for the real TE, TR or for staying within slewrate limits  
+
+rep = seq.testReport;
+fprintf([rep{:}]);
+
+

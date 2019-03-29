@@ -36,7 +36,7 @@ drawnow
       [imind,cm] = rgb2ind(im,32);
       if ii == 1
           imwrite(imind,cm,'out.gif','gif', 'Loopcount',inf);
-      elseif ii==size(array,1)
+      elseif ii==numel(array)
           imwrite(imind,cm,'out.gif','gif','WriteMode','append','DelayTime',3);
       else
           imwrite(imind,cm,'out.gif','gif','WriteMode','append','DelayTime',0.0005);
