@@ -150,13 +150,27 @@ class OPT_helper():
             if save_intermediary_results:
                     
                 saved_state = dict()
+                if 0 in self.opt_param_idx:
+                    saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0])
+                else:
+                    saved_state['adc_mask'] = tonumpy(self.target_seq_holder.adc_mask)
+                    
                 if 1 in self.opt_param_idx:
                     saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
+                else:
+                    saved_state['flips_angles'] = tonumpy(self.target_seq_holder.flips_angles)
+                    
                 if 2 in self.opt_param_idx:
                     saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
+                else:
+                    saved_state['event_times'] = tonumpy(self.target_seq_holder.event_times)
+                    
                 if 3 in self.opt_param_idx:
                     saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3])
+                else:
+                    saved_state['grad_moms'] = tonumpy(self.target_seq_holder.grad_moms)
                     
+
                 legs=['x','y','z']
                 for i in range(3):
                     M_roi = tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep])

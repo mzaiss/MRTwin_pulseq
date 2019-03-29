@@ -36,8 +36,10 @@ class Scanner():
         self.ROI_def = 1
         self.lastM = None
         self.AF = None
-        
         self.use_gpu =  use_gpu
+        
+        # maybe we need it..
+        self.phase_cycler = np.array([0,117,351,342,90,315,297,36,252,225,315,162,126,207,45,0,72,261,207,270,90,27,81,252,180,225,27,306,342,135,45,72,216,117,135,270,162,171,297,180,180,297,171,162,270,135,117,216,72,45,135,342,306,27,225,180,252,81,27,90,270,207,261,72,0,45,207,126,162,315,225,252,36,297,315,90,342,351,117,0,0,117,351,342,90,315,297,36,252,225,315,162,126,207,45,0,72,261,207,270,90,27,81,252,180,225,27,306,342,135,45,72,216,117,135,270,162,171,297,180,180,297,171,162,270,135,117,216])
         
         # preinit tensors
         # Spatial inhomogeneity component
@@ -589,6 +591,7 @@ class Scanner_fast(Scanner):
         spins.set_initial_magnetization()
         
         for nr in range(nrep):
+            print('doing dummy #{} ...'.format(nr))
             for r in range(self.NRep):                                   # for all repetitions
                 for t in range(self.T):                                      # for all actions
                     self.flip(t,r,spins)
