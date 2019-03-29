@@ -3,14 +3,15 @@ clear all; close all;
 
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
+  seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
 else
   mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
+  seq_dir = 'K:\CEST_seq\pulseq_zero\sequences';
 end
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
-seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
 experiment_id = 'FLASH_spoiled_lowSAR64_1kspins_multistep';
 %experiment_id = 'FLASH_spoiled_lowSAR32_1kspins_multistep';
 %experiment_id = 'FLASH_spoiled_lowSAR_multistep';

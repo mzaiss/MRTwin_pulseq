@@ -99,9 +99,10 @@ spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 #numerical_phantom = np.concatenate((numerical_phantom,B0inhomo),2)
 #
 #np.save('../../data/brainphantom_inhomo_2D.npy',numerical_phantom)
-numerical_phantom = np.load('../../data/brainphantom_inhomo_2D.npy')
+#numerical_phantom = np.load('../../data/brainphantom_inhomo_2D.npy')
 
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
     t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
@@ -111,7 +112,7 @@ for i in range(5):
     
 spins.set_system(real_phantom_resized)
 
-spins.set_system(numerical_phantom)
+#spins.set_system(numerical_phantom)
 
 cutoff = 1e-12
 spins.T1[spins.T1<cutoff] = cutoff
