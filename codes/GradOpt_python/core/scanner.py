@@ -439,12 +439,12 @@ class Scanner():
             #sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(0).unsqueeze(4))
             
             if self.noise_std > 0:
-                noise = self.noise_std*torch.randn(spins.M[:,:,:,:2].shape).float()
+                sig = torch.sum(spins.M[:,:,:,:2],[0])
+                noise = self.noise_std*torch.randn(sig.shape).float()
                 noise = self.setdevice(noise)
-                sig = spins.M[:,:,:,:2]
                 sig += noise  
             
-                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t])) / self.NSpins
+                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1]) * self.adc_mask[t])) / self.NSpins
             else:
                 self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins  
                 
@@ -675,12 +675,12 @@ class Scanner_fast(Scanner):
             #sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(0).unsqueeze(4))
             
             if self.noise_std > 0:
-                noise = self.noise_std*torch.randn(spins.M[:,:,:,:2].shape).float()
+                sig = torch.sum(spins.M[:,:,:,:2],[0])
+                noise = self.noise_std*torch.randn(sig.shape).float()
                 noise = self.setdevice(noise)
-                sig = spins.M[:,:,:,:2]
                 sig += noise  
             
-                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1,2]) * self.adc_mask[t])) / self.NSpins
+                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1]) * self.adc_mask[t])) / self.NSpins
             else:
                 self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins
      
@@ -796,7 +796,56 @@ class Scanner_fast(Scanner):
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
-            self.signal = torch.matmul(self.AF,self.signal)        
+            self.signal = torch.matmul(self.AF,self.signal)      
+            
+    # run throw all repetition/actions and yield signal
+    # WIP!!
+    def fast_forward(self,spins,flips,event_time,grad_moms,do_dummy_scans=False):
+        class ExecutionControl(Exception): pass
+        raise ExecutionControl('fast_forward: construction site, WIP..')
+        
+        
+        self.init_signal()
+        if do_dummy_scans == False:
+            spins.set_initial_magnetization()
+
+        opmat = []
+        # scanner forward process loop
+        for r in range(self.NRep):                                   # for all repetitions
+            self.ROI_signal[0,r,0] =   0
+            self.ROI_signal[0,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+            
+            for t in range(self.T):                                      # for all actions
+                if flips.requires_grad and hasattr(flips,'zero_grad_mask') and flips.zero_grad_mask[t,r] == 1:
+                    self.flip(t,r,spins)
+                else:
+                    opmat.append(self.F[t,r,:,:,:])
+                
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                self.set_relaxation_tensor(spins,delay)
+                self.set_freeprecession_tensor(spins,delay)
+                self.set_B0inhomogeneity_tensor(spins,delay)
+                
+                if event_time.requires_grad and hasattr(event_time,'zero_grad_mask') and event_time.zero_grad_mask[t,r] == 1:
+                    self.relax_and_dephase(spins)
+                else:
+                    opmat.append(self.R)
+                    opmat.append(self.P)
+                    opmat.append(self.SB0)
+                
+                self.grad_precess(t,r,spins)
+                self.grad_intravoxel_precess(t,r,spins)
+                self.read_signal(t,r,spins)    
+                
+                self.ROI_signal[t+1,r,0] =   delay
+                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+
+                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t+1,r,4] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
+                
+        # rotate ADC phase according to phase of the excitation if necessary
+        if self.AF is not None:
+            self.signal = torch.matmul(self.AF,self.signal)            
                  
     # compute adjoint encoding op-based reco    <            
     def adjoint(self,spins):
