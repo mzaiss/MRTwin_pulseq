@@ -126,7 +126,13 @@ class OPT_helper():
         
     # main training function
     def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False):
-
+        
+        for i in range(len(self.scanner_opt_params)):
+            if i in self.opt_param_idx:
+                self.scanner_opt_params[i].requires_grad = True
+            else:
+                self.scanner_opt_params[i].requires_grad = False
+        
         self.aux_params = [self.use_periodic_grad_moms_cap, self.opti_mode]
         self.init_optimizer()
         
@@ -150,26 +156,10 @@ class OPT_helper():
             if save_intermediary_results:
                     
                 saved_state = dict()
-                if 0 in self.opt_param_idx:
-                    saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0])
-                else:
-                    saved_state['adc_mask'] = tonumpy(self.target_seq_holder.adc_mask)
-                    
-                if 1 in self.opt_param_idx:
-                    saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
-                else:
-                    saved_state['flips_angles'] = tonumpy(self.target_seq_holder.flips_angles)
-                    
-                if 2 in self.opt_param_idx:
-                    saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
-                else:
-                    saved_state['event_times'] = tonumpy(self.target_seq_holder.event_time)
-                    
-                if 3 in self.opt_param_idx:
-                    saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3])
-                else:
-                    saved_state['grad_moms'] = tonumpy(self.target_seq_holder.grad_moms)
-                    
+                saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0])
+                saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
+                saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
+                saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3])
 
                 legs=['x','y','z']
                 for i in range(3):
@@ -190,6 +180,8 @@ class OPT_helper():
         
     
     def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, do_vis_image=False):
+        
+        raise ValueError("train_model_with_restarts: out of sync, update and fix")
         
         # init gradients and flip events
         nmb_outer_iter = nmb_rnd_restart
