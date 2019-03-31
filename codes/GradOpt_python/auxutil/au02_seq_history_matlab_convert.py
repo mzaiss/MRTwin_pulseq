@@ -21,6 +21,10 @@ import scipy.io
 path = '../out'
 experiment_id = 'FLASH_spoiled_lowSAR_test_sunday'
 
+#path = 'K:\CEST_seq\pulseq_zero\sequences'
+#experiment_id = 'FLASH_spoiled_lowSAR64_400spins_multistep'
+
+
 
 with open(os.path.join(path,experiment_id,'param_reco_history.pdb'), 'rb') as handle:
     b = pickle.load(handle)
