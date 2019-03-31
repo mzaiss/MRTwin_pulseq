@@ -16,6 +16,9 @@ experiment_id = 'FLASH_spoiled_lowSAR64_1kspins_multistep';
 % experiment_id = 'FLASH_spoiled_lowSAR32_1kspins_multistep';
 %experiment_id = 'FLASH_spoiled_lowSAR_multistep';
 
+%seq_dir = 'K:\CEST_seq\pulseq_zero\sequences\';
+%experiment_id = 'sundaytest';
+
 ni = 30;
 
 scanner_dict = load([seq_dir,'/',experiment_id,'/','all_iter.mat']);
@@ -90,6 +93,7 @@ for ni =  idxarray
 
   
   flips = double(squeeze(scanner_dict.flips(idx,:,:,:)));
+  sum(abs(flips(:)))
   event_times = double(squeeze(scanner_dict.event_times(idx,:,:)));
   gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
 
