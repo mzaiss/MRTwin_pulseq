@@ -15,10 +15,11 @@ import os, sys
 import numpy as np
 import pickle
 import scipy
+import scipy.io
 
 
 path = '../out'
-experiment_id = 'FLASH_spoiled_lowSAR64_1kspins_multistep'
+experiment_id = 'FLASH_spoiled_lowSAR_test_sunday'
 
 
 with open(os.path.join(path,experiment_id,'param_reco_history.pdb'), 'rb') as handle:

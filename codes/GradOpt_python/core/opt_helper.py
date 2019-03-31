@@ -163,7 +163,7 @@ class OPT_helper():
                 if 2 in self.opt_param_idx:
                     saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
                 else:
-                    saved_state['event_times'] = tonumpy(self.target_seq_holder.event_times)
+                    saved_state['event_times'] = tonumpy(self.target_seq_holder.event_time)
                     
                 if 3 in self.opt_param_idx:
                     saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3])

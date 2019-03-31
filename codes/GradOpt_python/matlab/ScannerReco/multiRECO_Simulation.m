@@ -13,8 +13,11 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 % experiment_id = 'FLASH_spoiled_lowSAR64_1kspins_multistep';
-experiment_id = 'FLASH_spoiled_lowSAR32_1kspins_multistep';
+experiment_id = 'FLASH_spoiled_lowSAR32_multistep_190328';
 %experiment_id = 'FLASH_spoiled_lowSAR_multistep';
+
+seq_dir = 'K:\CEST_seq\pulseq_zero\sequences\history';
+experiment_id = 'FLASH_spoiled_lowSAR32_multistep_190328';
 
 ni = 30;
 
