@@ -22,7 +22,7 @@ NRep = scanner_dict.NRep;
 
 niter = size(scanner_dict.flips,1);
 array_SIM = [1:30,40:10:840];
-array_SIM=array_SIM(1:end);
+array_SIM=array_SIM(1:niter);
 
 SIM_sos_base= abs(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco_images(1,:,:,2)));
 SIM_phase_base = angle(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco_images(1,:,:,2)));
