@@ -24,8 +24,8 @@ twix_obj = mapVBVD([rawpname '/' filename{ii}]);
 [sos, phase] = TWIXtoIMG(twix_obj);
 
 subplot(2,2,1), imagesc(rot90(sos),[0 1]), title(sprintf('reco sos, iter %d',ii)), axis('image'); colorbar;
-subplot(2,2,2), imagesc(rot90(phase)), title('reco phase coil(1) '), axis('image'); colorbar;
-subplot(2,2,3), imagesc(rot90(sos_base),[0 1]), title(sprintf('reco sos, iter %d',1)), axis('image'); colorbar;
+subplot(2,2,3), imagesc(rot90(phase)), title('reco phase coil(1) '), axis('image'); colorbar;
+subplot(2,2,2), imagesc(rot90(sos_base),[0 1]), title(sprintf('MEAS reco sos, iter %d',1)), axis('image'); colorbar;
 subplot(2,2,4), imagesc(rot90(phase_base)), title('reco phase coil(1) '), axis('image'); colorbar;
 set(gcf, 'Outerposition',[404   356   850   592])
 
@@ -33,6 +33,7 @@ set(gcf, 'Outerposition',[404   356   850   592])
 drawnow
       frame = getframe(1);
       im = frame2im(frame);
+      im_MEAS(:,:,:,ii)=im;
       [imind,cm] = rgb2ind(im,32);
       if ii == 1
           imwrite(imind,cm,'out.gif','gif', 'Loopcount',inf);
@@ -43,8 +44,8 @@ drawnow
       end
 end
 set(0, 'DefaultLineLineWidth', 0.5);
-
-
+last_fn_meas=filename{ii};
+save('togif.mat','im_MEAS','last_fn_meas');
 end
 
 
