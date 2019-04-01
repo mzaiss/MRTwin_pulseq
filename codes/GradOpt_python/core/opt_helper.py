@@ -383,6 +383,48 @@ class OPT_helper():
         f = open(os.path.join(path,"param_reco_history.pdb"), "wb")
         pickle.dump((param_reco_history, aux_info), f)
         f.close()
+        
+        NIter = len(param_reco_history[0])
+        sz = np.int(np.sqrt(param_reco_history[0][0]['reco_image'].shape[0]))
+        
+        T = self.scanner.T
+        NRep = self.scanner.NRep
+        
+        all_adc_masks = np.zeros((NIter,T))
+        all_flips = np.zeros((NIter,T,NRep,2))
+        all_event_times = np.zeros((NIter,T,NRep))
+        all_grad_moms = np.zeros((NIter,T,NRep,2))
+        all_reco_images = np.zeros((NIter,sz,sz,2))
+        all_signals = np.zeros((NIter,T,NRep,3))
+        
+        for ni in range(NIter):
+            all_adc_masks[ni] = param_reco_history[0][ni]['adc_mask'].ravel()
+            all_flips[ni] = param_reco_history[0][ni]['flips_angles']
+            all_event_times[ni] = param_reco_history[0][ni]['event_times']
+            all_grad_moms[ni] = param_reco_history[0][ni]['grad_moms']
+            all_reco_images[ni] = param_reco_history[0][ni]['reco_image'].reshape([sz,sz,2])
+            all_signals[ni] = param_reco_history[0][ni]['signal'].reshape([T,NRep,3])
+            
+        
+        scanner_dict = dict()
+        scanner_dict['all_adc_masks'] = all_adc_masks
+        scanner_dict['flips'] = all_flips
+        scanner_dict['event_times'] = all_event_times
+        scanner_dict['grad_moms'] = all_grad_moms
+        scanner_dict['reco_images'] = all_reco_images
+        scanner_dict['all_signals'] = all_signals
+        scanner_dict['sz'] = np.array([sz,sz])
+        scanner_dict['T'] = T
+        scanner_dict['NRep'] = NRep
+        scanner_dict['target'] = param_reco_history[1]['target']
+        
+        path=os.path.join(path, experiment_id)
+        try:
+            os.mkdir(path)
+        except:
+            print('save_param_reco_history: directory already exists')
+            
+        scipy.io.savemat(os.path.join(path,"all_iter.mat"), scanner_dict)        
                                    
 
 # Adam variation to allow for blocking gradient steps on individual entries of parameter vector
