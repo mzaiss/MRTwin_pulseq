@@ -17,7 +17,7 @@ else:
 
 # torch to numpy
 def tonumpy(x):
-    return x.detach().cpu().numpy()
+    return x.detach().clone().cpu().numpy()
     
 def get_cuda_mem_GB():
     return torch.cuda.get_device_properties(0).total_memory / 1024.0**3
@@ -156,17 +156,17 @@ class OPT_helper():
             if save_intermediary_results:
                     
                 saved_state = dict()
-                saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0])
-                saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
-                saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
-                saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3])
-
+                saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0].clone())
+                saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1].clone())
+                saved_state['event_times'] = tonumpy(self.scanner_opt_params[2].clone())
+                saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3].clone())
+                
                 legs=['x','y','z']
                 for i in range(3):
                     M_roi = tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep])
                     saved_state['ROI_def %d, %s'  % (self.scanner.ROI_def,legs[i])]  = M_roi
 
-                saved_state['reco_image'] = tonumpy(self.last_reco)
+                saved_state['reco_image'] = tonumpy(self.last_reco.clone())
                 saved_state['error'] = self.last_error
                 
                 self.param_reco_history.append(saved_state)

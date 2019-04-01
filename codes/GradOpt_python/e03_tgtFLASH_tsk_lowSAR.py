@@ -65,7 +65,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([8,8])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -332,14 +332,14 @@ opt.use_periodic_grad_moms_cap = 0           # GRE/FID specific, do not sample a
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
+opt.set_opt_param_idx([1]) # ADC, RF, time, grad
 opt.custom_learning_rate = [0.01,0.01,0.01,0.01]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 print('<seq> Optimizing starts now...')
-opt.train_model(training_iter=20000, do_vis_image=True, save_intermediary_results=False) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=20000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
@@ -353,7 +353,7 @@ print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.a
 
 # %% # save optimized parameter history
 
-experiment_id = 'FLASH_spoiled_lowSAR'
-#opt.save_param_reco_history(experiment_id)
-opt.export_to_matlab(experiment_id)
+experiment_id = 'FLASH_spoiled_lowSAR_test_sunday'
+opt.save_param_reco_history(experiment_id)
+#opt.export_to_matlab(experiment_id)
             
