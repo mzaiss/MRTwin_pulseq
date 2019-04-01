@@ -11,6 +11,7 @@ origpath=pwd;
 if isunix
     dir_seq = 'smb://mrz3t/upload/CEST_seq/pulseq_zero/sequences';
     d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/FLASH_spoiled_lowSAR64_400spins_multistep';
+    d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/GRE_LOWSAR_FA5_opt_grads_from_init_32_1knspins';
 elseif ispc
     dir_seq = '/media/upload3t/CEST_seq/pulseq_zero/sequences';
     d = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
@@ -60,14 +61,14 @@ subplot(3,4,8), imagesc(rot90(phase_base)), title('reco phase coil(1) '), axis('
 sos = abs(squeeze(scanner_dict.reco_images(ii,:,:,1)+1j*scanner_dict.reco_images(ii,:,:,2)));
 phase = angle(squeeze(scanner_dict.reco_images(ii,:,:,1)+1j*scanner_dict.reco_images(ii,:,:,2)));
 SAR = sum(reshape((squeeze(scanner_dict.flips(ii,:,:,1).^2)),1,[]))./SIM_SAR_base;
-subplot(3,4,1), imagesc(flipud(flipud(SIM_sos_base)')); title(sprintf('SIM reco sos, iter %d',1)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,1), imagesc(rot90(SIM_sos_base.',2)); title(sprintf('SIM reco sos, iter %d',1)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 ax=gca;
 CLIM=ax.CLim;
 CLIM=[-Inf Inf];
 
-subplot(3,4,5), imagesc(flipud(flipud(SIM_phase_base)')), title('reco phase coil(1) '), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
-subplot(3,4,2), imagesc(flipud(flipud(sos)'),CLIM), title(sprintf('reco sos, iter %d, SAR %f',ii,SAR)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
-subplot(3,4,6), imagesc(flipud(flipud(phase)')), title('reco phase coil(1) '), axis('image'); colorbar;set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,5), imagesc(rot90((SIM_phase_base).',2)), title('reco phase coil(1) '), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,2), imagesc(rot90((sos).',2),CLIM), title(sprintf('reco sos, iter %d, SAR %f',ii,SAR)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,6), imagesc(rot90((phase).',2)), title('reco phase coil(1) '), axis('image'); colorbar;set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 
 if ispc
   set(gcf, 'Outerposition',[119          69        1444         897])
@@ -179,11 +180,11 @@ for ii = 1:nCoils
     %images(:,:,:,ii) = fliplr(rot90(fftshift(fft2(fftshift(data(:,:,:,ii))))));
     %images(:,:,ii) = fftshift(fft2(fftshift(data(end:-1:1,:,ii))));
     
-  spectrum = data(end:-1:1,:,ii);
+  spectrum = (data(:,:,ii));
   spectrum = spectrum(:);
 
   reco = G_adj*spectrum;
-  images(:,:,ii) = reshape(reco,[sz,sz]);
+  images(:,:,ii) = flipud(reshape(reco,[sz,sz]));
 end
 
 % Phase images (possibly channel-by-channel and echo-by-echo)
