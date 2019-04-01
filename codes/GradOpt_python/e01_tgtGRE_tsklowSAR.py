@@ -8,8 +8,12 @@ Created on Tue Jan 29 14:38:26 2019
 experiment desciption:
 
 2D imaging: GRE with spoilers and random phase cycling
-GRE90spoiled_relax2s task low SAR
 
+"""
+
+experiment_id = 'FLASH_spoiled_lowSAR'
+experiment_description = """
+tgt GRE90spoiled_relax2s task low SAR
 """
 
 import os, sys
@@ -33,13 +37,9 @@ if sys.version_info[0] < 3:
 else:
     import importlib
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
-experiment_id = 'FLASH_spoiled_lowSAR'
-experiment_description = """
-...
-"""
 
 # NRMSE error function
 def e(gt,x):

@@ -11,6 +11,11 @@ experiment desciption:
 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
 """
 
+experiment_id = 'tgtFLASHSS_tskFLASH'
+experiment_description = """
+centric reordered, use dummies
+"""
+
 import os, sys
 import numpy as np
 import scipy
@@ -33,6 +38,8 @@ else:
     import importlib
 
 use_gpu = 0
+gpu_dev = 0
+
 
 # NRMSE error function
 def e(gt,x):
@@ -52,7 +59,7 @@ def magimg_torch(x):
 # device setter
 def setdevice(x):
     if use_gpu:
-        x = x.cuda(0)
+        x = x.cuda(gpu_dev)
         
     return x
     
@@ -75,7 +82,7 @@ def stop():
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 35**2                                # number of spin sims in each voxel
+NSpins = 25**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -89,24 +96,6 @@ NVox = sz[0]*sz[1]
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 
-#numerical_phantom = np.load('../../data/brainphantom_2D.npy')
-#numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
-##numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
-#numerical_phantom[numerical_phantom < 0] = 0
-#numerical_phantom=np.swapaxes(numerical_phantom,0,1)
-#
-## inhomogeneity (in Hz)
-#B0inhomo = np.zeros((sz[0],sz[1],1)).astype(np.float32)
-#B0inhomo = (np.random.rand(sz[0],sz[1]) - 0.5)
-#B0inhomo = ndimage.filters.gaussian_filter(B0inhomo,1)        # smooth it a bit
-#B0inhomo = B0inhomo/np.max(B0inhomo)*2*np.pi*15 
-#B0inhomo = np.expand_dims(B0inhomo,2)
-##B0inhomo *=0
-#numerical_phantom = np.concatenate((numerical_phantom,B0inhomo),2)
-#
-#np.save('../../data/brainphantom_inhomo_2D.npy',numerical_phantom)
-numerical_phantom = np.load('../../data/brainphantom_inhomo_2D.npy')
-
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
@@ -114,8 +103,7 @@ for i in range(5):
     if i != 3:
         t[t < 0] = 0
     real_phantom_resized[:,:,i] = t
-
-real_phantom_resized[:,:,3]=0
+    
 spins.set_system(real_phantom_resized)
 
 cutoff = 1e-12
@@ -166,8 +154,7 @@ flips[0,:,0] = 20*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 deg
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
-#flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180   # GRE/FID specific phase cycling??
-#flips[0,:,1] = torch.tensor([0,117,351,342, 90,315,297, 36,252,225,315,162,126,207, 45,  0]).float()*np.pi/180
+flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
 
 flips = setdevice(flips)
 
@@ -232,9 +219,6 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-    #save optimized parameter history
-    experiment_id = 'FLASH_spoiled_lowSAR'
-    #opt.save_param_reco_history(experiment_id)
     targetSeq.export_to_matlab(experiment_id)
                 
     
@@ -252,7 +236,6 @@ def init_variables():
     
     flips = targetSeq.flips.clone()
     flips = setdevice(flips)
-    flips.requires_grad = True
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
     flip_mask[1:,:,:] = 0
@@ -265,7 +248,6 @@ def init_variables():
     #event_time[:,0] = 0.4*1e-3  
     event_time[-1,:] = 0.001 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
     event_time = setdevice(event_time)
-    event_time.requires_grad = True
     
     event_time_mask = torch.ones((scanner.T, scanner.NRep)).float()        
     event_time_mask[2:-2,:] = 0
@@ -286,8 +268,6 @@ def init_variables():
     grad_moms_mask[-2,:,:] = 1
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
-        
-    grad_moms.requires_grad = True
     
     return [adc_mask, flips, event_time, grad_moms]
     
@@ -317,7 +297,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 0.5*1e1         # switch on of SAR cost
+    lbd = 0.0*1e1         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -361,11 +341,10 @@ opt.print_status(True, reco)
 
 print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.abs(tonumpy(opt.scanner_opt_params[1].permute([1,0]))).sum()*180/np.pi, tonumpy(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0])).sum() ))
 
-#stop()
+stop()
 
 # %% # save optimized parameter history
 
-experiment_id = 'FLASH_tgtGRE'
-#opt.save_param_reco_history(experiment_id)
+opt.save_param_reco_history(experiment_id)
 opt.export_to_matlab(experiment_id)
             

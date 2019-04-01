@@ -12,6 +12,11 @@ GRE90spoiled_relax2s
 
 """
 
+experiment_id = 'GRE_spoiled_noTASK'
+experiment_description = """
+tgt GRE90spoiled_relax2s task low SAR
+"""
+
 import os, sys
 import numpy as np
 import scipy
@@ -26,7 +31,16 @@ import core.scanner
 import core.opt_helper
 import core.target_seq_holder
 
+if sys.version_info[0] < 3:
+    reload(core.spins)
+    reload(core.scanner)
+    reload(core.opt_helper)
+else:
+    import importlib
+
 use_gpu = 0
+gpu_dev = 0
+
 
 # NRMSE error function
 def e(gt,x):
@@ -46,7 +60,7 @@ def magimg_torch(x):
 # device setter
 def setdevice(x):
     if use_gpu:
-        x = x.cuda(0)
+        x = x.cuda(gpu_dev)
         
     return x
     
@@ -83,24 +97,6 @@ NVox = sz[0]*sz[1]
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
 
-#numerical_phantom = np.load('../../data/brainphantom_2D.npy')
-#numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
-##numerical_phantom = cv2.resize(numerical_phantom, dsize=(sz[0], sz[1]), interpolation=cv2.INTER_CUBIC)
-#numerical_phantom[numerical_phantom < 0] = 0
-#numerical_phantom=np.swapaxes(numerical_phantom,0,1)
-#
-## inhomogeneity (in Hz)
-#B0inhomo = np.zeros((sz[0],sz[1],1)).astype(np.float32)
-#B0inhomo = (np.random.rand(sz[0],sz[1]) - 0.5)
-#B0inhomo = ndimage.filters.gaussian_filter(B0inhomo,1)        # smooth it a bit
-#B0inhomo = B0inhomo/np.max(B0inhomo)*2*np.pi*15 
-#B0inhomo = np.expand_dims(B0inhomo,2)
-##B0inhomo *=0
-#numerical_phantom = np.concatenate((numerical_phantom,B0inhomo),2)
-#
-#np.save('../../data/brainphantom_inhomo_2D.npy',numerical_phantom)
-numerical_phantom = np.load('../../data/brainphantom_inhomo_2D.npy')
-
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
@@ -110,8 +106,6 @@ for i in range(5):
     real_phantom_resized[:,:,i] = t
     
 spins.set_system(real_phantom_resized)
-
-spins.set_system(numerical_phantom)
 
 cutoff = 1e-12
 spins.T1[spins.T1<cutoff] = cutoff
@@ -162,8 +156,7 @@ flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degr
 
 
 # randomize RF phases
-#flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180   # GRE/FID specific phase cycling??
-#flips[0,:,1] = torch.tensor([0,117,351,342, 90,315,297, 36,252,225,315,162,126,207, 45,  0]).float()*np.pi/180
+flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
 
 flips = setdevice(flips)
 
@@ -223,9 +216,6 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-    #save optimized parameter history
-    experiment_id = 'FLASH_spoiled_lowSAR'
-    #opt.save_param_reco_history(experiment_id)
     targetSeq.export_to_matlab(experiment_id)
                 
     
@@ -243,7 +233,6 @@ def init_variables():
     
     flips = targetSeq.flips.clone()
     flips = setdevice(flips)
-    flips.requires_grad = True
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
     flip_mask[1:,:,:] = 0
@@ -254,9 +243,8 @@ def init_variables():
     #event_time = torch.from_numpy(1e-7*np.random.rand(scanner.T,scanner.NRep)).float()
     #event_time*=0.5
     #event_time[:,0] = 0.4*1e-3  
-    #event_time[-2,:] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
+    #event_time[-1,:] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
     event_time = setdevice(event_time)
-    event_time.requires_grad = True
     
     event_time_mask = torch.ones((scanner.T, scanner.NRep)).float()        
     event_time_mask[2:-2,:] = 0
@@ -277,8 +265,6 @@ def init_variables():
     grad_moms_mask[-2,:,:] = 1
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
-        
-    grad_moms.requires_grad = True
     
     return [adc_mask, flips, event_time, grad_moms]
     
@@ -330,6 +316,7 @@ def phi_FRP_model(opt_params,aux_params):
 opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
 opt.set_target(tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],2]))
 opt.target_seq_holder=targetSeq
+opt.experiment_description = experiment_description
 
 opt.use_periodic_grad_moms_cap = 0           # GRE/FID specific, do not sample above Nyquist flag
 opt.optimzer_type = 'Adam'
@@ -342,7 +329,7 @@ opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 print('<seq> Optimizing starts now...')
-opt.train_model(training_iter=20000, do_vis_image=True, save_intermediary_results=False) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=20000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
@@ -356,7 +343,6 @@ stop()
 
 # %% # save optimized parameter history
 
-experiment_id = 'GRE90spoiled_relax2s'
-#opt.save_param_reco_history(experiment_id)
+opt.save_param_reco_history(experiment_id)
 opt.export_to_matlab(experiment_id)
             
