@@ -17,7 +17,7 @@ else:
 
 # torch to numpy
 def tonumpy(x):
-    return x.detach().cpu().numpy()
+    return x.detach().clone().cpu().numpy()
     
 def get_cuda_mem_GB():
     return torch.cuda.get_device_properties(0).total_memory / 1024.0**3
