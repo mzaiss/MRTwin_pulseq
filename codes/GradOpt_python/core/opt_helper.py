@@ -156,10 +156,10 @@ class OPT_helper():
             if save_intermediary_results:
                     
                 saved_state = dict()
-                saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0].clone())
-                saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1].clone())
-                saved_state['event_times'] = tonumpy(self.scanner_opt_params[2].clone())
-                saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3].clone())
+                saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0])
+                saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
+                saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
+                saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3])
                 
                 legs=['x','y','z']
                 for i in range(3):
@@ -167,6 +167,7 @@ class OPT_helper():
                     saved_state['ROI_def %d, %s'  % (self.scanner.ROI_def,legs[i])]  = M_roi
 
                 saved_state['reco_image'] = tonumpy(self.last_reco.clone())
+                saved_state['signal'] = tonumpy(self.scanner.signal)
                 saved_state['error'] = self.last_error
                 
                 self.param_reco_history.append(saved_state)
