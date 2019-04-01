@@ -292,7 +292,7 @@ class Scanner():
         S = torch.zeros((1,1,self.NVox,3,3), dtype=torch.float32)
         S = self.setdevice(S)
         
-        B0_inhomo = spins.B0inhomo.view([self.NVox])
+        B0_inhomo = spins.B0inhomo.view([self.NVox]) * 2*np.pi
         
         B0_nspins_cos = torch.cos(B0_inhomo*delay)
         B0_nspins_sin = torch.sin(B0_inhomo*delay)
