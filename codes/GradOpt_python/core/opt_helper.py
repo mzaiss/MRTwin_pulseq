@@ -386,8 +386,8 @@ class OPT_helper():
         f.close()
         
         NIter = len(param_reco_history)
-        sz_x = np.int(np.sqrt(param_reco_history[0]['reco_image'].shape[0]))
-        sz_y = np.int(np.sqrt(param_reco_history[0]['reco_image'].shape[1]))
+        sz_x = self.scanner.sz[0]
+        sz_y = self.scanner.sz[1]
         
         T = self.scanner.T
         NRep = self.scanner.NRep
@@ -420,7 +420,6 @@ class OPT_helper():
         scanner_dict['NRep'] = NRep
         scanner_dict['target'] = self.target
         
-        path=os.path.join(path, experiment_id)
         try:
             os.mkdir(path)
         except:
