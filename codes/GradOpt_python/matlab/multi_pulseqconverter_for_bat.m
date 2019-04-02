@@ -17,7 +17,7 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
 
 experiment_id = 'GRE_LOWSAR_FA20_optall_initgradmomstozero_1knspins_multistep';
-
+experiment_id = 'tgtGRE_tsk_GRE_no_grad';
 
 ni = 30;
 
@@ -34,7 +34,7 @@ disp(niter);
 
 k = 1;
 
-idxarray = [1:30,40:10:1840];
+idxarray = [1:150,160:10:1840];
 
 for ni =  idxarray
   

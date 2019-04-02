@@ -14,7 +14,7 @@ GRE90spoiled_relax2s
 
 experiment_id = 'tgtGRE_tsk_GRE_no_grad'
 experiment_description = """
-tgt GRE90spoiled_relax2s task find grads
+tgt FLASHspoiled_relax0.1s task find all grads except read ADC grads
 """
 
 import os, sys
@@ -328,11 +328,12 @@ opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
 opt.set_opt_param_idx([3]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.01,0.1,0.1]
+opt.custom_learning_rate = [0.01,0.01,0.1,0.7]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
+#opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
 print('<seq> Optimizing starts now...')
 opt.train_model(training_iter=20000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 

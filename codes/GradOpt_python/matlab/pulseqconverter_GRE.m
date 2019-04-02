@@ -12,10 +12,11 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
 %experiment_id = 'RARE_FA_OPT_fixrep1_90';
-experiment_id = 'FLASH_spoiled_lowSAR';
+% experiment_id = 'FLASH_spoiled_lowSAR';
 % experiment_id = 'GRE_base';
 % experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
 %  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
+experiment_id = 'tgtGRE_tsk_GRE_no_grad';
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);

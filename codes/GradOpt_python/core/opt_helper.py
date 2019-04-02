@@ -379,13 +379,14 @@ class OPT_helper():
         aux_info['T'] = self.scanner.T
         aux_info['target'] = self.target
         aux_info['ROI_def'] = self.scanner.ROI_def
-        
-        f = open(os.path.join(path,"param_reco_history.pdb"), "wb")
+        fpath=path+'/param_reco_history.pdb'
+#        fpath=os.path.join(path,"param_reco_history.pdb")
+        f = open(fpath, "wb")
         pickle.dump((param_reco_history, aux_info), f)
         f.close()
         
-        NIter = len(param_reco_history[0])
-        sz = np.int(np.sqrt(param_reco_history[0][0]['reco_image'].shape[0]))
+        NIter = len(param_reco_history)
+        sz = np.int(np.sqrt(param_reco_history[0]['reco_image'].shape[0]))
         
         T = self.scanner.T
         NRep = self.scanner.NRep
@@ -398,12 +399,12 @@ class OPT_helper():
         all_signals = np.zeros((NIter,T,NRep,3))
         
         for ni in range(NIter):
-            all_adc_masks[ni] = param_reco_history[0][ni]['adc_mask'].ravel()
-            all_flips[ni] = param_reco_history[0][ni]['flips_angles']
-            all_event_times[ni] = param_reco_history[0][ni]['event_times']
-            all_grad_moms[ni] = param_reco_history[0][ni]['grad_moms']
-            all_reco_images[ni] = param_reco_history[0][ni]['reco_image'].reshape([sz,sz,2])
-            all_signals[ni] = param_reco_history[0][ni]['signal'].reshape([T,NRep,3])
+            all_adc_masks[ni] = param_reco_history[ni]['adc_mask'].ravel()
+            all_flips[ni] = param_reco_history[ni]['flips_angles']
+            all_event_times[ni] = param_reco_history[ni]['event_times']
+            all_grad_moms[ni] = param_reco_history[ni]['grad_moms']
+            all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz,sz,2])
+            all_signals[ni] = param_reco_history[ni]['signal'].reshape([T,NRep,3])
             
         
         scanner_dict = dict()
@@ -416,7 +417,7 @@ class OPT_helper():
         scanner_dict['sz'] = np.array([sz,sz])
         scanner_dict['T'] = T
         scanner_dict['NRep'] = NRep
-        scanner_dict['target'] = param_reco_history[1]['target']
+        scanner_dict['target'] = param_reco_history[1]['reco_image']
         
         path=os.path.join(path, experiment_id)
         try:
