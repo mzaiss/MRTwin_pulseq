@@ -2,6 +2,7 @@ function multiRECO_combined
 
 
 %% very simple FFT reconstruction from raw data
+fclose('all');
 addpath('D:\root\ZAISS_LABLOG\LOG_MPI\0_CESTtool\CEST_EVAL_GLINT\reco_raw\recoVBVD')
 addpath('D:\root\ZAISS_LABLOG\LOG_MPI\0_CESTtool\CEST_EVAL_GLINT\reco_raw\mapVBVD')
 %% Load raw data
@@ -19,15 +20,6 @@ else
     disp('Platform not supported')
 end
 
-%
-out=regexp(d,'\','split');
-experiment_id=out{end};
-files = dir(fullfile(d, '/data/*.dat'));
-array_MEAS=1:numel(files);
-
-twix_obj = mapVBVD([d '/data/' files(1).name]);
-[sos_base, phase_base] = TWIXtoIMG_FFT(twix_obj);
-
 %SIM
 scanner_dict = load([d,'/','all_iter.mat']);
 sz = double(scanner_dict.sz);
@@ -35,12 +27,24 @@ T = scanner_dict.T;
 NRep = scanner_dict.NRep;
 
 niter = size(scanner_dict.flips,1);
-array_SIM = [1:30,40:10:840];
-array_SIM=array_SIM(1:niter);
+% array_SIM = [1:30,40:10:840];   % for sunday meas
+array_SIM = [1:150,160:10:1840]; % for new meas
+% array_SIM=array_SIM(1:niter);
 
 SIM_sos_base= abs(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco_images(1,:,:,2)));
 SIM_phase_base = angle(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco_images(1,:,:,2)));
 SIM_SAR_base = sum(reshape((scanner_dict.flips(1,:,:,1).^2),1,[]));
+
+%MEAS
+out=regexp(d,'\','split');
+experiment_id=out{end};
+files = dir(fullfile(d, '/data/*.dat'));
+array_MEAS=1:numel(files);
+
+twix_obj = mapVBVD([d '/data/' files(1).name]);
+[sos_base, phase_base] = TWIXtoIMG_ADJOINT(twix_obj, scanner_dict, 1);
+
+
 
 figure(1);  set(0, 'DefaultLineLineWidth', 2);  % prep for gif
 for ii=array_MEAS
@@ -96,7 +100,7 @@ if ispc
         if ii == 1
             imwrite(imind,cm,gifname,'gif', 'Loopcount',inf);
         elseif ii==numel(array_MEAS)
-            imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',3);
+            imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',7);
         else
             imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.0005);
         end
