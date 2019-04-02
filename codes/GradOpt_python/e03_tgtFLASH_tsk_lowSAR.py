@@ -259,7 +259,7 @@ def init_variables():
         grad_moms = torch.from_numpy(g).float()      
         grad_moms = setdevice(grad_moms)
         
-    grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 1)).float()        
+    grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()        
     grad_moms_mask[1,:,:] = 1
     grad_moms_mask[-2,:,:] = 1
     grad_moms_mask = setdevice(grad_moms_mask)
