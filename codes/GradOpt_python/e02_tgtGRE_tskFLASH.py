@@ -93,7 +93,7 @@ NVox = sz[0]*sz[1]
 ## Init spin system ::: #####################################
 
 # initialize scanned object
-spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu)
+spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
 
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
@@ -138,7 +138,7 @@ spins.omega = setdevice(spins.omega)
 #############################################################################
 ## Init scanner system ::: #####################################
 
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
 # begin sequence definition
