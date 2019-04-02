@@ -174,6 +174,17 @@ NVox = sz*sz;
 adc_mask = zeros(T,1);
 adc_mask(3:end-2) = 1;
 
+% compute frequency cutoff mask for adjoint (dont use frequencies above Nyquist)
+k = cumsum(squeeze(scanner_dict.grad_moms(idx,:,:,:)),1);
+hsz = sz/2;
+
+kx = k(find(adc_mask),:,1);
+ky = k(find(adc_mask),:,2);
+
+sigmask = ones(sz*sz,1);
+sigmask(abs(kx(:)) > hsz) = 0;
+sigmask(abs(ky(:)) > hsz) = 0;
+
 G_adj = get_adjoint_mtx(squeeze(scanner_dict.grad_moms(idx,:,:,:)),adc_mask,T,NRep,NVox,sz);
 
 %% Reconstruct coil images
