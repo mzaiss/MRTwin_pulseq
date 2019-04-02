@@ -386,7 +386,8 @@ class OPT_helper():
         f.close()
         
         NIter = len(param_reco_history)
-        sz = np.int(np.sqrt(param_reco_history[0]['reco_image'].shape[0]))
+        sz_x = np.int(np.sqrt(param_reco_history[0]['reco_image'].shape[0]))
+        sz_y = np.int(np.sqrt(param_reco_history[0]['reco_image'].shape[1]))
         
         T = self.scanner.T
         NRep = self.scanner.NRep
@@ -395,7 +396,7 @@ class OPT_helper():
         all_flips = np.zeros((NIter,T,NRep,2))
         all_event_times = np.zeros((NIter,T,NRep))
         all_grad_moms = np.zeros((NIter,T,NRep,2))
-        all_reco_images = np.zeros((NIter,sz,sz,2))
+        all_reco_images = np.zeros((NIter,sz_x,sz_y,2))
         all_signals = np.zeros((NIter,T,NRep,3))
         
         for ni in range(NIter):
@@ -403,7 +404,7 @@ class OPT_helper():
             all_flips[ni] = param_reco_history[ni]['flips_angles']
             all_event_times[ni] = param_reco_history[ni]['event_times']
             all_grad_moms[ni] = param_reco_history[ni]['grad_moms']
-            all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz,sz,2])
+            all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
             all_signals[ni] = param_reco_history[ni]['signal'].reshape([T,NRep,3])
             
         
@@ -414,10 +415,10 @@ class OPT_helper():
         scanner_dict['grad_moms'] = all_grad_moms
         scanner_dict['reco_images'] = all_reco_images
         scanner_dict['all_signals'] = all_signals
-        scanner_dict['sz'] = np.array([sz,sz])
+        scanner_dict['sz'] = np.array([sz_x,sz_y])
         scanner_dict['T'] = T
         scanner_dict['NRep'] = NRep
-        scanner_dict['target'] = param_reco_history[1]['reco_image']
+        scanner_dict['target'] = self.target
         
         path=os.path.join(path, experiment_id)
         try:
