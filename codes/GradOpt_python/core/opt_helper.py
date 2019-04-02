@@ -420,12 +420,7 @@ class OPT_helper():
         scanner_dict['NRep'] = NRep
         scanner_dict['target'] = self.target
         
-        try:
-            os.mkdir(path)
-        except:
-            print('save_param_reco_history: directory already exists')
-            
-        scipy.io.savemat(os.path.join(path,"all_iter.mat"), scanner_dict)        
+        scipy.io.savemat(os.path.join(path,"all_iter.mat"), scanner_dict)
                                    
 
 # Adam variation to allow for blocking gradient steps on individual entries of parameter vector
