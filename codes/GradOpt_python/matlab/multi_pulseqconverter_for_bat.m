@@ -36,6 +36,7 @@ k = 1;
 idxarray_exported_itersteps = [1:150,160:10:niter];
 idxarray_exported_itersteps = [1:150,160:10:niter]; 
 idxarray_exported_itersteps = [1:10,20:10:niter];
+idxarray_exported_itersteps = 1:niter;
 
 for ni =  idxarray_exported_itersteps
   
