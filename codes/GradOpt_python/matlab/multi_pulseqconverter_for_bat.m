@@ -25,13 +25,13 @@ NRep = scanner_dict.NRep;
 
 niter = size(scanner_dict.flips,1);
 
+disp(niter);
 
 %%
 
 k = 1;
 
 idxarray = [1:150,160:10:1840];
-idxarray = [1:10:500];
 
 for ni =  idxarray
   

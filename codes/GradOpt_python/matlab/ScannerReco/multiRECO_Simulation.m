@@ -4,29 +4,18 @@ clear all; close all;
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
   seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
+  experiment_id = 'tgtGRE_tsk_GRE_no_grad';
+  seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
 else
   mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
-  seq_dir = 'D:\root\ZAISS_LABLOG\LOG_MPI\27_MRI_zero\mrizero_tueb\codes\GradOpt_python\out';
+  d = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
+  seq_dir=[d '/..'];
+  out=regexp(d,'\','split');
+  experiment_id=out{end};
 end
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
-
-% experiment_id = 'FLASH_spoiled_lowSAR64_1kspins_multistep';
-experiment_id = 'FLASH_spoiled_lowSAR32_multistep_190328';
-%experiment_id = 'FLASH_spoiled_lowSAR_multistep';
-
-% seq_dir = 'K:\CEST_seq\pulseq_zero\sequences';
-experiment_id = 'GRE_LOWSAR_FA5_opt_grads_from_init_32_1knspins';
-experiment_id = 'GRE_LOWSAR_FA20_optall_initgradmomstozero_1knspins';
-% experiment_id = 'GRE_LOWSAR_FA20_optall_perturbgradmoms_1knspins';
-experiment_id = 'FLASH_spoiled_lowSAR78_100spins';
-experiment_id = 'FLASH_spoiled_lowSAR64_optgrads_frominit_1kspins_multistep';
-experiment_id = 'FLASH_spoiled_lowSAR64_optgradmoms_1kspins_multistep';
-experiment_id = 'FLASH_spoiled_lowSAR64_500spins_multistep';
-experiment_id = 'FLASH_spoiled_lowSAR64_400spins_multistep';
-experiment_id = 'tgtGRE_tsk_GRE_no_grad';
-
 
 ni = 30;
 
@@ -40,6 +29,7 @@ k = 1;
 idxarray = [1:10,20:10:840];
 array = 1:niter;
 % array = [1:30,40:10:840];
+array = [1:10,20:10:niter];
     
 sos_base= abs(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco_images(1,:,:,2)));
 phase_base = angle(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco_images(1,:,:,2)));

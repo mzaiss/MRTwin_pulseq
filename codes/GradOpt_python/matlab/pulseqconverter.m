@@ -203,7 +203,6 @@ kList(isnan(kList))=0;
 klocScaled = (kloc+0.5)*resolution;  % calculate grad moms to FoV
 
 [X,Y] = meshgrid(1:resolution);
-
 kReco = griddata(klocScaled(1,:),klocScaled(2,:),real(kList),X,Y) +1j*griddata(klocScaled(1,:),klocScaled(2,:),imag(kList),X,Y) ;
 % kReco = griddata(field(:,1),field(:,2),real(kList),X,Y) +1j*griddata(field(:,1),field(:,2),imag(kList),X,Y) ;
 kReco=reshape(kList,sz)
