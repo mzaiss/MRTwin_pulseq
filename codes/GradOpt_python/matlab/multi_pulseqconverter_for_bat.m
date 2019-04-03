@@ -6,7 +6,6 @@ if isunix
   seq_dir = '/media/upload3t/CEST_seq/pulseq_zero/sequences/seq190403';
 else
   mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
-  seq_dir = 'K:\CEST_seq\pulseq_zero\sequences';
 end
 
 
@@ -31,9 +30,13 @@ disp(niter);
 
 k = 1;
 
-idxarray = [1:150,160:10:1840];
+idxarray_exported_itersteps = [1:150,160:10:niter];
+idxarray_exported_itersteps = [1:150,160:10:niter]; 
+idxarray_exported_itersteps = [1:10,20:10:niter];
 
-for ni =  idxarray
+idxarray_exported_itersteps = 1:niter;
+
+for ni =  idxarray_exported_itersteps
   
   idx = double(ni);
   %print(idx);
