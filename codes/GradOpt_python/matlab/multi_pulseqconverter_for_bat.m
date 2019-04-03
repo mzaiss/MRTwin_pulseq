@@ -4,20 +4,19 @@ clear all; close all;
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
   seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
+  experiment_id = 'GRE_LOWSAR_FA20_optall_initgradmomstozero_1knspins_multistep';
+  experiment_id = 'tgtGRE_tsk_GRE_no_grad';
+  seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
 else
   mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
-  seq_dir = 'K:\CEST_seq\pulseq_zero\sequences';
+  d = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
+  seq_dir=[d '/..'];
+  out=regexp(d,'\','split');
+  experiment_id=out{end};
 end
-
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
-
-
-seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
-
-experiment_id = 'GRE_LOWSAR_FA20_optall_initgradmomstozero_1knspins_multistep';
-experiment_id = 'tgtGRE_tsk_GRE_no_grad';
 
 ni = 30;
 
@@ -34,9 +33,11 @@ disp(niter);
 
 k = 1;
 
-idxarray = [1:150,160:10:1840];
+idxarray_exported_itersteps = [1:150,160:10:niter];
+idxarray_exported_itersteps = [1:150,160:10:niter]; 
+idxarray_exported_itersteps = [1:10,20:10:niter];
 
-for ni =  idxarray
+for ni =  idxarray_exported_itersteps
   
   idx = double(ni);
   %print(idx);
@@ -156,3 +157,5 @@ for ni =  idxarray
   %subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 end
+
+save([seq_dir,'/',experiment_id,'/export_protocol.mat'],'idxarray_exported_itersteps','experiment_id');
