@@ -37,7 +37,7 @@ class SpinSystem():
         if np.any(input_array[:,:,:3] < 0):
             throw('ERROR: SpinSystem: set_system: some of the values in <input_array> are smaller than zero')
             
-        if len(input_array.shape) > 2:                    # full specificiation
+        if input_array.shape[2] > 2:                    # full specificiation
             PD = input_array[...,0]
             T1 = input_array[...,1]
             T2 = input_array[...,2]
@@ -57,7 +57,7 @@ class SpinSystem():
         B0inhomo = torch.zeros((self.NVox)).float()
         
         # also susceptibilities
-        if len(input_array.shape) > 3:
+        if input_array.shape[2] > 3:
             B0inhomo = input_array[...,3]
             B0inhomo = torch.from_numpy(B0inhomo.reshape([self.NVox])).float()
             
@@ -115,7 +115,7 @@ class SpinSystem_batched(SpinSystem):
         B0inhomo = torch.zeros((self.batch_size,self.NVox)).float()
         
         # also susceptibilities
-        if len(input_array.shape) > 3:
+        if input_array.shape[2] > 3:
             B0inhomo = input_array[...,3]
             B0inhomo = torch.from_numpy(B0inhomo.reshape([self.batch_size,self.NVox])).float()
             
