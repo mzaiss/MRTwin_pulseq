@@ -32,7 +32,7 @@ function [SOS, phase] = TWIXtoIMG_NUFFT_gradmoms_from_pulseq(twix_obj,ktraj_adc)
     
     k_regridded = griddata(ktraj_adc_temp(1,:),ktraj_adc_temp(2,:),real(kList(:)),X,Y) +1j*griddata(ktraj_adc_temp(1,:),ktraj_adc_temp(2,:),imag(kList(:)),X,Y) ;
     k_regridded(isnan(k_regridded))=0;
-    images(:,:,ii) = fftshift(fft2(fftshift(fliplr(flipud(k_regridded.')))));
+    images(:,:,ii) = fftshift(fft2(fftshift(k_regridded.')));
   end
   
   sos=abs(sum(images.^2,ndims(images)).^(1/2));
