@@ -1,3 +1,6 @@
+% regrid measured data from twix object from nonuniform to Cartesian grid
+% to compute k-space locations for gridding, use effective gradient moments output by pulseq
+
 function [SOS, phase] = TWIXtoIMG_NUFFT_gradmoms_from_pulseq(twix_obj,ktraj_adc)
 
   %% sort in the k-space data
@@ -31,7 +34,7 @@ function [SOS, phase] = TWIXtoIMG_NUFFT_gradmoms_from_pulseq(twix_obj,ktraj_adc)
     k_regridded(isnan(k_regridded))=0;
     images(:,:,ii) = fftshift(fft2(fftshift(fliplr(flipud(k_regridded.')))));
   end
-
+  
   sos=abs(sum(images.^2,ndims(images)).^(1/2));
   SOS=sos./max(sos(:));
   phase = angle(images(:,:,ii));

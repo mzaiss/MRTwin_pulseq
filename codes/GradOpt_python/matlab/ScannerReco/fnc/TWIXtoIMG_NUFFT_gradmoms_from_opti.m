@@ -1,3 +1,9 @@
+% regrid measured data from twix object from nonuniform to Cartesian grid
+% to compute k-space locations for gridding, use gradient moments generated during optimization
+
+% call with
+% [sos, phase] = TWIXtoIMG_NUFFT_gradmoms_from_opti(twix_obj,scanner_dict.grad_moms(ii,:,:,:));
+
 function [SOS, phase] = TWIXtoIMG_NUFFT_gradmoms_from_opti(twix_obj,grad_moms)
 
   %% sort in the k-space data
@@ -30,7 +36,7 @@ function [SOS, phase] = TWIXtoIMG_NUFFT_gradmoms_from_opti(twix_obj,grad_moms)
     k_regridded(isnan(k_regridded))=0;
     images(:,:,ii) = fftshift(fft2(fftshift(fliplr(flipud(k_regridded.')))));
   end
-
+  
   sos=abs(sum(images.^2,ndims(images)).^(1/2));
   SOS=sos./max(sos(:));
   phase = angle(images(:,:,ii));
