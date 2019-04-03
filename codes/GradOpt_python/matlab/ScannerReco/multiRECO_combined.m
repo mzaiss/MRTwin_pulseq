@@ -13,7 +13,7 @@ origpath=pwd;
 if isunix
     dir_seq = 'smb://mrz3t/upload/CEST_seq/pulseq_zero/sequences';
     d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/FLASH_spoiled_lowSAR64_400spins_multistep';
-    d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/GRE_LOWSAR_FA5_opt_grads_from_init_32_1knspins';
+    d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/tgtGRE_tsk_GRE_no_grad';
 elseif ispc
     dir_seq = '/media/upload3t/CEST_seq/pulseq_zero/sequences';
     d = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
