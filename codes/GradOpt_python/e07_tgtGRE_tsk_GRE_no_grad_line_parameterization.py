@@ -83,7 +83,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([8,8])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -116,13 +116,13 @@ spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 spins.T1*=1
 spins.T2*=1
-plt.subplot(121)
-plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
-plt.title("PD")
-plt.subplot(122)
-plt.imshow(real_phantom_resized[:,:,3], interpolation='none')
-plt.title("inhom")
-plt.show()
+#plt.subplot(121)
+#plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
+#plt.title("PD")
+#plt.subplot(122)
+#plt.imshow(real_phantom_resized[:,:,3], interpolation='none')
+#plt.title("inhom")
+#plt.show()
 
 #begin nspins with R*
 R2 = 0.0
@@ -197,6 +197,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
+
 scanner.forward(spins, event_time)
 scanner.adjoint(spins)
 
@@ -263,18 +264,19 @@ def init_variables():
         grad_moms = setdevice(grad_moms)
         
     grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()        
-    grad_moms_mask[1:3,:,:] = 1
-    grad_moms_mask[-2,:,:] = 1
+    #grad_moms_mask[1,:,:] = 1
+    grad_moms_mask[2,:,:] = 1
+    #grad_moms_mask[-2,:,:] = 1
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
     
-    grad_moms[:,:,0] = 0      # remove spoiler gradients
+    grad_moms[2:-2,:,0] = 0      # freq encoding grads
     
     grad_moms[1,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
     grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
     
-    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
-    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+    #grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
+    #grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
         
     return [adc_mask, flips, event_time, grad_moms]
     
@@ -297,16 +299,18 @@ def phi_FRP_model(opt_params,aux_params):
 
         grad_moms = torch.sin(grad_moms)*fmax
         
-    #import pdb; pdb.set_trace()
+    regrad = setdevice(torch.zeros(grad_moms.shape).float())
+    regrad[1,:,:] = grad_moms[1,:,:]
+    #regrad[3:-2,:,:] = grad_moms[2,:,:].repeat([T-5,1,1])
+    regrad[3:-2,:,:] = grad_moms[2,:,:]*setdevice(torch.ones((T-5,NRep,2)).float())
+    regrad[-2,:,:] = grad_moms[-2,:,:]
+    #grad_moms = regrad
     
-    grad_moms[3:-2,:,:] *= 0
-    grad_moms[3:-2,:,:] += grad_moms[2,:,:]
-
     scanner.init_gradient_tensor_holder()          
-    scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) # GRE/FID specific, maybe adjust for higher echoes
+    scanner.set_gradient_precession_tensor(regrad,refocusing=False,wrap_k=False) # GRE/FID specific, maybe adjust for higher echoes
          
     # forward/adjoint pass
-    scanner.forward_mem(spins, event_time)
+    scanner.forward(spins, event_time)
     scanner.adjoint(spins)
 
     lbd = 10e1*0         # switch on of SAR cost
@@ -338,18 +342,15 @@ opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
 opt.set_opt_param_idx([3]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.01,0.1,0.7]
+opt.custom_learning_rate = [0.01,0.01,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
 print('<seq> Optimizing starts now...')
-opt.train_model(training_iter=20, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=20, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=20, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=20, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=20, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+for i in range(100):
+    opt.train_model(training_iter=20, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
@@ -362,6 +363,9 @@ print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.a
 stop()
 
 # %% # save optimized parameter history
+
+# propagate readout gradient step from action 2 to all actions
+opt.scanner_opt_params[3][3:-2,:,:] = opt.scanner_opt_params[3][2,:,:].repeat([T-5,1,1])
 
 opt.save_param_reco_history(experiment_id)
 opt.export_to_matlab(experiment_id)
