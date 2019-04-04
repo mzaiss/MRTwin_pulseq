@@ -1,5 +1,5 @@
 
-clear all; close all;
+clear all; 
 
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
@@ -13,10 +13,10 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
 %experiment_id = 'RARE_FA_OPT_fixrep1_90';
 % experiment_id = 'FLASH_spoiled_lowSAR';
-% experiment_id = 'GRE_base';
+experiment_id = 'FLASH_BASE_cartesian';
 % experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
 %  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
-experiment_id = 'tgtGRE_tsk_GRE_no_grad';
+ experiment_id = 'tgtGRE_tsk_GRE_no_grad';
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
@@ -48,7 +48,7 @@ set(gcf,'OuterPosition',[431         379        1040         513])
 seq_fn = [seq_dir,'/',experiment_id,'.seq'];
 
 SeqOpts.resolution = double(scanner_dict.sz);                                                                                            % matrix size
-SeqOpts.FOV = 220e-3;
+SeqOpts.FOV = 200e-3;
 SeqOpts.TE = 10e-3;          % fix
 SeqOpts.TR = 10000e-3;       % fix
 SeqOpts.FlipAngle = pi/2;    % fix
@@ -126,21 +126,29 @@ for rep=1:NRep
         end
         seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))      
         
-        gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys2);
-        seq.addBlock(gxPre,gyPre);
+        % calculated here, update in next event
+        gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));  
+        eventtime_revinder = squeeze(scanner_dict.event_times(idx_T,rep));   
       
-    % line acquisition T(3:end-1)
+        % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-2; % T(2)
         dur=sum(scanner_dict.event_times(idx_T,rep));
-        gx = mr.makeTrapezoid('x','Area',sum(gradmoms(idx_T,rep,1),1),'Duration',dur,'system',sys);
-        adc = mr.makeAdc(numel(idx_T),'Duration',dur-2*gx.riseTime-2*gx.fallTime,'Delay',2*gx.riseTime,'phaseOffset',rf.phaseOffset);
-        seq.addBlock(gx,adc);
-      
-    % second last extra event  T(end)
+        
+        gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
+        gy = mr.makeTrapezoid('y','FlatArea',sum(gradmoms(idx_T,rep,2),1),'FlatTime',dur,'system',sys);
+        adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
+       
+        %update revinder for gxgy ramp times, from second event
+        gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);
+        gyPre = mr.makeTrapezoid('y','Area',gradmom_revinder(2)-gy.amplitude*gy.riseTime/2,'Duration',eventtime_revinder,'system',sys);
+        seq.addBlock(gxPre,gyPre); % add updated rewinder event from second event
+        
+        seq.addBlock(gx,gy,adc);  % add ADC grad event
+
+    % second last extra event  T(end)  % adjusted also for fallramps of ADC
         idx_T=size(gradmoms,1)-1; % T(2)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys2);
+        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
         seq.addBlock(gxPost,gyPost);
     %  last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
@@ -164,9 +172,21 @@ subplot(3,2,1), title(experiment_id,'Interpreter','none');
 % plot k-spaces
 
 figure; plot(ktraj'); % plot the entire k-space trajectory
-figure; plot(ktraj(1,:),ktraj(2,:),'c',...
-             ktraj_adc(1,:),ktraj_adc(2,:),'g.'); % a 2D plot
+figure(88); plot(ktraj(1,:),ktraj(2,:),'c',...
+             ktraj_adc(1,:),ktraj_adc(2,:),'go'); hold on;% a 2D plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
+
+% from SIM
+  grad_moms = squeeze(scanner_dict.grad_moms*deltak);
+  temp = squeeze(cumsum(grad_moms(:,:,1:2),1));
+  ktraj_adc_sim_x =temp(:,:,1);  ktraj_adc_sim_x =ktraj_adc_sim_x(:);
+  ktraj_adc_sim_y =temp(:,:,2);  ktraj_adc_sim_y =ktraj_adc_sim_y(:);
+  
+  figure(88); plot(ktraj_adc_sim_x,ktraj_adc_sim_y,'x'); hold on;% a 2D plot
+         
+%   ktraj_adc_sim = ktraj_adc_sim(3:end-2,:,:);
+%   ktraj_adc_temp = reshape(permute(ktraj_adc_sim,[3,2,1]),2,[]);
+
 
 return
 

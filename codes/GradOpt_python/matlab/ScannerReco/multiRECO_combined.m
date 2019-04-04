@@ -36,7 +36,11 @@ niter = size(scanner_dict.flips,1);
 % array_SIM = [1:30,40:10:840];   % for sunday meas
 array_SIM = [1:150,160:10:1840]; % for new meas
 % array_SIM=array_SIM(1:niter);
+try
 load([d,'/','export_protocol.mat'],'idxarray_exported_itersteps');
+catch
+    idxarray_exported_itersteps=1:10000;
+end
 array_SIM = idxarray_exported_itersteps;
 
 
@@ -53,8 +57,10 @@ files = dir(fullfile(d, '/data/*.dat'));
 array_MEAS=1:numel(files);
 
 twix_obj = mapVBVD([d '/data/' files(1).name]);
-[sos_base, phase_base] = TWIXtoIMG_NUFFT(twix_obj,ktraj_adc);
+
+% [sos_base, phase_base] = TWIXtoIMG_NUFFT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
 % [sos_base, phase_base] = TWIXtoIMG_ADJOINT(twix_obj, scanner_dict, 1);
+[sos_base, phase_base] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
 
 % save([d '/data/twix_obj_array.mat'],'twix_obj_array');
 try
@@ -78,7 +84,8 @@ for ii=array_MEAS
 filename=files(ii).name;
 twix_obj=twix_obj_array{ii};
 % [sos, phase] = TWIXtoIMG_FFT(twix_obj);
-[sos, phase] = TWIXtoIMG_NUFFT(twix_obj,ktraj_adc);
+% [sos, phase] = TWIXtoIMG_NUFFT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
+[sos, phase] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
 % [sos, phase] = TWIXtoIMG_ADJOINT(twix_obj, scanner_dict, ii);
 
 if 1 % 1= detailed plot
@@ -98,7 +105,7 @@ ax=gca;
 CLIM=ax.CLim;
 CLIM=[-Inf Inf];
 
-[SIM_sos, SIM_phase] = SIMtoIMG_NUFFT(scanner_dict,ktraj_adc,ii);  % overwrites generated targets
+% [SIM_sos, SIM_phase] = SIMtoIMG_NUFFT(scanner_dict,ktraj_adc,ii);  % overwrites generated targets
 
 subplot(3,4,5), imagesc(rot90((SIM_phase_base).',2)), title('reco phase coil(1) '), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 subplot(3,4,2), imagesc(rot90((SIM_sos).',2),CLIM), title(sprintf('reco sos, optiter %d, SAR %f',jj,SIM_SAR)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
@@ -125,7 +132,7 @@ plot(ktraj_adc(1,:),ktraj_adc(2,:),'r.'); axis('equal'); title('k-space samples'
 grid on; hold off; axis('equal');
 set(gca,'XTick',[-kmax kmax]); set(gca,'YTick',[-kmax kmax]); set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 % pause(0.1);
-write_gif(ii,numel(array_MEAS),1,d,experiment_id,'full_nomask')
+write_gif(ii,numel(array_MEAS),1,d,experiment_id,'full')
 end
 
 
@@ -143,7 +150,7 @@ grid on; hold off;
 set(gca,'XTick',[-kmax kmax]); set(gca,'YTick',[-kmax kmax]); set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 % pause(0.1);
     set(gcf, 'Outerposition',[1362         272         294         480])
-write_gif(ii,numel(array_MEAS),2,d,experiment_id,'small_nomask')
+write_gif(ii,numel(array_MEAS),2,d,experiment_id,'small')
 end
 
 end

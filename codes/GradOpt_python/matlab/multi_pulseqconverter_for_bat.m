@@ -4,20 +4,22 @@ clear all; close all;
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
   seq_dir = '/media/upload3t/CEST_seq/pulseq_zero/sequences/seq190403';
+  experiment_id = 'e06_tgtGRE_tsk_GRE_no_grad_16_1kspins_lr0.1_onlyPE_50iter';
+  seq_dir =[seq_dir '/' experiment_id];
 else
   mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
+  seq_dir = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
+  out=regexp(seq_dir,'\','split');
+  experiment_id=out{end};
 end
-
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 
-experiment_id = 'e06_tgtGRE_tsk_GRE_no_grad_16_1kspins_lr0.1_onlyPE_50iter';
-
 ni = 30;
 
-scanner_dict = load([seq_dir,'/',experiment_id,'/','all_iter.mat']);
+scanner_dict = load([seq_dir,'/','all_iter.mat']);
 sz = double(scanner_dict.sz);
 T = scanner_dict.T;
 NRep = scanner_dict.NRep;
@@ -32,7 +34,7 @@ k = 1;
 
 idxarray_exported_itersteps = [1:150,160:10:niter];
 idxarray_exported_itersteps = [1:150,160:10:niter]; 
-idxarray_exported_itersteps = [1:10,20:10:niter];
+idxarray_exported_itersteps = [1:20,30:10:niter];
 
 idxarray_exported_itersteps = 1:niter;
 
@@ -43,7 +45,7 @@ for ni =  idxarray_exported_itersteps
 
   % plug learned gradients into the sequence constructor
   % close all
-  seq_fn = [seq_dir,'/',experiment_id,'/','seqiter',num2str(k),'.seq'];
+  seq_fn = [seq_dir,'/','seqiter',num2str(k),'.seq'];
   k = k + 1;
 
   SeqOpts.resolution = double(sz);                                                                                            % matrix size
@@ -156,3 +158,5 @@ for ni =  idxarray_exported_itersteps
   %subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 end
+
+save([seq_dir,'/',experiment_id,'/export_protocol.mat'],'idxarray_exported_itersteps','experiment_id');
