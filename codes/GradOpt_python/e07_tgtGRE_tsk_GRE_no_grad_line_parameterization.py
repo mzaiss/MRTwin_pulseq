@@ -84,7 +84,7 @@ def stop():
 
 # define setup
 sz = np.array([8,8])                                           # image size
-NRep = sz[1]                                          # number of repetitions
+NRep = sz[1]+4                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -309,8 +309,9 @@ def phi_FRP_model(opt_params,aux_params):
         grad_moms = torch.sin(grad_moms)*fmax
         
     regrad = setdevice(torch.zeros(grad_moms.shape).float())
-    regrad[1,:,:] = grad_moms[1,:,:]
+    #regrad[1,:,:] = grad_moms[1,:,:]
     #regrad[3:-2,:,:] = grad_moms[2,:,:].repeat([T-5,1,1])
+    regrad[1,:,:] = -grad_moms[2,:,:]*sz[0]/2                        # rewinder
     regrad[3:-2,:,:] = grad_moms[2,:,:]*setdevice(torch.ones((T-5,NRep,2)).float())
     regrad[-2,:,:] = grad_moms[-2,:,:]
     #grad_moms = regrad
@@ -351,7 +352,7 @@ opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
 opt.set_opt_param_idx([0,3]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.1,0.01,0.1,0.2]
+opt.custom_learning_rate = [0.05,0.01,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
@@ -359,7 +360,7 @@ opt.scanner_opt_params = opt.init_variables()
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
 print('<seq> Optimizing starts now...')
 for i in range(100):
-    opt.train_model(training_iter=20, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+    opt.train_model(training_iter=50, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
