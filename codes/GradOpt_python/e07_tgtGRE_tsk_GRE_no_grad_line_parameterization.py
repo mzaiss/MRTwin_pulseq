@@ -233,6 +233,12 @@ def init_variables():
     
     adc_mask = targetSeq.adc_mask.clone()
     #adc_mask.requires_grad = True     
+
+    adc_grad_mask = torch.ones(adc_mask.shape).float()     
+    adc_grad_mask[:2,:] = 0
+    adc_grad_mask[-2:,:] = 0
+    adc_grad_mask = setdevice(adc_grad_mask)
+    adc_mask.adc_grad_mask = adc_grad_mask
     
     flips = targetSeq.flips.clone()
     flips = setdevice(flips)
@@ -271,6 +277,7 @@ def init_variables():
     grad_moms.zero_grad_mask = grad_moms_mask
     
     grad_moms[2:-2,:,0] = 0      # freq encoding grads
+    grad_moms[2,:,:] = torch.rand(NRep,2) - 0.5
     
     grad_moms[1,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
     grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
@@ -285,6 +292,8 @@ def phi_FRP_model(opt_params,aux_params):
     
     adc_mask,flips,event_time, grad_moms = opt_params
     use_periodic_grad_moms_cap,_ = aux_params
+    
+    scanner.adc_mask = adc_mask
         
     scanner.init_flip_tensor_holder()
     scanner.set_flipXY_tensor(flips)    
@@ -341,8 +350,8 @@ opt.use_periodic_grad_moms_cap = 0           # GRE/FID specific, do not sample a
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([3]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.01,0.1,0.1]
+opt.set_opt_param_idx([0,3]) # ADC, RF, time, grad
+opt.custom_learning_rate = [0.1,0.01,0.1,0.2]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
