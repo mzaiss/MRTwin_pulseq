@@ -84,7 +84,7 @@ def stop():
 
 # define setup
 sz = np.array([8,8])                                           # image size
-NRep = sz[1]+4                                          # number of repetitions
+NRep = sz[1]+0                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
