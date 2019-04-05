@@ -124,23 +124,31 @@ for ni =  idxarray_exported_itersteps
             rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
             seq.addBlock(rf);
         end
-        seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
         
-        gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep),'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys2);
-        seq.addBlock(gxPre,gyPre);
+        
+        % calculated here, update in next event
+        gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));
+        eventtime_revinder = squeeze(event_times(idx_T,rep));
         
         % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-2; % T(2)
         dur=sum(event_times(idx_T,rep));
-        gx = mr.makeTrapezoid('x','Area',sum(gradmoms(idx_T,rep,1),1),'Duration',dur,'system',sys);
-        adc = mr.makeAdc(numel(idx_T),'Duration',dur-2*gx.riseTime-2*gx.fallTime,'Delay',2*gx.riseTime,'phaseOffset',rf.phaseOffset);
-        seq.addBlock(gx,adc);
         
-        % second last extra event  T(end)
+        gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
+        gy = mr.makeTrapezoid('y','FlatArea',sum(gradmoms(idx_T,rep,2),1),'FlatTime',dur,'system',sys);
+        adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
+        
+        %update revinder for gxgy ramp times, from second event
+        gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);
+        gyPre = mr.makeTrapezoid('y','Area',gradmom_revinder(2)-gy.amplitude*gy.riseTime/2,'Duration',eventtime_revinder,'system',sys);
+        seq.addBlock(gxPre,gyPre,mr.makeDelay(eventtime_revinder)); % add updated rewinder event from second event, including the full event time
+        
+        seq.addBlock(gx,gy,adc);  % add ADC grad event
+        
+        % second last extra event  T(end)  % adjusted also for fallramps of ADC
         idx_T=size(gradmoms,1)-1; % T(2)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys2);
+        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
         seq.addBlock(gxPost,gyPost);
         %  last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
