@@ -4,15 +4,15 @@
 % 2 ... Refocus in phase
 % 3 ... Vary RF phase quasi-randomly
 % 4 ... Make receiver phase follow transmitter phase
-step = 0;
+step = 1;
 
 % Create a new sequence object
 seq=mr.Sequence();
 
 % Define FOV and resolution
-fov = 256e-3;
+fov = 200e-3;
 sliceThickness = 5e-3;
-Nx = 128;
+Nx = 16;
 Ny = Nx;
 
 % Define sequence parameters

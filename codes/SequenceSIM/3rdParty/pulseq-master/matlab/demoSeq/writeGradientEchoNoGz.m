@@ -69,9 +69,10 @@ seq.plot();
 time_axis=(1:(size(ktraj,2)))*sys.gradRasterTime;
 figure; plot(time_axis, ktraj'); % plot the entire k-space trajectory
 hold; plot(t_adc,ktraj_adc(1,:),'.'); % and sampling points on the kx-axis
-figure(88); plot(ktraj(1,:),ktraj(2,:),'b'); % a 2D plot
+figure,
+plot(ktraj(1,:),ktraj(2,:),'b'); % a 2D plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
-hold; figure(88); plot(ktraj_adc(1,:),ktraj_adc(2,:),'r.'); % plot the sampling points
+hold; plot(ktraj_adc(1,:),ktraj_adc(2,:),'r.'); % plot the sampling points
 
 %% check whether the timing of the sequence is correct
 [ok, error_report]=seq.checkTiming;
