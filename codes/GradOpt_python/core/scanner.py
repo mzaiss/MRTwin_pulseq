@@ -342,7 +342,14 @@ class Scanner():
     def set_gradient_precession_tensor(self,grad_moms):
  
         grads=grad_moms
-        k=torch.cumsum(grads,0)
+        
+        padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
+        padder = self.setdevice(padder)
+        temp = torch.cat((padder,grad_moms),0)
+        temp = temp[:-1,:,:]
+        k=torch.cumsum(temp,0)
+        
+        #k=torch.cumsum(grads,0)
         
         B0X = torch.unsqueeze(grads[:,:,0],2) * self.rampX
         B0Y = torch.unsqueeze(grads[:,:,1],2) * self.rampY
@@ -583,7 +590,11 @@ class Scanner_fast(Scanner):
         
     def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False):
         
-        k=torch.cumsum(grad_moms,0)
+        padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
+        padder = self.setdevice(padder)
+        temp = torch.cat((padder,grad_moms),0)
+        temp = temp[:-1,:,:]
+        k=torch.cumsum(temp,0)
         
         B0X = torch.unsqueeze(grad_moms[:,:,0],2) * self.rampX
         B0Y = torch.unsqueeze(grad_moms[:,:,1],2) * self.rampY
