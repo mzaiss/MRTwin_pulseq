@@ -1,10 +1,10 @@
 
-clear all; 
+clear all;
 
 if isunix
-  mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
+    mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
 else
-  mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
+    mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
 end
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
@@ -16,7 +16,7 @@ seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
 experiment_id = 'FLASH_BASE_cartesian';
 % experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
 %  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
- experiment_id = 'tgtGRE_tsk_GRE_no_grad';
+experiment_id = 'tgtGRE_tsk_GRE_no_grad';
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
@@ -30,8 +30,8 @@ grad_moms = scanner_dict.grad_moms;
 if 0  % only when gradients were optimized, make sure gradmoms are between -res/2 res/2
     fmax = scanner_dict.sz / 2;                                                                                % cap the grad_moms to [-1..1]*sz/2
     for i = 1:2
-      grad_moms(:,:,i) = fmax(i)*tanh(grad_moms(:,:,i));                                                                        % soft threshold
-      %grad_moms(abs(grad_moms(:,i)) > fmax(i),i) = sign(grad_moms(abs(grad_moms(:,i)) > fmax(i),i))*fmax(i);  % hard threshold, this part is nondifferentiable
+        grad_moms(:,:,i) = fmax(i)*tanh(grad_moms(:,:,i));                                                                        % soft threshold
+        %grad_moms(abs(grad_moms(:,i)) > fmax(i),i) = sign(grad_moms(abs(grad_moms(:,i)) > fmax(i),i))*fmax(i);  % hard threshold, this part is nondifferentiable
     end
 end
 
@@ -94,67 +94,69 @@ deltak=1/SeqOpts.FOV;
 
 T = size(scanner_dict.grad_moms,1);
 NRep = size(scanner_dict.grad_moms,2);
+flips = double(squeeze(scanner_dict.flips(idx,:,:,:)));
+event_times = double(squeeze(scanner_dict.event_times(idx,:,:)));
+gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
+
 
 % put blocks together
 for rep=1:NRep
-
-    gradmoms = double(scanner_dict.grad_moms)*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
-
+    
     % first two extra events T(1:2)
     % first
-      idx_T=1; % T(1)
-          
-      if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
+    idx_T=1; % T(1)
+    
+    if abs(flips(idx_T,rep,1)) > 1e-8
         use = 'excitation';
-        rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
+        rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
         seq.addBlock(rf);
-      end
-%       seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
-      gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-      gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-      seq.addBlock(gxPre,gyPre);
-      % alternatively slice selective:
-        %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
-        % see writeHASTE.m      
-      
-    % second      
-        idx_T=2; % T(2)
-        use = 'refocusing';
-        if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
-          rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
-          seq.addBlock(rf);
-        end
-        seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))      
-        
-        % calculated here, update in next event
-        gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));  
-        eventtime_revinder = squeeze(scanner_dict.event_times(idx_T,rep));   
-      
-        % line acquisition T(3:end-1)
-        idx_T=3:size(gradmoms,1)-2; % T(2)
-        dur=sum(scanner_dict.event_times(idx_T,rep));
-        
-        gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
-        gy = mr.makeTrapezoid('y','FlatArea',sum(gradmoms(idx_T,rep,2),1),'FlatTime',dur,'system',sys);
-        adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
-       
-        %update revinder for gxgy ramp times, from second event
-        gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmom_revinder(2)-gy.amplitude*gy.riseTime/2,'Duration',eventtime_revinder,'system',sys);
-        seq.addBlock(gxPre,gyPre); % add updated rewinder event from second event
-        
-        seq.addBlock(gx,gy,adc);  % add ADC grad event
-
+    end
+    %       seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
+    gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep),'system',sys);
+    gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys);
+    seq.addBlock(gxPre,gyPre);
+    % alternatively slice selective:
+    %[rf, gz, gzr] = makeSincPulse(flips(idx_T,rep,1))
+    % see writeHASTE.m
+    
+    % second
+    idx_T=2; % T(2)
+    use = 'refocusing';
+    if abs(flips(idx_T,rep,1)) > 1e-8
+        rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+        seq.addBlock(rf);
+    end
+    
+    
+    % calculated here, update in next event
+    gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));
+    eventtime_revinder = squeeze(event_times(idx_T,rep));
+    
+    % line acquisition T(3:end-1)
+    idx_T=3:size(gradmoms,1)-2; % T(2)
+    dur=sum(event_times(idx_T,rep));
+    
+    gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
+    gy = mr.makeTrapezoid('y','FlatArea',sum(gradmoms(idx_T,rep,2),1),'FlatTime',dur,'system',sys);
+    adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
+    
+    %update revinder for gxgy ramp times, from second event
+    gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);
+    gyPre = mr.makeTrapezoid('y','Area',gradmom_revinder(2)-gy.amplitude*gy.riseTime/2,'Duration',eventtime_revinder,'system',sys);
+    seq.addBlock(gxPre,gyPre,mr.makeDelay(eventtime_revinder)); % add updated rewinder event from second event, including the full event time
+    
+    seq.addBlock(gx,gy,adc);  % add ADC grad event
+    
     % second last extra event  T(end)  % adjusted also for fallramps of ADC
-        idx_T=size(gradmoms,1)-1; % T(2)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        seq.addBlock(gxPost,gyPost);
+    idx_T=size(gradmoms,1)-1; % T(2)
+    gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+    gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+    seq.addBlock(gxPost,gyPost);
     %  last extra event  T(end)
-        idx_T=size(gradmoms,1); % T(2)
-        seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))   
-     
-
+    idx_T=size(gradmoms,1); % T(2)
+    seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
+    
+    
 end
 
 %write sequence
@@ -173,17 +175,17 @@ subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 figure; plot(ktraj'); % plot the entire k-space trajectory
 figure(88); plot(ktraj(1,:),ktraj(2,:),'c',...
-             ktraj_adc(1,:),ktraj_adc(2,:),'go'); hold on;% a 2D plot
+    ktraj_adc(1,:),ktraj_adc(2,:),'go'); hold on;% a 2D plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
 
 % from SIM
-  grad_moms = squeeze(scanner_dict.grad_moms*deltak);
-  temp = squeeze(cumsum(grad_moms(:,:,1:2),1));
-  ktraj_adc_sim_x =temp(:,:,1);  ktraj_adc_sim_x =ktraj_adc_sim_x(:);
-  ktraj_adc_sim_y =temp(:,:,2);  ktraj_adc_sim_y =ktraj_adc_sim_y(:);
-  
-  figure(88); plot(ktraj_adc_sim_x,ktraj_adc_sim_y,'x'); hold on;% a 2D plot
-         
+grad_moms = squeeze(scanner_dict.grad_moms*deltak);
+temp = squeeze(cumsum(grad_moms(:,:,1:2),1));
+ktraj_adc_sim_x =temp(:,:,1);  ktraj_adc_sim_x =ktraj_adc_sim_x(:);
+ktraj_adc_sim_y =temp(:,:,2);  ktraj_adc_sim_y =ktraj_adc_sim_y(:);
+
+figure(88); plot(ktraj_adc_sim_x,ktraj_adc_sim_y,'x'); hold on;% a 2D plot
+
 %   ktraj_adc_sim = ktraj_adc_sim(3:end-2,:,:);
 %   ktraj_adc_temp = reshape(permute(ktraj_adc_sim,[3,2,1]),2,[]);
 
@@ -212,7 +214,7 @@ InVol = double(cat(3,PD,T1,T2));
 numSpins = 1;
 [kList, kloc] = RunMRIzeroBlochSimulationNSpins(InVol, seqFilename, 1);
 kloc = reshape(kloc,2,sz(1),sz(2));
-kloc(1,:,:) = kloc(1,:,:) 
+kloc(1,:,:) = kloc(1,:,:)
 % kloc=ktraj_adc/max(ktraj_adc(:))*0.5;
 %gradMoms(1,:,3) = gradMoms(1,:,3) + 1;
 %gradMoms(1,:,13) = gradMoms(1,:,13) + 1;
@@ -266,11 +268,11 @@ reco = reshape(reco,sz);
 %}
 
 figure(1),
-  imagesc(abs(reco));
+imagesc(abs(reco));
 
-  
-  
-  
+
+
+
 
 %% FIRST approach of full individual gradmoms (WIP)
 
@@ -313,11 +315,11 @@ for rep=1:NRep
     figure(111), scatter(cum_grad_moms(:,rep,2)+sz(1)/2,cum_grad_moms(:,rep,1)+sz(1)/2,'Displayname','from BlochSim'); title('cumgradmoms'); hold on;
     
     for kx = 1:T
-      
-      gradXevent.amplitude=1*learned_grads(kx,rep,1)*amplitude;
-      gradYevent.amplitude=1*learned_grads(kx,rep,2)*amplitude;
-
-      seq.addBlock(gradXevent,gradYevent,adc);
+        
+        gradXevent.amplitude=1*learned_grads(kx,rep,1)*amplitude;
+        gradYevent.amplitude=1*learned_grads(kx,rep,2)*amplitude;
+        
+        seq.addBlock(gradXevent,gradYevent,adc);
     end
     
     seq.addBlock(mr.makeDelay(delayTR))
