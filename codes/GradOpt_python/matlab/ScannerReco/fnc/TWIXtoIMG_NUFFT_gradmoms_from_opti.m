@@ -22,8 +22,9 @@ function [SOS, phase] = TWIXtoIMG_NUFFT_gradmoms_from_opti(twix_obj,grad_moms)
   %% Reconstruct coil images
   images = zeros(size(raw_kspace));
 
-  grad_moms = squeeze(grad_moms);
-  ktraj_adc_sim = squeeze(cumsum(grad_moms(:,:,1:2),1));
+  grad_moms = squeeze(grad_moms(:,:,1:2));
+  grad_moms = cat(1,zeros(1,NRep,2),grad_moms);
+  ktraj_adc_sim = squeeze(cumsum(grad_moms(1:end-1,:,:),1));
   ktraj_adc_sim = ktraj_adc_sim(3:end-2,:,:);
   ktraj_adc_temp = reshape(permute(ktraj_adc_sim,[3,2,1]),2,[]);
   
