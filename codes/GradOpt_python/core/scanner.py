@@ -460,9 +460,17 @@ class Scanner():
             self.ROI_signal[0,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
             
             for t in range(self.T):                                      # for all actions
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                self.read_signal(t,r,spins)    
+                
+                self.ROI_signal[t+1,r,0] =   delay
+                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+
+                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t+1,r,4] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
+                
                 self.flip(t,r,spins)
                 
-                delay = torch.abs(event_time[t,r]) + 1e-6
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
@@ -472,13 +480,7 @@ class Scanner():
                 self.grad_precess(r,spins)
                 
                 self.grad_intravoxel_precess(t,r,spins)
-                self.read_signal(t,r,spins)    
                 
-                self.ROI_signal[t+1,r,0] =   delay
-                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
-
-                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                self.ROI_signal[t+1,r,4] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
                 
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -495,9 +497,17 @@ class Scanner():
             self.ROI_signal[0,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
             
             for t in range(self.T):                                      # for all actions
+                self.read_signal(t,r,spins)    
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                
+                self.ROI_signal[t+1,r,0] =   delay
+                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+
+                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t+1,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                   
+                
                 spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                 
-                delay = torch.abs(event_time[t,r]) + 1e-6
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
@@ -512,13 +522,7 @@ class Scanner():
                     
                 spins.M = GradPrecessClass.apply(self.G[r,:,:,:],spins.M,self)
                 spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
-                self.read_signal(t,r,spins)    
-                
-                self.ROI_signal[t+1,r,0] =   delay
-                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
-
-                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                self.ROI_signal[t+1,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
+            
                 
                 
         # kill numerically unstable parts of M vector for backprop
@@ -728,9 +732,17 @@ class Scanner_fast(Scanner):
             self.ROI_signal[0,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
             
             for t in range(self.T):                                      # for all actions
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                self.read_signal(t,r,spins)    
+                
+                self.ROI_signal[t+1,r,0] =   delay
+                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+
+                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t+1,r,4] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                 
+                
                 self.flip(t,r,spins)
                 
-                delay = torch.abs(event_time[t,r]) + 1e-6
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
@@ -738,18 +750,12 @@ class Scanner_fast(Scanner):
                     
                 self.grad_precess(t,r,spins)
                 self.grad_intravoxel_precess(t,r,spins)
-                self.read_signal(t,r,spins)    
-                
-                self.ROI_signal[t+1,r,0] =   delay
-                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
-
-                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                self.ROI_signal[t+1,r,4] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
+               
                 
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
             self.signal = torch.matmul(self.AF,self.signal)
-                
+
     def forward_mem(self,spins,event_time):
         self.init_signal()
         spins.set_initial_magnetization()
@@ -761,9 +767,17 @@ class Scanner_fast(Scanner):
             self.ROI_signal[0,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
             
             for t in range(self.T):                                      # for all actions
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                self.read_signal(t,r,spins)    
+                
+                self.ROI_signal[t+1,r,0] =   delay
+                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
+
+                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t+1,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel    
+                
                 spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                 
-                delay = torch.abs(event_time[t,r]) + 1e-6
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
@@ -776,13 +790,7 @@ class Scanner_fast(Scanner):
                     
                 spins.M = GradPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
                 spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
-                self.read_signal(t,r,spins)    
-                
-                self.ROI_signal[t+1,r,0] =   delay
-                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
-
-                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                self.ROI_signal[t+1,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                
+            
                 
                 
         # kill numerically unstable parts of M vector for backprop

@@ -94,9 +94,11 @@ class Scanner_batched(scanner.Scanner):
         # scanner forward process loop
         for r in range(self.NRep):                                   # for all repetitions
             for t in range(self.T):                                      # for all actions
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                self.read_signal(t,r,spins)    
+                
                 self.flip(t,r,spins)
                 
-                delay = torch.abs(event_time[t,r]) + 1e-6
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
@@ -106,7 +108,6 @@ class Scanner_batched(scanner.Scanner):
                 self.grad_precess(r,spins)
                 
                 self.grad_intravoxel_precess(t,r,spins)
-                self.read_signal(t,r,spins)    
                 
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -120,9 +121,12 @@ class Scanner_batched(scanner.Scanner):
         for r in range(self.NRep):                                   # for all repetitions
             
             for t in range(self.T):                                      # for all actions
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                self.read_signal(t,r,spins)    
+                
                 spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                 
-                delay = torch.abs(event_time[t,r]) + 1e-6
+                
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
@@ -137,7 +141,6 @@ class Scanner_batched(scanner.Scanner):
                     
                 spins.M = GradPrecessClass.apply(self.G[r,:,:,:],spins.M,self)
                 spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
-                self.read_signal(t,r,spins)    
                 
                 
         # kill numerically unstable parts of M vector for backprop
@@ -266,9 +269,10 @@ class Scanner_fast_batched(scanner.Scanner_fast):
         # scanner forward process loop
         for r in range(self.NRep):                                   # for all repetitions
             for t in range(self.T):                                      # for all actions
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                self.read_signal(t,r,spins)    
                 self.flip(t,r,spins)
                 
-                delay = torch.abs(event_time[t,r]) + 1e-6
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
@@ -276,7 +280,6 @@ class Scanner_fast_batched(scanner.Scanner_fast):
                     
                 self.grad_precess(t,r,spins)
                 self.grad_intravoxel_precess(t,r,spins)
-                self.read_signal(t,r,spins)    
                 
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -289,9 +292,12 @@ class Scanner_fast_batched(scanner.Scanner_fast):
         # scanner forward process loop
         for r in range(self.NRep):                                   # for all repetitions
             for t in range(self.T):                                      # for all actions
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                self.read_signal(t,r,spins)    
+                
                 spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                 
-                delay = torch.abs(event_time[t,r]) + 1e-6
+                
                 self.set_relaxation_tensor(spins,delay)
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
@@ -304,7 +310,6 @@ class Scanner_fast_batched(scanner.Scanner_fast):
                     
                 spins.M = GradPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
                 spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
-                self.read_signal(t,r,spins)    
                 
         # kill numerically unstable parts of M vector for backprop
         self.tmask = torch.zeros((self.NVox)).byte()
