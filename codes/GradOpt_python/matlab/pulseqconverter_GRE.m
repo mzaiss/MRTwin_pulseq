@@ -17,6 +17,9 @@ experiment_id = 'FLASH_BASE_cartesian';
 % experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
 %  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
 experiment_id = 'tgtGRE_tsk_GRE_no_grad';
+% experiment_id = 'e08_tgtGRE_tsk_GRE_no_grad_1.2s_newrelease';
+experiment_id = 'e06_tgtGRE_tsk_GRE_no_grad_1.2s';
+
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
@@ -43,7 +46,7 @@ subplot(2,3,2), imagesc(scanner_dict.event_times'); title('delays');colorbar
 subplot(2,3,3), imagesc(grad_moms(:,:,1)');         title('gradmomx');colorbar
 subplot(2,3,6), imagesc(grad_moms(:,:,2)');          title('gradmomy');colorbar
 set(gcf,'OuterPosition',[431         379        1040         513])
-%% plug learned gradients into the sequence constructor
+% plug learned gradients into the sequence constructor
 % close all
 seq_fn = [seq_dir,'/',experiment_id,'.seq'];
 
@@ -55,7 +58,8 @@ SeqOpts.FlipAngle = pi/2;    % fix
 
 
 % set system limits
-button = questdlg('Generate for Scanner or Simulation?','MaxSlewrate check','Scanner','Simulation','Simulation');
+% button = questdlg('Generate for Scanner or Simulation?','MaxSlewrate check','Scanner','Simulation','Simulation');
+button= 'Scanner';
 if strcmp(button,'Scanner') maxSlew=140; else maxSlew=140*1000000000; end; sprintf('sys.maxSlew %d',maxSlew)
 % had to slow down ramps and increase adc_duration to avoid stimulation
 sys = mr.opts('MaxGrad',36,'GradUnit','mT/m',...
@@ -79,7 +83,7 @@ Nx = SeqOpts.resolution(1); Ny = SeqOpts.resolution(2);
 % 16 actions within one repetition are played out as one gradient event
 % with 16 samples
 
-%% APPROACH B: line read approach
+% APPROACH B: line read approach
 % we have to calculate the actually necessary gradients from the grad moms
 % this is easy when using the AREA of the pulseqgrads  and gradmoms*deltak
 
@@ -94,9 +98,9 @@ deltak=1/SeqOpts.FOV;
 
 T = size(scanner_dict.grad_moms,1);
 NRep = size(scanner_dict.grad_moms,2);
-flips = double(squeeze(scanner_dict.flips(idx,:,:,:)));
-event_times = double(squeeze(scanner_dict.event_times(idx,:,:)));
-gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
+flips = double(squeeze(scanner_dict.flips(:,:,:)));
+event_times = double(squeeze(scanner_dict.event_times(:,:)));
+gradmoms = double(squeeze(scanner_dict.grad_moms(:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
 
 
 % put blocks together
@@ -111,23 +115,15 @@ for rep=1:NRep
         rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
         seq.addBlock(rf);
     end
-    %       seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
-    gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep),'system',sys);
-    gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys);
-    seq.addBlock(gxPre,gyPre);
+    seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
+%     gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep),'system',sys);
+%     gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys);
+%     seq.addBlock(gxPre,gyPre);
     % alternatively slice selective:
-    %[rf, gz, gzr] = makeSincPulse(flips(idx_T,rep,1))
-    % see writeHASTE.m
+    %[rf, gz, gzr] = makeSincPulse(flips(idx_T,rep,1)) % see writeHASTE.m
     
-    % second
+    % second  (rewinder)
     idx_T=2; % T(2)
-    use = 'refocusing';
-    if abs(flips(idx_T,rep,1)) > 1e-8
-        rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
-        seq.addBlock(rf);
-    end
-    
-    
     % calculated here, update in next event
     gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));
     eventtime_revinder = squeeze(event_times(idx_T,rep));
@@ -143,7 +139,7 @@ for rep=1:NRep
     %update revinder for gxgy ramp times, from second event
     gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);
     gyPre = mr.makeTrapezoid('y','Area',gradmom_revinder(2)-gy.amplitude*gy.riseTime/2,'Duration',eventtime_revinder,'system',sys);
-    seq.addBlock(gxPre,gyPre,mr.makeDelay(eventtime_revinder)); % add updated rewinder event from second event, including the full event time
+    seq.addBlock(gxPre,gyPre); % add updated rewinder event from second event, including the full event time
     
     seq.addBlock(gx,gy,adc);  % add ADC grad event
     
@@ -162,8 +158,8 @@ end
 %write sequence
 seq.write(seq_fn);
 
-seq.plot();
-subplot(3,2,1), title(experiment_id,'Interpreter','none');
+% seq.plot();
+% subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 
 
@@ -175,16 +171,18 @@ subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 figure; plot(ktraj'); % plot the entire k-space trajectory
 figure(88); plot(ktraj(1,:),ktraj(2,:),'c',...
-    ktraj_adc(1,:),ktraj_adc(2,:),'go'); hold on;% a 2D plot
+    ktraj_adc(1,:),ktraj_adc(2,:),'go'); hold on;  % a 2D plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
+legend({'k-pulseq','ADC-pulseq'});
 
 % from SIM
 grad_moms = squeeze(scanner_dict.grad_moms*deltak);
+grad_moms =cat(1,zeros(1,NRep,2),grad_moms);
 temp = squeeze(cumsum(grad_moms(:,:,1:2),1));
 ktraj_adc_sim_x =temp(:,:,1);  ktraj_adc_sim_x =ktraj_adc_sim_x(:);
 ktraj_adc_sim_y =temp(:,:,2);  ktraj_adc_sim_y =ktraj_adc_sim_y(:);
 
-figure(88); plot(ktraj_adc_sim_x,ktraj_adc_sim_y,'x'); hold on;% a 2D plot
+figure(88); plot(ktraj_adc_sim_x,ktraj_adc_sim_y,'b.-','DisplayName','k-sim'); hold on;% a 2D plot
 
 %   ktraj_adc_sim = ktraj_adc_sim(3:end-2,:,:);
 %   ktraj_adc_temp = reshape(permute(ktraj_adc_sim,[3,2,1]),2,[]);
