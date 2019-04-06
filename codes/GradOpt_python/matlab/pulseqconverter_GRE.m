@@ -18,7 +18,7 @@ experiment_id = 'FLASH_BASE_cartesian';
 %  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
 experiment_id = 'tgtGRE_tsk_GRE_no_grad';
 % experiment_id = 'e08_tgtGRE_tsk_GRE_no_grad_1.2s_newrelease';
-experiment_id = 'e06_tgtGRE_tsk_GRE_no_grad_1.2s';
+experiment_id = 'e06_tgtGRE_tsk_GRE_no_grad_0s';
 
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
@@ -145,8 +145,8 @@ for rep=1:NRep
     
     % second last extra event  T(end)  % adjusted also for fallramps of ADC
     idx_T=size(gradmoms,1)-1; % T(2)
-    gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-    gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+    gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
+    gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
     seq.addBlock(gxPost,gyPost);
     %  last extra event  T(end)
     idx_T=size(gradmoms,1); % T(2)

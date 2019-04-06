@@ -37,7 +37,7 @@ idxarray_exported_itersteps = [1:150,160:10:niter];
 idxarray_exported_itersteps = [1:150,160:10:niter];
 idxarray_exported_itersteps = [1:20,30:10:niter];
 
-idxarray_exported_itersteps = 1:niter;
+idxarray_exported_itersteps = [1:50, 52:2:100, 110:10:niter];
 
 for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     
@@ -50,7 +50,7 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     k = k + 1;
     
     SeqOpts.resolution = double(sz);                                                                                            % matrix size
-    SeqOpts.FOV = 220e-3;
+    SeqOpts.FOV = 200e-3;
     SeqOpts.TE = 10e-3;          % fix
     SeqOpts.TR = 10000e-3;       % fix
     SeqOpts.FlipAngle = pi/2;    % fix
@@ -58,7 +58,7 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     
     % set system limits
     button = 'Scanner';
-    if strcmp(button,'Scanner') maxSlew=140; else maxSlew=140*1000000000; end; sprintf('sys.maxSlew %d',maxSlew)
+    if strcmp(button,'Scanner') maxSlew=140; else maxSlew=140*1000000000; end; 
     % had to slow down ramps and increase adc_duration to avoid stimulation
     sys = mr.opts('MaxGrad',36,'GradUnit','mT/m',...
         'MaxSlew',maxSlew,'SlewUnit','T/m/s',...
@@ -103,6 +103,7 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         event_times = double(squeeze(scanner_dict.event_times(idx,:,:)));
         gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
     end
+
     % put blocks together
     for rep=1:NRep
         
@@ -145,8 +146,12 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         
         % second last extra event  T(end)  % adjusted also for fallramps of ADC
         idx_T=size(gradmoms,1)-1; % T(2)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        if k==1
+        gxPost = mr.makeTrapezoid('x','Area',0.5*gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',1.5*event_times(idx_T,rep),'system',sys);
+        else
+            gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
+        end
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
         seq.addBlock(gxPost,gyPost);
         %  last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
@@ -159,10 +164,10 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     seq.write(seq_fn);
     
     pause(2);
-    
+    fprintf('%d of %d\n',k,numel(idxarray_exported_itersteps));
     %seq.plot();
     %subplot(3,2,1), title(experiment_id,'Interpreter','none');
     
 end
 
-save([seq_dir,'/',experiment_id,'/export_protocol.mat'],'idxarray_exported_itersteps','experiment_id');
+save([seq_dir,'/export_protocol.mat'],'idxarray_exported_itersteps','experiment_id');

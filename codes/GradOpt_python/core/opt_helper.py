@@ -312,6 +312,14 @@ class OPT_helper():
             fig = plt.gcf()
             fig.set_size_inches(18, 3)
             fig.colorbar(ax)
+# k-space plot - WIP            
+#            ax1=plt.subplot(2, 5, 5)
+#            ax=plt.plot(np.cumsum(np.ravel(tonumpy(self.scanner_opt_params[3][:,:,0]))),np.cumsum(tonumpy(self.scanner_opt_params[3][:,:,1].unravel())),cmap=plt.get_cmap('nipy_spectral'))
+#            plt.ion()
+#            plt.title('k-space')
+#            fig = plt.gcf()
+#            fig.set_size_inches(18, 3)
+#            fig.colorbar(ax)
                
             
             ax1=plt.subplot(2, 5, 10)
