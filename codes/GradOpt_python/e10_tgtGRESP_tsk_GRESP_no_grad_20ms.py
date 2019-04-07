@@ -12,7 +12,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e06_tgtGREnorfspoil_tsk_GRE_no_grad_20ms'
+experiment_id = 'e10_tgtGRESP_tsk_GRESP_no_grad_20ms_24'
 experiment_description = """
 tgt FLASHspoiled_relax0.1s task find all grads except read ADC grads
 this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
@@ -82,7 +82,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -196,7 +196,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-scanner.forward(spins, event_time)
+scanner.forward_mem(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
@@ -298,7 +298,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) # GRE/FID specific, maybe adjust for higher echoes
          
     # forward/adjoint pass
-    scanner.forward(spins, event_time)
+    scanner.forward_mem(spins, event_time)
     scanner.adjoint(spins)
 
     lbd = 10e1*0         # switch on of SAR cost
@@ -335,7 +335,7 @@ opt.custom_learning_rate = [0.01,0.01,0.1,0.7]
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
-lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.7, 0.2, 0.1, 0.1])
+lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.5, 0.2, 0.1, 0.1])
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
 
 for i in range(7):
