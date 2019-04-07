@@ -406,6 +406,7 @@ class OPT_helper():
         all_grad_moms = np.zeros((NIter,T,NRep,2))
         all_reco_images = np.zeros((NIter,sz_x,sz_y,2))
         all_signals = np.zeros((NIter,T,NRep,3))
+        all_errors = np.zeros((NIter,1))
         
         for ni in range(NIter):
             all_adc_masks[ni] = param_reco_history[ni]['adc_mask'].ravel()
@@ -414,7 +415,7 @@ class OPT_helper():
             all_grad_moms[ni] = param_reco_history[ni]['grad_moms']
             all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
             all_signals[ni] = param_reco_history[ni]['signal'].reshape([T,NRep,3])
-            
+            all_errors[ni] = param_reco_history[ni]['error']
         
         scanner_dict = dict()
         scanner_dict['all_adc_masks'] = all_adc_masks
@@ -423,6 +424,7 @@ class OPT_helper():
         scanner_dict['grad_moms'] = all_grad_moms
         scanner_dict['reco_images'] = all_reco_images
         scanner_dict['all_signals'] = all_signals
+        scanner_dict['all_errors'] = all_errors
         scanner_dict['sz'] = np.array([sz_x,sz_y])
         scanner_dict['T'] = T
         scanner_dict['NRep'] = NRep
