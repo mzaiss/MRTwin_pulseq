@@ -117,4 +117,4 @@ class TargetSequenceHolder():
             os.mkdir(path)
         except:
             print('export_to_matlab: directory already exists')
-        scipy.io.savemat(os.path.join(path,"scanner_dict.mat"), scanner_dict)
+        scipy.io.savemat(os.path.join(path,"scanner_dict_tgt.mat"), scanner_dict)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+﻿#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
 Created on Tue Jan 29 14:38:26 2019
@@ -12,7 +12,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e06_tgtGREnorfspoil_tsk_GRE_no_grad_20ms'
+experiment_id = 'e06_tgtGREnorfspoil_tsk_GRE_no_grad_noflip_20ms'
 experiment_description = """
 tgt FLASHspoiled_relax0.1s task find all grads except read ADC grads
 this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
@@ -175,6 +175,7 @@ event_time[-2,:] = 15.4*1e-3
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])
+TE=torch.sum(event_time[:11,1])
 
 # gradient-driver precession
 # Cartesian encoding
@@ -233,6 +234,7 @@ def init_variables():
     #adc_mask.requires_grad = True     
     
     flips = targetSeq.flips.clone()
+    flips[0,:,:]=flips[0,:,:]*0
     flips = setdevice(flips)
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
@@ -301,7 +303,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 10e1*0         # switch on of SAR cost
+    lbd = 1e1         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -329,8 +331,8 @@ opt.use_periodic_grad_moms_cap = 0           # GRE/FID specific, do not sample a
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([3]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.01,0.1,0.7]
+opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
+opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
@@ -339,9 +341,9 @@ lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.7, 0.2, 0.1, 0.1])
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
 
 for i in range(7):
-    opt.custom_learning_rate = [0.01,0.01,0.1,lr_inc[i]]
+    opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=20, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+    opt.train_model(training_iter=40, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 opt.train_model(training_iter=1000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
