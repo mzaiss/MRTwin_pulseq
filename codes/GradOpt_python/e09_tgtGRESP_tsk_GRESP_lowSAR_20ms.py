@@ -12,7 +12,7 @@ experiment desciption:
 
 """
 
-experiment_id = 'e06_tgtGREnorfspoil_tsk_GRE_no_grad_20ms'
+experiment_id = 'e10_tgtGRESP_tsk_GRESP_no_grad_20ms_lbd10_24'
 experiment_description = """
 tgt FLASHspoiled_relax20ms task
 """
@@ -80,7 +80,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -194,7 +194,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-scanner.forward(spins, event_time)
+scanner.forward_mem(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
@@ -290,10 +290,10 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) # GRE/FID specific, maybe adjust for higher echoes
          
     # forward/adjoint pass
-    scanner.forward(spins, event_time)
+    scanner.forward_mem(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 10e1         # switch on of SAR cost
+    lbd = 5e1         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
