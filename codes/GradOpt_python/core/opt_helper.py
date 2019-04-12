@@ -160,6 +160,11 @@ class SGD_vanilla(Optimizer):
                 if p.grad is None:
                     continue
                 d_p = p.grad.data
+
+                # set to zero masked-out entries
+                if hasattr(p,'zero_grad_mask'):
+                    d_p *= p.zero_grad_mask                
+                
                 p.data.add_(-group['lr'], d_p)
 
         return loss
