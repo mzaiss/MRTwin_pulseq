@@ -31,13 +31,23 @@ idxarray = [1:10,20:10:840];
 array = 1:niter;
 % array = [1:30,40:10:840];
 % array = [1:50,20:10:niter];
-    
+
 sos_base= abs(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco_images(1,:,:,2)));
 phase_base = angle(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco_images(1,:,:,2)));
 
 sos_tgt= abs(squeeze(scanner_dict_tgt.reco(:,:,1)+1j*scanner_dict_tgt.reco(:,:,2)));
 phase_tgt = angle(squeeze(scanner_dict_tgt.reco(:,:,1)+1j*scanner_dict_tgt.reco(:,:,2)));
 SAR_tgt = sum(reshape((scanner_dict_tgt.flips(:,:,1).^2),1,[]));
+
+loss=array*0;
+SARloss=array*0;
+for ii=array
+% loss_image = (squeeze(scanner_dict.reco_images(ii,:,:,:)) - scanner_dict_tgt.reco);
+loss_image = (squeeze(scanner_dict.reco_images(ii,:,:,:)) - scanner_dict_tgt.reco);   % only magnitude optimization
+loss(ii) = sum(loss_image(:).^2)/(sz(1)*sz(2));
+loss(ii) = 100*sqrt(loss(ii)) / sqrt(sum(scanner_dict_tgt.reco(:).^2)/(sz(1)*sz(2)));
+SARloss(ii) = sum(reshape((squeeze(scanner_dict.flips(ii,:,:,1).^2)),1,[]))./SAR_tgt*100;
+end
 
 n=0;
 for ii=array
@@ -64,14 +74,18 @@ subplot(3,3,5), imagesc(flipud(flipud(phase)')), title(' phase coil(1) '), axis(
 deltak=1/200e-3;
 grad_moms = squeeze(scanner_dict.grad_moms(ii,:,:,:)*deltak);
 temp = squeeze(cumsum(grad_moms(:,:,1:2),1));
-ktraj_adc_sim_x =temp(:,:,1);  ktraj_adc_sim_x =ktraj_adc_sim_x(:);
-ktraj_adc_sim_y =temp(:,:,2);  ktraj_adc_sim_y =ktraj_adc_sim_y(:);
-subplot(3,3,7), plot(ktraj_adc_sim_x,ktraj_adc_sim_y,'b.-','DisplayName','k-sim');% a 2D plot
+subplot(3,3,7), 
+plot(temp(:,:,1),temp(:,:,2),'-','DisplayName','k-sim'); hold on;% a 2D plot
+set(gca, 'ColorOrder', circshift(get(gca, 'ColorOrder'),-1)); colormap(gca,jet(size(temp,2))); 
+plot(temp(3:end-2,:,1),temp(3:end-2,:,2),'.','DisplayName','k-sim'); % a 2D plot
+hold off;
 
-subplot(3,3,8), plot(squeeze(scanner_dict_tgt.flips(1,:,1)),'g','DisplayName','flips tgt'); hold on;% a 2D plot
-subplot(3,3,8), plot(abs(squeeze(scanner_dict.flips(ii,1,:,1))),'r','DisplayName','flips'); 
-subplot(3,3,8), plot(squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off;% a 2D plot
-
+subplot(3,3,8), plot(180/pi*squeeze(scanner_dict_tgt.flips(1,:,1)),'g','DisplayName','flips tgt'); hold on;% a 2D plot
+subplot(3,3,8), plot(180/pi*abs(squeeze(scanner_dict.flips(ii,1,:,1))),'r','DisplayName','flips'); 
+subplot(3,3,8), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
+ylim= max([5, round( loss(ii)/(10^max([floor(log10(loss(ii))),0])))*(10^max([floor(log10(loss(ii))),0])*2)]);
+subplot(3,3,9), yyaxis left; plot(loss); hold on;  plot(ii,loss(ii),'b.'); plot(loss*0+min(loss(5:end)),'b:');hold off; axis([ii-50 ii+50 -10e-12 ylim]);ylabel('[%] error');
+yyaxis right; plot(SARloss); hold on; plot(ii,SARloss(ii),'r.'); hold off; ylabel('[%] SAR'); grid on; 
  set(gcf, 'Outerposition',[404   356   850   592]) %large
 % set(gcf, 'Outerposition',[451   346   598   398]) % small
 
@@ -79,17 +93,17 @@ subplot(3,3,8), plot(squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','
 % create gif (out.gif)
 drawnow
       frame = getframe(1);
-      im = frame2im(frame);
-%       im_SIM(:,:,:,n)=im;
+      im = frame2im(frame);      
+gifname=sprintf('%s/%s/a_sim_%s.gif',seq_dir,experiment_id,experiment_id);
       [imind,cm] = rgb2ind(im,32);
       if ii == 1
-          imwrite(imind,cm,'out_sim.gif','gif', 'Loopcount',inf);
+          imwrite(imind,cm,gifname,'gif', 'Loopcount',inf);
       elseif ii==numel(array)
-          imwrite(imind,cm,'out_sim.gif','gif','WriteMode','append','DelayTime',0.2);
+          imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.2);
       else
-          imwrite(imind,cm,'out_sim.gif','gif','WriteMode','append','DelayTime',0.0005);
+          imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.0005);
       end
 end
 set(0, 'DefaultLineLineWidth', 0.5);
 
-% save('togif.mat','im_SIM','experiment_id','-append');
+saveas(gcf,sprintf('%s/%s/lastSIM.fig',seq_dir,experiment_id));

@@ -3,27 +3,24 @@ clear all;
 
 if isunix
     mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
+    seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
+    experiment_id = 'tgtGRE_tsk_GRE_no_grad';
+    seq_dir = [seq_dir experiment_id];
 else
     mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
+    seq_dir = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
+    out=regexp(seq_dir,'\','split');
+    experiment_id=out{end};
 end
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
-seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
-%experiment_id = 'RARE_FA_OPT_fixrep1_90';
-% experiment_id = 'FLASH_spoiled_lowSAR';
-experiment_id = 'FLASH_BASE_cartesian';
-% experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
-%  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
-experiment_id = 'tgtGRE_tsk_GRE_no_grad';
-% experiment_id = 'e08_tgtGRE_tsk_GRE_no_grad_1.2s_newrelease';
-experiment_id = 'e06_tgtGRE_tsk_GRE_no_grad_0s';
 
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
-scanner_dict = load([seq_dir,'/',experiment_id,'/','scanner_dict.mat']);
+scanner_dict = load([seq_dir,'/scanner_dict_tgt.mat']);
 
 sz = double(scanner_dict.sz);
 
@@ -51,7 +48,7 @@ set(gcf,'OuterPosition',[431         379        1040         513])
 seq_fn = [seq_dir,'/',experiment_id,'.seq'];
 
 SeqOpts.resolution = double(scanner_dict.sz);                                                                                            % matrix size
-SeqOpts.FOV = 200e-3;
+SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 10e-3;          % fix
 SeqOpts.TR = 10000e-3;       % fix
 SeqOpts.FlipAngle = pi/2;    % fix
@@ -112,15 +109,21 @@ for rep=1:NRep
     
     if abs(flips(idx_T,rep,1)) > 1e-8
         use = 'excitation';
-        rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
-        seq.addBlock(rf);
+%         sliceThickness=200*e-3;
+%         rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+%         seq.addBlock(rf);
+        % alternatively slice selective:
+        sliceThickness=5e-3;     % slice
+        [rf, gz,gzr] = mr.makeSincPulse(single(flips(idx_T,rep,1)),'Duration',0.6*1e-3,'SliceThickness',sliceThickness,'apodization',0.5,'timeBwProduct',4,'system',sys);
+%         seq.addBlock(gzr);  % fully balanced Z
+        seq.addBlock(rf,gz);
+        seq.addBlock(gzr);
     end
     seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
 %     gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep),'system',sys);
 %     gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys);
 %     seq.addBlock(gxPre,gyPre);
-    % alternatively slice selective:
-    %[rf, gz, gzr] = makeSincPulse(flips(idx_T,rep,1)) % see writeHASTE.m
+
     
     % second  (rewinder)
     idx_T=2; % T(2)
@@ -154,6 +157,8 @@ for rep=1:NRep
     
     
 end
+
+seq.setDefinition('FOV', [SeqOpts.FOV SeqOpts.FOV sliceThickness]*1e3);
 
 %write sequence
 seq.write(seq_fn);
@@ -323,6 +328,8 @@ for rep=1:NRep
     seq.addBlock(mr.makeDelay(delayTR))
 end
 
+
+seq.setDefinition('FOV', [SeqOpts.FOV SeqOpts.FOV sliceThickness]*1e3);
 %write sequence
 seq.write(seq_fn);
 

@@ -1,7 +1,7 @@
 %% very simple FFT reconstruction from raw data
 
 %% Load raw data
-[datfilename,datpath] = uigetfile('*.dat', 'select raw data file');
+[datfilename,datpath] = uigetfile('*.dat', 'select raw data file','\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences');
 data_file_path=[datpath datfilename];
 
 twix_obj = mapVBVD(data_file_path);

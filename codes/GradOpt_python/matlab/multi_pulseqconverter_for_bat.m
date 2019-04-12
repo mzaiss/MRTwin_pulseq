@@ -20,7 +20,7 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 ni = 30;
 
 scanner_dict = load([seq_dir,'/','all_iter.mat']);
-scanner_dict_target = load([seq_dir,'/','scanner_dict.mat']);
+scanner_dict_target = load([seq_dir,'/','scanner_dict_tgt.mat']);
 sz = double(scanner_dict.sz);
 T = scanner_dict.T;
 NRep = scanner_dict.NRep;
@@ -36,8 +36,11 @@ k = 0;
 idxarray_exported_itersteps = [1:150,160:10:niter];
 idxarray_exported_itersteps = [1:150,160:10:niter];
 idxarray_exported_itersteps = [1:20,30:10:niter];
-
 idxarray_exported_itersteps = [1:50, 52:2:100, 110:10:niter];
+% idxarray_exported_itersteps = [1:2:100, 100:10:150, 160:20:1140];
+idxarray_exported_itersteps = [1:30 35:5:340 350:50:niter];
+
+idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_itersteps<=niter);
 
 for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     
@@ -47,10 +50,10 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     % plug learned gradients into the sequence constructor
     % close all
     seq_fn = [seq_dir,'/','seqiter',num2str(k),'.seq'];
-    k = k + 1;
+    
     
     SeqOpts.resolution = double(sz);                                                                                            % matrix size
-    SeqOpts.FOV = 200e-3;
+    SeqOpts.FOV = 220e-3;
     SeqOpts.TE = 10e-3;          % fix
     SeqOpts.TR = 10000e-3;       % fix
     SeqOpts.FlipAngle = pi/2;    % fix
@@ -113,15 +116,20 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         
         if abs(flips(idx_T,rep,1)) > 1e-8
             use = 'excitation';
-            rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
-            seq.addBlock(rf);
+%             % block pulse non-selective
+%             sliceThickness=200*e-3;
+%             rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+%             seq.addBlock(rf);
+            % alternatively slice selective:
+            sliceThickness=5e-3;     % slice
+            [rf, gz,gzr] = mr.makeSincPulse(single(flips(idx_T,rep,1)),'Duration',1e-3,'SliceThickness',sliceThickness,'apodization',0.5,'timeBwProduct',4,'system',sys);
+            seq.addBlock(rf,gz);
+            seq.addBlock(gzr);
         end
         seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
         %     gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep),'system',sys);
         %     gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys);
         %     seq.addBlock(gxPre,gyPre);
-        % alternatively slice selective:
-        %[rf, gz, gzr] = makeSincPulse(flips(idx_T,rep,1)) % see writeHASTE.m
         
         % second  (rewinder)
         idx_T=2; % T(2)
@@ -160,6 +168,8 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         
     end
     
+    seq.setDefinition('FOV', [SeqOpts.FOV SeqOpts.FOV sliceThickness]*1e3);
+
     %write sequence
     seq.write(seq_fn);
     
@@ -167,7 +177,7 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     fprintf('%d of %d\n',k,numel(idxarray_exported_itersteps));
     %seq.plot();
     %subplot(3,2,1), title(experiment_id,'Interpreter','none');
-    
+    k = k + 1;    
 end
 
 save([seq_dir,'/export_protocol.mat'],'idxarray_exported_itersteps','experiment_id');

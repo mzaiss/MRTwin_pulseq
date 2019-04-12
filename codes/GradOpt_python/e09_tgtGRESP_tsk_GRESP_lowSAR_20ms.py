@@ -12,7 +12,7 @@ experiment desciption:
 
 """
 
-experiment_id = 'e10_tgtGRESP_tsk_GRESP_no_grad_20ms_lbd10_24'
+experiment_id = 'e09_tgtGRESP_tsk_GRESP_lowSAR_20ms_lbd10_24'
 experiment_description = """
 tgt FLASHspoiled_relax20ms task
 """
