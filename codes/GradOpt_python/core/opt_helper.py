@@ -297,7 +297,9 @@ class OPT_helper():
                 saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0])
                 saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
                 saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
-                saved_state['grad_moms'] = tonumpy(self.scanner_opt_params[3])
+                helper = self.scanner_opt_params[3].clone()
+                helper[3:-2,:,:] = helper[2,:,:].repeat([len(self.scanner_opt_params[2][:,0])-5,1,1])
+                saved_state['grad_moms'] = tonumpy(helper)
                 
                 legs=['x','y','z']
                 for i in range(3):
