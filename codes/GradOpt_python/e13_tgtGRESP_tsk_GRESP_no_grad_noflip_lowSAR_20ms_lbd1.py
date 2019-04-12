@@ -40,7 +40,7 @@ if sys.version_info[0] < 3:
 else:
     import importlib
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 
@@ -82,7 +82,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([48,48])                                           # image size
+sz = np.array([8,8])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -328,7 +328,7 @@ opt.target_seq_holder=targetSeq
 opt.experiment_description = experiment_description
 
 opt.use_periodic_grad_moms_cap = 0           # GRE/FID specific, do not sample above Nyquist flag
-opt.optimzer_type = 'Adam'
+opt.optimzer_type = 'SGD_vanilla'
 opt.opti_mode = 'seq'
 # 
 opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad

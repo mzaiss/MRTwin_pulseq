@@ -344,7 +344,7 @@ for i in range(7):
     opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
     opt.train_model(training_iter=40, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=1000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 

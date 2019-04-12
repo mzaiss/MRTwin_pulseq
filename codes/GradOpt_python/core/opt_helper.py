@@ -300,6 +300,7 @@ class OPT_helper():
                 helper = self.scanner_opt_params[3].clone()
                 helper[3:-2,:,:] = helper[2,:,:].repeat([len(self.scanner_opt_params[2][:,0])-5,1,1])
                 saved_state['grad_moms'] = tonumpy(helper)
+                saved_state['learn_rates'] = self.custom_learning_rate
                 
                 legs=['x','y','z']
                 for i in range(3):
