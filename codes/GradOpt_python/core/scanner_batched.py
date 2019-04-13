@@ -475,7 +475,7 @@ class GradIntravoxelPrecessClass(torch.autograd.Function):
         
         ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
         gf = ctx.scanner.lastM.permute([0,1,2,3,5,4]) * grad_output
-        gf = torch.sum(gf,[1,2],keepdim=True)
+        gf = torch.sum(gf,[0,3],keepdim=False).unsqueeze(1)
         
         return (gf, gx, None)
     
