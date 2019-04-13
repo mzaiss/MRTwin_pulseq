@@ -312,6 +312,8 @@ def phi_FRP_model(opt_params,aux_params):
     
     tgt = target_db[samp_idx,:,:]
     
+    opt.set_target(tonumpy(tgt[0,:,:]).reshape([sz[0],sz[1],2]))
+    
     scanner.forward_mem(spins, event_time)
     scanner.adjoint(spins)
     
