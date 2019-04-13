@@ -30,6 +30,14 @@ class TargetSequenceHolder():
         self.ROI_def = 1
         self.PD0_mask = spins.PD0_mask
         
+        self.batch_size = 1
+        
+        # batched mode
+        if self.target_image.dim() == 3:
+            self.batch_size = self.target_image.shape[0]
+            self.target_image = self.target_image[0,:,:]
+            self.PD0_mask = self.PD0_mask[0,:,:]
+        
     def print_status(self, do_vis_image=False, reco=None):
         if do_vis_image:
             

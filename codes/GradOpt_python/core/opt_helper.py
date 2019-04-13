@@ -320,7 +320,7 @@ class OPT_helper():
 
             self.print_status(do_vis_image,self.last_reco)
 
-            self.new_batch()
+            #self.new_batch()
             self.optimizer.step(self.weak_closure)
 
                 
@@ -377,8 +377,14 @@ class OPT_helper():
     def print_status(self, do_vis_image=False, reco=None):
         if do_vis_image:
             sz=self.spins.sz
-            recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
-
+            
+            if hasattr(self.spins,'batch_size'):
+                recoimg = tonumpy(reco[0,:,:]).reshape([sz[0],sz[1],2])
+                PD0_mask = self.spins.PD0_mask[0,:,:]
+            else:
+                recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
+                PD0_mask = self.spins.PD0_mask
+                
             # clear previous figure stack            
             plt.clf()            
             
@@ -392,7 +398,7 @@ class OPT_helper():
             plt.ion()
             
             ax1=plt.subplot(256)
-            ax=plt.imshow(tonumpy(self.spins.PD0_mask)*phaseimg(self.target), interpolation='none')
+            ax=plt.imshow(tonumpy(PD0_mask)*phaseimg(self.target), interpolation='none')
             plt.clim(-np.pi,np.pi) 
             #plt.clim(0,1)
             fig = plt.gcf()
@@ -409,7 +415,7 @@ class OPT_helper():
             plt.ion()
             
             plt.subplot(257, sharex=ax1, sharey=ax1)
-            ax=plt.imshow(tonumpy(self.spins.PD0_mask)*phaseimg(recoimg), interpolation='none')
+            ax=plt.imshow(tonumpy(PD0_mask)*phaseimg(recoimg), interpolation='none')
             plt.clim(-np.pi,np.pi) 
             fig = plt.gcf()
             fig.colorbar(ax)
