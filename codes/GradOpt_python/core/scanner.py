@@ -893,6 +893,56 @@ class Scanner_fast(Scanner):
         if self.AF is not None:
             self.signal = torch.matmul(self.AF,self.signal)      
             
+            
+    def forward_sparse(self,spins,event_time):
+        self.init_signal()
+        spins.set_initial_magnetization()
+        
+        PD0_mask = spins.PD0_mask.flatten()
+        spins_cut = spins.M[:,:,PD0_mask,:,:].clone()
+        
+        G_cut = self.G[:,:,PD0_mask,:,:]
+        
+        # scanner forward process loop
+        for r in range(self.NRep):                                   # for all repetitions
+            for t in range(self.T):                                      # for all actions
+                delay = torch.abs(event_time[t,r]) + 1e-6
+                
+                if self.adc_mask[t] > 0:
+                    self.signal[0,t,r,:2] = ((torch.sum(spins_cut[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins        
+        
+                spins_cut = FlipClass.apply(self.F[t,r,:,:,:],spins_cut,self)
+                
+                self.set_relaxation_tensor(spins,delay)
+                self.set_freeprecession_tensor(spins,delay)
+                self.set_B0inhomogeneity_tensor(spins,delay)
+                
+                spins_cut = RelaxSparseClass.apply(self.R[:,PD0_mask,:,:]         ,spins_cut,delay,t,self,spins,PD0_mask)
+                spins_cut = DephaseClass.apply(self.P,spins_cut,self)
+                spins_cut = B0InhomoClass.apply(self.SB0[:,:,PD0_mask,:,:],spins_cut,self)
+                
+                self.set_grad_intravoxel_precess_tensor(t,r)
+                    
+                spins_cut = GradPrecessClass.apply(G_cut[t,r,:,:,:],spins_cut,self)
+                spins_cut = GradIntravoxelPrecessClass.apply(self.IVP,spins_cut,self)
+            
+                
+                
+        # kill numerically unstable parts of M vector for backprop
+        self.tmask = torch.zeros((self.NVox)).byte()
+        self.tmask = self.setdevice(self.tmask)
+        
+        self.tmask[spins.T1 < 1e-2] = 1
+        self.tmask[spins.T2 < 1e-2] = 1
+        
+        self.tmask = self.tmask[PD0_mask]
+        
+        self.lastM = spins_cut.clone()
+        
+        # rotate ADC phase according to phase of the excitation if necessary
+        if self.AF is not None:
+            self.signal = torch.matmul(self.AF,self.signal)               
+                    
     # compute adjoint encoding op-based reco    <            
     def adjoint(self,spins):
         self.init_reco()
@@ -967,6 +1017,49 @@ class RelaxClass(torch.autograd.Function):
             ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
             
         return (gf, gx, None, None, None, None)  
+    
+class RelaxSparseClass(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, f, x, delay, t, scanner, spins, mask):
+        ctx.f = f.clone()
+        ctx.delay = delay
+        ctx.scanner = scanner
+        ctx.spins = spins
+        ctx.t = t
+        ctx.thresh = 1e-2
+        ctx.mask = mask
+        
+        if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+            ctx.M = x.clone()
+            
+        out = torch.matmul(f,x)
+        out[:,:,:,2,0] += (1 - f[:,:,2,2]).view([1,1,x.shape[2]]) * spins.MZ0[:,:,mask]
+            
+        return out
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        gx = torch.matmul(ctx.f.permute([0,1,3,2]),grad_output)
+      
+        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = torch.sum(gf,[0])
+        
+        if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+            ctx.scanner.lastM = ctx.M
+        else:
+            d1 = ctx.f[0,:,0,0]
+            id1 = 1/d1
+            
+            d3 = ctx.f[0,:,2,2]
+            id3 = 1/d3
+            id3 = id3.view([1,grad_output.shape[2]])
+            
+            ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,grad_output.shape[2],1])
+            ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.spins.MZ0[:,0,ctx.mask]
+            
+            ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
+            
+        return (gf, gx, None, None, None, None, None)
   
 class DephaseClass(torch.autograd.Function):
     @staticmethod

@@ -297,7 +297,6 @@ class OPT_helper():
             
             # save entire history of optimized params/reco images
             if save_intermediary_results:
-                    
                 saved_state = dict()
                 saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0])
                 saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
@@ -503,7 +502,7 @@ class OPT_helper():
             
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id):
-        _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)        
+        _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
         
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
