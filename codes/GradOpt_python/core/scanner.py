@@ -781,27 +781,15 @@ class Scanner_fast(Scanner):
                 delay = torch.abs(event_time[t,r]) + 1e-6
                 
                 if self.adc_mask[t] == 0:                             # regular pass
-                    if total_delay > 0:     # readout is over, make a fast forward pass
+                    if t > 0 and self.adc_mask[t-1] == 1:     # readout is over, make a fast forward pass
+                        
                         self.set_relaxation_tensor(spins,total_delay)
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
-                        self.relax_and_dephase(spins)
                         
-                        # set grad intravoxel precession tensor
-                        kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t,r,:],0)
-                        intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
-                        intra_b0 = torch.sum(intra_b0,1)
-                        
-                        IVP_nspins_cos = torch.cos(intra_b0)
-                        IVP_nspins_sin = torch.sin(intra_b0)
-                         
-                        self.IVP[:,0,0,0,0] = IVP_nspins_cos
-                        self.IVP[:,0,0,0,1] = -IVP_nspins_sin
-                        self.IVP[:,0,0,1,0] = IVP_nspins_sin
-                        self.IVP[:,0,0,1,1] = IVP_nspins_cos                
-                        
-                        # do intravoxel precession
-                        spins.M = torch.matmul(self.IVP,spins.M)
+                        spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                        spins.M = DephaseClass.apply(self.P,spins.M,self)
+                        spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)                       
                         
                         # measure signal and do adjoint
                         FWD = self.G_adj[start_t:t,r,:,:,:].permute([0,1,3,2])
@@ -824,17 +812,39 @@ class Scanner_fast(Scanner):
                         FWD = torch.matmul(REW, FWD)
                         spins.M = torch.matmul(FWD,spins.M)
                         
+                        # set grad intravoxel precession tensor
+                        kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t,r,:],0)
+                        intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
+                        intra_b0 = torch.sum(intra_b0,1)
+                        
+                        IVP_nspins_cos = torch.cos(intra_b0)
+                        IVP_nspins_sin = torch.sin(intra_b0)
+                         
+                        self.IVP[:,0,0,0,0] = IVP_nspins_cos
+                        self.IVP[:,0,0,0,1] = -IVP_nspins_sin
+                        self.IVP[:,0,0,1,0] = IVP_nspins_sin
+                        self.IVP[:,0,0,1,1] = IVP_nspins_cos                
+                        
+                        # do intravoxel precession
+                        spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
+                        
                         total_delay = 0
                     
-                    self.flip(t,r,spins)
+                    spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                     
                     self.set_relaxation_tensor(spins,delay)
                     self.set_freeprecession_tensor(spins,delay)
                     self.set_B0inhomogeneity_tensor(spins,delay)
-                    self.relax_and_dephase(spins)
                     
-                    self.grad_precess(t,r,spins)
-                    self.grad_intravoxel_precess(t,r,spins)
+                    spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                    spins.M = DephaseClass.apply(self.P,spins.M,self)
+                    spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)   
+                    
+                    self.set_grad_intravoxel_precess_tensor(t,r)
+                        
+                    spins.M = GradPrecessClass.apply(self.G[t,r,:,:,:],spins.M,self)
+                    spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
+    
                 else:                               # we are in readout --> fastforward
                     if total_delay == 0:
                         start_t = t            
@@ -842,6 +852,15 @@ class Scanner_fast(Scanner):
                     total_delay += delay
                     
         self.reco = self.reco.unsqueeze(2) / self.NSpins
+        
+        # kill numerically unstable parts of M vector for backprop
+        self.tmask = torch.zeros((self.NVox)).byte()
+        self.tmask = self.setdevice(self.tmask)
+        
+        self.tmask[spins.T1 < 1e-2] = 1
+        self.tmask[spins.T2 < 1e-2] = 1
+        
+        self.lastM = spins.M.clone() 
 
     def forward_mem(self,spins,event_time):
         self.init_signal()
@@ -917,7 +936,7 @@ class Scanner_fast(Scanner):
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
                 
-                spins_cut = RelaxSparseClass.apply(self.R[:,PD0_mask,:,:]         ,spins_cut,delay,t,self,spins,PD0_mask)
+                spins_cut = RelaxSparseClass.apply(self.R[:,PD0_mask,:,:], spins_cut,delay,t,self,spins,PD0_mask)
                 spins_cut = DephaseClass.apply(self.P,spins_cut,self)
                 spins_cut = B0InhomoClass.apply(self.SB0[:,:,PD0_mask,:,:],spins_cut,self)
                 

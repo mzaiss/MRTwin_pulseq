@@ -1,4 +1,11 @@
-﻿#!/usr/bin/env python2
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Apr 14 18:10:34 2019
+
+@author: aloktyus
+"""
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
 Created on Tue Jan 29 14:38:26 2019
@@ -12,11 +19,12 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e14_tgtGRESP_tsk_GRESP_no_grad_noflip_kspaceloss'
+experiment_id = 'e17_tgtGRESP_tsk_GRESP_no_grad_noflip_supervised_16_bsz8'
 experiment_description = """
 tgt FLASHspoiled_relax0.1s task find all grads except read ADC grads
 this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
 and high initial learning rate
+lets try supervised learning here, learn flips+grads, and never show phantom during training
 """
 
 import os, sys
@@ -30,6 +38,7 @@ import matplotlib.pyplot as plt
 from torch import optim
 import core.spins
 import core.scanner
+import core.scanner_batched
 import core.opt_helper
 import core.target_seq_holder
 
@@ -82,23 +91,21 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
-NRep = sz[1]                                          # number of repetitions
-T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
-NCoils = 1                                  # number of receive coil elements
+sz = np.array([16,16])                                               # image size
+NRep = sz[1]                                            # number of repetitions
+T = sz[0] + 4                                          # number of events F/R/P
+NSpins = 35**2                               # number of spin sims in each voxel
+NCoils = 1                                    # number of receive coil elements
 
-noise_std = 0*1e0                               # additive Gaussian noise std
-
+noise_std = 0*1e0                                 # additive Gaussian noise std
 NVox = sz[0]*sz[1]
 
+batch_size = 8
 
 #############################################################################
-## Init spin system ::: #####################################
+## Prepare spin DB  ::: #####################################
 
-# initialize scanned object
-spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
-
+# initialize phantom object
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
@@ -107,41 +114,36 @@ for i in range(5):
         t[t < 0] = 0
     real_phantom_resized[:,:,i] = t
     
-spins.set_system(real_phantom_resized)
+real_phantom_resized[real_phantom_resized < 0] = 0
 
-cutoff = 1e-12
-spins.T1[spins.T1<cutoff] = cutoff
-spins.T2[spins.T2<cutoff] = cutoff
-# end initialize scanned object
-spins.T1*=1
-spins.T2*=1
-plt.subplot(121)
-plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
-plt.title("PD")
-plt.subplot(122)
-plt.imshow(real_phantom_resized[:,:,3], interpolation='none')
-plt.title("inhom")
-plt.show()
+# initialize the training database, let it be just a bunch squares (<csz> x <csz>) with random PD/T1/T2
+# ignore B0 inhomogeneity:-> since non-zero PD regions are just tiny squares, the effect of B0 is just constant phase accum in respective region
+csz = 2
+nmb_samples = 32
+spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
 
-#begin nspins with R*
-R2 = 0.0
-omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5    # cutoff might bee needed for opt.
-#omega = np.random.rand(NSpins,NVox) - 0.5
-omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
-omega*=0.9  # cutoff large freqs
-omega = R2 * np.tan ( np.pi  * omega)
-
-if NSpins==1:
-    omega[:,:]=0
+for i in range(nmb_samples):
+    rvx = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
+    rvy = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
     
-spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
-spins.omega = setdevice(spins.omega)
-#end nspins with R*
+    pd = 0.5 + np.random.rand()
+    t2 = 0.3 + np.random.rand()               # t2 is always smaller than t1...
+    t1 = t2 + np.random.rand()
+    
+    for j in range(rvx,rvx+csz):
+        for k in range(rvy,rvy+csz):
+            spin_db_input[i,j,k,0] = pd
+            spin_db_input[i,j,k,1] = t1
+            spin_db_input[i,j,k,2] = t2
 
 
 #############################################################################
-## Init scanner system ::: #####################################
+## Init spin system ::: #####################################
+spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
+spins.set_system(real_phantom_resized)
 
+#############################################################################
+## Init scanner system ::: #####################################
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
@@ -154,7 +156,6 @@ scanner.adc_mask[-2:] = 0
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-#flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
 flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
@@ -170,8 +171,7 @@ scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[1,:] = 1e-3
-event_time[-2,:] = 15.4*1e-3*1
-#event_time[-1,:] = 1.2           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
+event_time[-2,:] = 15.4*1e-3
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])
@@ -195,19 +195,17 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 
 #############################################################################
 ## Forward process ::: ######################################################
-    
-# forward/adjoint pass
 
-#scanner.forward(spins, event_time)
+
+# forward/adjoint pass
+scanner.forward_sparse_fast(spins, event_time)
 #scanner.adjoint(spins)
 
-scanner.forward_fast(spins, event_time)
-
 # try to fit this
-target = scanner.reco.clone()
+target_phantom = scanner.reco.clone()
    
 # save sequence parameters and target image to holder object
-targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
+targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target_phantom)
 
 if True: # check sanity: is target what you expect and is sequence what you expect
     targetSeq.print_status(True, reco=None)
@@ -223,9 +221,18 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     
     targetSeq.export_to_matlab(experiment_id)
     
-    #stop()
+# Prepare target db: iterate over all samples in the DB
+target_db = setdevice(torch.zeros((nmb_samples,NVox,2)).float())
     
+for i in range(nmb_samples):
+    spins.set_system(spin_db_input[i,:,:,:])
     
+    scanner.forward_sparse_fast(spins, event_time)
+    #scanner.adjoint(spins)
+    
+    target_db[i,:,:] = scanner.reco.clone().squeeze()
+    
+
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
     
@@ -235,7 +242,7 @@ def init_variables():
     #adc_mask.requires_grad = True     
     
     flips = targetSeq.flips.clone()
-    flips[0,:,:]=flips[0,:,:]*0
+    flips[0,:,:] = flips[0,:,:]*0
     flips = setdevice(flips)
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
@@ -244,10 +251,6 @@ def init_variables():
     flips.zero_grad_mask = flip_mask
       
     event_time = targetSeq.event_time.clone()
-    #event_time = torch.from_numpy(1e-7*np.random.rand(scanner.T,scanner.NRep)).float()
-    #event_time*=0.5
-    #event_time[:,0] = 0.4*1e-3  
-    #event_time[-1,:] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
     event_time = setdevice(event_time)
     
     event_time_mask = torch.ones((scanner.T, scanner.NRep)).float()        
@@ -270,8 +273,8 @@ def init_variables():
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
     
-    #grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
-    #grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
+    grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
     
     #grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
     #grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
@@ -279,7 +282,7 @@ def init_variables():
     return [adc_mask, flips, event_time, grad_moms]
     
     
-def phi_FRP_model(opt_params,aux_params):
+def phi_FRP_model(opt_params,aux_params,do_test_onphantom=False):
     
     adc_mask,flips,event_time, grad_moms = opt_params
     use_periodic_grad_moms_cap,_ = aux_params
@@ -289,28 +292,14 @@ def phi_FRP_model(opt_params,aux_params):
     # rotate ADC according to excitation phase
     scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
           
-    if use_periodic_grad_moms_cap:
-        fmax = torch.ones([1,1,2]).float()
-        fmax = setdevice(fmax)
-        fmax[0,0,0] = sz[0]/2
-        fmax[0,0,1] = sz[1]/2
-
-        grad_moms = torch.sin(grad_moms)*fmax
-
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) # GRE/FID specific, maybe adjust for higher echoes
-         
-    # forward/adjoint pass
-    scanner.forward_fast(spins, event_time)
-    #scanner.forward_mem(spins, event_time)
-    #scanner.adjoint(spins)
     
+    # SAR cost
     lbd = 1*1e1         # switch on of SAR cost
-    loss_image = (scanner.reco - targetSeq.target_image)
-    #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
-    loss_image = torch.sum(loss_image.squeeze()**2/NVox)
     loss_sar = torch.sum(flips[:,:,0]**2)
     
+    # out-of-kspace cost
     lbd_kspace = 1e1
     
     k = torch.cumsum(grad_moms, 0)
@@ -318,16 +307,40 @@ def phi_FRP_model(opt_params,aux_params):
     k = k.flatten()
     mask = (torch.abs(k) > sz[0]/2).float()
     k = k * mask
-    loss_kspace = torch.sum(k**2) / np.prod(sz)
+    loss_kspace = torch.sum(k**2) / (NRep*torch.sum(scanner.adc_mask))
     
-    loss = loss_image + lbd*loss_sar + lbd_kspace*loss_kspace
+    # once in a while we want to do test on real phantom, set batch_size to 1 in this case
+    local_batchsize = batch_size
+    if do_test_onphantom:
+        local_batchsize = 1
+      
+    # loop over all samples in the batch, and do forward/backward pass for each sample
+    loss_image = 0
+    for btch in range(local_batchsize):
+        if do_test_onphantom == False:
+            samp_idx = np.random.choice(nmb_samples,1)
+            spins.set_system(spin_db_input[samp_idx,:,:,:])
+        
+            tgt = target_db[samp_idx,:,:]
+            opt.set_target(tonumpy(tgt).reshape([sz[0],sz[1],2]))
+        else:
+            tgt = target_phantom
+        
+        scanner.forward_sparse_fast(spins, event_time)
+        #scanner.adjoint(spins)
+        
+        loss_diff = (scanner.reco - tgt)
+        loss_image += torch.sum(loss_diff.squeeze()**2/(NVox))
+
+    # accumulate final cost
+    loss = loss_image + (lbd*loss_sar + lbd_kspace*loss_kspace)
     
     print("loss_image: {} loss_sar {} loss_kspace {}".format(loss_image, lbd*loss_sar, lbd_kspace*loss_kspace))
     
     phi = loss
   
     ereco = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    error = e(tonumpy(targetSeq.target_image).ravel(),ereco.ravel())     
+    error = e(tonumpy(tgt).ravel(),ereco.ravel())     
     
     plt.imshow(magimg(ereco))
     
@@ -344,22 +357,23 @@ opt.use_periodic_grad_moms_cap = 0           # GRE/FID specific, do not sample a
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([1]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
+opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
+opt.custom_learning_rate = [0.01,0.01,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.5, 0.2, 0.1, 0.1])
-#opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
 
 for i in range(7):
-    opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
+    opt.custom_learning_rate = [0.01,0.01,0.1,lr_inc[i]]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=200, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+    opt.train_model(training_iter=2000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
-_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
+
+spins.set_system(real_phantom_resized)
+_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params, do_test_onphantom=True)
 
 # plot
 targetSeq.print_status(True, reco=None)
@@ -373,25 +387,7 @@ stop()
 
 opt.save_param_reco_history(experiment_id)
 opt.export_to_matlab(experiment_id)
-            
 
 
 
-import gc
-for obj in gc.get_objects():
-    try:
-        if torch.is_tensor(obj) or (hasattr(obj, 'data')):
-            print(type(obj), obj.size())
-            
-            print(obj.device)
-    except:
-        pass
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
