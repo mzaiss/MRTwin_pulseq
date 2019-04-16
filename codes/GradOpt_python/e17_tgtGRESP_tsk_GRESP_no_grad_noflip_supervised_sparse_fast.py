@@ -19,7 +19,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e17_tgtGRESP_tsk_GRESP_no_grad_noflip_supervised_16_bsz8'
+experiment_id = 'e17_tgtGRESP_tsk_GRESP_no_grad_noflip_supervised_32_bsz8_sparse_fast'
 experiment_description = """
 tgt FLASHspoiled_relax0.1s task find all grads except read ADC grads
 this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
@@ -91,16 +91,16 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                               # image size
+sz = np.array([32,32])                                               # image size
 NRep = sz[1]                                            # number of repetitions
 T = sz[0] + 4                                          # number of events F/R/P
-NSpins = 35**2                               # number of spin sims in each voxel
+NSpins = 40**2                               # number of spin sims in each voxel
 NCoils = 1                                    # number of receive coil elements
 
 noise_std = 0*1e0                                 # additive Gaussian noise std
 NVox = sz[0]*sz[1]
 
-batch_size = 8
+batch_size = 1
 
 #############################################################################
 ## Prepare spin DB  ::: #####################################
@@ -135,6 +135,8 @@ for i in range(nmb_samples):
             spin_db_input[i,j,k,0] = pd
             spin_db_input[i,j,k,1] = t1
             spin_db_input[i,j,k,2] = t2
+            
+real_phantom_resized = spin_db_input[0,:,:,:]
 
 
 #############################################################################
@@ -144,7 +146,7 @@ spins.set_system(real_phantom_resized)
 
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
 # begin sequence definition
@@ -196,10 +198,9 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 #############################################################################
 ## Forward process ::: ######################################################
 
-
 # forward/adjoint pass
 scanner.forward_sparse_fast(spins, event_time)
-#scanner.adjoint(spins)
+scanner.adjoint(spins)
 
 # try to fit this
 target_phantom = scanner.reco.clone()
@@ -221,6 +222,8 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     
     targetSeq.export_to_matlab(experiment_id)
     
+    stop()
+    
 # Prepare target db: iterate over all samples in the DB
 target_db = setdevice(torch.zeros((nmb_samples,NVox,2)).float())
     
@@ -228,7 +231,7 @@ for i in range(nmb_samples):
     spins.set_system(spin_db_input[i,:,:,:])
     
     scanner.forward_sparse_fast(spins, event_time)
-    #scanner.adjoint(spins)
+    scanner.adjoint(spins)
     
     target_db[i,:,:] = scanner.reco.clone().squeeze()
     
@@ -327,7 +330,7 @@ def phi_FRP_model(opt_params,aux_params,do_test_onphantom=False):
             tgt = target_phantom
         
         scanner.forward_sparse_fast(spins, event_time)
-        #scanner.adjoint(spins)
+        scanner.adjoint(spins)
         
         loss_diff = (scanner.reco - tgt)
         loss_image += torch.sum(loss_diff.squeeze()**2/(NVox))

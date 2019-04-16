@@ -117,7 +117,7 @@ class TargetSequenceHolder():
         scanner_dict['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
-        scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
+        #scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
         scanner_dict['signal'] = tonumpy(self.scanner.signal)
 
         path=os.path.join('./out/',experiment_id)

@@ -82,10 +82,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 35**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -142,7 +142,7 @@ spins.omega = setdevice(spins.omega)
 #############################################################################
 ## Init scanner system ::: #####################################
 
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
 # begin sequence definition
@@ -189,7 +189,6 @@ grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, SPOILER
 grad_moms = setdevice(grad_moms)
 
 # end sequence 
-
 scanner.init_gradient_tensor_holder()
 scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False)  # refocusing=False for GRE/FID, adjust for higher echoes
 
@@ -197,11 +196,9 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-
-#scanner.forward(spins, event_time)
-#scanner.adjoint(spins)
-
-scanner.forward_fast(spins, event_time)
+scanner.forward_sparse_fast(spins, event_time)
+#scanner.forward_fast(spins, event_time)
+scanner.adjoint(spins)
 
 # try to fit this
 target = scanner.reco.clone()
@@ -223,7 +220,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     
     targetSeq.export_to_matlab(experiment_id)
     
-    #stop()
+    stop()
     
     
     # %% ###     OPTIMIZATION functions phi and init ######################################################
@@ -301,9 +298,9 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) # GRE/FID specific, maybe adjust for higher echoes
          
     # forward/adjoint pass
-    scanner.forward_fast(spins, event_time)
     #scanner.forward_mem(spins, event_time)
-    #scanner.adjoint(spins)
+    scanner.forward_fast(spins, event_time)
+    scanner.adjoint(spins)
     
     lbd = 1*1e1         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
