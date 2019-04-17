@@ -618,7 +618,7 @@ class Scanner():
         spins.set_initial_magnetization()
         self.reco = 0
         
-        half_read = np.int(torch.sum(self.adc_mask) / 2)
+        half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
         
         # scanner forward process loop
         for r in range(self.NRep):                         # for all repetitions
@@ -732,7 +732,7 @@ class Scanner():
         spins.set_initial_magnetization()
         self.reco = 0
         
-        half_read = np.int(torch.sum(self.adc_mask) / 2)
+        half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
         
         PD0_mask = spins.PD0_mask.flatten()
         spins_cut = spins.M[:,:,PD0_mask,:,:].clone()
@@ -1057,8 +1057,8 @@ class Scanner():
     def adjoint(self, spins):
         self.init_reco()
         
-        adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
-        self.signal *= adc_mask        
+        #adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        #self.signal *= adc_mask        
         
         for r in range(self.NRep):
             self.set_grad_adj_op(r)
@@ -1176,9 +1176,9 @@ class Scanner_fast(Scanner):
         
     # reconstruct image readout by readout            
     def do_grad_adj_reco(self,t,spins):
-        adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
-        s = self.signal * adc_mask
-        s = torch.sum(s,0)
+        #adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        #s = self.signal * adc_mask
+        s = torch.sum(self.signal,0)
         
         r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
         self.reco = r[:,:2,0]
@@ -1203,9 +1203,9 @@ class Scanner_fast(Scanner):
     def adjoint(self,spins):
         self.init_reco()
         
-        adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
-        s = self.signal * adc_mask
-        s = torch.sum(s,0)
+        #adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        #s = self.signal * adc_mask
+        s = torch.sum(self.signal,0)
         
         r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
         self.reco = r[:,:2,0]        

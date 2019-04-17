@@ -91,7 +91,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([32,32])                                               # image size
+sz = np.array([16,16])                                               # image size
 NRep = sz[1]                                            # number of repetitions
 T = sz[0] + 4                                          # number of events F/R/P
 NSpins = 40**2                               # number of spin sims in each voxel
@@ -146,7 +146,7 @@ spins.set_system(real_phantom_resized)
 
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
 # begin sequence definition
@@ -199,7 +199,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 ## Forward process ::: ######################################################
 
 # forward/adjoint pass
-scanner.forward_sparse_fast(spins, event_time)
+scanner.forward_sparse(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
@@ -222,7 +222,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     
     targetSeq.export_to_matlab(experiment_id)
     
-    stop()
+    #stop()
     
 # Prepare target db: iterate over all samples in the DB
 target_db = setdevice(torch.zeros((nmb_samples,NVox,2)).float())
@@ -230,7 +230,7 @@ target_db = setdevice(torch.zeros((nmb_samples,NVox,2)).float())
 for i in range(nmb_samples):
     spins.set_system(spin_db_input[i,:,:,:])
     
-    scanner.forward_sparse_fast(spins, event_time)
+    scanner.forward_sparse(spins, event_time)
     scanner.adjoint(spins)
     
     target_db[i,:,:] = scanner.reco.clone().squeeze()
@@ -329,7 +329,7 @@ def phi_FRP_model(opt_params,aux_params,do_test_onphantom=False):
         else:
             tgt = target_phantom
         
-        scanner.forward_sparse_fast(spins, event_time)
+        scanner.forward_sparse(spins, event_time)
         scanner.adjoint(spins)
         
         loss_diff = (scanner.reco - tgt)
