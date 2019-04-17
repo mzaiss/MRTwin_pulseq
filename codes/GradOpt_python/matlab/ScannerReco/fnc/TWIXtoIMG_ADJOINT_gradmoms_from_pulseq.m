@@ -19,6 +19,15 @@ function [SOS, phase] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj, ktraj_a
   
   ktraj_adc = reshape(ktraj_adc(1:2,:),[2,sz,sz]);
   k = permute(ktraj_adc,[2,3,1]);
+  
+  hsz = sz/2;
+  kx = k(:,:,1);
+  ky = k(:,:,2);
+  sigmask = ones(sz*sz,1);
+  sigmask(abs(kx(:)) > hsz) = 0;
+  sigmask(abs(ky(:)) > hsz) = 0;  
+  
+  %keyboard
 
   G_adj = get_adjoint_mtx(squeeze(k));
 
@@ -27,7 +36,7 @@ function [SOS, phase] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj, ktraj_a
 
   for ii = 1:nCoils
     spectrum = raw_kspace(:,:,ii);
-    reco = G_adj*spectrum(:);
+    reco = G_adj*(spectrum(:));
     images(:,:,ii) = flipud(reshape(reco,[sz,sz]));
   end
 

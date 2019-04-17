@@ -1,15 +1,15 @@
 import numpy as np
 import torch
 
-import scanner
+import core.scanner
 
 # variation for supervised learning
 # TODO fix relax tensor -- is batch dependent
 # TODO implement as child class of Scanner class, override methods
-class Scanner_batched(scanner.Scanner):
+class Scanner_batched(core.scanner.Scanner):
     
     def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu,batch_size):
-        super(scanner.Scanner, self).__init__(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
+        super(Scanner_batched, self).__init__(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
         self.batch_size = batch_size    
         
     def set_relaxation_tensor(self,spins,dt):
@@ -144,11 +144,12 @@ class Scanner_batched(scanner.Scanner):
                 
                 
         # kill numerically unstable parts of M vector for backprop
-        self.tmask = torch.zeros((self.NVox)).byte()
+        self.tmask = torch.zeros((self.batch_size,self.NVox)).byte()
         self.tmask = self.setdevice(self.tmask)
         
-        self.tmask[spins.T1 < 1e-2] = 1
-        self.tmask[spins.T2 < 1e-2] = 1
+        for i in range(self.batch_size):
+            self.tmask[i,spins.T1[i,:] < 1e-2] = 1
+            self.tmask[i,spins.T2[i,:] < 1e-2] = 1
         
         self.lastM = spins.M.clone()
         
@@ -176,10 +177,10 @@ class Scanner_batched(scanner.Scanner):
        
 
 # Fast, but memory inefficient version (also for now does not support parallel imagigng)
-class Scanner_fast_batched(scanner.Scanner_fast):
+class Scanner_fast_batched(core.scanner.Scanner_fast):
     
     def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu,batch_size):
-        super(scanner.Scanner, self).__init__(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
+        super(Scanner_fast_batched, self).__init__(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu)
         self.batch_size = batch_size    
         
     def set_relaxation_tensor(self,spins,dt):
@@ -216,6 +217,24 @@ class Scanner_fast_batched(scanner.Scanner_fast):
          
         self.SB0 = S
         
+    def set_freeprecession_tensor(self,spins,dt):
+        P = torch.zeros((self.batch_size,self.NSpins,1,1,3,3), dtype=torch.float32)
+        P = self.setdevice(P)
+        
+        B0_nspins = spins.omega[:,:,0].view([self.batch_size,self.NSpins])
+        
+        B0_nspins_cos = torch.cos(B0_nspins*dt)
+        B0_nspins_sin = torch.sin(B0_nspins*dt)
+         
+        P[:,:,0,0,0,0] = B0_nspins_cos
+        P[:,:,0,0,0,1] = -B0_nspins_sin
+        P[:,:,0,0,1,0] = B0_nspins_sin
+        P[:,:,0,0,1,1] = B0_nspins_cos
+         
+        P[:,:,0,0,2,2] = 1
+         
+        self.P = P        
+        
     def relax(self,spins):
         spins.M = torch.matmul(self.R,spins.M)
         spins.M[:,:,:,:,2,0] += (1 - self.R[:,:,:,:,2,2]).view([self.batch_size,1,1,self.NVox]) * spins.MZ0
@@ -230,6 +249,10 @@ class Scanner_fast_batched(scanner.Scanner_fast):
     def init_signal(self):
         signal = torch.zeros((self.batch_size,self.NCoils,self.T,self.NRep,3,1), dtype=torch.float32) 
         self.signal = self.setdevice(signal)
+        
+        self.ROI_signal = torch.zeros((self.T+1,self.NRep,5), dtype=torch.float32) # for trans magnetization
+        self.ROI_signal = self.setdevice(self.ROI_signal)
+        self.ROI_def= int((self.sz[0]/2)*self.sz[1]+ self.sz[1]/2)        
         
         
     def init_reco(self):
@@ -312,11 +335,12 @@ class Scanner_fast_batched(scanner.Scanner_fast):
                 spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
                 
         # kill numerically unstable parts of M vector for backprop
-        self.tmask = torch.zeros((self.NVox)).byte()
+        self.tmask = torch.zeros((self.batch_size,self.NVox)).byte()
         self.tmask = self.setdevice(self.tmask)
         
-        self.tmask[spins.T1 < 1e-2] = 1
-        self.tmask[spins.T2 < 1e-2] = 1
+        for i in range(self.batch_size):
+            self.tmask[i,spins.T1[i,:] < 1e-2] = 1
+            self.tmask[i,spins.T2[i,:] < 1e-2] = 1
         
         self.lastM = spins.M.clone()
         
@@ -352,7 +376,7 @@ class FlipClass(torch.autograd.Function):
         gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
         
         ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
-        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = ctx.scanner.lastM.permute([0,1,2,3,5,4]) * grad_output
         gf = torch.sum(gf,[0,2])
         
         return (gf, gx, None) 
@@ -377,7 +401,7 @@ class RelaxClass(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        gx = torch.matmul(ctx.f.permute([0,1,2,3,4,6,5]),grad_output)
+        gx = torch.matmul(ctx.f.permute([0,1,2,3,5,4]),grad_output)
       
         gf = ctx.scanner.lastM.permute([0,1,2,3,5,4]) * grad_output
         gf = torch.sum(gf,[2])
@@ -395,7 +419,8 @@ class RelaxClass(torch.autograd.Function):
             ctx.scanner.lastM[:,:,0,:,:2,0] *= id1.view([ctx.scanner.batch_size,1,ctx.scanner.NVox,1])
             ctx.scanner.lastM[:,:,0,:,2,0] = ctx.scanner.lastM[:,:,0,:,2,0]*id3 + (1-id3)*ctx.spins.MZ0[:,:,0,:]
             
-            ctx.scanner.lastM[:,:,:,ctx.scanner.tmask,:] = 0
+            for i in range(ctx.scanner.batch_size):
+                ctx.scanner.lastM[i,:,:,ctx.scanner.tmask[i,:],:] = 0
             
         return (gf, gx, None, None, None, None)  
   
@@ -409,11 +434,11 @@ class DephaseClass(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        gx = torch.matmul(ctx.f.permute([0,1,2,4,3]),grad_output)
+        gx = torch.matmul(ctx.f.permute([0,1,2,3,5,4]),grad_output)
         
-        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
+        ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,3,5,4]),ctx.scanner.lastM)
         
-        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = ctx.scanner.lastM.permute([0,1,2,3,5,4]) * grad_output
         gf = torch.sum(gf,[2],keepdim=True)
         
         return (gf, gx, None) 
@@ -431,7 +456,7 @@ class GradPrecessClass(torch.autograd.Function):
         gx = torch.matmul(ctx.f.permute([0,2,1]),grad_output)
         
         ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
-        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = ctx.scanner.lastM.permute([0,1,2,3,5,4]) * grad_output
         gf = torch.sum(gf,[0,1])
         
         return (gf, gx, None) 
@@ -449,8 +474,8 @@ class GradIntravoxelPrecessClass(torch.autograd.Function):
         gx = torch.matmul(ctx.f.permute([0,1,2,4,3]),grad_output)
         
         ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,1,2,4,3]),ctx.scanner.lastM)
-        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
-        gf = torch.sum(gf,[1,2],keepdim=True)
+        gf = ctx.scanner.lastM.permute([0,1,2,3,5,4]) * grad_output
+        gf = torch.sum(gf,[0,3],keepdim=False).unsqueeze(1)
         
         return (gf, gx, None)
     

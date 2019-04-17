@@ -297,7 +297,6 @@ class OPT_helper():
             
             # save entire history of optimized params/reco images
             if save_intermediary_results:
-                    
                 saved_state = dict()
                 saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0])
                 saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
@@ -320,7 +319,7 @@ class OPT_helper():
 
             self.print_status(do_vis_image,self.last_reco)
 
-            self.new_batch()
+            #self.new_batch()
             self.optimizer.step(self.weak_closure)
 
                 
@@ -377,8 +376,14 @@ class OPT_helper():
     def print_status(self, do_vis_image=False, reco=None):
         if do_vis_image:
             sz=self.spins.sz
-            recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
-
+            
+            if hasattr(self.spins,'batch_size'):
+                recoimg = tonumpy(reco[0,:,:]).reshape([sz[0],sz[1],2])
+                PD0_mask = self.spins.PD0_mask[0,:,:]
+            else:
+                recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
+                PD0_mask = self.spins.PD0_mask
+                
             # clear previous figure stack            
             plt.clf()            
             
@@ -392,7 +397,7 @@ class OPT_helper():
             plt.ion()
             
             ax1=plt.subplot(256)
-            ax=plt.imshow(tonumpy(self.spins.PD0_mask)*phaseimg(self.target), interpolation='none')
+            ax=plt.imshow(tonumpy(PD0_mask)*phaseimg(self.target), interpolation='none')
             plt.clim(-np.pi,np.pi) 
             #plt.clim(0,1)
             fig = plt.gcf()
@@ -409,7 +414,7 @@ class OPT_helper():
             plt.ion()
             
             plt.subplot(257, sharex=ax1, sharey=ax1)
-            ax=plt.imshow(tonumpy(self.spins.PD0_mask)*phaseimg(recoimg), interpolation='none')
+            ax=plt.imshow(tonumpy(PD0_mask)*phaseimg(recoimg), interpolation='none')
             plt.clim(-np.pi,np.pi) 
             fig = plt.gcf()
             fig.colorbar(ax)
@@ -497,7 +502,7 @@ class OPT_helper():
             
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id):
-        _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)        
+        _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
         
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
@@ -508,7 +513,7 @@ class OPT_helper():
         scanner_dict['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
-        scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
+        #scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
         scanner_dict['signal'] = tonumpy(self.scanner.signal)
 
         path=os.path.join('./out/',experiment_id)

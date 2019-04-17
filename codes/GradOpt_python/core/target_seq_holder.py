@@ -30,6 +30,14 @@ class TargetSequenceHolder():
         self.ROI_def = 1
         self.PD0_mask = spins.PD0_mask
         
+        self.batch_size = 1
+        
+        # batched mode
+        if self.target_image.dim() == 3:
+            self.batch_size = self.target_image.shape[0]
+            self.target_image = self.target_image[0,:,:]
+            self.PD0_mask = self.PD0_mask[0,:,:]
+        
     def print_status(self, do_vis_image=False, reco=None):
         if do_vis_image:
             
@@ -109,7 +117,7 @@ class TargetSequenceHolder():
         scanner_dict['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
-        scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
+        #scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
         scanner_dict['signal'] = tonumpy(self.scanner.signal)
 
         path=os.path.join('./out/',experiment_id)

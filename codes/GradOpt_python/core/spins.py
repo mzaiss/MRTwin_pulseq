@@ -95,8 +95,7 @@ class SpinSystem():
 class SpinSystem_batched(SpinSystem):
       
     def __init__(self,sz,NVox,NSpins,batch_size,use_gpu):
-        
-        super(SpinSystem, self).__init__(sz,NVox,NSpins,use_gpu)
+        super(SpinSystem_batched, self).__init__(sz,NVox,NSpins,use_gpu)
         self.batch_size = batch_size
         
     def set_system(self, input_array=None):
@@ -121,12 +120,16 @@ class SpinSystem_batched(SpinSystem):
             
         # find and store in mask locations with zero PD
         PD0_mask = PD.reshape([self.batch_size,self.sz[0],self.sz[1]]) > 1e-6
+        
+        omega = torch.from_numpy(0*np.random.rand(self.batch_size,self.NSpins,self.NVox).reshape([self.batch_size,self.NSpins,self.NVox])).float()
+        
 
         self.PD0_mask = self.setdevice(PD0_mask)
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
         self.PD = self.setdevice(PD)
         self.B0inhomo = self.setdevice(B0inhomo)
+        self.omega = self.setdevice(omega)
         
     def set_initial_magnetization(self):
         

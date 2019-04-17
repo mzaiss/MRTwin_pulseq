@@ -13,7 +13,7 @@ origpath=pwd;
 if isunix
     dir_seq = 'smb://mrz3t/upload/CEST_seq/pulseq_zero/sequences';
     d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/FLASH_spoiled_lowSAR64_400spins_multistep';
-    d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/tgtGRE_tsk_GRE_no_grad';
+    d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/seq190411/e07_tgtGRE_tsk_GRE_no_grad_line_parameterization_0';
 elseif ispc
     dir_seq = '/media/upload3t/CEST_seq/pulseq_zero/sequences';
     d = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
@@ -65,14 +65,22 @@ twix_obj = mapVBVD([d '/data/' files(1).name]);
 
 % save([d '/data/twix_obj_array.mat'],'twix_obj_array');
 try
+  if isunix
+    load([d '/data/twix_obj_array_unix.mat']);
+  else
     load([d '/data/twix_obj_array.mat']);
+  end
 catch
     for ii=array_MEAS
         filename=files(ii).name;
         twix_obj = mapVBVD([d '/data/' filename]);
         twix_obj_array{ii}=twix_obj;
     end
-    save([d '/data/twix_obj_array.mat'],'twix_obj_array');
+    if isunix
+      save([d '/data/twix_obj_array_unix.mat'],'twix_obj_array');
+    else
+        save([d '/data/twix_obj_array.mat'],'twix_obj_array');
+    end
 end
 
 if single>0
@@ -141,7 +149,9 @@ plot(ktraj(1,:),ktraj(2,:),'b'); hold on; % a 2D plot
 plot(ktraj_adc(1,:),ktraj_adc(2,:),'r.'); axis('equal'); title('k-space samples')
 grid on; hold off; axis('equal');
 set(gca,'XTick',[-kmax kmax]); set(gca,'YTick',[-kmax kmax]); set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
-% pause(0.1);
+
+pause(0.1);
+
 write_gif(ii,numel(array_MEAS),1,d,experiment_id,'full')
 end
 
