@@ -1,4 +1,4 @@
-function multiRECO_combined
+function multiRECO_combined(single)
 
 
 %% very simple FFT reconstruction from raw data
@@ -23,19 +23,16 @@ end
 
 %SIM
 scanner_dict = load([d,'/','all_iter.mat']);
+scanner_dict_tgt = load([d,'/','scanner_dict_tgt.mat']);
 sz = double(scanner_dict.sz);
 T = scanner_dict.T;
 NRep = scanner_dict.NRep;
 
 seq=mr.Sequence();
-seq.read([d '/' sprintf('seqiter%d.seq',1)]);
+seq.read([d '/' sprintf('seqiter%d.seq',0)]);
 [ktraj_adc, ktraj] = seq.calculateKspace();
 kmax=(max(ktraj_adc(1,1:sz(1)))-min(ktraj_adc(1,1:sz(1))))/2;
 
-niter = size(scanner_dict.flips,1);
-% array_SIM = [1:30,40:10:840];   % for sunday meas
-array_SIM = [1:150,160:10:1840]; % for new meas
-% array_SIM=array_SIM(1:niter);
 try
 load([d,'/','export_protocol.mat'],'idxarray_exported_itersteps');
 catch
@@ -48,6 +45,9 @@ SIM_sos_base= abs(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco
 SIM_phase_base = angle(squeeze(scanner_dict.reco_images(1,:,:,1)+1j*scanner_dict.reco_images(1,:,:,2)));
 SIM_SAR_base = sum(reshape((scanner_dict.flips(1,:,:,1).^2),1,[]));
 
+SIM_sos_base= abs(squeeze(scanner_dict_tgt.reco(:,:,1)+1j*scanner_dict_tgt.reco(:,:,2)));
+SIM_phase_base = angle(squeeze(scanner_dict_tgt.reco(:,:,1)+1j*scanner_dict_tgt.reco(:,:,2)));
+SIM_SAR_base = sum(reshape((scanner_dict_tgt.flips(:,:,1).^2),1,[]));
 
 
 %MEAS
@@ -59,8 +59,9 @@ array_MEAS=1:numel(files);
 twix_obj = mapVBVD([d '/data/' files(1).name]);
 
 % [sos_base, phase_base] = TWIXtoIMG_NUFFT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
-% [sos_base, phase_base] = TWIXtoIMG_ADJOINT(twix_obj, scanner_dict, 1);
-[sos_base, phase_base] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
+%  [sos_base, phase_base] = TWIXtoIMG_ADJOINT(twix_obj, scanner_dict, 1);
+   [sos_base, phase_base] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
+%   [sos_base, phase_base] = TWIXtoIMG_FFT(twix_obj);
 
 % save([d '/data/twix_obj_array.mat'],'twix_obj_array');
 try
@@ -72,6 +73,10 @@ catch
         twix_obj_array{ii}=twix_obj;
     end
     save([d '/data/twix_obj_array.mat'],'twix_obj_array');
+end
+
+if single>0
+    array_MEAS = single; % only a single fram to display
 end
 
 figure(1);  
@@ -117,8 +122,13 @@ end
 
 
 
-subplot(6,4,18), imagesc(squeeze(scanner_dict.flips(jj,:,:,1))'); title('Flips'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
-subplot(6,4,22), imagesc(squeeze(scanner_dict.flips(jj,:,:,2))'); title('Phases');colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+% subplot(6,4,18), imagesc(squeeze(scanner_dict.flips(jj,:,:,1))'); title('Flips'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+% subplot(6,4,22), imagesc(squeeze(scanner_dict.flips(jj,:,:,2))'); title('Phases');colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+
+subplot(6,4,18), plot(180/pi*squeeze(scanner_dict_tgt.flips(1,:,1)),'g','DisplayName','flips tgt'); hold on;% a 2D plot
+subplot(6,4,18), plot(180/pi*abs(squeeze(scanner_dict.flips(jj,1,:,1))),'r','DisplayName','flips'); 
+subplot(6,4,18), plot(180/pi*squeeze(scanner_dict.flips(jj,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
+
 subplot(6,4,19), imagesc(squeeze(scanner_dict.event_times(jj,:,:))'); title('delays');colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 subplot(6,4,20), imagesc(squeeze(scanner_dict.grad_moms(jj,:,:,1))');         title('gradmomx');colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 subplot(6,4,24), imagesc(squeeze(scanner_dict.grad_moms(jj,:,:,2))');          title('gradmomy');colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
@@ -150,7 +160,9 @@ grid on; hold off;
 set(gca,'XTick',[-kmax kmax]); set(gca,'YTick',[-kmax kmax]); set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 % pause(0.1);
     set(gcf, 'Outerposition',[1362         272         294         480])
-write_gif(ii,numel(array_MEAS),2,d,experiment_id,'small')
+    if (single==0)
+        write_gif(ii,numel(array_MEAS),2,d,experiment_id,'small')
+    end
 end
 
 end

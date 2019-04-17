@@ -39,6 +39,8 @@ end
 
 function [G_adj] = get_adjoint_mtx(k)
 
+   k(:,:,2)=-k(:,:,2);
+  
   sz = size(k);
   sz = sz(1);
   NVox = sz*sz;

@@ -1,5 +1,6 @@
 
 clear all; close all;
+single = 0;
 %%
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
@@ -13,6 +14,7 @@ else
   out=regexp(d,'\','split');
   experiment_id=out{end};
 end
+
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
@@ -50,6 +52,10 @@ SARloss(ii) = sum(reshape((squeeze(scanner_dict.flips(ii,:,:,1).^2)),1,[]))./SAR
 end
 
 n=0;
+if single>0
+    array = single; % only a single fram to display
+end
+
 for ii=array
 n=n+1; 
 sos = abs(squeeze(scanner_dict.reco_images(ii,:,:,1)+1j*scanner_dict.reco_images(ii,:,:,2)));
@@ -92,17 +98,19 @@ yyaxis right; plot(SARloss); hold on; plot(ii,SARloss(ii),'r.'); hold off; ylabe
 
 % create gif (out.gif)
 drawnow
-      frame = getframe(1);
-      im = frame2im(frame);      
-gifname=sprintf('%s/%s/a_sim_%s.gif',seq_dir,experiment_id,experiment_id);
-      [imind,cm] = rgb2ind(im,32);
-      if ii == 1
-          imwrite(imind,cm,gifname,'gif', 'Loopcount',inf);
-      elseif ii==numel(array)
-          imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.2);
-      else
-          imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.0005);
-      end
+    if (single==0)
+        frame = getframe(1);
+        im = frame2im(frame);
+        gifname=sprintf('%s/%s/a_sim_%s.gif',seq_dir,experiment_id,experiment_id);
+        [imind,cm] = rgb2ind(im,32);
+        if ii == 1
+            imwrite(imind,cm,gifname,'gif', 'Loopcount',inf);
+        elseif ii==numel(array)
+            imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.2);
+        else
+            imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.0005);
+        end
+    end
 end
 set(0, 'DefaultLineLineWidth', 0.5);
 

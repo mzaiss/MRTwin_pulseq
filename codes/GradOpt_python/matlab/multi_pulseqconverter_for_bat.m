@@ -39,6 +39,7 @@ idxarray_exported_itersteps = [1:20,30:10:niter];
 idxarray_exported_itersteps = [1:50, 52:2:100, 110:10:niter];
 % idxarray_exported_itersteps = [1:2:100, 100:10:150, 160:20:1140];
 idxarray_exported_itersteps = [1:30 35:5:340 350:50:niter];
+idxarray_exported_itersteps = [1:2:100 110:10:190 205:5:400 450:50:1000];
 
 idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_itersteps<=niter);
 
@@ -172,6 +173,7 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
 
     %write sequence
     seq.write(seq_fn);
+   % seq.writeBinary(seq_fn);
     
     pause(2);
     fprintf('%d of %d\n',k,numel(idxarray_exported_itersteps));
