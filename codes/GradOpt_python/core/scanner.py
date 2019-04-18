@@ -868,8 +868,10 @@ class Scanner():
         spins.set_initial_magnetization()
         
         for nr in range(nrep):
-            print('doing dummy #{} ...'.format(nr))
-
+            print('doing dummy #{} ...'.format(nr))        
+        
+            half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
+            
             # scanner forward process loop
             for r in range(self.NRep):                         # for all repetitions
                 total_delay = 0
@@ -883,8 +885,6 @@ class Scanner():
                     delay = torch.abs(event_time[t,r]) + 1e-6
                     
                     if self.adc_mask[t] == 0:                         # regular pass
-                        self.read_signal(t,r,spins)
-                        
                         spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                         
                         self.set_relaxation_tensor(spins,delay)
@@ -903,17 +903,18 @@ class Scanner():
                         self.set_grad_intravoxel_precess_tensor(t,r)
                         spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
                     else:
+                        
                         if self.adc_mask[t-1] == 0:        # first sample in readout
                             total_delay = delay
                             start_t = t
-                        elif t == self.adc_mask[t+1] == 0:
+                        elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
                             self.set_relaxation_tensor(spins,total_delay)
                             self.set_freeprecession_tensor(spins,total_delay)
                             self.set_B0inhomogeneity_tensor(spins,total_delay)
                             
                             spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
                             spins.M = DephaseClass.apply(self.P,spins.M,self)
-                            spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)                       
+                            spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                             
                             # do gradient precession (use adjoint as free kumulator)
                             if compact_grad_tensor:
@@ -941,17 +942,21 @@ class Scanner():
                             
                             # do intravoxel precession
                             spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
+                            
+                            # reset readout position tracking vars
+                            start_t = t
+                            total_delay = delay
                         else:                                       # keep accumulating
                             total_delay += delay
-                        
-            # kill numerically unstable parts of M vector for backprop
-            self.tmask = torch.zeros((self.NVox)).byte()
-            self.tmask = self.setdevice(self.tmask)
-            
-            self.tmask[spins.T1 < 1e-2] = 1
-            self.tmask[spins.T2 < 1e-2] = 1
-            
-            self.lastM = spins.M.clone() 
+                    
+        # kill numerically unstable parts of M vector for backprop
+        self.tmask = torch.zeros((self.NVox)).byte()
+        self.tmask = self.setdevice(self.tmask)
+        
+        self.tmask[spins.T1 < 1e-2] = 1
+        self.tmask[spins.T2 < 1e-2] = 1
+        
+        self.lastM = spins.M.clone() 
             
     def do_dummy_scans_sparse(self,spins,event_time,compact_grad_tensor=True,nrep=0):
         spins.set_initial_magnetization()
@@ -959,6 +964,12 @@ class Scanner():
         for nr in range(nrep):
             print('doing dummy #{} ...'.format(nr)) 
                   
+            PD0_mask = spins.PD0_mask.flatten()
+            spins_cut = spins.M[:,:,PD0_mask,:,:].clone()
+            
+            # scanner forward process loop
+            half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
+            
             PD0_mask = spins.PD0_mask.flatten()
             spins_cut = spins.M[:,:,PD0_mask,:,:].clone()
             
@@ -971,18 +982,16 @@ class Scanner():
                     self.set_grad_op(r)
                     self.set_grad_adj_op(r)
                     
-                    G_cut = self.G[:,PD0_mask,:,:]
-                    G_adj_cut = self.G_adj[:,PD0_mask,:,:]                    
-                else:
-                    G_cut = self.G[:,:,PD0_mask,:,:]
+                    G_cut = self.G[:,PD0_mask,:,:]        
+                    G_adj_cut = self.G_adj[:,PD0_mask,:,:]                
+                else:        
+                    G_cut = self.G[:,:,PD0_mask,:,:]        
                     G_adj_cut = self.G_adj[:,:,PD0_mask,:,:]
                 
                 for t in range(self.T):                            # for all actions
                     delay = torch.abs(event_time[t,r]) + 1e-6
                     
                     if self.adc_mask[t] == 0:                         # regular pass
-                        self.read_signal(t,r,spins)
-                        
                         spins_cut = FlipClass.apply(self.F[t,r,:,:,:],spins_cut,self)
                         
                         self.set_relaxation_tensor(spins,delay)
@@ -1005,7 +1014,7 @@ class Scanner():
                         if self.adc_mask[t-1] == 0:        # first sample in readout
                             total_delay = delay
                             start_t = t
-                        elif self.adc_mask[t+1] == 0:
+                        elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
                             self.set_relaxation_tensor(spins,total_delay)
                             self.set_freeprecession_tensor(spins,total_delay)
                             self.set_B0inhomogeneity_tensor(spins,total_delay)
@@ -1211,8 +1220,14 @@ class Scanner_fast(Scanner):
         super(Scanner_fast,self).forward_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast,self).forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)     
+        super(Scanner_fast,self).forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)   
+        
+    def do_dummy_scans(self,spins,event_time,nrep=0):
+        super(Scanner_fast,self).do_dummy_scans(spins,event_time,compact_grad_tensor=False,nrep=0)
 
+    def do_dummy_scans_sparse(self,spins,event_time,nrep=0):
+        super(Scanner_fast,self).do_dummy_scans_sparse(spins,event_time,compact_grad_tensor=False,nrep=0)
+        
     # compute adjoint encoding op-based reco    <            
     def adjoint(self,spins):
         self.init_reco()
