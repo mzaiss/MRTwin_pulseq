@@ -68,6 +68,9 @@ function [G_adj] = get_adjoint_mtx(grad_moms,adc_mask,T,NRep,NVox,sz)
 
   G_adj = zeros(T,NRep,NVox,3,3);
   G_adj(:,:,:,3,3) = 1;
+  
+  grad_moms = padarray(grad_moms,[1,0,0],'pre');
+  grad_moms = grad_moms(1:end-1,:,:);      
 
   k = cumsum(grad_moms,1);
 
