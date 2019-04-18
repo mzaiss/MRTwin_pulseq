@@ -500,7 +500,8 @@ class Scanner():
             
     def forward_mem(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True):
         self.init_signal()
-        spins.set_initial_magnetization()
+        if do_dummy_scans == False:
+            spins.set_initial_magnetization()
     
         # scanner forward process loop
         for r in range(self.NRep):                                   # for all repetitions
@@ -549,7 +550,8 @@ class Scanner():
             
     def forward_sparse(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True):
         self.init_signal()
-        spins.set_initial_magnetization()
+        if do_dummy_scans == False:
+            spins.set_initial_magnetization()
         
         PD0_mask = spins.PD0_mask.flatten()
         spins_cut = spins.M[:,:,PD0_mask,:,:].clone()
@@ -609,7 +611,8 @@ class Scanner():
     # run throw all repetition/actions and yield signal
     def forward_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True):
         self.init_signal()
-        spins.set_initial_magnetization()
+        if do_dummy_scans == False:
+            spins.set_initial_magnetization()
         self.reco = 0
         
         half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
@@ -731,7 +734,8 @@ class Scanner():
     # run throw all repetition/actions and yield signal
     def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True):
         self.init_signal()
-        spins.set_initial_magnetization()
+        if do_dummy_scans == False:
+            spins.set_initial_magnetization()
         self.reco = 0
         
         half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
