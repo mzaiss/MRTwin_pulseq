@@ -113,6 +113,7 @@ spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 spins.T1*=1
 spins.T2*=1
+spins.B0inhomo*=0
 plt.subplot(121)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
 plt.title("PD")
@@ -151,12 +152,12 @@ scanner.adc_mask[-2:] = 0
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 40*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[0,:,0] = 10*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
-flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
-flips[0,:,1] = torch.tensor([1,-1,1,-1,1,-1,1,-1,1,-1,1,-1,1,-1,1,-1]).float()*np.pi/180
+#flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
+flips[0,:,1] = torch.tensor([1,-1,1,-1,1,-1,1,-1,1,-1,1,-1,1,-1,1,-1]).float()*10*np.pi/180
 
 flips = setdevice(flips)
 
@@ -168,13 +169,18 @@ scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[1,:] = 1e-3
-event_time[-2,:] = 15.4*1e-3*1
+event_time[0,:] = 1e-3
+event_time[1,:] = 0.2*1e-3
+event_time[-2,:] = 1e-3
 #event_time[-1,:] = 1.2           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])
-TE=torch.sum(event_time[:11,1])
+TE=torch.sum(event_time[:int(sz[0]/2+2),1])
+
+TE_180  = torch.sum(event_time[:int(sz[0]/2+2),1]) # time after 180 til center k-space
+TE_180_2= torch.sum(event_time[int(sz[0]/2+2):,1]) # time after center k-space til next 180
+
 
 # gradient-driver precession
 # Cartesian encoding
@@ -194,7 +200,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 #############################################################################
 ## Forward process ::: ######################################################
     
-scanner.do_dummy_scans(spins,event_time,nrep=30)   # do dummies
+scanner.do_dummy_scans(spins,event_time,nrep=1)   # do dummies
 # forward/adjoint pass
 scanner.forward(spins, event_time,do_dummy_scans=True)
 #scanner.forward_fast(spins, event_time)

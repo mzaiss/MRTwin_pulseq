@@ -80,7 +80,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([48,48])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -167,15 +167,15 @@ scanner.set_ADC_rot_tensor(flips[0,:,1]*0 -np.pi) #GRE/FID specific
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,:] = 0.2*1e-3
-event_time[1,:] = 0.4*1e-3
-event_time[0,0] = (sz[0]/2)*0.2*1e-3 + (0.4*1e-3)
+event_time[1,:] = 0.6*1e-3
+event_time[0,0] = (sz[0]/2)*0.2*1e-3 + (0.6*1e-3)
 #event_time[1:,0,0] = 0.2*1e-3
 event_time[-2,:] = 0.2*1e-3
 event_time = setdevice(event_time)
 
 TE2_90   = torch.sum(event_time[0,0])  # time after 90 until 180
 TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1]) # time after 180 til center k-space
-TE2_180_2= torch.sum(event_time[int(sz[0]/2+3):,1])+event_time[0,1] # time after center k-space til next 180
+TE2_180_2= torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1] # time after center k-space til next 180
 
 # gradient-driver precession
 # Cartesian encoding
