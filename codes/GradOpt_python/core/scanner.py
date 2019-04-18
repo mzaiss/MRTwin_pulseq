@@ -710,7 +710,7 @@ class Scanner():
                             signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
                             signal = torch.sum(signal,[2])
                             
-                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze().roll(half_read,0)
+                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze().roll(half_read,0) / self.NSpins 
                         
                         # reset readout position tracking vars
                         start_t = t
@@ -842,7 +842,7 @@ class Scanner():
                             signal = torch.matmul(FWD,torch.sum(spins_cut,0,keepdim=True))
                             signal = torch.sum(signal,[2])
                             
-                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze().roll(half_read,0)
+                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze().roll(half_read,0) / self.NSpins 
                         
                         # reset readout position tracking vars
                         start_t = t
