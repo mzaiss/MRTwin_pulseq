@@ -434,7 +434,7 @@ class Scanner():
         
     def do_ifft_reco(self):
         spectrum = self.signal
-        spectrum = spectrum[0,self.adc_mask.flatten()>0,:,:2,0]
+        spectrum = spectrum[0,self.adc_mask.flatten()!=0,:,:2,0]
         space = torch.ifft(spectrum,2)
         output = space.clone()
         output[:self.sz[0]//2,:self.sz[1]//2,:] = space[-self.sz[0]//2:,-self.sz[1]//2:,:]
@@ -445,7 +445,7 @@ class Scanner():
         return output
         
     def read_signal(self,t,r,spins):
-        if self.adc_mask[t] > 0:
+        if self.adc_mask[t] != 0:
             
             # parallel imaging disabled for now
             #sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(0).unsqueeze(4))
@@ -471,18 +471,13 @@ class Scanner():
             if compact_grad_tensor:
                 self.set_grad_op(r)
             
-            self.ROI_signal[0,r,0] =   0
-            self.ROI_signal[0,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
-            
             for t in range(self.T):                                      # for all actions
                 delay = torch.abs(event_time[t,r]) + 1e-6
                 self.read_signal(t,r,spins)    
                 
-                self.ROI_signal[t+1,r,0] =   delay
-                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
-                
-                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                self.ROI_signal[t+1,r,4] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                 
+                self.ROI_signal[t,r,0] =   delay
+                self.ROI_signal[t,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t,r,4] =  torch.sum(torch.abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                 
                 
                 self.flip(t,r,spins)
                 
@@ -512,18 +507,13 @@ class Scanner():
             if compact_grad_tensor:
                 self.set_grad_op(r)
                 
-            self.ROI_signal[0,r,0] =   0
-            self.ROI_signal[0,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
-            
             for t in range(self.T):                                      # for all actions
                 delay = torch.abs(event_time[t,r]) + 1e-6
                 self.read_signal(t,r,spins)
                 
-                self.ROI_signal[t+1,r,0] =   delay
-                #self.ROI_signal[t+1,r,1:] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded 16
-
-                self.ROI_signal[t+1,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                self.ROI_signal[t+1,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel    
+                self.ROI_signal[t,r,0] =   delay
+                self.ROI_signal[t,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                self.ROI_signal[t,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel    
                 
                 spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                 
@@ -576,7 +566,7 @@ class Scanner():
             for t in range(self.T):                                      # for all actions
                 delay = torch.abs(event_time[t,r]) + 1e-6
                 
-                if self.adc_mask[t] > 0:
+                if self.adc_mask[t] != 0:
                     self.signal[0,t,r,:2] = ((torch.sum(spins_cut[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins        
         
                 spins_cut = FlipClass.apply(self.F[t,r,:,:,:],spins_cut,self)
@@ -635,6 +625,10 @@ class Scanner():
                 if self.adc_mask[t] == 0:                         # regular pass
                     self.read_signal(t,r,spins)
                     
+                    self.ROI_signal[t,r,0] =   delay
+                    self.ROI_signal[t,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
+                    self.ROI_signal[t,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                     
+                    
                     spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                     
                     self.set_relaxation_tensor(spins,delay)
@@ -658,6 +652,10 @@ class Scanner():
                         total_delay = delay
                         start_t = t
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
+                        self.ROI_signal[start_t:t,r,0] = delay
+                        self.ROI_signal[start_t:t,r,1:4] = torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu().unsqueeze(0)
+                        self.ROI_signal[start_t:t,r,4] = torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()
+                        
                         self.set_relaxation_tensor(spins,total_delay)
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
@@ -1185,19 +1183,19 @@ class Scanner_fast(Scanner):
         
     # run throw all repetition/actions and yield signal
     def forward(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast, self).forward(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+        super(Scanner_fast,self).forward(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_mem(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast, self).forward_mem(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+        super(Scanner_fast,self).forward_mem(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_sparse(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast, self).forward_sparse(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+        super(Scanner_fast,self).forward_sparse(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_fast(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast, self).forward_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+        super(Scanner_fast,self).forward_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast, self).forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)     
+        super(Scanner_fast,self).forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)     
 
     # compute adjoint encoding op-based reco    <            
     def adjoint(self,spins):
