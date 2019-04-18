@@ -567,7 +567,11 @@ class Scanner():
                 delay = torch.abs(event_time[t,r]) + 1e-6
                 
                 if self.adc_mask[t] != 0:
-                    self.signal[0,t,r,:2] = ((torch.sum(spins_cut[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins        
+                    self.signal[0,t,r,:2] = ((torch.sum(spins_cut[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins 
+                    
+                self.ROI_signal[t,r,0] =   delay
+                self.ROI_signal[t,r,1:4] =  torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu()  # hard coded pixel id 0
+                self.ROI_signal[t,r,4] =  torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()  # hard coded pixel id 0         
         
                 spins_cut = FlipClass.apply(self.F[t,r,:,:,:],spins_cut,self)
                 
@@ -756,6 +760,10 @@ class Scanner():
                 if self.adc_mask[t] == 0:                         # regular pass
                     self.read_signal(t,r,spins)
                     
+                    self.ROI_signal[t,r,0] =   delay
+                    self.ROI_signal[t,r,1:4] =  torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu()  # hard coded pixel id 0
+                    self.ROI_signal[t,r,4] =  torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()  # hard coded pixel id 0                        
+                    
                     spins_cut = FlipClass.apply(self.F[t,r,:,:,:],spins_cut,self)
                     
                     self.set_relaxation_tensor(spins,delay)
@@ -779,6 +787,10 @@ class Scanner():
                         total_delay = delay
                         start_t = t
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
+                        self.ROI_signal[start_t:t,r,0] = delay
+                        self.ROI_signal[start_t:t,r,1:4] = torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
+                        self.ROI_signal[start_t:t,r,4] = torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()
+                        
                         self.set_relaxation_tensor(spins,total_delay)
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
