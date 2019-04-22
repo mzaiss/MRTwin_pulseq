@@ -105,6 +105,8 @@ for i in range(5):
         t[t < 0] = 0
     real_phantom_resized[:,:,i] = t
     
+real_phantom_resized[:,:,3] *= 0
+    
 spins.set_system(real_phantom_resized)
 
 cutoff = 1e-12
@@ -113,7 +115,7 @@ spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 spins.T1*=1
 spins.T2*=1
-spins.B0inhomo*=1
+spins.B0inhomo*=0
 plt.subplot(121)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
 plt.title("PD")
@@ -141,7 +143,7 @@ spins.omega = setdevice(spins.omega)
 #############################################################################
 ## Init scanner system ::: #####################################
 
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
 # begin sequence definition
@@ -194,14 +196,14 @@ grad_moms = setdevice(grad_moms)
 
 # end sequence 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor(grad_moms,refocusing=True,wrap_k=False)  # refocusing=False for GRE/FID, adjust for higher echoes
 
 #############################################################################
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-scanner.forward_mem(spins, event_time)
-#scanner.forward_fast(spins, event_time)
+#scanner.forward_mem(spins, event_time)
+scanner.forward_fast(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
@@ -224,7 +226,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     
     targetSeq.export_to_matlab(experiment_id)
     
-#    stop()
+    stop()
     
     
     # %% ###     OPTIMIZATION functions phi and init ######################################################
@@ -299,7 +301,7 @@ def phi_FRP_model(opt_params,aux_params):
         grad_moms = torch.sin(grad_moms)*fmax
 
     scanner.init_gradient_tensor_holder()          
-    scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) # GRE/FID specific, maybe adjust for higher echoes
+    scanner.set_gradient_precession_tensor(grad_moms,refocusing=True,wrap_k=False) # GRE/FID specific, maybe adjust for higher echoes
          
     # forward/adjoint pass
     #scanner.forward_mem(spins, event_time)
