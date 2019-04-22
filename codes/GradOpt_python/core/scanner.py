@@ -674,7 +674,7 @@ class Scanner():
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
                         
-                        spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                        spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
                         spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                         
@@ -805,7 +805,7 @@ class Scanner():
                         start_t = t
                         
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
-                        self.ROI_signal[start_t:t,r,0] = delay
+                        self.ROI_signal[start_t:t,r,0] = total_delay
                         self.ROI_signal[start_t:t,r,1:4] = torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
                         self.ROI_signal[start_t:t,r,4] = torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()
                         
@@ -813,7 +813,7 @@ class Scanner():
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
                         
-                        spins_cut = RelaxClass.apply(self.R[:,PD0_mask,:,:],spins_cut,delay,t,self,spins)
+                        spins_cut = RelaxSparseClass.apply(self.R[:,PD0_mask,:,:], spins_cut,total_delay,t,self,spins,PD0_mask)
                         spins_cut = DephaseClass.apply(self.P,spins_cut,self)
                         spins_cut = B0InhomoClass.apply(self.SB0[:,:,PD0_mask,:,:],spins_cut,self)
                         
@@ -930,7 +930,7 @@ class Scanner():
                             self.set_freeprecession_tensor(spins,total_delay)
                             self.set_B0inhomogeneity_tensor(spins,total_delay)
                             
-                            spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                            spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
                             spins.M = DephaseClass.apply(self.P,spins.M,self)
                             spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                             
@@ -1037,7 +1037,7 @@ class Scanner():
                             self.set_freeprecession_tensor(spins,total_delay)
                             self.set_B0inhomogeneity_tensor(spins,total_delay)
                             
-                            spins_cut = RelaxClass.apply(self.R[:,PD0_mask,:,:],spins_cut,delay,t,self,spins)
+                            spins_cut = RelaxSparseClass.apply(self.R[:,PD0_mask,:,:],spins_cut,delay,t,self,spins,PD0_mask)
                             spins_cut = DephaseClass.apply(self.P,spins_cut,self)
                             spins_cut = B0InhomoClass.apply(self.SB0[:,:,PD0_mask,:,:],spins_cut,self)
                             
