@@ -38,6 +38,10 @@ class Scanner():
         self.AF = None
         self.use_gpu =  use_gpu
         
+        
+        # experimental (fast grad op)
+        self.collect_presignal = False
+        
         # phase cycling
         self.phase_cycler = np.array([0,117,351,342,90,315,297,36,252,225,315,162,126,207,45,0,72,261,207,270,90,27,81,252,180,225,27,306,342,135,45,72,216,117,135,270,162,171,297,180,180,297,171,162,270,135,117,216,72,45,135,
                                       342,306,27,225,180,252,81,27,90,270,207,261,72,0,45,207,126,162,315,225,252,36,297,315,90,342,351,117,0,0,117,351,342,90,315,297,36,252,225,315,162,126,207,45,0,72,261,207,270,90,27,81,252,
@@ -420,8 +424,11 @@ class Scanner():
     def init_signal(self):
         signal = torch.zeros((self.NCoils,self.T,self.NRep,3,1), dtype=torch.float32) 
         #signal[:,:,:,2:,0] = 1                                 # aux dim zero ()
-              
         self.signal = self.setdevice(signal)
+        
+        if self.collect_presignal:
+            presignal = torch.zeros((self.NRep,1,self.NVox,3,1), dtype=torch.float32) 
+            self.presignal = self.setdevice(presignal)
         
         self.ROI_signal = torch.zeros((self.T+1,self.NRep,5), dtype=torch.float32) # for trans magnetization
         self.ROI_signal = self.setdevice(self.ROI_signal)
@@ -671,17 +678,11 @@ class Scanner():
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
                         spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                         
-                        # do gradient precession (use adjoint as free kumulator)
                         if compact_grad_tensor:
                             REW = self.G_adj[start_t,:,:,:]
-                            FWD = self.G_adj[t+1,:,:,:].permute([0,2,1])
                         else:
                             REW = self.G_adj[start_t,r,:,:,:]
-                            FWD = self.G_adj[t+1,r,:,:,:].permute([0,2,1])
                             
-                        FWD = torch.matmul(REW, FWD)
-                        spins.M = torch.matmul(FWD,spins.M)
-                        
                         # set grad intravoxel precession tensor
                         kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
                         intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
@@ -707,11 +708,22 @@ class Scanner():
                                 
                             FWD = torch.matmul(REW, FWD)
                             
-                            signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
+                            if self.collect_presignal:
+                                presignal = torch.sum(spins.M,0,keepdim=True)
+                                self.presignal[r,0,:,:,:] = presignal
+                            signal = torch.matmul(FWD,presignal)
                             signal = torch.sum(signal,[2])
                             
-                            #self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
-                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze().roll(half_read,0) / self.NSpins 
+                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
+                            
+                        # do gradient precession (use adjoint as free kumulator)
+                        if compact_grad_tensor:
+                            FWD = self.G_adj[t+1,:,:,:].permute([0,2,1])
+                        else:
+                            FWD = self.G_adj[t+1,r,:,:,:].permute([0,2,1])
+                            
+                        FWD = torch.matmul(REW, FWD)
+                        spins.M = torch.matmul(FWD,spins.M)                       
                         
                         # reset readout position tracking vars
                         start_t = t + 1
@@ -808,13 +820,8 @@ class Scanner():
                         # do gradient precession (use adjoint as free kumulator)
                         if compact_grad_tensor:
                             REW = G_adj_cut[start_t,:,:,:]
-                            FWD = G_adj_cut[t+1,:,:,:].permute([0,2,1])
                         else:
                             REW = G_adj_cut[start_t,r,:,:,:]
-                            FWD = G_adj_cut[t+1,r,:,:,:].permute([0,2,1])
-                            
-                        FWD = torch.matmul(REW, FWD)
-                        spins_cut = torch.matmul(FWD,spins_cut)
                         
                         # set grad intravoxel precession tensor
                         kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
@@ -844,8 +851,16 @@ class Scanner():
                             signal = torch.matmul(FWD,torch.sum(spins_cut,0,keepdim=True))
                             signal = torch.sum(signal,[2])
                             
-                            #self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
-                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze().roll(half_read,0) / self.NSpins 
+                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
+                            
+                        # do gradient precession (use adjoint as free kumulator)
+                        if compact_grad_tensor:
+                            FWD = G_adj_cut[t+1,:,:,:].permute([0,2,1])
+                        else:
+                            FWD = G_adj_cut[t+1,r,:,:,:].permute([0,2,1])
+                            
+                        FWD = torch.matmul(REW, FWD)
+                        spins_cut = torch.matmul(FWD,spins_cut)                            
                         
                         # reset readout position tracking vars
                         start_t = t + 1
