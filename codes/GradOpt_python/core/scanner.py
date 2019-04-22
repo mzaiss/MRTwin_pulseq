@@ -1226,25 +1226,25 @@ class Scanner_fast(Scanner):
         
     # run throw all repetition/actions and yield signal
     def forward(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast,self).forward(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+        super().forward(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_mem(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast,self).forward_mem(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+        super().forward_mem(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_sparse(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast,self).forward_sparse(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+        super().forward_sparse(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_fast(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast,self).forward_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+        super().forward_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False):
-        super(Scanner_fast,self).forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)   
+        super().forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)   
         
     def do_dummy_scans(self,spins,event_time,nrep=0):
-        super(Scanner_fast,self).do_dummy_scans(spins,event_time,compact_grad_tensor=False,nrep=0)
+        super().do_dummy_scans(spins,event_time,compact_grad_tensor=False,nrep=0)
 
     def do_dummy_scans_sparse(self,spins,event_time,nrep=0):
-        super(Scanner_fast,self).do_dummy_scans_sparse(spins,event_time,compact_grad_tensor=False,nrep=0)
+        super().do_dummy_scans_sparse(spins,event_time,compact_grad_tensor=False,nrep=0)
         
     # compute adjoint encoding op-based reco    <            
     def adjoint(self,spins):
