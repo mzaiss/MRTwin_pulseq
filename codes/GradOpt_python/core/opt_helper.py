@@ -302,7 +302,7 @@ class OPT_helper():
                 saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
                 saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
                 helper = self.scanner_opt_params[3].clone()
-                helper[3:-2,:,:] = helper[2,:,:].repeat([len(self.scanner_opt_params[2][:,0])-5,1,1])
+                helper[2:-2,:,:] = helper[2,:,:].repeat([len(self.scanner_opt_params[2][:,0])-4,1,1])
                 saved_state['grad_moms'] = tonumpy(helper)
                 saved_state['learn_rates'] = self.custom_learning_rate
                 
