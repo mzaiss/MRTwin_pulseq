@@ -12,7 +12,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e21_tgtRARE_tskRARE'
+experiment_id = 'e21_tgtRARE_tskRARE_32_centric'
 experiment_description = """
 bSSFP
 """
@@ -114,7 +114,7 @@ spins.T1[spins.T1<cutoff] = cutoff
 spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 spins.T1*=1
-spins.T2*=1000
+spins.T2*=1
 spins.B0inhomo*=0
 plt.subplot(131)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
@@ -172,10 +172,12 @@ scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,:] = 0.2*1e-3
+event_time[0,1:] = 0.01*1e-3
+event_time[-1,:] = 0.01*1e-3
 event_time[1,:] = 0.6*1e-3
 event_time[0,0] = (sz[0]/2)*0.2*1e-3 + (0.6*1e-3)
 #event_time[1:,0,0] = 0.2*1e-3
-event_time[-2,:] = 0.2*1e-3
+event_time[-2,:] = 0.58*1e-3
 event_time = setdevice(event_time)
 
 TE2_90   = torch.sum(event_time[0,0])  # time after 90 until 180
@@ -222,10 +224,14 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=True,wrap_k=False)  
 # forward/adjoint pass
 #scanner.forward_mem(spins, event_time)
 scanner.forward_fast(spins, event_time)
+scanner.signal = torch.roll(scanner.signal,0,dims=[2])
 scanner.adjoint(spins)
 
 # try to fit this
 target = scanner.reco.clone()
+
+ft_reco = scanner.do_ifft_reco()
+plt.imshow(magimg(tonumpy(ft_reco)))
    
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
