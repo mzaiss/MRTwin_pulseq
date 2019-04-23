@@ -711,7 +711,10 @@ class Scanner():
                             if self.collect_presignal:
                                 presignal = torch.sum(spins.M,0,keepdim=True)
                                 self.presignal[r,0,:,:,:] = presignal
-                            signal = torch.matmul(FWD,presignal)
+                                signal = torch.matmul(FWD,presignal)
+                            else:
+                                signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
+                                
                             signal = torch.sum(signal,[2])
                             
                             self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
