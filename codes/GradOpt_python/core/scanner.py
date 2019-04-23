@@ -1133,6 +1133,8 @@ class Scanner_fast(Scanner):
         
     def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False):
         
+        # we need to shift grad_moms to the right for adjoint pass, since at each repetition we have:
+        # meas-signal, flip, relax,grad order  (signal comes before grads!)
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
         padder = self.setdevice(padder)
         temp = torch.cat((padder,grad_moms),0)
@@ -1153,10 +1155,18 @@ class Scanner_fast(Scanner):
         
         # for backward pass
         if refocusing:
-            B0X = torch.unsqueeze(k[:,:,0]-self.sz[0]/2,2) * self.rampX
-        else:
-            B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
+            #B0X = torch.unsqueeze(k[:,:,0]-self.sz[0]/2,2) * self.rampX
             
+            refocusing_pulse_action_idx = 1
+            kloc = 0
+            for r in range(self.NRep):
+                for t in range(self.T):
+                    if refocusing_pulse_action_idx+1 == t:     # +1 because of right gradmom shift (see above )
+                        kloc = -kloc
+                    kloc += temp[t,r,:]
+                    k[t,r,:] = kloc
+                
+        B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
         B0Y = torch.unsqueeze(k[:,:,1],2) * self.rampY
         
         B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
