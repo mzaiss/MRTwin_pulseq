@@ -299,7 +299,7 @@ class OPT_helper():
             
             # save entire history of optimized params/reco images
             if save_intermediary_results:
-                tosave_opt_params = self.scanner_opt_params.clone()
+                tosave_opt_params = self.scanner_opt_params
                 
                 # i.e. non-cartesian trajectiries, any custom reparameterization
                 if self.reparameterize is not None:
@@ -427,7 +427,7 @@ class OPT_helper():
             plt.title('reco phase')
             plt.ion()
             
-            todisplay_opt_params = self.scanner_opt_params.clone()
+            todisplay_opt_params = self.scanner_opt_params
             
             # i.e. non-cartesian trajectiries, any custom reparameterization
             if self.reparameterize is not None:
@@ -515,7 +515,7 @@ class OPT_helper():
     def export_to_matlab(self, experiment_id):
         _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
         
-        tosave_opt_params = self.scanner_opt_params.clone()
+        tosave_opt_params = self.scanner_opt_params
         
         # i.e. non-cartesian trajectiries, any custom reparameterization
         if self.reparameterize is not None:
