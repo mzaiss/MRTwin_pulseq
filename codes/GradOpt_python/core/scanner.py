@@ -716,6 +716,7 @@ class Scanner():
                                 signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
                                 
                             signal = torch.sum(signal,[2])
+                            signal *= self.adc_mask[start_t:start_t+half_read*2].view([1,signal.shape[1],1,1])
                             
                             self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
                             
