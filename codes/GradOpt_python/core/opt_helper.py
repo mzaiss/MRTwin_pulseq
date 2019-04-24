@@ -309,9 +309,7 @@ class OPT_helper():
                 saved_state['adc_mask'] = tonumpy(tosave_opt_params[0])
                 saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
                 saved_state['event_times'] = tonumpy(tosave_opt_params[2])
-                helper = tosave_opt_params[3].clone()
-                helper[2:-2,:,:] = helper[2,:,:].repeat([len(tosave_opt_params[2][:,0])-4,1,1])
-                saved_state['grad_moms'] = tonumpy(helper)
+                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
                 saved_state['learn_rates'] = self.custom_learning_rate
                 
                 legs=['x','y','z']
