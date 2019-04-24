@@ -430,7 +430,7 @@ class Scanner():
             presignal = torch.zeros((self.NRep,1,self.NVox,3,1), dtype=torch.float32) 
             self.presignal = self.setdevice(presignal)
         
-        self.ROI_signal = torch.zeros((self.T+1,self.NRep,5), dtype=torch.float32) # for trans magnetization
+        self.ROI_signal = torch.zeros((self.T,self.NRep,5), dtype=torch.float32) # for trans magnetization
         self.ROI_signal = self.setdevice(self.ROI_signal)
         self.ROI_def= int((self.sz[0]/2)*self.sz[1]+ self.sz[1]/2)
         
@@ -716,6 +716,7 @@ class Scanner():
                                 signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
                                 
                             signal = torch.sum(signal,[2])
+                            signal *= self.adc_mask[start_t:start_t+half_read*2].view([1,signal.shape[1],1,1])
                             
                             self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
                             
