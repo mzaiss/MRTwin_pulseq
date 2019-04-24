@@ -100,7 +100,7 @@ gxPre = mr.makeTrapezoid('x','Area',sz(1)/SeqOpts.FOV,'Duration',scanner_dict.ev
 for rep=1:NRep
 
     gradmoms = double(scanner_dict.grad_moms)*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
-    #gradmoms(:,:,2)=0;
+    %gradmoms(:,:,2)=0;
     % first two extra events T(1:2)
     % first
       idx_T=1; % T(1)
@@ -108,12 +108,11 @@ for rep=1:NRep
       if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
         use = 'excitation';
         rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',2*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
-        seq.addBlock(rf);
+        seq.addBlock(rf,mr.makeDelay(scanner_dict.event_times(idx_T,rep)));
+      else
+        seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
       end
-%       seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
-      gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-      gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-      seq.addBlock(gxPre,gyPre);
+      
       % alternatively slice selective:
         %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
         % see writeHASTE.m      
@@ -123,9 +122,10 @@ for rep=1:NRep
         use = 'refocusing';
         if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
           rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',2*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
-          seq.addBlock(rf);
-        end
-        seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))      
+            seq.addBlock(rf,mr.makeDelay(scanner_dict.event_times(idx_T,rep)));
+        else
+            seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
+        end   
         
         gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));
         eventtime_revinder = squeeze(scanner_dict.event_times(idx_T,rep));
@@ -143,9 +143,8 @@ for rep=1:NRep
       
     % second last extra event  T(end)
         idx_T=size(gradmoms,1)-1; % T(2)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        seq.addBlock(gxPost,gyPost);
+        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        seq.addBlock(gxPost);
         
     %  last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
