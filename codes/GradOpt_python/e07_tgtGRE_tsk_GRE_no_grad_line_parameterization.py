@@ -12,7 +12,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e07_tgtGRE_tsk_GRE_no_grad_line_parameterization'
+experiment_id = 'e07_tgtGRE_tsk_GRE_no_grad_line_parameterization_0'
 experiment_description = """
 tgt FLASHspoiled_relax0.1s task find all grads except read ADC grads
 this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
@@ -198,7 +198,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
     
 # forward/adjoint pass
 
-scanner.forward(spins, event_time)
+scanner.forward_fast(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this

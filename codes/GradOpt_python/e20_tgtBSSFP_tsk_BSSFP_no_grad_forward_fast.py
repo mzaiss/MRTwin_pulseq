@@ -114,6 +114,7 @@ spins.T2[spins.T2<cutoff] = cutoff
 spins.T1*=1
 spins.T2*=1
 spins.B0inhomo*=0
+#spins.B0inhomo+=10
 plt.subplot(121)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
 plt.title("PD")
@@ -153,11 +154,12 @@ scanner.adc_mask[-2:] = 0
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[0,:,0] = 10*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+#flips[1,0,0] = -2.5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
 #flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
-flips[0,:,1] = torch.tensor([1,-1,1,-1,1,-1,1,-1,1,-1,1,-1,1,-1,1,-1]).float()*10*np.pi/180
+flips[0,:,1] = torch.tensor([1,-1,1,-1,1,-1,1,-1,1,-1,1,-1,1,-1,1,-1]).float()*np.pi/180
 
 flips = setdevice(flips)
 
@@ -165,7 +167,7 @@ scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)
 
 # rotate ADC according to excitation phase
-scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-flips[0,:,1]*0 + np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -202,8 +204,8 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
     
 scanner.do_dummy_scans(spins,event_time,nrep=1)   # do dummies
 # forward/adjoint pass
-scanner.forward(spins, event_time,do_dummy_scans=True)
-#scanner.forward_fast(spins, event_time)
+#scanner.forward_mem(spins, event_time,do_dummy_scans=True)
+scanner.forward_fast(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
@@ -226,7 +228,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     
     targetSeq.export_to_matlab(experiment_id)
     
-#    stop()
+    stop()
     
     
     # %% ###     OPTIMIZATION functions phi and init ######################################################
