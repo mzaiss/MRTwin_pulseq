@@ -191,6 +191,7 @@ class OPT_helper():
         self.best_optimizer_state = None
         self.init_variables = None
         self.phi_FRP_model = None
+        self.reparameterize = None
         
         self.scanner_opt_params = None
         self.aux_params = None
@@ -203,9 +204,10 @@ class OPT_helper():
         
         self.target_seq_holder = None
         
-    def set_handles(self,init_variables,phi_FRP_model):
+    def set_handles(self,init_variables,phi_FRP_model,reparameterize=None):
         self.init_variables = init_variables
         self.phi_FRP_model = phi_FRP_model
+        self.reparameterize = reparameterize
         
     def set_opt_param_idx(self,opt_param_idx):
         self.opt_param_idx  = opt_param_idx
@@ -297,12 +299,18 @@ class OPT_helper():
             
             # save entire history of optimized params/reco images
             if save_intermediary_results:
+                tosave_opt_params = self.scanner_opt_params.clone()
+                
+                # i.e. non-cartesian trajectiries, any custom reparameterization
+                if self.reparameterize is not None:
+                    tosave_opt_params = (self.reparameterize)
+                
                 saved_state = dict()
-                saved_state['adc_mask'] = tonumpy(self.scanner_opt_params[0])
-                saved_state['flips_angles'] = tonumpy(self.scanner_opt_params[1])
-                saved_state['event_times'] = tonumpy(self.scanner_opt_params[2])
-                helper = self.scanner_opt_params[3].clone()
-                helper[2:-2,:,:] = helper[2,:,:].repeat([len(self.scanner_opt_params[2][:,0])-4,1,1])
+                saved_state['adc_mask'] = tonumpy(tosave_opt_params[0])
+                saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
+                saved_state['event_times'] = tonumpy(tosave_opt_params[2])
+                helper = tosave_opt_params[3].clone()
+                helper[2:-2,:,:] = helper[2,:,:].repeat([len(tosave_opt_params[2][:,0])-4,1,1])
                 saved_state['grad_moms'] = tonumpy(helper)
                 saved_state['learn_rates'] = self.custom_learning_rate
                 
@@ -420,14 +428,19 @@ class OPT_helper():
             fig.colorbar(ax)
             plt.title('reco phase')
             plt.ion()
-               
             
-            if self.scanner_opt_params[1].dim() == 3:
-                FA=self.scanner_opt_params[1][:,:,0]
-                phi=self.scanner_opt_params[1][:,:,1]
+            todisplay_opt_params = self.scanner_opt_params.clone()
+            
+            # i.e. non-cartesian trajectiries, any custom reparameterization
+            if self.reparameterize is not None:
+                todisplay_opt_params = (self.reparameterize)            
+            
+            if todisplay_opt_params[1].dim() == 3:
+                FA=todisplay_opt_params[1][:,:,0]
+                phi=todisplay_opt_params[1][:,:,1]
             else:
-                FA=self.scanner_opt_params[1]
-                phi=self.scanner_opt_params[1][:,:,1]
+                FA=todisplay_opt_params[1]
+                phi=todisplay_opt_params[1][:,:,1]
             plt.subplot(253)
             ax=plt.imshow(tonumpy(FA.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
@@ -448,7 +461,7 @@ class OPT_helper():
             
             
             plt.subplot(154)
-            ax=plt.imshow(tonumpy(torch.abs(self.scanner_opt_params[2]).permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(torch.abs(todisplay_opt_params[2]).permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('TR [s]')
             fig = plt.gcf()
@@ -457,7 +470,7 @@ class OPT_helper():
               
 # grad x grad z plot - old          
 #            ax1=plt.subplot(2, 5, 5)
-#            ax=plt.imshow(tonumpy(self.scanner_opt_params[3][:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+#            ax=plt.imshow(tonumpy(todisplay_opt_params[3][:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
 #            plt.ion()
 #            plt.title('gradx')
 #            fig = plt.gcf()
@@ -465,7 +478,7 @@ class OPT_helper():
 #            fig.colorbar(ax)
 #
 # 			 ax1=plt.subplot(2, 5, 10)
-#            ax=plt.imshow(tonumpy(self.scanner_opt_params[3][:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+#            ax=plt.imshow(tonumpy(todisplay_opt_params[3][:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
 #            plt.ion()
 #            plt.title('grady')
 #            fig = plt.gcf()
@@ -475,8 +488,8 @@ class OPT_helper():
 # k-space plot             
             ax1=plt.subplot(155)
            
-            kx=np.cumsum(tonumpy(self.scanner_opt_params[3][:,:,0]),0)
-            ky=np.cumsum(tonumpy(self.scanner_opt_params[3][:,:,1]),0)
+            kx=np.cumsum(tonumpy(todisplay_opt_params[3][:,:,0]),0)
+            ky=np.cumsum(tonumpy(todisplay_opt_params[3][:,:,1]),0)
             for i in range(kx.shape[1]):
                 plt.plot(kx[:,i],ky[:,i])
                 
@@ -504,12 +517,18 @@ class OPT_helper():
     def export_to_matlab(self, experiment_id):
         _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
         
+        tosave_opt_params = self.scanner_opt_params.clone()
+        
+        # i.e. non-cartesian trajectiries, any custom reparameterization
+        if self.reparameterize is not None:
+            tosave_opt_params = (self.reparameterize)        
+        
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
         scanner_dict['B1'] = tonumpy(self.scanner.B1)
-        scanner_dict['flips'] = tonumpy(self.scanner_opt_params[1])
-        scanner_dict['event_times'] = np.abs(tonumpy(self.scanner_opt_params[2]))
-        scanner_dict['grad_moms'] = tonumpy(self.scanner_opt_params[3])
+        scanner_dict['flips'] = tonumpy(tosave_opt_params[1])
+        scanner_dict['event_times'] = np.abs(tonumpy(tosave_opt_params[2]))
+        scanner_dict['grad_moms'] = tonumpy(tosave_opt_params[3])
         scanner_dict['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
