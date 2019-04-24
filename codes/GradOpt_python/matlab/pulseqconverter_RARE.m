@@ -100,7 +100,7 @@ gxPre = mr.makeTrapezoid('x','Area',sz(1)/SeqOpts.FOV,'Duration',scanner_dict.ev
 for rep=1:NRep
 
     gradmoms = double(scanner_dict.grad_moms)*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
-
+    #gradmoms(:,:,2)=0;
     % first two extra events T(1:2)
     % first
       idx_T=1; % T(1)
@@ -127,16 +127,18 @@ for rep=1:NRep
         end
         seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))      
         
-        gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        seq.addBlock(gxPre,gyPre);
-      
+        gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));
+        eventtime_revinder = squeeze(scanner_dict.event_times(idx_T,rep));
+             
     % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-2; % T(2)
         dur=sum(scanner_dict.event_times(3:end-1,rep));
-        gx = mr.makeTrapezoid('x','Area',sum(gradmoms(idx_T,rep,1),1),'Duration',dur,'system',sys);
-        adc = mr.makeAdc(numel(idx_T),'Duration',dur-2*gx.riseTime-2*gx.fallTime,'Delay',2*gx.riseTime);
-      
+        gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
+        adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
+    
+    %update revinder for gxgy ramp times, from second event
+        gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);
+        seq.addBlock(gxPre,gyPre);
         seq.addBlock(gx,adc);
       
     % second last extra event  T(end)

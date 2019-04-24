@@ -220,7 +220,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
     for i in range(3):
         plt.subplot(1, 3, i+1)
-        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep]) )
+        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T)*scanner.NRep]) )
         plt.title("ROI_def %d" % scanner.ROI_def)
         fig = plt.gcf()
         fig.set_size_inches(16, 3)
