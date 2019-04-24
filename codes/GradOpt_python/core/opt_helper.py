@@ -303,7 +303,7 @@ class OPT_helper():
                 
                 # i.e. non-cartesian trajectiries, any custom reparameterization
                 if self.reparameterize is not None:
-                    tosave_opt_params = (self.reparameterize)
+                    tosave_opt_params = self.reparameterize(tosave_opt_params)
                 
                 saved_state = dict()
                 saved_state['adc_mask'] = tonumpy(tosave_opt_params[0])
@@ -314,7 +314,7 @@ class OPT_helper():
                 
                 legs=['x','y','z']
                 for i in range(3):
-                    M_roi = tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep])
+                    M_roi = tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep])
                     saved_state['ROI_def %d, %s'  % (self.scanner.ROI_def,legs[i])]  = M_roi
 
                 saved_state['reco_image'] = tonumpy(self.last_reco.clone())
@@ -431,7 +431,7 @@ class OPT_helper():
             
             # i.e. non-cartesian trajectiries, any custom reparameterization
             if self.reparameterize is not None:
-                todisplay_opt_params = (self.reparameterize)            
+                todisplay_opt_params =self.reparameterize(todisplay_opt_params)            
             
             if todisplay_opt_params[1].dim() == 3:
                 FA=todisplay_opt_params[1][:,:,0]
@@ -500,11 +500,11 @@ class OPT_helper():
             legs=['x','y','z']
             for i in range(3):
                 plt.subplot(1, 3, i+1)
-                plt.plot(tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) )
+                plt.plot(tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep]) )
                 if (i==0) and (self.target_seq_holder is not None):
-                    plt.plot(tonumpy(self.target_seq_holder.ROI_signal[:,:,1]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]) ) 
+                    plt.plot(tonumpy(self.target_seq_holder.ROI_signal[:,:,1]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep]) ) 
                 if (i==2):
-                    plt.plot(tonumpy(self.scanner.ROI_signal[:,:,4]).transpose([1,0]).reshape([(self.scanner.T+1)*self.scanner.NRep]),'--') 
+                    plt.plot(tonumpy(self.scanner.ROI_signal[:,:,4]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep]),'--') 
                 plt.title("ROI_def %d, %s" % (self.scanner.ROI_def,legs[i]))
                 fig = plt.gcf()
                 fig.set_size_inches(16, 3)
@@ -519,7 +519,7 @@ class OPT_helper():
         
         # i.e. non-cartesian trajectiries, any custom reparameterization
         if self.reparameterize is not None:
-            tosave_opt_params = (self.reparameterize)        
+            tosave_opt_params =self.reparameterize(tosave_opt_params)
         
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
