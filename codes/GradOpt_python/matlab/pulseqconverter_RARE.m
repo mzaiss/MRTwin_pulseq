@@ -107,7 +107,7 @@ for rep=1:NRep
           
       if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
         use = 'excitation';
-        rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
+        rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',2*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
         seq.addBlock(rf);
       end
 %       seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
@@ -122,7 +122,7 @@ for rep=1:NRep
         idx_T=2; % T(2)
         use = 'refocusing';
         if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
-          rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
+          rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',2*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
           seq.addBlock(rf);
         end
         seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))      

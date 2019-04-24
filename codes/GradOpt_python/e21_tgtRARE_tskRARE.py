@@ -171,13 +171,13 @@ scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[0,:] = 0.2*1e-3
+event_time[0,:] = 2*1e-3
 event_time[0,1:] = 0.01*1e-3
 event_time[-1,:] = 0.01*1e-3
-event_time[1,:] = 0.6*1e-3
-event_time[0,0] = (sz[0]/2)*0.2*1e-3 + (0.6*1e-3)
+event_time[1,:] = 2*1e-3
+event_time[0,0] = (sz[0]/2)*0.2*1e-3 + (2*1e-3)
 #event_time[1:,0,0] = 0.2*1e-3
-event_time[-2,:] = 0.58*1e-3
+event_time[-2,:] = 1.98*1e-3
 event_time = setdevice(event_time)
 
 TE2_90   = torch.sum(event_time[0,0])  # time after 90 until 180
@@ -242,7 +242,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
     for i in range(3):
         plt.subplot(1, 3, i+1)
-        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep]) )
+        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T)*scanner.NRep]) )
         plt.title("ROI_def %d" % scanner.ROI_def)
         fig = plt.gcf()
         fig.set_size_inches(16, 3)

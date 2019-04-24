@@ -171,9 +171,9 @@ scanner.set_ADC_rot_tensor(-flips[0,:,1]*0 + np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[0,:] = 1e-3
+event_time[0,:] = 2e-3
 event_time[1,:] = 0.2*1e-3
-event_time[-2,:] = 1e-3
+event_time[-2,:] = 2e-3
 #event_time[-1,:] = 1.2           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
 event_time = setdevice(event_time)
 
