@@ -430,7 +430,7 @@ class Scanner():
             presignal = torch.zeros((self.NRep,1,self.NVox,3,1), dtype=torch.float32) 
             self.presignal = self.setdevice(presignal)
         
-        self.ROI_signal = torch.zeros((self.T+1,self.NRep,5), dtype=torch.float32) # for trans magnetization
+        self.ROI_signal = torch.zeros((self.T,self.NRep,5), dtype=torch.float32) # for trans magnetization
         self.ROI_signal = self.setdevice(self.ROI_signal)
         self.ROI_def= int((self.sz[0]/2)*self.sz[1]+ self.sz[1]/2)
         
