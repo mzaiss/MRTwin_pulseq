@@ -19,14 +19,22 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 ni = 30;
 
-scanner_dict = load([seq_dir,'/','all_iter.mat']);
 scanner_dict_target = load([seq_dir,'/','scanner_dict_tgt.mat']);
-sz = double(scanner_dict.sz);
+
+try
+scanner_dict = load([seq_dir,'/','all_iter.mat']);   
+niter = size(scanner_dict.flips,1);
+sz = double(scanner_dict_target.sz);
 T = scanner_dict.T;
 NRep = scanner_dict.NRep;
-
-niter = size(scanner_dict.flips,1);
-
+catch
+niter=0;
+warning('No all_iter found, hust create Target seq');
+sz = double(scanner_dict_target.sz);
+T = size(scanner_dict_target.flips,1);
+NRep = size(scanner_dict_target.flips,2);
+end
+    
 disp(niter);
 
 %%
@@ -41,7 +49,7 @@ idxarray_exported_itersteps = [1:50, 52:2:100, 110:10:niter];
 idxarray_exported_itersteps = [1:30 35:5:340 350:50:niter];
 idxarray_exported_itersteps = [1:2:100 110:10:190 205:5:400 450:50:1000];
 
-idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_itersteps<=niter);
+idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_itersteps<=niter); % catch to high iteration numbers
 
 for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     
@@ -116,7 +124,7 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         idx_T=1; % T(1)
         
         if flips(1,1,1) ==0  % take care of seqs with 0 flipangles
-            flips(1,1,1) = e-2;
+            flips(1,1,1) = 10^-2;
         end            
             
         if abs(flips(idx_T,rep,1)) > 1e-8
@@ -134,7 +142,7 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
             RFdur= gz.riseTime+gz.flatTime+gz.fallTime+ gzr.riseTime+gzr.flatTime+gzr.fallTime;
         end
         (event_times(idx_T,rep)-RFdur); % this is the actual timing from spyder
-        seq.addBlock(mr.makeDelay(0.002-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python
+        seq.addBlock(mr.makeDelay(0.002-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
 
         % second  (rewinder)
         idx_T=2; % T(2)
@@ -159,13 +167,10 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         
         % second last extra event  T(end)  % adjusted also for fallramps of ADC
         idx_T=size(gradmoms,1)-1; % T(2)
-        if k==1
-        gxPost = mr.makeTrapezoid('x','Area',0.5*gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',1.5*event_times(idx_T,rep),'system',sys);
-        else
-            gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
-        end
+        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
         gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
         seq.addBlock(gxPost,gyPost);
+        
         %  last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
         seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
@@ -181,9 +186,19 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     
     pause(2);
     fprintf('%d of %d\n',k,numel(idxarray_exported_itersteps));
-    %seq.plot();
+    if k==0
+        seq.plot(); subplot(3,2,2); title('Target sequence');
+        figure, colormap(jet);
+        subplot(2,3,1), imagesc(scanner_dict_target.flips(:,:,1)'*180/pi); title('Flips'); colormap(gca,jet(fix(max(max(scanner_dict_target.flips(:,:,1)'*180/pi))))); colorbar; 
+        subplot(2,3,4), imagesc(scanner_dict_target.flips(:,:,2)'*180/pi); title('Phases'); colormap(gca,jet(fix(max(max(scanner_dict_target.flips(:,:,2)'*180/pi))/20))); colorbar;
+        subplot(2,3,2), imagesc(scanner_dict_target.event_times'); title('delays');colorbar
+        subplot(2,3,3), imagesc(scanner_dict_target.grad_moms(:,:,1)');         title('gradmomx');colorbar
+        subplot(2,3,6), imagesc(scanner_dict_target.grad_moms(:,:,2)');          title('gradmomy');colorbar
+    end
     %subplot(3,2,1), title(experiment_id,'Interpreter','none');
     k = k + 1;    
 end
 
+if niter>0
 save([seq_dir,'/export_protocol.mat'],'idxarray_exported_itersteps','experiment_id');
+end

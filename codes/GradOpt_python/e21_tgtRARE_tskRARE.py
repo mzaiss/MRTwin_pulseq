@@ -12,7 +12,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e21_tgtRARE_tskRARE_32_centric'
+experiment_id = 'e21_tgtRARE_tskRARE_32_linear'
 experiment_description = """
 bSSFP
 """
@@ -80,7 +80,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -184,6 +184,7 @@ TE2_90   = torch.sum(event_time[0,0])  # time after 90 until 180
 TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1]) # time after 180 til center k-space
 TE2_180_2= torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1] # time after center k-space til next 180
 
+
 # gradient-driver precession
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
@@ -201,7 +202,7 @@ grad_moms[-2,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree h
 #grad_moms[1,:,1] = -grad_moms[1,:,1]
 #grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 
-grad_moms[[1,-2],:,1] = torch.roll(grad_moms[[1,-2],:,1],0,dims=[1])
+#grad_moms[[1,-2],:,1] = torch.roll(grad_moms[[1,-2],:,1],0,dims=[1])
 
 #     centric ordering
 #grad_moms[1,:,1] = 0

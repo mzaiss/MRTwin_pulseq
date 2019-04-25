@@ -2,24 +2,29 @@
 clear all; close all;
 
 if isunix
-  mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
+    mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
+    seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
+    %experiment_id = 'RARE_FA_OPT_fixrep1_90';
+    experiment_id = 'e21_tgtRARE_tskRARE_32_linear';
+    % experiment_id = 'GRE_base';
+    % experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
+    %  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
+    seq_dir=[seq_dir,'/',experiment_id,'/'];
 else
-  mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
+    mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
+    seq_dir = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
+    out=regexp(seq_dir,'\','split');
+    experiment_id=out{end};
 end
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
-seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out/'];
-%experiment_id = 'RARE_FA_OPT_fixrep1_90';
-experiment_id = 'e21_tgtRARE_tskRARE_32_linear';
-% experiment_id = 'GRE_base';
-% experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad';
-%  experiment_id = 'RARE_FA_OPT_fixrep1_90_adjflipgrad_spoiled';
+
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
-scanner_dict = load([seq_dir,'/',experiment_id,'/','scanner_dict_tgt.mat']);
+scanner_dict = load([seq_dir,'/','scanner_dict_tgt.mat']);
 
 sz = double(scanner_dict.sz);
 
@@ -44,7 +49,7 @@ subplot(2,3,6), imagesc(grad_moms(:,:,2)');          title('gradmomy');colorbar
 set(gcf,'OuterPosition',[431         379        1040         513])
 %% plug learned gradients into the sequence constructor
 % close all
-seq_fn = [seq_dir,'/',experiment_id,'/','pulseq.seq'];
+seq_fn = [seq_dir,'/','pulseq.seq'];
 
 SeqOpts.resolution = double(scanner_dict.sz);                                                                                            % matrix size
 SeqOpts.FOV = 220e-3;
@@ -104,15 +109,16 @@ for rep=1:NRep
     % first two extra events T(1:2)
     % first
       idx_T=1; % T(1)
-          
+      
+      RFdur=0;
       if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
         use = 'excitation';
-        rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',2*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
-        seq.addBlock(rf,mr.makeDelay(scanner_dict.event_times(idx_T,rep)));
-      else
-        seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
+        RFdur=1*1e-3;
+        rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
+        seq.addBlock(rf);
       end
-      
+      seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
+
       % alternatively slice selective:
         %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
         % see writeHASTE.m      
@@ -120,31 +126,34 @@ for rep=1:NRep
     % second      
         idx_T=2; % T(2)
         use = 'refocusing';
+        RFdur=0;
         if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
-          rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',2*1e-3,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
-            seq.addBlock(rf,mr.makeDelay(scanner_dict.event_times(idx_T,rep)));
-        else
-            seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
-        end   
-        
+          RFdur=1*1e-3;
+          rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
+          seq.addBlock(rf);
+        end
+        seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
+
         gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));
         eventtime_revinder = squeeze(scanner_dict.event_times(idx_T,rep));
              
     % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-2; % T(2)
-        dur=sum(scanner_dict.event_times(3:end-1,rep));
+        dur=sum(scanner_dict.event_times(3:end-2,rep));
         gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
         adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
     
     %update revinder for gxgy ramp times, from second event
         gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);
+        gyPre = mr.makeTrapezoid('y','Area',gradmom_revinder(2),'Duration',eventtime_revinder,'system',sys);
         seq.addBlock(gxPre,gyPre);
         seq.addBlock(gx,adc);
       
     % second last extra event  T(end)
         idx_T=size(gradmoms,1)-1; % T(2)
         gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        seq.addBlock(gxPost);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        seq.addBlock(gxPost,gyPost);
         
     %  last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)

@@ -22,11 +22,11 @@ data = data_coils_last;
 
 %% show kspace data
 figure(101)
-subplot(2,2,1), imagesc(rot90(abs(data(:,:,1)))), title('coil 1'), axis('image')
-subplot(2,2,2), imagesc(rot90(abs(data(:,:,2)))), title('coil 2'), axis('image')
+subplot(2,2,1), imagesc(abs(data(:,:,1))), title('coil 1'), axis('image')
+subplot(2,2,2), imagesc(abs(data(:,:,2))), title('coil 2'), axis('image')
 
 %% Reconstruct coil images
-data_reshaped = reshape(data,16,16,100,2);
+data_reshaped = reshape(data,size(data,1),size(data,1),100,2);
 sz=size(data_reshaped)
 images = zeros(sz(1),sz(2),sz(3));
 %figure;

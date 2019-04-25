@@ -108,20 +108,23 @@ for ni = 1:maxmeas % add target seq in the beginning
         
         if abs(flips(idx_T,rep,1)) > 1e-8
             use = 'excitation';
-%             % block pulse non-selective
-%             sliceThickness=200*e-3;
-%             rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
-%             seq.addBlock(rf);
-            % alternatively slice selective:
-            sliceThickness=5e-3;     % slice
-            [rf, gz,gzr] = mr.makeSincPulse(single(flips(idx_T,rep,1)),'Duration',1e-3,'SliceThickness',sliceThickness,'apodization',0.5,'timeBwProduct',4,'system',sys);
-            seq.addBlock(rf,gz);
-            seq.addBlock(gzr);
+            nonsel=1;
+            if nonsel
+                % block pulse non-selective
+                sliceThickness=200e-3;
+                rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+                seq.addBlock(rf);
+                RFdur=0.8*1e-3;
+            else
+                % alternatively slice selective:
+                sliceThickness=5e-3;     % slice
+                [rf, gz,gzr] = mr.makeSincPulse(single(flips(idx_T,rep,1)),'Duration',1e-3,'SliceThickness',sliceThickness,'apodization',0.5,'timeBwProduct',4,'system',sys);
+                seq.addBlock(rf,gz);
+                seq.addBlock(gzr);
+                RFdur= gz.riseTime+gz.flatTime+gz.fallTime+ gzr.riseTime+gzr.flatTime+gzr.fallTime;
+            end
         end
-        seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
-        %     gxPre = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep),'system',sys);
-        %     gyPre = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys);
-        %     seq.addBlock(gxPre,gyPre);
+        seq.addBlock(mr.makeDelay(0.002-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
         
         % second  (rewinder)
         idx_T=2; % T(2)
@@ -166,7 +169,7 @@ end
 
 seq.setDefinition('FOV', [SeqOpts.FOV SeqOpts.FOV sliceThickness]*1e3);
 %write sequence
-% seq.write(seq_fn);
-seq.writeBinary(seq_fn);
+seq.write(seq_fn);
+% seq.writeBinary(seq_fn);
     
 save([seq_dir,'/export_protocol.mat'],'idxarray_exported_itersteps','experiment_id');

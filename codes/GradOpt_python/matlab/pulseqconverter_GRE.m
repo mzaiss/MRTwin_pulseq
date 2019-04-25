@@ -36,9 +36,8 @@ if 0  % only when gradients were optimized, make sure gradmoms are between -res/
 end
 
 figure,
-colormap 'jet'
-subplot(2,3,1), imagesc(scanner_dict.flips(:,:,1)'); title('Flips'); colorbar
-subplot(2,3,4), imagesc(scanner_dict.flips(:,:,2)'); title('Phases');colorbar
+subplot(2,3,1), imagesc(scanner_dict.flips(:,:,1)'*180/pi); title('Flips'); colormap(gca,jet(fix(max(max(scanner_dict.flips(:,:,1)'*180/pi))))); colorbar; 
+subplot(2,3,4), imagesc(scanner_dict.flips(:,:,2)'*180/pi); title('Phases'); colormap(gca,jet(fix(max(max(scanner_dict.flips(:,:,2)'*180/pi))/20))); colorbar;
 subplot(2,3,2), imagesc(scanner_dict.event_times'); title('delays');colorbar
 subplot(2,3,3), imagesc(grad_moms(:,:,1)');         title('gradmomx');colorbar
 subplot(2,3,6), imagesc(grad_moms(:,:,2)');          title('gradmomy');colorbar

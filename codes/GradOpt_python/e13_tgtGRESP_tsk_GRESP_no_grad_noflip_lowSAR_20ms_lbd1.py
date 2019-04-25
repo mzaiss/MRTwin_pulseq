@@ -12,7 +12,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e12_tgtGRESP_tsk_GRESP_no_grad_noflip_lowSAR_20ms_lbd1_48_longer_learn'
+experiment_id = 'e13_tgtGRESP_tsk_GRESP_no_grad_noflip_lowSAR_20ms_lbd1.py'
 experiment_description = """
 tgt FLASHspoiled_relax0.1s task find all grads except read ADC grads
 this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
