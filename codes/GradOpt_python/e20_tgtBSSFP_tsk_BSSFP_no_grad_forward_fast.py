@@ -200,6 +200,17 @@ grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # pha
 grad_moms[2:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
 grad_moms[-2,:,0] = grad_moms[1,:,0]     # GRE/FID specific, SPOILER
 grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, SPOILER
+
+#     centric ordering
+#grad_moms[1,:,1] = 0
+#for i in range(1,int(sz[1]/2)+1):
+#    grad_moms[1,i*2-1,1] = (-i)
+#    if i < sz[1]/2:
+#        grad_moms[1,i*2,1] = i
+#grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
+
+
+
 grad_moms = setdevice(grad_moms)
 
 # end sequence 

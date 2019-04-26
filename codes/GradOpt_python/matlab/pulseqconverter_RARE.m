@@ -105,7 +105,7 @@ gxPre = mr.makeTrapezoid('x','Area',sz(1)/SeqOpts.FOV,'Duration',scanner_dict.ev
 for rep=1:NRep
 
     gradmoms = double(scanner_dict.grad_moms)*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
-    %gradmoms(:,:,2)=0;
+
     % first two extra events T(1:2)
     % first
       idx_T=1; % T(1)
@@ -117,7 +117,8 @@ for rep=1:NRep
         rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
         seq.addBlock(rf);
       end
-      seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
+      gxPre90 = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep)-RFdur,'system',sys);
+      seq.addBlock(gxPre90);  % this is the revinder between 90 and first 180
 
       % alternatively slice selective:
         %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
@@ -169,7 +170,7 @@ seq.plot();
 subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 
-return
+
 
 %% new single-function call for trajectory calculation
 [ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
@@ -180,7 +181,7 @@ figure; plot(ktraj'); % plot the entire k-space trajectory
 figure; plot(ktraj(1,:),ktraj(2,:),'c',...
              ktraj_adc(1,:),ktraj_adc(2,:),'g.'); % a 2D plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
-
+return
 
 
 %% CONVENTIONAL RECO
