@@ -162,7 +162,17 @@ for ni = 1:maxmeas % add target seq in the beginning
     end
      
     fprintf('%d of %d\n',ni,maxmeas);
-    %seq.plot();
+    if ni==1
+        seq1=seq;    
+        seq1.plot();
+        figure,
+        [ktraj_adc, ktraj, t_excitation, t_refocusing] = seq1.calculateKspace();
+        figure; plot(ktraj'); % plot the entire k-space trajectory
+        figure; plot(ktraj(1,:),ktraj(2,:),'c',...
+                 ktraj_adc(1,:),ktraj_adc(2,:),'g.'); % a 2D plot
+        axis('equal'); % enforce aspect ratio for the correct trajectory display
+        drawnow;
+    end
     %subplot(3,2,1), title(experiment_id,'Interpreter','none');
  
 end
@@ -171,5 +181,6 @@ seq.setDefinition('FOV', [SeqOpts.FOV SeqOpts.FOV sliceThickness]*1e3);
 %write sequence
 seq.write(seq_fn);
 % seq.writeBinary(seq_fn);
+    
     
 save([seq_dir,'/export_protocol.mat'],'idxarray_exported_itersteps','experiment_id');

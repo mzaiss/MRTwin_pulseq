@@ -80,7 +80,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([32,32])                                           # image size
+sz = np.array([28,28])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -113,7 +113,7 @@ spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 spins.T1*=1
 spins.T2*=1
-spins.B0inhomo*=1
+spins.B0inhomo*=0
 #spins.B0inhomo+=10
 plt.subplot(131)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
@@ -162,7 +162,7 @@ flips[0,:,0] = 10*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 deg
 
 # randomize RF phases
 #flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
-flips[0,:,1] = torch.tensor(np.tile(np.array([1,-1]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
+flips[0,:,1] = torch.tensor(np.tile(np.array([180,-180]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
 
 flips = setdevice(flips)
 
@@ -174,10 +174,10 @@ scanner.set_ADC_rot_tensor(-flips[0,:,1]*0 + np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[0,:] = 2e-3
+event_time[0,:] = 0.5e-3
 event_time[1,:] = 0.3*1e-3
 event_time[-2,:] = 0.3*1e-3
-event_time[-1,:] = 2*1e-3
+event_time[-1,:] = 0.5*1e-3
 #event_time[-1,:] = 1.2           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
 event_time = setdevice(event_time)
 
@@ -223,7 +223,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 scanner.do_dummy_scans(spins,event_time,nrep=0)   # do dummies
 # forward/adjoint pass
 #scanner.forward_mem(spins, event_time,do_dummy_scans=True)
-scanner.forward_fast(spins, event_time)
+scanner.forward_sparse_fast(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
