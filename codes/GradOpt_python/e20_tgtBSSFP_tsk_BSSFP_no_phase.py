@@ -80,7 +80,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([18,18])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -162,7 +162,13 @@ flips[0,:,0] = 20*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 deg
 
 # randomize RF phases
 #flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
-flips[0,:,1] = torch.tensor(np.tile(np.array([180,-180]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
+#flips[0,:,1] = torch.tensor(np.tile(np.array([180,-180]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
+
+# new definition for bssfp ( not using phases)
+flips[0,:,0] = torch.tensor(np.tile(np.array([20,-20]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
+flips[0,0,0] = 10*np.pi/180  # bssfp specific, alpha/2 prep, to avoid many dummies
+
+
 
 flips = setdevice(flips)
 
@@ -170,7 +176,7 @@ scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)
 
 # rotate ADC according to excitation phase
-scanner.set_ADC_rot_tensor(flips[0,:,1]*0 + np.pi/2) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -195,7 +201,7 @@ TE_180_2_centerpulse = torch.sum(event_time[int(sz[0]/2+2):,1]) + event_time[0,0
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
-grad_moms[1,:,0] = sz[0]/2         # GRE/FID specific, rewinder in second event block
+grad_moms[1,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
 grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
 grad_moms[2:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
 grad_moms[-2,:,0] = grad_moms[1,:,0]     # GRE/FID specific, SPOILER
@@ -224,7 +230,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 scanner.do_dummy_scans(spins,event_time,nrep=0)   # do dummies
 # forward/adjoint pass
 #scanner.forward_mem(spins, event_time,do_dummy_scans=True)
-scanner.forward_sparse_fast(spins, event_time,do_dummy_scans=False)
+scanner.forward_fast(spins, event_time,do_dummy_scans=True)
 scanner.adjoint(spins)
 
 # try to fit this
