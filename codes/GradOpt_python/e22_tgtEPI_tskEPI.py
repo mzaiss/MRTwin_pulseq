@@ -80,7 +80,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([18,18])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -168,7 +168,7 @@ scanner.set_flipXY_tensor(flips)
 scanner.set_ADC_rot_tensor(flips[0,:,1]*0 + np.pi/2) #GRE/FID specific
 
 # event timing vector 
-event_time = torch.from_numpy(0.5*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time = setdevice(event_time)
 
 TE2_90   = torch.sum(event_time[0,0])  # time after 90 until 180
@@ -180,8 +180,8 @@ TE2_180_2= torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1] # time after
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
-grad_moms[0,0,0] =  torch.tensor(-sz[0])  # RARE: rewinder after 90 degree half length, half gradmom
-grad_moms[0,0,1] =  torch.tensor(-sz[1])  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[0,0,0] =  torch.tensor(-sz[0]/2)  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[0,0,1] =  torch.tensor(-sz[1]/2)  # RARE: rewinder after 90 degree half length, half gradmom
 
 
 # xgradmom
