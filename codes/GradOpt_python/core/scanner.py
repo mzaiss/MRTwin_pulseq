@@ -343,7 +343,7 @@ class Scanner():
         self.G_adj[:,:,1,0] = -self.B0_grad_adj_sin[:,r,:]
         self.G_adj[:,:,1,1] = self.B0_grad_adj_cos[:,r,:]
         
-    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False):
+    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False,epi=False):
         grads=grad_moms
         
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
@@ -366,10 +366,25 @@ class Scanner():
         
         # for backward pass
         if refocusing:
-            B0X = torch.unsqueeze(k[:,:,0]-self.sz[0]/2,2) * self.rampX
-        else:
-            B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
+            #B0X = torch.unsqueeze(k[:,:,0]-self.sz[0]/2,2) * self.rampX
             
+            refocusing_pulse_action_idx = 1
+            kloc = 0
+            for r in range(self.NRep):
+                for t in range(self.T):
+                    if refocusing_pulse_action_idx+1 == t:     # +1 because of right gradmom shift (see above )
+                        kloc = -kloc
+                    kloc += temp[t,r,:]
+                    k[t,r,:] = kloc
+                    
+        if epi:
+            kloc = 0
+            for r in range(self.NRep):
+                for t in range(self.T):
+                    kloc += temp[t,r,:]
+                    k[t,r,:] = kloc              
+            
+        B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
         B0Y = torch.unsqueeze(k[:,:,1],2) * self.rampY
         
         B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
