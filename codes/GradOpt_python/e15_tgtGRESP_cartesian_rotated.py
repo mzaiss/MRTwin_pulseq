@@ -12,11 +12,9 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e13_tgtGRESP_tsk_GRESP_no_grad_noflip_lowSAR_20ms_lbd1_centric.py'
+experiment_id = 'e15_tgtGRESP_cartesian_rotated_90deg'
 experiment_description = """
-tgt FLASHspoiled_relax0.1s task find all grads except read ADC grads
-this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
-and high initial learning rate
+rotate cartesian grid
 """
 
 import os, sys
@@ -40,7 +38,7 @@ if sys.version_info[0] < 3:
 else:
     import importlib
 
-use_gpu = 0
+use_gpu = 1
 gpu_dev = 0
 
 
@@ -85,7 +83,7 @@ def stop():
 sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 35**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -142,7 +140,7 @@ spins.omega = setdevice(spins.omega)
 #############################################################################
 ## Init scanner system ::: #####################################
 
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
 # begin sequence definition
@@ -185,21 +183,24 @@ grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 grad_moms[1,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
 grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
 grad_moms[2:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
+
+alpha = torch.tensor(90 * np.pi / 180)
+
+rotomat = torch.zeros((2,2)).float()
+rotomat[0,0] = torch.cos(alpha)
+rotomat[0,1] = -torch.sin(alpha)
+rotomat[1,0] = torch.sin(alpha)
+rotomat[1,1] = torch.cos(alpha)
+
+# rotate grid
+grad_moms[1,:,:] = (torch.matmul(rotomat.unsqueeze(0),grad_moms[1,:,:].unsqueeze(2))).squeeze()
+grad_moms[2:-2,:,:] = (torch.matmul(rotomat.unsqueeze(0).unsqueeze(0),grad_moms[2:-2,:,:].unsqueeze(3))).squeeze()
+
 grad_moms[-2,:,0] = torch.ones(1)*sz[0]*2      # GRE/FID specific, SPOILER
 grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, SPOILER
 grad_moms = setdevice(grad_moms)
 
-#     centric ordering
-grad_moms[1,:,1] = 0
-for i in range(1,int(sz[1]/2)+1):
-    grad_moms[1,i*2-1,1] = (-i)
-    if i < sz[1]/2:
-        grad_moms[1,i*2,1] = i
-grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
-
-
 # end sequence 
-
 scanner.init_gradient_tensor_holder()
 scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False)  # refocusing=False for GRE/FID, adjust for higher echoes
 
@@ -208,6 +209,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
     
 # forward/adjoint pass
 scanner.forward_fast(spins, event_time)
+#scanner.forward_fast(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
@@ -229,145 +231,6 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     plt.show()
     
     targetSeq.export_to_matlab(experiment_id)
-                
     
-#    stop()
+    stop()
     
-    
-    # %% ###     OPTIMIZATION functions phi and init ######################################################
-#############################################################################    
-    
-    
-def init_variables():
-    
-    adc_mask = targetSeq.adc_mask.clone()
-    #adc_mask.requires_grad = True     
-    
-    flips = targetSeq.flips.clone()
-    flips[0,:,:]=flips[0,:,:]*0
-    flips = setdevice(flips)
-    
-    flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
-    flip_mask[1:,:,:] = 0
-    flip_mask = setdevice(flip_mask)
-    flips.zero_grad_mask = flip_mask
-      
-    event_time = targetSeq.event_time.clone()
-    #event_time = torch.from_numpy(1e-7*np.random.rand(scanner.T,scanner.NRep)).float()
-    #event_time*=0.5
-    #event_time[:,0] = 0.4*1e-3  
-    #event_time[-1,:] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
-    event_time = setdevice(event_time)
-    
-    event_time_mask = torch.ones((scanner.T, scanner.NRep)).float()        
-    event_time_mask[2:-2,:] = 0
-    event_time_mask = setdevice(event_time_mask)
-    event_time.zero_grad_mask = event_time_mask
-        
-    use_gtruth_grads = True    # if this is changed also use_periodic_grad_moms_cap must be changed
-    if use_gtruth_grads:
-        grad_moms = targetSeq.grad_moms.clone()
-
-    else:
-        g = (np.random.rand(T,NRep,2) - 0.5)*2*np.pi
-        grad_moms = torch.from_numpy(g).float()      
-        grad_moms = setdevice(grad_moms)
-        
-    grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()        
-    grad_moms_mask[1,:,:] = 1
-    grad_moms_mask[-2,:,:] = 1
-    grad_moms_mask = setdevice(grad_moms_mask)
-    grad_moms.zero_grad_mask = grad_moms_mask
-    
-#    grad_moms[1,:,0] = grad_moms[2,:,0]*torch.rand(1)*0.1    # remove rewinder gradients
-    grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
-    
-    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
-    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
-        
-    return [adc_mask, flips, event_time, grad_moms]
-    
-    
-def phi_FRP_model(opt_params,aux_params):
-    
-    adc_mask,flips,event_time, grad_moms = opt_params
-    use_periodic_grad_moms_cap,_ = aux_params
-        
-    scanner.init_flip_tensor_holder()
-    scanner.set_flipXY_tensor(flips)    
-    # rotate ADC according to excitation phase
-    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
-          
-    if use_periodic_grad_moms_cap:
-        fmax = torch.ones([1,1,2]).float()
-        fmax = setdevice(fmax)
-        fmax[0,0,0] = sz[0]/2
-        fmax[0,0,1] = sz[1]/2
-
-        grad_moms = torch.sin(grad_moms)*fmax
-
-    scanner.init_gradient_tensor_holder()          
-    scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) # GRE/FID specific, maybe adjust for higher echoes
-         
-    # forward/adjoint pass
-    scanner.forward_mem(spins, event_time)
-    scanner.adjoint(spins)
-
-    lbd = 1*1e1         # switch on of SAR cost
-    loss_image = (scanner.reco - targetSeq.target_image)
-    #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
-    loss_image = torch.sum(loss_image.squeeze()**2/NVox)
-    loss_sar = torch.sum(flips[:,:,0]**2)
-    
-    loss = loss_image + lbd*loss_sar
-    
-    print("loss_image: {} loss_sar {}".format(loss_image, lbd*loss_sar))
-    
-    phi = loss
-  
-    ereco = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    error = e(tonumpy(targetSeq.target_image).ravel(),ereco.ravel())     
-    
-    return (phi,scanner.reco, error)
-        
-# %% # OPTIMIZATION land
-
-opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
-opt.set_target(tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],2]))
-opt.target_seq_holder=targetSeq
-opt.experiment_description = experiment_description
-
-opt.use_periodic_grad_moms_cap = 0           # GRE/FID specific, do not sample above Nyquist flag
-opt.optimzer_type = 'SGD_vanilla'
-opt.opti_mode = 'seq'
-# 
-opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
-
-opt.set_handles(init_variables, phi_FRP_model)
-opt.scanner_opt_params = opt.init_variables()
-
-lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.5, 0.2, 0.1, 0.1])
-#opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
-
-for i in range(7):
-    opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
-    print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=200, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-
-_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
-
-# plot
-targetSeq.print_status(True, reco=None)
-opt.print_status(True, reco)
-
-print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.abs(tonumpy(opt.scanner_opt_params[1].permute([1,0]))).sum()*180/np.pi, tonumpy(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0])).sum() ))
-
-stop()
-
-# %% # save optimized parameter history
-
-opt.save_param_reco_history(experiment_id)
-opt.export_to_matlab(experiment_id)
-            

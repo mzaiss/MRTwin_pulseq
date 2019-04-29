@@ -38,7 +38,7 @@ if sys.version_info[0] < 3:
 else:
     import importlib
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 
@@ -80,7 +80,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([18,18])                                           # image size
+sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -156,18 +156,17 @@ scanner.adc_mask[-2:] = 0
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 20*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[0,:,0] = 60*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[1,0,0] = -2.5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
 #flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
-#flips[0,:,1] = torch.tensor(np.tile(np.array([180,-180]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
+flips[0,:,1] = torch.tensor(np.tile(np.array([0,180]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
 
 # new definition for bssfp ( not using phases)
-flips[0,:,0] = torch.tensor(np.tile(np.array([20,-20]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
-flips[0,0,0] = 10*np.pi/180  # bssfp specific, alpha/2 prep, to avoid many dummies
-
+#flips[0,:,0] = torch.tensor(np.tile(np.array([10,-10]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
+flips[0,0,0] = flips[0,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
 
 
 flips = setdevice(flips)
