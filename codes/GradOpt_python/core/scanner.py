@@ -1132,7 +1132,7 @@ class Scanner_fast(Scanner):
         
         self.IVP = IVP
         
-    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False):
+    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False,epi=False):
         
         # we need to shift grad_moms to the right for adjoint pass, since at each repetition we have:
         # meas-signal, flip, relax,grad order  (signal comes before grads!)
@@ -1166,6 +1166,13 @@ class Scanner_fast(Scanner):
                         kloc = -kloc
                     kloc += temp[t,r,:]
                     k[t,r,:] = kloc
+                
+        if epi:
+            kloc = 0
+            for r in range(self.NRep):
+                for t in range(self.T):
+                    kloc += temp[t,r,:]
+                    k[t,r,:] = kloc            
                 
         B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
         B0Y = torch.unsqueeze(k[:,:,1],2) * self.rampY
