@@ -68,34 +68,34 @@ class Scanner():
         self.adc_mask = self.setdevice(adc_mask)
 
     def init_ramps(self):
-        
         use_nonlinear_grads = False                       # very experimental
         
-        baserampX = np.linspace(-1,1,self.sz[0] + 1)
-        baserampY = np.linspace(-1,1,self.sz[1] + 1)
+        baserampX = np.linspace(-1,1,self.sz[1] + 1)
+        baserampY = np.linspace(-1,1,self.sz[0] + 1)
         
         if use_nonlinear_grads:
             baserampX = np.abs(baserampX)**1.2 * np.sign(baserampX)
             baserampY = np.abs(baserampY)**1.2 * np.sign(baserampY)
-        
+            
+
+        # set gradient spatial forms
         rampX = np.pi*baserampX
-        rampX = -np.expand_dims(rampX[:-1],1)
-        rampX = np.tile(rampX, (1, self.sz[1]))
+        rampX = np.expand_dims(rampX[:-1],0)
+        rampX = np.tile(rampX, (self.sz[0], 1))
         
         rampX = torch.from_numpy(rampX).float()
-        rampX = rampX.view([1,1,self.NVox])    
+        rampX = rampX.view([1,1,self.NVox])                
         
-        # set gradient spatial forms
         rampY = np.pi*baserampY
-        rampY = -np.expand_dims(rampY[:-1],0)
-        rampY = np.tile(rampY, (self.sz[0], 1))
+        rampY = np.expand_dims(rampY[:-1],1)
+        rampY = np.tile(rampY, (1, self.sz[1]))
         
         rampY = torch.from_numpy(rampY).float()
         rampY = rampY.view([1,1,self.NVox])    
         
         # 1D case
         if self.sz[1] == 1:
-            rampY[:,:,:] = 0
+            rampX[:,:,:] = 0
         
         self.rampX = self.setdevice(rampX)
         self.rampY = self.setdevice(rampY)
@@ -666,9 +666,9 @@ class Scanner():
                         start_t = t
                         
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
-                        self.ROI_signal[start_t:t,r,0] = delay
-                        self.ROI_signal[start_t:t,r,1:4] = torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu().unsqueeze(0)
-                        self.ROI_signal[start_t:t,r,4] = torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()
+                        self.ROI_signal[start_t:t+1,r,0] = delay
+                        self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu().unsqueeze(0)
+                        self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()
                         
                         self.set_relaxation_tensor(spins,total_delay)
                         self.set_freeprecession_tensor(spins,total_delay)
@@ -809,9 +809,9 @@ class Scanner():
                         start_t = t
                         
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
-                        self.ROI_signal[start_t:t,r,0] = total_delay
-                        self.ROI_signal[start_t:t,r,1:4] = torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
-                        self.ROI_signal[start_t:t,r,4] = torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()
+                        self.ROI_signal[start_t:t+1,r,0] = total_delay
+                        self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
+                        self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()
                         
                         self.set_relaxation_tensor(spins,total_delay)
                         self.set_freeprecession_tensor(spins,total_delay)
