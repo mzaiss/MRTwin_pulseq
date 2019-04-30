@@ -12,7 +12,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e21_tgtRARE_tskRARE_32_linear'
+experiment_id = 'e21_tgtRARE_tskRARE_32_centric'
 experiment_description = """
 bSSFP
 """
@@ -38,7 +38,7 @@ if sys.version_info[0] < 3:
 else:
     import importlib
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 
@@ -105,7 +105,6 @@ for i in range(5):
         t[t < 0] = 0
     real_phantom_resized[:,:,i] = t
     
-real_phantom_resized[:,:,3] *= 0
     
 spins.set_system(real_phantom_resized)
 
@@ -231,8 +230,8 @@ scanner.adjoint(spins)
 # try to fit this
 target = scanner.reco.clone()
 
-ft_reco = scanner.do_ifft_reco()
-plt.imshow(magimg(tonumpy(ft_reco)))
+#scanner.reco = scanner.do_ifft_reco()
+#plt.imshow(magimg(tonumpy(ft_reco)))
    
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)

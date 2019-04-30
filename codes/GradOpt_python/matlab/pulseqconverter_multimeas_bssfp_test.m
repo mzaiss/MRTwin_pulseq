@@ -17,7 +17,7 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 
-ni = 30;
+ni = 20;
 
 scanner_dict_target = load([seq_dir,'/','scanner_dict_tgt.mat']);
 sz = double(scanner_dict_target.sz);
@@ -92,9 +92,9 @@ deltak=1/SeqOpts.FOV;
     event_times = double(squeeze(scanner_dict_target.event_times(:,:)));
     gradmoms = double(squeeze(scanner_dict_target.grad_moms(:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
 
-seq_fn = [seq_dir,'/','multimeasbssfp.seq'];
+seq_fn = [seq_dir,'/','multimeasbssfp_noADCgy.seq'];
 
-maxmeas = 100;
+maxmeas = 50;
         
    
 for ni = 1:maxmeas % add target seq in the beginning
@@ -145,7 +145,7 @@ for ni = 1:maxmeas % add target seq in the beginning
         gyPre = mr.makeTrapezoid('y','Area',gradmom_revinder(2)-gy.amplitude*gy.riseTime/2,'Duration',eventtime_revinder,'system',sys);
         seq.addBlock(gxPre,gyPre); % add updated rewinder event from second event, including the full event time
         
-        seq.addBlock(gx,gy,adc);  % add ADC grad event
+        seq.addBlock(gx,adc);  % add ADC grad event
         
         % second last extra event  T(end)  % adjusted also for fallramps of ADC
         idx_T=size(gradmoms,1)-1; % T(2)

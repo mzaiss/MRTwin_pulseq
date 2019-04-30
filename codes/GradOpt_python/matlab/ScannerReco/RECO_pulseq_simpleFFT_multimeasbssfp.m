@@ -20,16 +20,17 @@ nCoils = size(data_coils_last, 3);
 
 data = data_coils_last;
 
-%% show kspace data
-figure(101)
-subplot(2,2,1), imagesc(abs(data(:,:,1))), title('coil 1'), axis('image')
-subplot(2,2,2), imagesc(abs(data(:,:,2))), title('coil 2'), axis('image')
 
 %% Reconstruct coil images
-data_reshaped = reshape(data,size(data,1),size(data,1),100,2);
+data_reshaped = reshape(data,size(data,1),size(data,1),50,2);
 sz=size(data_reshaped)
 images = zeros(sz(1),sz(2),sz(3));
 %figure;
+% show kspace data
+data_reshaped(end,:,:,:)=0;
+figure(201)
+subplot(2,2,1), imagesc(abs(data_reshaped(:,:,1,1))), title('coil 1'), axis('image')
+subplot(2,2,2), imagesc(abs(data_reshaped(:,:,1,2))), title('coil 2'), axis('image')
 
 for ii = 1:nCoils
     for jj = 1:size(data_reshaped,3)

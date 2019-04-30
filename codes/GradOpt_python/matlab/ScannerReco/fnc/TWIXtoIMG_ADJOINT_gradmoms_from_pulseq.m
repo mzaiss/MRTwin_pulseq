@@ -8,7 +8,7 @@ function [SOS, phase] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj, ktraj_a
   end
   
   % the incoming data order is [kx coils acquisitions]
-  raw_kspace = permute(raw_kspace, [1, 3, 2]);
+  raw_kspace = permute(raw_kspace, [1,3,2]);
   nCoils = size(raw_kspace, 3);
 
   sz=size(raw_kspace,1);
@@ -37,7 +37,8 @@ function [SOS, phase] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj, ktraj_a
   for ii = 1:nCoils
     spectrum = raw_kspace(:,:,ii);
     reco = G_adj*(spectrum(:));
-    images(:,:,ii) = flipud(reshape(reco,[sz,sz]));
+    images(:,:,ii) = (reshape(reco,[sz,sz]));
+    images(:,:,ii) =  images(:,:,ii).';
   end
 
   sos=abs(sum(images.^2,ndims(images)).^(1/2));
@@ -47,9 +48,7 @@ function [SOS, phase] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj, ktraj_a
 end
 
 function [G_adj] = get_adjoint_mtx(k)
-
-   k(:,:,2)=-k(:,:,2);
-  
+ 
   sz = size(k);
   sz = sz(1);
   NVox = sz*sz;
@@ -62,15 +61,15 @@ function [G_adj] = get_adjoint_mtx(k)
   baserampY = linspace(-1,1,sz + 1);
 
   rampX = pi*baserampX;
-  rampX = -rampX(1:sz).'*ones(1,sz);
+  rampX = rampX(1:sz).'*ones(1,sz);
   rampX = reshape(rampX,[1,1,NVox]);
 
   rampY = pi*baserampY;
-  rampY = -ones(sz,1)*rampY(1:sz);
+  rampY = ones(sz,1)*rampY(1:sz);
   rampY = reshape(rampY,[1,1,NVox]);
 
-  B0X = reshape(k(:,:,1), [sz,sz,1]) .* rampX;
-  B0Y = reshape(k(:,:,2), [sz,sz,1]) .* rampY;
+  B0X = reshape(k(:,:,1), [sz,sz,1]) .* rampY;
+  B0Y = reshape(k(:,:,2), [sz,sz,1]) .* rampX;
 
   B0_grad = reshape((B0X + B0Y), [sz,sz,NVox]);
 

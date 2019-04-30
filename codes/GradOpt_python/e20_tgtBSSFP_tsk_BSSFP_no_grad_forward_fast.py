@@ -105,6 +105,7 @@ for i in range(5):
         t[t < 0] = 0
     real_phantom_resized[:,:,i] = t
     
+    
 spins.set_system(real_phantom_resized)
 
 cutoff = 1e-12
