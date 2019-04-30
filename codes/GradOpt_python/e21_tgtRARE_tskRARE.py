@@ -114,7 +114,7 @@ spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 spins.T1*=1
 spins.T2*=1
-spins.B0inhomo*=0
+spins.B0inhomo*=1
 plt.subplot(131)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
 plt.title("PD")
@@ -204,12 +204,12 @@ grad_moms[-2,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree h
 #grad_moms[[1,-2],:,1] = torch.roll(grad_moms[[1,-2],:,1],0,dims=[1])
 
 #     centric ordering
-#grad_moms[1,:,1] = 0
-#for i in range(1,int(sz[1]/2)+1):
-#    grad_moms[1,i*2-1,1] = (-i)
-#    if i < sz[1]/2:
-#        grad_moms[1,i*2,1] = i
-#grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
+grad_moms[1,:,1] = 0
+for i in range(1,int(sz[1]/2)+1):
+    grad_moms[1,i*2-1,1] = (-i)
+    if i < sz[1]/2:
+        grad_moms[1,i*2,1] = i
+grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 
 
 grad_moms = setdevice(grad_moms)

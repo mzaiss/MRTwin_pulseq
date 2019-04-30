@@ -14,10 +14,10 @@ function [SOS, phase] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq_adcmask(twix_obj,
   sz=size(raw_kspace,1);
 
   % compute frequency cutoff mask for adjoint (dont use frequencies above Nyquist)
-  kmax=(max(ktraj_adc(1,1:sz))-min(ktraj_adc(1,1:sz)))/2;
-  ktraj_adc=ktraj_adc./(kmax+kmax/sz)*sz/2;  
   
-  ktraj_adc = reshape(ktraj_adc(1:2,:),[2,sz,sz]);
+  deltak=1000/twix_obj{1, 2}.hdr.Meas.ReadFoV;
+  ktraj_adc=ktraj_adc/deltak;
+
   k = permute(ktraj_adc,[2,3,1]);
   
   hsz = sz/2;
