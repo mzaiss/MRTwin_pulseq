@@ -1140,6 +1140,10 @@ class Scanner():
         for r in range(self.NRep):
             self.set_grad_adj_op(r)
             self.do_grad_adj_reco(r,spins)
+            
+        # transpose for adjoint
+        self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
+            
         
        
 
@@ -1271,7 +1275,11 @@ class Scanner_fast(Scanner):
         s = torch.sum(self.signal,0)
         
         r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
-        self.reco = r[:,:2,0]        
+        self.reco = r[:,:2,0]
+        
+        # transpose for adjoint
+        self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
+        
 
 # AUX classes
 
