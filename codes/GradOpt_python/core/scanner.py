@@ -1,6 +1,20 @@
 import numpy as np
 import torch
 
+
+# general func
+def roll(x,n,dim):
+    
+    if dim == 0:
+        return torch.cat((x[-n:], x[:-n]))
+    elif dim == 1:
+        return torch.cat((x[:, -n:], x[:, :-n]), dim=1)        
+    else:
+        class ExecutionControl(Exception): pass
+        raise ExecutionControl('roll > 2 dim = FAIL!')
+        return 0
+
+
 # HOW we measure
 class Scanner():
     def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu):
@@ -455,16 +469,19 @@ class Scanner():
         self.reco = self.setdevice(reco)
         
     def do_ifft_reco(self):
-        spectrum = self.signal
-        spectrum = spectrum[0,self.adc_mask.flatten()!=0,:,:2,0]
-        space = torch.ifft(spectrum,2)
-        output = space.clone()
-        output[:self.sz[0]//2,:self.sz[1]//2,:] = space[-self.sz[0]//2:,-self.sz[1]//2:,:]
-        output[:self.sz[0]//2,-self.sz[1]//2:,:] = space[-self.sz[0]//2:,:self.sz[1]//2,:]
-        output[-self.sz[0]//2:,:self.sz[1]//2,:] = space[:self.sz[0]//2,-self.sz[1]//2:,:]
-        output[-self.sz[0]//2:,-self.sz[1]//2:,:] = space[:self.sz[0]//2,:self.sz[1]//2,:] 
+        spectrum = self.signal[0,self.adc_mask.flatten()!=0,:,:2,0].clone()
         
-        return output
+        # fftshift
+        spectrum = roll(spectrum,self.sz[0]//2-1,0)
+        spectrum = roll(spectrum,self.sz[0]//2-1,1)
+        
+        space = torch.ifft(spectrum,2)
+        
+        # fftshift
+        space = roll(space,self.sz[0]//2-1,0)
+        space = roll(space,self.sz[0]//2-1,1)
+       
+        return space.reshape([self.NVox,2])
         
     def read_signal(self,t,r,spins):
         if self.adc_mask[t] != 0:
@@ -1211,43 +1228,6 @@ class Scanner_fast(Scanner):
         # save grad_moms for intravoxel precession op
         self.grad_moms_for_intravoxel_precession = grad_moms
         
-    # do full flip/gradprecess adjoint integrating over all repetition grad/flip history
-    def set_gradient_precession_tensor_adjhistory(self,grad_moms):
-        
-        B0X = torch.unsqueeze(grad_moms[:,:,0],2) * self.rampX
-        B0Y = torch.unsqueeze(grad_moms[:,:,1],2) * self.rampY
-        
-        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
-        
-        B0_grad_cos = torch.cos(B0_grad)
-        B0_grad_sin = torch.sin(B0_grad)
-        
-        self.G[:,:,:,0,0] = B0_grad_cos
-        self.G[:,:,:,0,1] = -B0_grad_sin
-        self.G[:,:,:,1,0] = B0_grad_sin
-        self.G[:,:,:,1,1] = B0_grad_cos
-
-        self.G_adj[:,:,:,2,2] = 1
-        self.G_adj[0,0,:,0,0] = 1
-        self.G_adj[0,0,:,1,1] = 1
-        
-        propagator = self.G_adj[0,0,:,:,:]
-        
-        for r in range(self.NRep):
-            for t in range(self.T):
-                f = self.F[t,r,:,:,:]                                    # flip
-                    
-                if t == 0 and r == 0:
-                    pass
-                else:
-                    propagator = torch.matmul(f, propagator)
-
-                propagator = torch.matmul(self.G[t,r,:,:,:],propagator) # grads
-                
-                self.G_adj[t,r,:,:,:] = propagator
-                
-        self.G_adj = self.G_adj.permute([0,1,2,4,3])
-                
     def grad_precess(self,t,r,spins):
         spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)
         
