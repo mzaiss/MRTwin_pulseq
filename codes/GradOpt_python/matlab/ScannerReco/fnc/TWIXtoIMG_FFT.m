@@ -31,12 +31,12 @@ phase = angle(images(:,:,ii));
 if 0
 %% Sum of squares combination of channels
 figure(101), subplot(2,2,3)
-imagesc(rot90(sos)), title('reco coilcombination'), axis('image')
+imagesc((sos)), title('reco coilcombination'), axis('image')
 
 show kspace data
 figure(101)
-subplot(2,2,1), imagesc(rot90(abs(data(:,:,1)))), title('coil 1'), axis('image')
-subplot(2,2,2), imagesc(rot90(abs(data(:,:,2)))), title('coil 2'), axis('image')
+subplot(2,2,1), imagesc((abs(data(:,:,1)))), title('coil 1'), axis('image')
+subplot(2,2,2), imagesc((abs(data(:,:,2)))), title('coil 2'), axis('image')
 end
 
 end

@@ -172,7 +172,8 @@ seq.write(seq_fn);
 [ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
 
 % plot k-spaces
-
+ktraj_adc=ktraj_adc/deltak;
+ktraj=ktraj/deltak;
 figure; plot(ktraj'); % plot the entire k-space trajectory
 figure(88); plot(ktraj(1,:),ktraj(2,:),'c',...
     ktraj_adc(1,:),ktraj_adc(2,:),'go'); hold on;  % a 2D plot
@@ -180,13 +181,13 @@ axis('equal'); % enforce aspect ratio for the correct trajectory display
 legend({'k-pulseq','ADC-pulseq'});
 
 % from SIM
-grad_moms = squeeze(scanner_dict.grad_moms*deltak);
+grad_moms = squeeze(scanner_dict.grad_moms);
 grad_moms =cat(1,zeros(1,NRep,2),grad_moms);
 temp = squeeze(cumsum(grad_moms(:,:,1:2),1));
 ktraj_adc_sim_x =temp(:,:,1);  ktraj_adc_sim_x =ktraj_adc_sim_x(:);
 ktraj_adc_sim_y =temp(:,:,2);  ktraj_adc_sim_y =ktraj_adc_sim_y(:);
 
-figure(88); plot(ktraj_adc_sim_x,ktraj_adc_sim_y,'b.-','DisplayName','k-sim'); hold on;% a 2D plot
+figure(88); plot(ktraj_adc_sim_x,ktraj_adc_sim_y,'bx-','DisplayName','k-sim'); hold on;% a 2D plot
 
 %   ktraj_adc_sim = ktraj_adc_sim(3:end-2,:,:);
 %   ktraj_adc_temp = reshape(permute(ktraj_adc_sim,[3,2,1]),2,[]);

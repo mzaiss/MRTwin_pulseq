@@ -223,14 +223,16 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=True,wrap_k=False)  
     
 # forward/adjoint pass
 #scanner.forward_mem(spins, event_time)
+
+
+ 
 scanner.forward_fast(spins, event_time)
 scanner.signal = torch.roll(scanner.signal,0,dims=[2])
 scanner.adjoint(spins)
 
 # try to fit this
-target = scanner.reco.clone()
-
 #scanner.reco = scanner.do_ifft_reco()
+target = scanner.reco.clone()
 #plt.imshow(magimg(tonumpy(ft_reco)))
    
 # save sequence parameters and target image to holder object

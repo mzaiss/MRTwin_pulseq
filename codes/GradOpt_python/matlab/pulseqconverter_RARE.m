@@ -170,8 +170,6 @@ seq.plot();
 subplot(3,2,1), title(experiment_id,'Interpreter','none');
 
 
-
-
 %% new single-function call for trajectory calculation
 [ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
 
@@ -181,6 +179,11 @@ figure; plot(ktraj'); % plot the entire k-space trajectory
 figure; plot(ktraj(1,:),ktraj(2,:),'c',...
              ktraj_adc(1,:),ktraj_adc(2,:),'g.'); % a 2D plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
+
+rep = seq.testReport;
+fprintf([rep{:}]);
+
+
 return
 
 

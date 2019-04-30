@@ -18,11 +18,17 @@ array=1:numel(filename);
 twix_obj = mapVBVD([rawpname '/' filename{1}]);
 
 seq=mr.Sequence();
+try
 seq.read([rawpname '/' sprintf('pulseq.seq')]);
+catch
+seq.read([rawpname '/' sprintf('seqiter0.seq')]);
+end
 [ktraj_adc, ktraj] = seq.calculateKspace();
 
-[sos_base, phase_base] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
+scanner_dict_tgt = load([rawpname,'/','scanner_dict_tgt.mat']);
 
+   [sos_base, phase_base] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
+%   [sos_base, phase_base] = TWIXtoIMG_NUFFT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
 %MEAS
 
 
@@ -33,6 +39,7 @@ for ii=array
 
 twix_obj=mapVBVD([rawpname '/' filename{ii}]);
 [sos, phase] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
+
 figure(1),
 subplot(2,2,1), imagesc((sos),[0 1]), title(sprintf('reco sos, iter %d',ii)), axis('image'); colorbar;
 subplot(2,2,3), imagesc((phase)), title('reco phase coil(1) '), axis('image'); colorbar;
