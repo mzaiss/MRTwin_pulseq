@@ -104,9 +104,7 @@ for i in range(5):
     if i != 3:
         t[t < 0] = 0
     real_phantom_resized[:,:,i] = t
-    
-real_phantom_resized[:,:,3] *= 0
-    
+       
 spins.set_system(real_phantom_resized)
 
 cutoff = 1e-12

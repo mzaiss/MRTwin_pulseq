@@ -49,6 +49,8 @@ idxarray_exported_itersteps = [1:50, 52:2:100, 110:10:niter];
 idxarray_exported_itersteps = [1:30 35:5:340 350:50:niter];
 idxarray_exported_itersteps = [1:2:100 110:10:190 205:5:400 450:50:1000];
 
+idxarray_exported_itersteps = [niter-10:niter];
+
 idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_itersteps<=niter); % catch to high iteration numbers
 
 for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning

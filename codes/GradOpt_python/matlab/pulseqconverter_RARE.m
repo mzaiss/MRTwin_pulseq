@@ -140,7 +140,7 @@ for rep=1:NRep
              
     % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-2; % T(2)
-        dur=sum(scanner_dict.event_times(3:end-2,rep));
+        dur=sum(scanner_dict.event_times(idx_T,rep));
         gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
         adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
     

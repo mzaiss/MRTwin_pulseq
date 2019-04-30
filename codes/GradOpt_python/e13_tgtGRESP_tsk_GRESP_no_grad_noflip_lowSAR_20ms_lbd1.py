@@ -207,7 +207,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-scanner.forward_fast(spins, event_time)
+scanner.forward(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
