@@ -19,11 +19,15 @@ twix_obj = mapVBVD([rawpname '/' filename{1}]);
 
 seq=mr.Sequence();
 try
-seq.read([rawpname '/' sprintf('pulseq.seq')]);
+seq.read([rawpname '/' sprintf('pulseq.seq')],'detectRFuse');
 catch
-seq.read([rawpname '/' sprintf('seqiter0.seq')]);
+seq.read([rawpname '/' sprintf('seqiter0.seq')],'detectRFuse');
 end
+seq.plot();
+
 [ktraj_adc, ktraj] = seq.calculateKspace();
+figure(88); plot(ktraj(1,:),ktraj(2,:),'c',...
+    ktraj_adc(1,:),ktraj_adc(2,:),'go'); hold on;  % a 2D plot
 
 scanner_dict_tgt = load([rawpname,'/','scanner_dict_tgt.mat']);
 

@@ -37,7 +37,7 @@ seq=mr.Sequence(system);
 %% Sequence events
 % Some sequence parameters are defined using standard MATLAB variables
 fov=220e-3;
-Nx=24; Ny=24; necho=24; Nslices=1;
+Nx=48; Ny=48; necho=48; Nslices=1;
 rflip=180;
 if (numel(rflip)==1), rflip=rflip+zeros([1 necho]); end
 sliceThickness=5e-3;
@@ -225,22 +225,24 @@ for kex=1:nex % MZ: we start at 0 to have one dummy
     end
 end
 
+seq.write('tse.seq')
+
+
+
 %% new single-function call for trajectory calculation
 [ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
-
-%% plot k-spaces
-
+% plot k-spaces
 figure; plot(ktraj'); % plot the entire k-space trajectory
 figure; plot(ktraj(1,:),ktraj(2,:),'b',...
              ktraj_adc(1,:),ktraj_adc(2,:),'r.'); % a 2D plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
 
-
+return
 %% Write to file
-
+%  seq=mr.Sequence(system);
+%  seq.read('tse.seq','detectRFuse')
 % The sequence is written to file in compressed form according to the file
 % format specification using the |write| method.
-seq.write('tse.seq')
 
 %%
 % Display the first few lines of the output file

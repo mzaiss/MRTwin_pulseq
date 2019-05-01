@@ -90,7 +90,8 @@ end
 figure(1);  
 for ii=array_MEAS
     
- seq.read([d '/' sprintf('seqiter%d.seq',ii)]);
+ seq.read([d '/' sprintf('seqiter%d.seq',ii)],'detectRFuse');
+
 [ktraj_adc, ktraj] = seq.calculateKspace();
 
 %MEAS
@@ -159,7 +160,7 @@ end
 if 1 %  small plots, sos + kspace
     figure(2);  
     jj=array_SIM(ii);
-    seq.read([d '/' sprintf('seqiter%d.seq',ii)]);
+    seq.read([d '/' sprintf('seqiter%d.seq',ii)],'detectRFuse');
    [ktraj_adc, ktraj] = seq.calculateKspace();
     subplot(2,1,1), imagesc(rot90(sos),[0 1]), title(sprintf('reco sos, iter %d',jj)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
     subplot(2,1,2), 
