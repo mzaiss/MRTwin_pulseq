@@ -14,7 +14,7 @@ else
 end
 
 % the incoming data order is [kx coils acquisitions]
-data_coils_last = permute(data_unsorted, [1, 3, 2]);
+data_coils_last = permute(data_unsorted, [1,3,2]);
 nCoils = size(data_coils_last, 3);
 
 data = data_coils_last;
@@ -50,4 +50,8 @@ end
 sos=abs(sum(images.^2,ndims(images)).^(1/2));
 sos=sos./max(sos(:));
 figure(101), subplot(2,2,3)
-imagesc(sos), title('reco coilcombination, PE=RL'), axis('image'); xlabel('PE'); ylabel('read');
+imagesc(sos), title('reco coilcombination, PE='), axis('image'); xlabel('PE'); ylabel('read');
+subplot(2,2,4)
+angle_img = angle(images(:,:,2));
+imagesc(angle_img); title('reco coilcombination PHASE, PE='), axis('image'); xlabel('PE'); ylabel('read');
+

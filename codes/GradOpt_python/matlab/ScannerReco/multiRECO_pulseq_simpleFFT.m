@@ -16,12 +16,23 @@ figure(1)
 array=1:numel(filename);
 
 twix_obj = mapVBVD([rawpname '/' filename{1}]);
-[sos_base, phase_base] = TWIXtoIMG(twix_obj);
 
 seq=mr.Sequence();
-seq.read([rawpname '/' sprintf('pulseq.seq')]);
-[ktraj_adc, ktraj] = seq.calculateKspace();
+try
+seq.read([rawpname '/' sprintf('pulseq.seq')],'detectRFuse');
+catch
+seq.read([rawpname '/' sprintf('seqiter0.seq')],'detectRFuse');
+end
+seq.plot();
 
+[ktraj_adc, ktraj] = seq.calculateKspace();
+figure(88); plot(ktraj(1,:),ktraj(2,:),'c',...
+    ktraj_adc(1,:),ktraj_adc(2,:),'go'); hold on;  % a 2D plot
+
+scanner_dict_tgt = load([rawpname,'/','scanner_dict_tgt.mat']);
+
+   [sos_base, phase_base] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
+%   [sos_base, phase_base] = TWIXtoIMG_NUFFT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
 %MEAS
 
 
@@ -32,11 +43,12 @@ for ii=array
 
 twix_obj=mapVBVD([rawpname '/' filename{ii}]);
 [sos, phase] = TWIXtoIMG_ADJOINT_gradmoms_from_pulseq(twix_obj,ktraj_adc);
+
 figure(1),
-subplot(2,2,1), imagesc(rot90(sos),[0 1]), title(sprintf('reco sos, iter %d',ii)), axis('image'); colorbar;
-subplot(2,2,3), imagesc(rot90(phase)), title('reco phase coil(1) '), axis('image'); colorbar;
-subplot(2,2,2), imagesc(rot90(sos_base),[0 1]), title(sprintf('MEAS reco sos, iter %d',1)), axis('image'); colorbar;
-subplot(2,2,4), imagesc(rot90(phase_base)), title('reco phase coil(1) '), axis('image'); colorbar;
+subplot(2,2,1), imagesc((sos),[0 1]), title(sprintf('reco sos, iter %d',ii)), axis('image'); colorbar;
+subplot(2,2,3), imagesc((phase)), title('reco phase coil(1) '), axis('image'); colorbar;
+subplot(2,2,2), imagesc((sos_base),[0 1]), title(sprintf('MEAS reco sos, iter %d',1)), axis('image'); colorbar;
+subplot(2,2,4), imagesc((phase_base)), title('reco phase coil(1) '), axis('image'); colorbar;
 set(gcf, 'Outerposition',[404   356   850   592])
 
 % create gif (out.gif)
@@ -58,51 +70,3 @@ last_fn_meas=filename{ii};
 % save('togif.mat','im_MEAS','last_fn_meas');
 end
 
-
-function [SOS, phase] = TWIXtoIMG(twix_obj)
-%% sort in the k-space data
-if iscell(twix_obj)
-    data_unsorted = twix_obj{2}.image.unsorted();
-else
-    data_unsorted = twix_obj.image.unsorted();
-end
-% the incoming data order is [kx coils acquisitions]
-data_coils_last = permute(data_unsorted, [1, 3, 2]);
-nCoils = size(data_coils_last, 3);
-
-data = data_coils_last;
-
-%% Reconstruct coil images
-images = zeros(size(data));
-%figure;
-
-for ii = 1:nCoils
-    %images(:,:,:,ii) = fliplr(rot90(fftshift(fft2(fftshift(data(:,:,:,ii))))));
-    images(:,:,ii) = fftshift(fft2(fftshift(data(end:-1:1,:,ii))));
-end
-
-% Phase images (possibly channel-by-channel and echo-by-echo)
-% figure;
-% imab(angle(images));colormap('jet');
-
-sos=abs(sum(images.^2,ndims(images)).^(1/2));
-SOS=sos./max(sos(:));
-phase = angle(images(:,:,ii));
-
-%% reconstruct using adjoint
-    
-
-
-%%
-if 1
-%% Sum of squares combination of channels
-figure(101), subplot(2,2,3)
-imagesc(rot90(sos)), title('reco coilcombination'), axis('image')
-
-% show kspace data
-figure(101)
-subplot(2,2,1), imagesc(rot90(abs(data(:,:,1)))), title('kspace coil 1'), axis('image')
-subplot(2,2,2), imagesc(rot90(abs(data(:,:,2)))), title('kspace coil 2'), axis('image')
-end
-
-end

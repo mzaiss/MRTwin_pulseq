@@ -88,7 +88,7 @@ Nx = SeqOpts.resolution(1); Ny = SeqOpts.resolution(2);
 % this is easy when using the AREA of the pulseqgrads  and gradmoms*deltak
 
 % init sequence and system
-seq = mr.Sequence();
+seq = mr.Sequence(sys);
 % ADC duration (controls TR/TE)
 adc_dur=2560; %us
 
@@ -98,9 +98,7 @@ deltak=1/SeqOpts.FOV;
 
 T = size(scanner_dict.grad_moms,1);
 NRep = size(scanner_dict.grad_moms,2);
-
-gxPre = mr.makeTrapezoid('x','Area',sz(1)/SeqOpts.FOV,'Duration',scanner_dict.event_times(1,1),'system',sys);
-     
+    
 % put blocks together
 for rep=1:NRep
 
@@ -114,6 +112,7 @@ for rep=1:NRep
       if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
         use = 'excitation';
         RFdur=1*1e-3;
+        sliceThickness=200e-3;
         rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
         seq.addBlock(rf);
       end
@@ -140,7 +139,7 @@ for rep=1:NRep
              
     % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-2; % T(2)
-        dur=sum(scanner_dict.event_times(3:end-2,rep));
+        dur=sum(scanner_dict.event_times(idx_T,rep));
         gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
         adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
     
@@ -163,13 +162,19 @@ for rep=1:NRep
 
 end
 
+seq.setDefinition('FOV', [SeqOpts.FOV SeqOpts.FOV sliceThickness]*1e3);
+
+[ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
+figure; plot(ktraj'); % plot the entire k-space trajectory
+figure; plot(ktraj(1,:),ktraj(2,:),'c',...
+             ktraj_adc(1,:),ktraj_adc(2,:),'g.'); % a 2D plot
+axis('equal'); % enforce aspect ratio for the correct trajectory display
+
 %write sequence
 seq.write(seq_fn);
 
 seq.plot();
 subplot(3,2,1), title(experiment_id,'Interpreter','none');
-
-
 
 
 %% new single-function call for trajectory calculation
@@ -181,6 +186,11 @@ figure; plot(ktraj'); % plot the entire k-space trajectory
 figure; plot(ktraj(1,:),ktraj(2,:),'c',...
              ktraj_adc(1,:),ktraj_adc(2,:),'g.'); % a 2D plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
+
+rep = seq.testReport;
+fprintf([rep{:}]);
+
+
 return
 
 

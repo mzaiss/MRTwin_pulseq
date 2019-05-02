@@ -12,7 +12,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e20_tgtBSSFP_tsk_BSSFP_no_grad_forward_fast_32'
+experiment_id = 'e20_tgtBSSFP_tsk_BSSFP_48_alpha_2_prep'
 experiment_description = """
 bSSFP
 """
@@ -80,7 +80,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([24,24])                                           # image size
+sz = np.array([48,48])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -113,7 +113,7 @@ spins.T2[spins.T2<cutoff] = cutoff
 # end initialize scanned object
 spins.T1*=1
 spins.T2*=1
-spins.B0inhomo*=0
+spins.B0inhomo*=1
 #spins.B0inhomo+=10
 plt.subplot(131)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
@@ -156,7 +156,7 @@ scanner.adc_mask[-2:] = 0
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 60*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[0,:,0] = 10*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[1,0,0] = -2.5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 

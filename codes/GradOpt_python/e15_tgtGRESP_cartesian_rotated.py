@@ -12,7 +12,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e15_tgtGRESP_cartesian_rotated_90deg'
+experiment_id = 'e15_tgtGRESP_cartesian_rotated_radial'
 experiment_description = """
 rotate cartesian grid
 """
@@ -38,7 +38,7 @@ if sys.version_info[0] < 3:
 else:
     import importlib
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 
@@ -140,7 +140,7 @@ spins.omega = setdevice(spins.omega)
 #############################################################################
 ## Init scanner system ::: #####################################
 
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
 # begin sequence definition
@@ -184,7 +184,7 @@ grad_moms[1,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event
 grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
 grad_moms[2:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
 
-alpha = torch.tensor(90 * np.pi / 180)
+alpha = torch.tensor(0 * np.pi / 180)
 
 rotomat = torch.zeros((2,2)).float()
 rotomat[0,0] = torch.cos(alpha)
@@ -212,7 +212,9 @@ scanner.forward_fast(spins, event_time)
 #scanner.forward_fast(spins, event_time)
 scanner.adjoint(spins)
 
-# try to fit this
+# scanner.reco = scanner.do_ifft_reco()
+
+# try to fit this2
 target = scanner.reco.clone()
    
 # save sequence parameters and target image to holder object
