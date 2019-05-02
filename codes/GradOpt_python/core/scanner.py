@@ -357,7 +357,7 @@ class Scanner():
         self.G_adj[:,:,1,0] = -self.B0_grad_adj_sin[:,r,:]
         self.G_adj[:,:,1,1] = self.B0_grad_adj_cos[:,r,:]
         
-    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False,epi=False):
+    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,epi=False):
         grads=grad_moms
         
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
@@ -373,10 +373,6 @@ class Scanner():
         
         self.B0_grad_cos = torch.cos(B0_grad)
         self.B0_grad_sin = torch.sin(B0_grad)
-        
-        if wrap_k:
-            hx = self.sz[0]/2
-            k[:,:,0] = torch.fmod(k[:,:,0]+hx,hx*2)-hx        
         
         # for backward pass
         if refocusing:
@@ -407,7 +403,9 @@ class Scanner():
         self.B0_grad_adj_sin = torch.sin(B0_grad)
         
         # save grad_moms for intravoxel precession op
-        self.grad_moms_for_intravoxel_precession = grad_moms    
+        self.grad_moms_for_intravoxel_precession = grad_moms
+        
+        self.kspace_loc = k
         
     def flip(self,t,r,spins):
         spins.M = torch.matmul(self.F[t,r,:,:,:],spins.M)
@@ -1137,12 +1135,34 @@ class Scanner():
         #adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
         #self.signal *= adc_mask        
         
-        for r in range(self.NRep):
-            self.set_grad_adj_op(r)
-            self.do_grad_adj_reco(r,spins)
+        for rep in range(self.NRep):
+            self.set_grad_adj_op(rep)
+            self.do_grad_adj_reco(rep,spins)
             
         # transpose for adjoint
         self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
+        
+    # reconstruct image readout by readout            
+    def do_grad_adj_reco_separable(self,r,spins):
+        s = self.signal[:,:,r,:,:]
+         
+        # for now we ignore parallel imaging options here (do naive sum sig over coil)
+        s = torch.sum(s, 0)                                                  
+        r = torch.matmul(self.G_adj.permute([1,0,2,3]), s)
+        return torch.sum(r[:,:,:2,0],1)
+        
+    def adjoint_separable(self,spins):
+        self.init_reco()
+        
+        r = self.setdevice(torch.zeros((self.NRep,self.NVox,2)).float())
+        for rep in range(self.NRep):
+            self.set_grad_adj_op(rep)
+            r[rep,:,:] = self.do_grad_adj_reco_separable(rep,spins)
+            
+        r = r.reshape([self.NRep,self.sz[0],self.sz[1],2]).flip([1,2]).permute([0,2,1,3]).reshape([self.NRep,self.NVox,2])
+        
+        self.reco = np.sum(r,0)
+        return r        
             
         
        
@@ -1168,7 +1188,7 @@ class Scanner_fast(Scanner):
         
         self.IVP = IVP
         
-    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False,epi=False):
+    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,epi=False):
         
         # we need to shift grad_moms to the right for adjoint pass, since at each repetition we have:
         # meas-signal, flip, relax,grad order  (signal comes before grads!)
@@ -1185,10 +1205,6 @@ class Scanner_fast(Scanner):
         
         B0_grad_cos = torch.cos(B0_grad)
         B0_grad_sin = torch.sin(B0_grad)
-        
-        if wrap_k:
-            hx = self.sz[0]/2
-            k[:,:,0] = torch.fmod(k[:,:,0]+hx,hx*2)-hx
         
         # for backward pass
         if refocusing:
@@ -1232,6 +1248,8 @@ class Scanner_fast(Scanner):
         # save grad_moms for intravoxel precession op
         self.grad_moms_for_intravoxel_precession = grad_moms
         
+        self.kspace_loc = k
+        
     def grad_precess(self,t,r,spins):
         spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)
         
@@ -1270,8 +1288,6 @@ class Scanner_fast(Scanner):
     def adjoint(self,spins):
         self.init_reco()
         
-        #adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
-        #s = self.signal * adc_mask
         s = torch.sum(self.signal,0)
         
         r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
@@ -1279,6 +1295,21 @@ class Scanner_fast(Scanner):
         
         # transpose for adjoint
         self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
+        
+    def adjoint_separable(self,spins):
+        self.init_reco()
+        
+        s = torch.sum(self.signal,0)
+        s = s.permute([1,0,2,3]).contiguous().view([self.NRep,1,self.T*3,1])
+        g = self.G_adj.permute([1,2,3,0,4]).contiguous().view([self.NRep,self.NVox,3,self.T*3])
+        
+        r = torch.matmul(g, s)
+        r = r[:,:,:2,0]
+        r = r.reshape([self.NRep,self.sz[0],self.sz[1],2]).flip([1,2]).permute([0,2,1,3]).reshape([self.NRep,self.NVox,2])
+        
+        self.reco = np.sum(r,0)
+        return r
+        
         
 
 # AUX classes

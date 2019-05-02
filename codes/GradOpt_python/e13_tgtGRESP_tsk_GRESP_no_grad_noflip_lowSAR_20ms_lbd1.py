@@ -82,7 +82,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([32,32])                                           # image size
+sz = np.array([22,22])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -122,6 +122,7 @@ plt.subplot(122)
 plt.imshow(real_phantom_resized[:,:,3], interpolation='none')
 plt.title("inhom")
 plt.show()
+
 
 #begin nspins with R*
 R2 = 0.0
@@ -207,7 +208,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-scanner.forward(spins, event_time)
+scanner.forward_fast(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this

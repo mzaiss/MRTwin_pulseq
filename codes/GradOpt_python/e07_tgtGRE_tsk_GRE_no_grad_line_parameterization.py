@@ -312,7 +312,7 @@ def phi_FRP_model(opt_params,aux_params):
     #regrad[1,:,:] = grad_moms[1,:,:]
     #regrad[3:-2,:,:] = grad_moms[2,:,:].repeat([T-5,1,1])
     regrad[1,:,:] = -grad_moms[2,:,:]*sz[0]/2                        # rewinder
-    regrad[3:-2,:,:] = grad_moms[2,:,:]*setdevice(torch.ones((T-5,NRep,2)).float())
+    regrad[2:-2,:,:] = grad_moms[2,:,:]*setdevice(torch.ones((T-4,NRep,2)).float())
     regrad[-2,:,:] = grad_moms[-2,:,:]
     #grad_moms = regrad
     
