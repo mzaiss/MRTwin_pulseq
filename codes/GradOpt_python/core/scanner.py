@@ -1135,12 +1135,34 @@ class Scanner():
         #adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
         #self.signal *= adc_mask        
         
-        for r in range(self.NRep):
-            self.set_grad_adj_op(r)
-            self.do_grad_adj_reco(r,spins)
+        for rep in range(self.NRep):
+            self.set_grad_adj_op(rep)
+            self.do_grad_adj_reco(rep,spins)
             
         # transpose for adjoint
         self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
+        
+    # reconstruct image readout by readout            
+    def do_grad_adj_reco_separable(self,r,spins):
+        s = self.signal[:,:,r,:,:]
+         
+        # for now we ignore parallel imaging options here (do naive sum sig over coil)
+        s = torch.sum(s, 0)                                                  
+        r = torch.matmul(self.G_adj.permute([1,0,2,3]), s)
+        return torch.sum(r[:,:,:2,0],1)
+        
+    def adjoint_separable(self,spins):
+        self.init_reco()
+        
+        r = self.setdevice(torch.zeros((self.NRep,self.NVox,2)).float())
+        for rep in range(self.NRep):
+            self.set_grad_adj_op(rep)
+            r[rep,:,:] = self.do_grad_adj_reco_separable(rep,spins)
+            
+        r = r.reshape([self.NRep,self.sz[0],self.sz[1],2]).flip([1,2]).permute([0,2,1,3]).reshape([self.NRep,self.NVox,2])
+        
+        self.reco = np.sum(r,0)
+        return r        
             
         
        
@@ -1266,8 +1288,6 @@ class Scanner_fast(Scanner):
     def adjoint(self,spins):
         self.init_reco()
         
-        #adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
-        #s = self.signal * adc_mask
         s = torch.sum(self.signal,0)
         
         r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
@@ -1275,6 +1295,21 @@ class Scanner_fast(Scanner):
         
         # transpose for adjoint
         self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
+        
+    def adjoint_separable(self,spins):
+        self.init_reco()
+        
+        s = torch.sum(self.signal,0)
+        s = s.permute([1,0,2,3]).contiguous().view([self.NRep,1,self.T*3,1])
+        g = self.G_adj.permute([1,2,3,0,4]).contiguous().view([self.NRep,self.NVox,3,self.T*3])
+        
+        r = torch.matmul(g, s)
+        r = r[:,:,:2,0]
+        r = r.reshape([self.NRep,self.sz[0],self.sz[1],2]).flip([1,2]).permute([0,2,1,3]).reshape([self.NRep,self.NVox,2])
+        
+        self.reco = np.sum(r,0)
+        return r
+        
         
 
 # AUX classes
