@@ -403,7 +403,9 @@ class Scanner():
         self.B0_grad_adj_sin = torch.sin(B0_grad)
         
         # save grad_moms for intravoxel precession op
-        self.grad_moms_for_intravoxel_precession = grad_moms    
+        self.grad_moms_for_intravoxel_precession = grad_moms
+        
+        self.kspace_loc = k
         
     def flip(self,t,r,spins):
         spins.M = torch.matmul(self.F[t,r,:,:,:],spins.M)
@@ -1164,7 +1166,7 @@ class Scanner_fast(Scanner):
         
         self.IVP = IVP
         
-    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False,epi=False):
+    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,epi=False):
         
         # we need to shift grad_moms to the right for adjoint pass, since at each repetition we have:
         # meas-signal, flip, relax,grad order  (signal comes before grads!)
@@ -1181,10 +1183,6 @@ class Scanner_fast(Scanner):
         
         B0_grad_cos = torch.cos(B0_grad)
         B0_grad_sin = torch.sin(B0_grad)
-        
-        if wrap_k:
-            hx = self.sz[0]/2
-            k[:,:,0] = torch.fmod(k[:,:,0]+hx,hx*2)-hx
         
         # for backward pass
         if refocusing:
@@ -1227,6 +1225,8 @@ class Scanner_fast(Scanner):
         
         # save grad_moms for intravoxel precession op
         self.grad_moms_for_intravoxel_precession = grad_moms
+        
+        self.kspace_loc = k
         
     def grad_precess(self,t,r,spins):
         spins.M = torch.matmul(self.G[t,r,:,:,:],spins.M)

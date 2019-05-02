@@ -87,21 +87,33 @@ class TargetSequenceHolder():
             fig.colorbar(ax)
               
             
-            ax1=plt.subplot(2, 5, 5)
-            ax=plt.imshow(tonumpy(self.grad_moms[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
-            plt.ion()
-            plt.title('gradx')
-            fig = plt.gcf()
-            fig.set_size_inches(18, 3)
-            fig.colorbar(ax)
-               
+#            ax1=plt.subplot(2, 5, 5)
+#            ax=plt.imshow(tonumpy(self.grad_moms[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+#            plt.ion()
+#            plt.title('gradx')
+#            fig = plt.gcf()
+#            fig.set_size_inches(18, 3)
+#            fig.colorbar(ax)
+                        
+#            ax1=plt.subplot(2, 5, 10)
+#            ax=plt.imshow(tonumpy(self.grad_moms[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+#            plt.ion()
+#            fig = plt.gcf()
+#            fig.set_size_inches(18, 3)
+#            fig.colorbar(ax)
+#            
+#            plt.show()
+#            plt.pause(0.02)
             
-            ax1=plt.subplot(2, 5, 10)
-            ax=plt.imshow(tonumpy(self.grad_moms[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
-            plt.ion()
-            fig = plt.gcf()
-            fig.set_size_inches(18, 3)
-            fig.colorbar(ax)
+    # k-space plot             
+            ax1=plt.subplot(155)
+           
+            kx= tonumpy(self.scanner.kspace_loc[:,:,0])
+            ky= tonumpy(self.scanner.kspace_loc[:,:,1])
+            for i in range(kx.shape[1]):
+                plt.plot(kx[:,i],ky[:,i])
+                
+            fig.set_size_inches(18, 3)            
             
             plt.show()
             plt.pause(0.02)
