@@ -357,7 +357,7 @@ class Scanner():
         self.G_adj[:,:,1,0] = -self.B0_grad_adj_sin[:,r,:]
         self.G_adj[:,:,1,1] = self.B0_grad_adj_cos[:,r,:]
         
-    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,wrap_k=False,epi=False):
+    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,epi=False):
         grads=grad_moms
         
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
@@ -373,10 +373,6 @@ class Scanner():
         
         self.B0_grad_cos = torch.cos(B0_grad)
         self.B0_grad_sin = torch.sin(B0_grad)
-        
-        if wrap_k:
-            hx = self.sz[0]/2
-            k[:,:,0] = torch.fmod(k[:,:,0]+hx,hx*2)-hx        
         
         # for backward pass
         if refocusing:
