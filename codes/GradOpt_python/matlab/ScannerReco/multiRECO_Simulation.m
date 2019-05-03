@@ -86,9 +86,11 @@ set(gca, 'ColorOrder', circshift(get(gca, 'ColorOrder'),-1)); colormap(gca,jet(s
 plot(temp(3:end-2,:,1),temp(3:end-2,:,2),'.','DisplayName','k-sim'); % a 2D plot
 hold off;
 
-subplot(3,3,8), plot(180/pi*squeeze(scanner_dict_tgt.flips(1,:,1)),'g','DisplayName','flips tgt'); hold on;% a 2D plot
+subplot(3,3,8), plot(180/pi*squeeze(scanner_dict_tgt.flips(1,:,1)),'r.','DisplayName','flips tgt'); hold on;% a 2D plot
 subplot(3,3,8), plot(180/pi*abs(squeeze(scanner_dict.flips(ii,1,:,1))),'r','DisplayName','flips'); 
-subplot(3,3,8), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
+subplot(3,3,8), plot(180/pi*squeeze(scanner_dict_tgt.flips(2,:,1)),'b.','DisplayName','flips tgt'); % a 2D plot
+subplot(3,3,8), plot(180/pi*abs(squeeze(scanner_dict.flips(ii,2,:,1))),'b','DisplayName','flips');hold off;
+% subplot(3,3,8), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
 ylim= max([5, round( loss(ii)/(10^max([floor(log10(loss(ii))),0])))*(10^max([floor(log10(loss(ii))),0])*2)]);
 subplot(3,3,9), yyaxis left; plot(loss); hold on;  plot(ii,loss(ii),'b.'); plot(loss*0+min(loss(5:end)),'b:');hold off; axis([ii-50 ii+50 -10e-12 ylim]);ylabel('[%] error');
 yyaxis right; plot(SARloss); hold on; plot(ii,SARloss(ii),'r.'); hold off; ylabel('[%] SAR'); grid on; 

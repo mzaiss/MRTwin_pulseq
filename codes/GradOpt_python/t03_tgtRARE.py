@@ -5,7 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't03_tgtRARE_tskRARE_32_centric'
+experiment_id = 't03_tgtRARE_tskRARE_32_linear'
 experiment_description = """
 RARE, cpmg
 """
@@ -55,7 +55,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 30**2                                # number of spin sims in each voxel
@@ -201,7 +201,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=True)  # refocusing=
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-scanner.forward_fast(spins, event_time)
+scanner.forward_sparse_fast(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
@@ -234,11 +234,11 @@ def init_variables():
     adc_mask = targetSeq.adc_mask.clone()
     
     flips = targetSeq.flips.clone()
-    flips[0,:,:]=flips[0,:,:]*0
+#    flips[0,:,:]=flips[0,:,:]
     flips = setdevice(flips)
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
-    flip_mask[1:,:,:] = 0
+    flip_mask[2:,:,:] = 0
     flip_mask = setdevice(flip_mask)
     flips.zero_grad_mask = flip_mask
       
@@ -281,22 +281,22 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.init_flip_tensor_holder()
     scanner.set_flipXY_tensor(flips)    
     # rotate ADC according to excitation phase
-    scanner.set_ADC_rot_tensor(-flips[0,:,1] )  # GRE/FID specific, this must be the excitation pulse
+    scanner.set_ADC_rot_tensor(-flips[0,:,1]*0)  # GRE/FID specific, this must be the excitation pulse
           
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms,refocusing=True) # RARE specific, maybe adjust for higher echoes
          
     # forward/adjoint pass
-    scanner.forward_fast(spins, event_time)
+    scanner.forward_sparse_fast(spins, event_time)
     scanner.adjoint(spins)
 
-    lbd = 1*1e1         # switch on of SAR cost
+    lbd = 0.4*1e1         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
     loss_sar = torch.sum(flips[:,:,0]**2)
     
-    lbd_kspace = 1e1
+    lbd_kspace = 0.3*1e1
     
     k = torch.cumsum(grad_moms, 0)
     k = k*torch.roll(scanner.adc_mask, -1).view([T,1,1])
@@ -329,19 +329,14 @@ opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
 opt.set_opt_param_idx([1]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
+opt.custom_learning_rate = [0.01,0.05,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
 
-lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.5, 0.2, 0.1, 0.1])
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
 
-for i in range(7):
-    opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
-    print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=200, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
@@ -352,8 +347,8 @@ opt.print_status(True, reco)
 stop()
 
 # %% # save optimized parameter history
-
-targetSeq.export_to_matlab(experiment_id)
-opt.save_param_reco_history(experiment_id)
-opt.export_to_matlab(experiment_id)
+new_exp_id=experiment_id+'lowSAR';
+targetSeq.export_to_matlab(new_exp_id)
+opt.save_param_reco_history(new_exp_id)
+opt.export_to_matlab(new_exp_id)
             
