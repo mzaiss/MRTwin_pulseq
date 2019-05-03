@@ -1161,7 +1161,7 @@ class Scanner():
             
         r = r.reshape([self.NRep,self.sz[0],self.sz[1],2]).flip([1,2]).permute([0,2,1,3]).reshape([self.NRep,self.NVox,2])
         
-        self.reco = np.sum(r,0)
+        self.reco = torch.sum(r,0)
         return r        
             
         
@@ -1307,7 +1307,7 @@ class Scanner_fast(Scanner):
         r = r[:,:,:2,0]
         r = r.reshape([self.NRep,self.sz[0],self.sz[1],2]).flip([1,2]).permute([0,2,1,3]).reshape([self.NRep,self.NVox,2])
         
-        self.reco = np.sum(r,0)
+        self.reco = torch.sum(r,0)
         return r
         
         
