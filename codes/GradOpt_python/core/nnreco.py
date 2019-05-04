@@ -6,7 +6,7 @@ import torch.nn.functional as fnn
 
 # HOW we reconstruct
 class RecoConvNet_basic(nn.Module):
-    def __init__(self,sz,nmb_conv_neurons_list):
+    def __init__(self,sz,nmb_conv_neurons_list,kernel_size=3):
         super(RecoConvNet_basic, self).__init__()
         
         self.sz = sz
@@ -17,10 +17,10 @@ class RecoConvNet_basic(nn.Module):
         
         paramlist = []
         
-        ksz = 3
+        padding = (kernel_size - 1)//2
         
         for l_idx in range(len(self.lspec)-1):
-            conv_layer = nn.Conv2d(self.lspec[l_idx], self.lspec[l_idx+1], ksz, padding=1)
+            conv_layer = nn.Conv2d(self.lspec[l_idx], self.lspec[l_idx+1], kernel_size, padding=padding)
             self.conv_layers.append(conv_layer)
             
             conv_layer = conv_layer.cuda()

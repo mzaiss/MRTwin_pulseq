@@ -176,7 +176,6 @@ class OPT_helper():
         self.subjidx = 0
         self.nmb_total_samples_dataset = nmb_total_samples_dataset
         
-        self.use_periodic_grad_moms_cap = 1
         self.learning_rate = 0.02
         self.custom_learning_rate = None   # allow for differerent learning rates in different parameter groups
         
@@ -194,7 +193,6 @@ class OPT_helper():
         self.reparameterize = None
         
         self.scanner_opt_params = None
-        self.aux_params = None
         self.opt_param_idx = []
         
         self.last_reco = None
@@ -225,7 +223,7 @@ class OPT_helper():
     # evaluate loss and partial derivatives over parameters
     def weak_closure(self):
         self.optimizer.zero_grad()
-        loss,last_reco,last_error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
+        loss,last_reco,last_error = self.phi_FRP_model(self.scanner_opt_params, None)
         self.last_reco = last_reco
         self.last_error = last_error
         loss.backward()
@@ -278,7 +276,6 @@ class OPT_helper():
             else:
                 self.scanner_opt_params[i].requires_grad = False
         
-        self.aux_params = [self.use_periodic_grad_moms_cap, self.opti_mode]
         self.init_optimizer()
         
         # continue optimization if optimizer state is saved
@@ -293,7 +290,7 @@ class OPT_helper():
             
             # evaluate initial image state before doing optimizer step
             if inner_iter == 0:
-                _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
+                _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None)
             print(colored("\033[93m iter %d, recon error = %f \033[0m" % (inner_iter,self.last_error), 'green'))
             
             
@@ -339,8 +336,6 @@ class OPT_helper():
         nmb_outer_iter = nmb_rnd_restart
         nmb_inner_iter = training_iter
         
-        self.aux_params = [self.use_periodic_grad_moms_cap, self.opti_mode]
-        
         best_error = 1000
         
         for outer_iter in range(nmb_outer_iter):
@@ -354,7 +349,7 @@ class OPT_helper():
                 self.new_batch()
                 self.optimizer.step(self.weak_closure)
                 
-                _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
+                _,reco,error = self.phi_FRP_model(self.scanner_opt_params, None)
                 
                 if error < best_error:
                     print("recon error = %f" %error)
@@ -512,7 +507,7 @@ class OPT_helper():
             
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id):
-        _,reco,error = self.phi_FRP_model(self.scanner_opt_params, self.aux_params)
+        _,reco,error = self.phi_FRP_model(self.scanner_opt_params, None)
         
         tosave_opt_params = self.scanner_opt_params
         
