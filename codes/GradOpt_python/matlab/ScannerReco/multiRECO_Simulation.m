@@ -30,7 +30,7 @@ NRep = scanner_dict.NRep;
 niter = size(scanner_dict.flips,1);
 k = 1;
 idxarray = [1:10,20:10:840];
-array = 1:niter;
+array = 1:1:niter;
 % array = [1:30,40:10:840];
 % array = [1:50,20:10:niter];
 
@@ -51,7 +51,7 @@ loss(ii) = 100*sqrt(loss(ii)) / sqrt(sum(scanner_dict_tgt.reco(:).^2)/(sz(1)*sz(
 SARloss(ii) = sum(reshape((squeeze(scanner_dict.flips(ii,:,:,1).^2)),1,[]))./SAR_tgt*100;
 end
 
-n=0;
+
 if single>0
     array = single; % only a single fram to display
 end
@@ -65,21 +65,22 @@ ax=gca; CLIM=ax.CLim;
 subplot(3,3,6), imagesc(flipud(flipud(phase_tgt)')), title(' phase tgt '), axis('image'); %colorbar;
 ax=gca; PCLIM=ax.CLim;
 
+array = 1:2:niter; % accelerate plot
 frames=cell(numel(array));
 
 for ii=array
-n=n+1; 
+ 
 sos = abs(squeeze(scanner_dict.reco_images(ii,:,:,1)+1j*scanner_dict.reco_images(ii,:,:,2)));
 phase = angle(squeeze(scanner_dict.reco_images(ii,:,:,1)+1j*scanner_dict.reco_images(ii,:,:,2)));
 SAR = sum(reshape((squeeze(scanner_dict.flips(ii,:,:,1).^2)),1,[]))./SAR_tgt;
 
 if ii==1
-subplot(3,3,2), h2=imagesc(flipud(flipud(sos)'),CLIM); title(sprintf(' sos, iter %d, SAR %.1f',n,SAR)), axis('image'); %colorbar;
+subplot(3,3,2), h2=imagesc(flipud(flipud(sos)'),CLIM); title(sprintf(' sos, iter %d, SAR %.1f',ii,SAR)), axis('image'); %colorbar;
 subplot(3,3,5), h5=imagesc(flipud(flipud(phase)'),PCLIM); title(' phase coil(1) '), axis('image'); %colorbar;
  set(gcf, 'Outerposition',[404   356   850   592]) %large
 % set(gcf, 'Outerposition',[451   346   598   398]) % small
 end
-set(h2,'CDATA',flipud(flipud(sos)')); subplot(3,3,2),title(sprintf(' sos, iter %d, SAR %.2f',n,SAR)),
+set(h2,'CDATA',flipud(flipud(sos)')); subplot(3,3,2),title(sprintf(' sos, iter %d, SAR %.2f',ii,SAR)),
 set(h5,'CDATA',flipud(flipud(phase)'));
 
 % from SIM
