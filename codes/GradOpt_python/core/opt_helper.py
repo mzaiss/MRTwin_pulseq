@@ -485,9 +485,8 @@ class OPT_helper():
 
 # k-space plot             
             ax1=plt.subplot(155)
-           
-            kx=np.cumsum(tonumpy(todisplay_opt_params[3][:,:,0]),0)
-            ky=np.cumsum(tonumpy(todisplay_opt_params[3][:,:,1]),0)
+            kx= tonumpy(self.scanner.kspace_loc[:,:,0])
+            ky= tonumpy(self.scanner.kspace_loc[:,:,1])
             for i in range(kx.shape[1]):
                 plt.plot(kx[:,i],ky[:,i])
                 
