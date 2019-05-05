@@ -65,7 +65,7 @@ NSpins = 35**2                                # number of spin sims in each voxe
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
-batch_size = 32
+batch_size = 16
 
 NVox = sz[0]*sz[1]
 
@@ -95,10 +95,13 @@ real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 # initialize the training database, let it be just a bunch squares (<csz> x <csz>) with random PD/T1/T2
 # ignore B0 inhomogeneity:-> since non-zero PD regions are just tiny squares, the effect of B0 is just constant phase accum in respective region
 csz = 12
-nmb_samples = 32
+nmb_samples = 64
 spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
 
 for i in range(nmb_samples):
+    
+    csz = 4 + np.random.randint(16)
+    
     rvx = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
     rvy = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
     
@@ -114,6 +117,27 @@ for i in range(nmb_samples):
             spin_db_input[i,j,k,1] = t1
             spin_db_input[i,j,k,2] = t2
             spin_db_input[i,j,k,3] = b0
+            
+# scatter point
+if False:
+    spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
+    
+    for i in range(nmb_samples):
+        for pt in range(csz**2):
+            b0 = (np.random.rand() - 0.5) * 120                            # -60..60 Hz
+            pd = 0.5 + np.random.rand()
+            t2 = 0.3 + np.random.rand()
+            t1 = t2 + np.random.rand()
+            
+            j = np.random.randint(sz[0])
+            k = np.random.randint(sz[1])
+              
+            spin_db_input[i,j,k,0] = pd
+            spin_db_input[i,j,k,1] = t1
+            spin_db_input[i,j,k,2] = t2
+            spin_db_input[i,j,k,3] = b0
+            
+#spin_db_input[0,:,:,:] = real_phantom_resized
             
 pd_mask_db = setdevice(torch.from_numpy((spin_db_input[:,:,:,0] > 0).astype(np.float32)))
 pd_mask_db = pd_mask_db.flip([1,2]).permute([0,2,1])
@@ -131,6 +155,7 @@ plt.subplot(143)
 plt.imshow(real_phantom_resized[:,:,2], interpolation='none')
 plt.title("T2")
 plt.subplot(144)
+
 plt.imshow(real_phantom_resized[:,:,3], interpolation='none')
 plt.title("inhom")
 plt.show()
@@ -242,11 +267,14 @@ for i in range(nmb_samples):
   
 # since we optimize only NN reco part, we can save time by doing fwd pass (radial enc) on all training examples
 adjoint_reco_db = setdevice(torch.zeros((nmb_samples,NVox,2)).float())
-adjoint_reco_tgt = setdevice(torch.zeros((1,NVox,2)).float())
+adjoint_reco_phantom = setdevice(torch.zeros((1,NVox,2)).float())
 
     
 #############################################################################
 ## Optimization land ::: ####################################################
+
+use_only_mag_asinput = False
+use_PD_masking_for_loss = False
     
 def init_variables():
     adc_mask = targetSeq.adc_mask.clone()
@@ -306,63 +334,71 @@ def init_variables():
     spins.set_system(real_phantom_resized)
     scanner.forward_sparse_fast(spins, event_time)
     scanner.adjoint(spins)
-    adjoint_reco_tgt[0,:,:] = scanner.reco.clone().squeeze()        
+    adjoint_reco_phantom[0,:,:] = scanner.reco.clone().squeeze()        
          
     return [adc_mask, flips, event_time, grad_moms]
 
-
-
 def phi_FRP_model(opt_params,aux_params,do_test_onphantom=False):
-      
-    # once in a while we want to do test on real phantom, set batch_size to 1 in this case
-    local_batchsize = batch_size
-    if do_test_onphantom:
-        local_batchsize = 1
       
     # loop over all samples in the batch, and do forward/backward pass for each sample
     loss_image = 0
-    for btch in range(local_batchsize):
-        if do_test_onphantom == False:
+     
+    if do_test_onphantom == True:                                     # testing
+        reco_input = adjoint_reco_phantom[0,:,:].reshape([1,NVox,2])
+        cnn_output = CNN(reco_input)
+        tgt = target_phantom
+        opt.set_target(tonumpy(tgt).reshape([sz[0],sz[1],2]))      
+    else:                                                            # training
+        reco_input = setdevice(torch.zeros((batch_size,NVox,2)).float())
+        tgt = setdevice(torch.zeros((batch_size,NVox,2)).float())
+        
+        all_samp_idx = np.zeros((batch_size,))
+        for i in range(batch_size):
             samp_idx = np.random.choice(nmb_samples,1)
-            reco_input = adjoint_reco_db[samp_idx,:,:].reshape([1,NVox,2])
-            cnn_output = CNN(reco_input)
-            tgt = target_db[samp_idx,:,:].clone()
+            all_samp_idx[i] = samp_idx
+            reco_input[i,:,:] = adjoint_reco_db[samp_idx,:,:].reshape([NVox,2])
+            tgt[i,:,:] = target_db[samp_idx,:,:].clone()
             
-            # only compute loss within training pixels
-            pixel_mask = pd_mask_db[samp_idx,:,:].reshape([NVox,1])
+            if use_only_mag_asinput:
+                mag = magimg_torch(reco_input[i,:,:].squeeze())
+                reco_input[i,:,0] = mag
+                reco_input[i,:,1] = 0
+                
+                mag = magimg_torch(tgt[i,:,:])
+                tgt[i,:,0] = mag
+                tgt[i,:,1] = 0  
+                   
+        cnn_output = CNN(reco_input)
+            
+        # only compute loss within training pixels
+        if use_PD_masking_for_loss:
+            pixel_mask = pd_mask_db[all_samp_idx,:,:].reshape([NVox,1])
             cnn_output *= pixel_mask
             tgt *= pixel_mask
-            opt.set_target(tonumpy(tgt).reshape([sz[0],sz[1],2]))
-            
-        else:
-            reco_input = adjoint_reco_tgt[0,:,:].reshape([1,NVox,2])
-            cnn_output = CNN(reco_input)
-            tgt = target_phantom
-            opt.set_target(tonumpy(tgt).reshape([sz[0],sz[1],2]))              
-        
-        loss_diff = (cnn_output - tgt)
-        loss_image += torch.sum(loss_diff.squeeze()**2/(NVox))      
+        opt.set_target(tonumpy(tgt[0,:,:]).reshape([sz[0],sz[1],2]))
+           
+    loss_diff = (cnn_output - tgt)
+    loss_image += torch.sum(loss_diff.squeeze()**2/(NVox))
       
     loss = loss_image
-    
-    phi = loss
   
-    ereco = tonumpy(cnn_output.detach()).reshape([sz[0],sz[1],2])
-    error = e(tonumpy(tgt).ravel(),ereco.ravel())     
+    ereco = tonumpy(cnn_output.detach()).reshape([cnn_output.shape[0],sz[0],sz[1],2])
+    error = e(tonumpy(tgt).ravel(),ereco.ravel())
     
-    print("loss_image: {} error percent {}".format(loss_image,error))
+    print("loss_image: {}".format(loss_image))
     
     if do_test_onphantom:
-          plt.imshow(magimg(ereco))
-          plt.show()
-          plt.ion()
+        ereco = ereco[0,:,:,:]
+        plt.imshow(magimg(ereco))
+        plt.show()
+        plt.ion()
     
-    return (phi,cnn_output,error)
+    return (loss,cnn_output,error)
         
 # %% # OPTIMIZATION land
     
 # set number of convolution neurons (number of elements in the list - number of layers, each element of the list - number of conv neurons)
-nmb_conv_neurons_list = [2,32,32,2]
+nmb_conv_neurons_list = [2,128,32,2]
 
 # initialize reconstruction module
 CNN = core.nnreco.RecoConvNet_basic(spins.sz, nmb_conv_neurons_list,3).cuda()
@@ -371,7 +407,7 @@ opt = core.opt_helper.OPT_helper(scanner,spins,CNN,1)
 opt.set_target(tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],2]))
 opt.target_seq_holder=targetSeq
 opt.experiment_description = experiment_description
-opt.learning_rate = 1e-1
+opt.learning_rate = 1e-2
 
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'nn'
@@ -381,8 +417,8 @@ opt.set_opt_param_idx([]) # ADC, RF, time, grad
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
-for epi in range(1000):
-  opt.train_model(training_iter=100, do_vis_image=False, save_intermediary_results=False) # save_intermediary_results=1 if you want to plot them later
+for epi in range(400):
+  opt.train_model(training_iter=1000, do_vis_image=False, save_intermediary_results=False) # save_intermediary_results=1 if you want to plot them later
   _,reco,error = phi_FRP_model(opt.scanner_opt_params, None, do_test_onphantom = True)
       
 
@@ -396,9 +432,33 @@ print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.a
 
 stop()
 
+# %% # try to reconstruct real measurement data
+datapath = '/media/upload3t/CEST_seq/pulseq_zero/sequences/seq190430/e15_tgtGRESP_cartesian_rotated_radial/raw_data.mat'
+raw_data = scipy.io.loadmat(datapath)
+
+adc_idx = np.where(tonumpy(scanner.adc_mask))[0]
+scanner.signal[0,adc_idx,:,0,0] = setdevice(torch.from_numpy(np.real(raw_data['spectrum'])))
+scanner.signal[0,adc_idx,:,1,0] = setdevice(torch.from_numpy(np.imag(raw_data['spectrum'])))
+
+scanner.adjoint(spins)
+reco_input = scanner.reco.clone().reshape([1,NVox,2])
+
+if use_only_mag_asinput:
+    mag = magimg_torch(reco_input.squeeze())
+    reco_input[0,:,0] = mag
+    reco_input[0,:,1] = 0
+
+cnn_output = CNN(reco_input)
+#cnn_output = reco_input
+ereco = tonumpy(cnn_output.detach()).reshape([sz[0],sz[1],2])
+plt.imshow(magimg(ereco))
+
 # %% # save optimized parameter history
 
 opt.save_param_reco_history(experiment_id)
 opt.export_to_matlab(experiment_id)
             
+
+
+
 

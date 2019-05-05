@@ -5,7 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't02_tgtGRESP_cartesian_radial'
+experiment_id = 't02_tgtGRESP_cartesian_tskRadial'
 experiment_description = """
 target - cartesian grid GRE
 learn: radial  (dont optimize gradmoms, hardset them to radial) + NN reco to compensate for density
@@ -207,7 +207,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
 ## Optimization land ::: ####################################################
     
 use_only_mag_asinput = True
-use_multichannel_input = True
+use_multichannel_input = False
     
 def init_variables():
     adc_mask = targetSeq.adc_mask.clone()
@@ -369,4 +369,17 @@ plt.imshow(magimg(ereco))
 opt.save_param_reco_history(experiment_id)
 opt.export_to_matlab(experiment_id)
             
+
+# %% export model to matlab with onnx
+dummy_input = torch.randn(1, NVox, 2, device='cuda:0')
+model = CNN
+
+path=os.path.join('./out/',experiment_id)
+try:
+    os.mkdir(path)
+except:
+    print('export_to_onnx: directory already exists')
+
+torch.onnx.export(model, dummy_input, os.path.join(path,"cnn_basic.onnx"), verbose=True)
+
 
