@@ -206,6 +206,9 @@ if True: # check sanity: is target what you expect and is sequence what you expe
 #############################################################################
 ## Optimization land ::: ####################################################
     
+use_only_mag_asinput = True
+use_multichannel_input = True
+    
 def init_variables():
     adc_mask = targetSeq.adc_mask.clone()
     
@@ -257,17 +260,33 @@ def init_variables():
          
     # forward/adjoint pass
     scanner.forward_fast(spins, event_time)
-    scanner.adjoint(spins)    
+    scanner.adjoint(spins)
         
     return [adc_mask, flips, event_time, grad_moms]
 
 
     
 def phi_FRP_model(opt_params,aux_params):
-    reco_input = scanner.reco.clone().reshape([1,NVox,2])
+   
+    if use_multichannel_input:
+        reco_input = scanner.adjoint_separable(spins)
+        reco_input = reco_input.permute([1,0,2])
+        reco_input = reco_input.reshape([1,NVox,NRep*2])
+    else:
+        reco_input = scanner.reco.clone().reshape([1,NVox,2])
+    tgt = targetSeq.target_image.clone()
+    
+    if use_only_mag_asinput:
+        mag = magimg_torch(reco_input.squeeze())
+        reco_input[0,:,0] = mag
+        reco_input[0,:,1] = 0
+        
+        mag = magimg_torch(tgt)
+        tgt[:,0] = mag
+        tgt[:,1] = 0            
     cnn_output = CNN(reco_input)
     
-    loss_image = (cnn_output - targetSeq.target_image)
+    loss_image = (cnn_output - tgt)
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
     
     loss = loss_image
@@ -277,7 +296,7 @@ def phi_FRP_model(opt_params,aux_params):
     phi = loss
   
     ereco = tonumpy(cnn_output.detach()).reshape([sz[0],sz[1],2])
-    error = e(tonumpy(targetSeq.target_image).ravel(),ereco.ravel())     
+    error = e(tonumpy(tgt).ravel(),ereco.ravel())     
     
     plt.imshow(magimg(ereco))
     
@@ -286,7 +305,10 @@ def phi_FRP_model(opt_params,aux_params):
 # %% # OPTIMIZATION land
     
 # set number of convolution neurons (number of elements in the list - number of layers, each element of the list - number of conv neurons)
-nmb_conv_neurons_list = [2,32,32,2]
+if use_multichannel_input:
+    nmb_conv_neurons_list = [NRep*2,32,2]
+else:
+    nmb_conv_neurons_list = [2,32,2]
 
 # initialize reconstruction module
 CNN = core.nnreco.RecoConvNet_basic(spins.sz, nmb_conv_neurons_list,3).cuda()
@@ -316,6 +338,31 @@ opt.print_status(True, reco)
 print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.abs(tonumpy(opt.scanner_opt_params[1].permute([1,0]))).sum()*180/np.pi, tonumpy(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0])).sum() ))
 
 stop()
+
+# %% # try to reconstruct real measurement data
+datapath = '/media/upload3t/CEST_seq/pulseq_zero/sequences/seq190430/e15_tgtGRESP_cartesian_rotated_radial/raw_data.mat'
+raw_data = scipy.io.loadmat(datapath)
+
+adc_idx = np.where(tonumpy(scanner.adc_mask))[0]
+scanner.signal[0,adc_idx,:,0,0] = setdevice(torch.from_numpy(np.real(raw_data['spectrum'])))
+scanner.signal[0,adc_idx,:,1,0] = setdevice(torch.from_numpy(np.imag(raw_data['spectrum'])))
+
+scanner.adjoint(spins)
+if use_multichannel_input:
+    reco_input = scanner.adjoint_separable(spins)
+    reco_input = reco_input.permute([1,0,2])
+    reco_input = reco_input.reshape([1,NVox,NRep*2])    
+else:
+    reco_input = scanner.reco.clone().reshape([1,NVox,2])
+
+if use_only_mag_asinput:
+    mag = magimg_torch(reco_input.squeeze())
+    reco_input[0,:,0] = mag
+    reco_input[0,:,1] = 0
+cnn_output = CNN(reco_input)
+#cnn_output = reco_input
+ereco = tonumpy(cnn_output.detach()).reshape([sz[0],sz[1],2])
+plt.imshow(magimg(ereco))
 
 # %% # save optimized parameter history
 
