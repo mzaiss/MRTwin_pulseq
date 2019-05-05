@@ -289,13 +289,13 @@ def phi_FRP_model(opt_params,aux_params):
 nmb_conv_neurons_list = [2,32,32,2]
 
 # initialize reconstruction module
-CNN = core.nnreco.RecoConvNet_basic(spins.sz, nmb_conv_neurons_list,7).cuda()
+CNN = core.nnreco.RecoConvNet_basic(spins.sz, nmb_conv_neurons_list,3).cuda()
 
 opt = core.opt_helper.OPT_helper(scanner,spins,CNN,1)
 opt.set_target(tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],2]))
 opt.target_seq_holder=targetSeq
 opt.experiment_description = experiment_description
-opt.learning_rate = 1e-2
+opt.learning_rate = 1e-1
 
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'nn'
@@ -305,9 +305,9 @@ opt.set_opt_param_idx([]) # ADC, RF, time, grad
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
-opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=1000, do_vis_image=False, save_intermediary_results=False) # save_intermediary_results=1 if you want to plot them later
 
-_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
+_,reco,error = phi_FRP_model(opt.scanner_opt_params, None)
 
 # plot
 targetSeq.print_status(True, reco=None)

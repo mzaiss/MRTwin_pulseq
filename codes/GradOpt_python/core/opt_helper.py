@@ -202,6 +202,8 @@ class OPT_helper():
         
         self.target_seq_holder = None
         
+        self.aux_params = None
+        
     def set_handles(self,init_variables,phi_FRP_model,reparameterize=None):
         self.init_variables = init_variables
         self.phi_FRP_model = phi_FRP_model
