@@ -24,34 +24,28 @@ addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
 
 %param_dict = load([seq_dir,'/',experiment_id,'/','param_dict.mat']);
 %spins_dict = load([host_dir,'/',experiment_id,'/','spins_dict.mat']);
-scanner_dict = load([seq_dir,'/','scanner_dict_tgt.mat']);
+scanner_dict_ = load([seq_dir,'/','scanner_dict_tgt.mat']);
 
-sz = double(scanner_dict.sz);
+sz = double(scanner_dict_.sz);
 
-% gradient tranform
-grad_moms = scanner_dict.grad_moms;
+flips = double(squeeze(scanner_dict_.flips(:,:,:)));
+event_times = double(squeeze(scanner_dict_.event_times(:,:)));
+gradmoms = double(squeeze(scanner_dict_.grad_moms(:,:,:)));  % that brings the gradmoms to the k-space unit of deltak =1/FoV
 
-if 0  % only when gradients were optimized, make sure gradmoms are between -res/2 res/2
-    fmax = scanner_dict.sz / 2;                                                                                % cap the grad_moms to [-1..1]*sz/2
-    for i = 1:2
-      grad_moms(:,:,i) = fmax(i)*tanh(grad_moms(:,:,i));                                                                        % soft threshold
-      %grad_moms(abs(grad_moms(:,i)) > fmax(i),i) = sign(grad_moms(abs(grad_moms(:,i)) > fmax(i),i))*fmax(i);  % hard threshold, this part is nondifferentiable
-    end
-end
 
 figure,
 colormap 'jet'
-subplot(2,3,1), imagesc(scanner_dict.flips(:,:,1)'); title('Flips'); colorbar
-subplot(2,3,4), imagesc(scanner_dict.flips(:,:,2)'); title('Phases');colorbar
-subplot(2,3,2), imagesc(scanner_dict.event_times'); title('delays');colorbar
-subplot(2,3,3), imagesc(grad_moms(:,:,1)');         title('gradmomx');colorbar
-subplot(2,3,6), imagesc(grad_moms(:,:,2)');          title('gradmomy');colorbar
+subplot(2,3,1), imagesc(flips(:,:,1)'); title('Flips'); colorbar
+subplot(2,3,4), imagesc(flips(:,:,2)'); title('Phases');colorbar
+subplot(2,3,2), imagesc(event_times'); title('delays');colorbar
+subplot(2,3,3), imagesc(gradmoms(:,:,1)');         title('gradmomx');colorbar
+subplot(2,3,6), imagesc(gradmoms(:,:,2)');          title('gradmomy');colorbar
 set(gcf,'OuterPosition',[431         379        1040         513])
 %% plug learned gradients into the sequence constructor
 % close all
 seq_fn = [seq_dir,'/','pulseq.seq'];
 
-SeqOpts.resolution = double(scanner_dict.sz);                                                                                            % matrix size
+SeqOpts.resolution = double(scanner_dict_.sz);                                                                                            % matrix size
 SeqOpts.FOV = 220e-3;
 SeqOpts.TE = 10e-3;          % fix
 SeqOpts.TR = 10000e-3;       % fix
@@ -96,29 +90,31 @@ adc_dur=2560; %us
 deltak=1/SeqOpts.FOV;
 % read gradient
 
-T = size(scanner_dict.grad_moms,1);
-NRep = size(scanner_dict.grad_moms,2);
-    
+T = size(gradmoms,1);
+NRep = size(gradmoms,2);
+
+gradmoms = double(gradmoms)*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
+
 % put blocks together
 for rep=1:NRep
 
-    gradmoms = double(scanner_dict.grad_moms)*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
 
     % first two extra events T(1:2)
     % first
       idx_T=1; % T(1)
       
       RFdur=0;
-      if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
+      if abs(flips(idx_T,rep,1)) > 1e-8
         use = 'excitation';
         RFdur=1*1e-3;
         sliceThickness=200e-3;
-        rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
-        seq.addBlock(rf);
+        rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+        seq.addBlock(rf);     
+        gxPre90 = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep)-RFdur,'system',sys);
+        seq.addBlock(gxPre90);  % this is the revinder between 90 and first 180
+      else
+        seq.addBlock(mr.makeDelay(event_times(idx_T,rep))) % 
       end
-      gxPre90 = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',scanner_dict.event_times(idx_T,rep)-RFdur,'system',sys);
-      seq.addBlock(gxPre90);  % this is the revinder between 90 and first 180
-
       % alternatively slice selective:
         %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
         % see writeHASTE.m      
@@ -127,19 +123,19 @@ for rep=1:NRep
         idx_T=2; % T(2)
         use = 'refocusing';
         RFdur=0;
-        if abs(scanner_dict.flips(idx_T,rep,1)) > 1e-8
+        if abs(flips(idx_T,rep,1)) > 1e-8
           RFdur=1*1e-3;
-          rf = mr.makeBlockPulse(scanner_dict.flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',scanner_dict.flips(idx_T,rep,2), 'use',use);
+          rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
           seq.addBlock(rf);
         end
-        seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
+        seq.addBlock(mr.makeDelay(event_times(idx_T,rep)-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
 
         gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));
-        eventtime_revinder = squeeze(scanner_dict.event_times(idx_T,rep));
+        eventtime_revinder = squeeze(event_times(idx_T,rep));
              
     % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-2; % T(2)
-        dur=sum(scanner_dict.event_times(idx_T,rep));
+        dur=sum(event_times(idx_T,rep));
         gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
         adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
     
@@ -151,13 +147,13 @@ for rep=1:NRep
       
     % second last extra event  T(end)
         idx_T=size(gradmoms,1)-1; % T(2)
-        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',scanner_dict.event_times(idx_T,rep),'system',sys);
+        gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys);
         seq.addBlock(gxPost,gyPost);
         
     %  last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
-        seq.addBlock(mr.makeDelay(scanner_dict.event_times(idx_T,rep)))
+        seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
      
 
 end

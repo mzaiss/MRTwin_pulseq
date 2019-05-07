@@ -5,7 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't04_tgtBSSFP_tsk_BSSFP_48_alpha_2_prep'
+experiment_id = 't04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep'
 experiment_description = """
 bSSFP with alpha/2 prep
 """
@@ -55,7 +55,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -135,13 +135,13 @@ scanner.adc_mask[-2:] = 0
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 10*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[0,:,0] = 45*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[1,0,0] = -2.5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
 #flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
-flips[0,:,1] = torch.tensor(np.tile(np.array([0,180]), int(sz[0]/2))).float()*np.pi/180  # 180 phace cycling for bSSFP
+flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*1.0,1.0),360)*np.pi/180)  # 180 phace cycling for bSSFP
 flips[0,0,0] = flips[0,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
 
 
@@ -236,7 +236,8 @@ def init_variables():
     adc_mask = targetSeq.adc_mask.clone()
     
     flips = targetSeq.flips.clone()
-    flips[0,:,:]=flips[0,:,:]*0
+    flips[0,:,:]=flips[0,:,:]
+#    flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*180,180),360)*np.pi/180)  # 180 phace cycling for bSSFP
     flips = setdevice(flips)
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
@@ -335,14 +336,7 @@ opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
 
-lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.5, 0.2, 0.1, 0.1])
-#opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
-
-for i in range(7):
-    opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
-    print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=200, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=1, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
@@ -354,7 +348,7 @@ stop()
 
 # %% # save optimized parameter history
 
-targetSeq.export_to_matlab(experiment_id)
-opt.save_param_reco_history(experiment_id)
-opt.export_to_matlab(experiment_id)
-            
+new_exp_id=experiment_id+'_FA45_phaseincr5';
+targetSeq.export_to_matlab(new_exp_id)
+opt.save_param_reco_history(new_exp_id)
+opt.export_to_matlab(new_exp_id)
