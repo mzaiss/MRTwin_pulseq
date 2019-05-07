@@ -13,7 +13,7 @@ origpath=pwd;
 if isunix
     dir_seq = 'smb://mrz3t/upload/CEST_seq/pulseq_zero/sequences';
     d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/FLASH_spoiled_lowSAR64_400spins_multistep';
-    d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/seq190411/e07_tgtGRE_tsk_GRE_no_grad_line_parameterization_0';
+    d = '/media/upload3t/CEST_seq/pulseq_zero/sequences/seq190506/t05_tgtEPI_tskEPI';
 elseif ispc
     dir_seq = '/media/upload3t/CEST_seq/pulseq_zero/sequences';
     d = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
@@ -29,7 +29,7 @@ T = scanner_dict.T;
 NRep = scanner_dict.NRep;
 
 seq=mr.Sequence();
-seq.read([d '/' sprintf('seqiter%d.seq',0)]);
+seq.read([d '/' sprintf('seqiter%d.seq',0)],'detectRFuse');
 [ktraj_adc, ktraj] = seq.calculateKspace();
 kmax=(max(ktraj_adc(1,1:sz(1)))-min(ktraj_adc(1,1:sz(1))))/2;
 
@@ -54,7 +54,7 @@ SIM_SAR_base = sum(reshape((scanner_dict_tgt.flips(:,:,1).^2),1,[]));
 out=regexp(d,'\','split');
 experiment_id=out{end};
 files = dir(fullfile(d, '/data/*.dat'));
-array_MEAS=1:numel(files);
+array_MEAS=1:numel(files)-1;
 
 twix_obj = mapVBVD([d '/data/' files(1).name]);
 
@@ -90,9 +90,14 @@ end
 figure(1);  
 for ii=array_MEAS
     
- seq.read([d '/' sprintf('seqiter%d.seq',ii)],'detectRFuse');
-
+%  seq.read([d '/' sprintf('seqiter%d.seq',ii)],'detectRFuse');
+ 
+ seq.read([d '/' sprintf('seqiter%d.seq',ii)]);
+try
 [ktraj_adc, ktraj] = seq.calculateKspace();
+catch
+    warning(sprintf('use old k-space (%d for seqiter%d.seq)',ii-1,ii));
+end
 
 %MEAS
 filename=files(ii).name;
@@ -104,26 +109,26 @@ twix_obj=twix_obj_array{ii};
 
 if 1 % 1= detailed plot
 figure(1);  
-subplot(3,4,3), imagesc(rot90(sos),[0 1]), title(sprintf('reco sos, seqiter %d',ii)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
-subplot(3,4,7), imagesc(rot90(phase)), title('reco phase coil(1) '), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
-subplot(3,4,4), imagesc(rot90(sos_base),[0 1]), title(sprintf('MEAS reco sos, iter %d',1)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
-subplot(3,4,8), imagesc(rot90(phase_base)), title('reco phase coil(1) '), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,3), imagesc(rot90(sos),[0 1]), title(sprintf('reco sos, seqiter %d',ii)), axis('image');  set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,7), imagesc(rot90(phase)), title('reco phase coil(1) '), axis('image');  set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,4), imagesc(rot90(sos_base),[0 1]), title(sprintf('MEAS reco sos, iter %d',1)), axis('image');  set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,8), imagesc(rot90(phase_base)), title('reco phase coil(1) '), axis('image');  set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 
 %SIM
 jj=array_SIM(ii);
 SIM_sos = abs(squeeze(scanner_dict.reco_images(jj,:,:,1)+1j*scanner_dict.reco_images(jj,:,:,2)));
 SIM_phase = angle(squeeze(scanner_dict.reco_images(jj,:,:,1)+1j*scanner_dict.reco_images(jj,:,:,2)));
 SIM_SAR = sum(reshape((squeeze(scanner_dict.flips(jj,:,:,1).^2)),1,[]))./SIM_SAR_base;
-subplot(3,4,1), imagesc(rot90(SIM_sos_base.',2)); title(sprintf('SIM reco sos, iter %d',1)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,1), imagesc(rot90(SIM_sos_base.',2)); title(sprintf('SIM reco sos, iter %d',1)), axis('image');  set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 ax=gca;
 CLIM=ax.CLim;
 CLIM=[-Inf Inf];
 
 % [SIM_sos, SIM_phase] = SIMtoIMG_NUFFT(scanner_dict,ktraj_adc,ii);  % overwrites generated targets
 
-subplot(3,4,5), imagesc(rot90((SIM_phase_base).',2)), title('reco phase coil(1) '), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
-subplot(3,4,2), imagesc(rot90((SIM_sos).',2),CLIM), title(sprintf('reco sos, optiter %d, SAR %f',jj,SIM_SAR)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
-subplot(3,4,6), imagesc(rot90((SIM_phase).',2)), title('reco phase coil(1) '), axis('image'); colorbar;set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,5), imagesc(rot90((SIM_phase_base).',2)), title('reco phase coil(1) '), axis('image');  set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,2), imagesc(rot90((SIM_sos).',2),CLIM), title(sprintf('reco sos, optiter %d, SAR %f',jj,SIM_SAR)), axis('image');  set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
+subplot(3,4,6), imagesc(rot90((SIM_phase).',2)), title('reco phase coil(1) '), axis('image'); set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 
 if ispc
   set(gcf, 'Outerposition',[10          82        1362         883])
@@ -134,9 +139,17 @@ end
 % subplot(6,4,18), imagesc(squeeze(scanner_dict.flips(jj,:,:,1))'); title('Flips'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 % subplot(6,4,22), imagesc(squeeze(scanner_dict.flips(jj,:,:,2))'); title('Phases');colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 
-subplot(6,4,18), plot(180/pi*squeeze(scanner_dict_tgt.flips(1,:,1)),'g','DisplayName','flips tgt'); hold on;% a 2D plot
-subplot(6,4,18), plot(180/pi*abs(squeeze(scanner_dict.flips(jj,1,:,1))),'r','DisplayName','flips'); 
-subplot(6,4,18), plot(180/pi*squeeze(scanner_dict.flips(jj,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
+% subplot(6,4,18), plot(180/pi*squeeze(scanner_dict_tgt.flips(1,:,1)),'g','DisplayName','flips tgt'); hold on;% a 2D plot
+% subplot(6,4,18), plot(180/pi*abs(squeeze(scanner_dict.flips(jj,1,:,1))),'r','DisplayName','flips'); 
+% subplot(6,4,18), plot(180/pi*squeeze(scanner_dict.flips(jj,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
+
+subplot(6,4,18), plot(180/pi*squeeze(scanner_dict_tgt.flips(1,:,1)),'r.','DisplayName','flips tgt'); hold on;% a 2D plot
+subplot(6,4,18), plot(180/pi*(squeeze(scanner_dict.flips(ii,1,:,1))),'r','DisplayName','flips'); 
+subplot(6,4,18), plot(180/pi*squeeze(scanner_dict_tgt.flips(2,:,1)),'b.','DisplayName','flips tgt'); % a 2D plot
+subplot(6,4,18), plot(180/pi*(squeeze(scanner_dict.flips(ii,2,:,1))),'b','DisplayName','flips');hold off;  xlabel('rep'); ylabel('flip angle [°]');
+
+subplot(6,4,22), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,2)),'r','DisplayName','phase1'); hold on;% a 2D plot
+subplot(6,4,22), plot(180/pi*squeeze(scanner_dict.flips(ii,2,:,2)),'b','DisplayName','phase2'); hold off; xlabel('rep'); ylabel('phase angle [°]');
 
 subplot(6,4,19), imagesc(squeeze(scanner_dict.event_times(jj,:,:))'); title('delays');colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
 subplot(6,4,20), imagesc(squeeze(scanner_dict.grad_moms(jj,:,:,1))');         title('gradmomx');colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
@@ -157,13 +170,20 @@ write_gif(ii,numel(array_MEAS),1,d,experiment_id,'full')
 end
 
 
-if 1 %  small plots, sos + kspace
+if 0 %  small plots, sos + kspace
     figure(2);  
     jj=array_SIM(ii);
     seq.read([d '/' sprintf('seqiter%d.seq',ii)],'detectRFuse');
    [ktraj_adc, ktraj] = seq.calculateKspace();
     subplot(2,1,1), imagesc(rot90(sos),[0 1]), title(sprintf('reco sos, iter %d',jj)), axis('image'); colorbar; set(gca,'XTickLabel',[]); set(gca,'YTickLabel',[]);
     subplot(2,1,2), 
+
+% % RF
+% plot(180/pi*squeeze(scanner_dict_tgt.flips(1,:,1)),'g','DisplayName','flips tgt'); hold on;% a 2D plot
+% plot(180/pi*abs(squeeze(scanner_dict.flips(jj,1,:,1))),'r','DisplayName','flips'); 
+% plot(180/pi*squeeze(scanner_dict.flips(jj,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
+
+% % grad
 plot(ktraj(1,:),ktraj(2,:),'b'); hold on; % a 2D plot 
 % axis('equal'); % enforce aspect ratio for the correct trajectory display
 plot(ktraj_adc(1,:),ktraj_adc(2,:),'r.'); axis('equal'); title('k-space samples')
@@ -194,6 +214,8 @@ if ispc
         imwrite(imind,cm,gifname,'gif', 'Loopcount',inf);
     elseif ii==max_ii
         imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',5);
+    elseif ii<10
+        imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.3);
     else
         imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.0005);
     end

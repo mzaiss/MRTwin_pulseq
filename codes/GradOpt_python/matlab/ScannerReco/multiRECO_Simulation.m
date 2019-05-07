@@ -28,6 +28,7 @@ T = scanner_dict.T;
 NRep = scanner_dict.NRep;
 
 niter = size(scanner_dict.flips,1);
+% niter=1024
 k = 1;
 idxarray = [1:10,20:10:840];
 array = 1:1:niter;
@@ -65,7 +66,7 @@ ax=gca; CLIM=ax.CLim;
 subplot(3,3,6), imagesc(flipud(flipud(phase_tgt)')), title(' phase tgt '), axis('image'); %colorbar;
 ax=gca; PCLIM=ax.CLim;
 
-array = 1:2:niter; % accelerate plot
+array = 1:1:niter; % accelerate plot
 frames=cell(numel(array));
 
 for ii=array
@@ -120,7 +121,7 @@ for ii=array
         [imind,cm] = rgb2ind(im,32);
         if ii == 1
             imwrite(imind,cm,gifname,'gif', 'Loopcount',inf);
-        elseif ii==numel(array)
+        elseif ii==array(end)
             imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',7);
         else
             imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.0005);

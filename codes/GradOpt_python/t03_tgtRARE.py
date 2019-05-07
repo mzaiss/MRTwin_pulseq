@@ -329,14 +329,14 @@ opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
 opt.set_opt_param_idx([1]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.05,0.1,0.1]
+opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
 
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
 
-opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=1000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
@@ -347,7 +347,7 @@ opt.print_status(True, reco)
 stop()
 
 # %% # save optimized parameter history
-new_exp_id=experiment_id+'lowSAR';
+new_exp_id=experiment_id+'_32lowSAR_7';
 targetSeq.export_to_matlab(new_exp_id)
 opt.save_param_reco_history(new_exp_id)
 opt.export_to_matlab(new_exp_id)
