@@ -51,6 +51,118 @@ idxarray_exported_itersteps = [1:2:100 110:10:350 400:100:2000];
 
 % idxarray_exported_itersteps = [niter-10:niter];
  idxarray_exported_itersteps = [1:niter];
+ idxarray_exported_itersteps=[ 1
+           2
+           3
+           4
+           5
+           6
+           7
+           8
+           9
+          10
+          11
+          12
+          13
+          14
+          15
+          16
+          17
+          18
+          19
+          20
+          21
+          22
+          23
+          24
+          25
+          26
+          27
+          28
+          29
+          30
+          35
+          40
+          45
+          50
+          55
+          60
+          65
+          70
+          75
+          80
+          85
+          90
+          95
+         100
+         105
+         110
+         115
+         120
+         125
+         130
+         135
+         140
+         145
+         150
+         155
+         160
+         165
+         170
+         175
+         180
+         185
+         190
+         195
+         200
+         205
+         210
+         215
+         220
+         225
+         230
+         235
+         240
+         245
+         250
+         255
+         260
+         265
+         270
+         275
+         280
+         285
+         290
+         295
+         300
+         305
+         310
+         315
+         320
+         325
+         330
+         335
+         340
+         350
+         400
+         450
+         500
+         550
+         600
+         650
+         700
+         750
+         800
+         850
+         900
+         950
+        1000
+        1050
+        1100
+        1150
+        1200
+        1250]';
+    idxarray_exported_itersteps=idxarray_exported_itersteps(90:end);
 idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_itersteps<=niter); % catch to high iteration numbers
 
 for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
@@ -181,7 +293,7 @@ nonsel = 0;
         if nonsel
             seq.addBlock(gxPost,gyPost); 
         else
-            seq.addBlock(gxPost,gyPost); 
+            seq.addBlock(gxPost,gyPost,gzr); % added gzr rewinder for balancing
         end
         
         %  last extra event  T(end)
