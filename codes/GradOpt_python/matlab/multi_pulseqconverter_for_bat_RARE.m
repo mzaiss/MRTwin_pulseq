@@ -132,18 +132,14 @@ for rep=1:NRep
         use = 'excitation';
         RFdur=1*1e-3;
         sliceThickness=200e-3;
-        rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
-        seq.addBlock(rf);
+        rfex = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+        seq.addBlock(rfex);
         gxPre90 = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep)-RFdur,'system',sys);
         seq.addBlock(gxPre90);  % this is the revinder between 90 and first 180
       else
         seq.addBlock(mr.makeDelay(event_times(idx_T,rep))) % 
       end
       
-
-      % alternatively slice selective:
-        %[rf, gz, gzr] = makeSincPulse(scanner_dict.flips(idx_T,rep,1))
-        % see writeHASTE.m      
       
     % second      
         idx_T=2; % T(2)
@@ -163,7 +159,7 @@ for rep=1:NRep
         idx_T=3:size(gradmoms,1)-2; % T(2)
         dur=sum(event_times(idx_T,rep));
         gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
-        adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
+        adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rfex.phaseOffset);
     
     %update revinder for gxgy ramp times, from second event
         gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);

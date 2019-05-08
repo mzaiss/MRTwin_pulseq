@@ -118,7 +118,7 @@ for ni = 1:maxmeas % add target seq in the beginning
             else
                 % alternatively slice selective:
                 sliceThickness=5e-3;     % slice
-                [rf, gz,gzr] = mr.makeSincPulse(single(flips(idx_T,rep,1)),'Duration',1e-3,'SliceThickness',sliceThickness,'apodization',0.5,'timeBwProduct',4,'system',sys);
+                [rf, gz,gzr] = mr.makeSincPulse(single(flips(idx_T,rep,1)),'Duration',1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use,'SliceThickness',sliceThickness,'apodization',0.5,'timeBwProduct',4,'system',sys);
                 seq.addBlock(rf,gz);
                 seq.addBlock(gzr);
                 RFdur= gz.riseTime+gz.flatTime+gz.fallTime+ gzr.riseTime+gzr.flatTime+gzr.fallTime;

@@ -50,7 +50,7 @@ idxarray_exported_itersteps = [1:30 35:5:340 350:50:niter];
 idxarray_exported_itersteps = [1:2:100 110:10:350 400:100:2000];
 
 % idxarray_exported_itersteps = [niter-10:niter];
-idxarray_exported_itersteps = [1:niter];
+ idxarray_exported_itersteps = [1:niter];
 idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_itersteps<=niter); % catch to high iteration numbers
 
 for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
@@ -117,6 +117,8 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         event_times = double(squeeze(scanner_dict.event_times(idx,:,:)));
         gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
     end
+    
+nonsel = 1;
 
     % put blocks together
     for rep=1:NRep
@@ -128,20 +130,23 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         if flips(1,1,1) ==0  % take care of seqs with 0 flipangles
             flips(1,1,1) = 10^-2;
         end            
-            
+        RFdur=0;    
         if abs(flips(idx_T,rep,1)) > 1e-8
             use = 'excitation';
-%             % block pulse non-selective
-%             sliceThickness=200*e-3;
-%             rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
-%             seq.addBlock(rf);
-%             RFdur= 0.8*1e-3;
+            if nonsel
+            % block pulse non-selective
+                sliceThickness=200e-3;
+                rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+                seq.addBlock(rf);
+                RFdur= 0.8*1e-3;
+            else
             % alternatively slice selective:
-            sliceThickness=5e-3;     % slice
-            [rf, gz,gzr] = mr.makeSincPulse(single(flips(idx_T,rep,1)),'Duration',1e-3,'SliceThickness',sliceThickness,'apodization',0.5,'timeBwProduct',4,'system',sys);
-            seq.addBlock(rf,gz);
-            seq.addBlock(gzr);  
-            RFdur= gz.riseTime+gz.flatTime+gz.fallTime+ gzr.riseTime+gzr.flatTime+gzr.fallTime;
+                sliceThickness=5e-3;     % slice
+                [rf, gz,gzr] = mr.makeSincPulse(single(flips(idx_T,rep,1)),'Duration',1e-3,'PhaseOffset',flips(idx_T,rep,2),'SliceThickness',sliceThickness,'apodization',0.5,'timeBwProduct',4,'system',sys,'use',use);
+                seq.addBlock(rf,gz);
+                seq.addBlock(gzr);  
+                RFdur= gz.riseTime+gz.flatTime+gz.fallTime+ (gzr.riseTime+gzr.flatTime+gzr.fallTime);
+            end
         end
         (event_times(idx_T,rep)-RFdur); % this is the actual timing from spyder
         seq.addBlock(mr.makeDelay(0.002-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
@@ -158,7 +163,9 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         
         gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
         gy = mr.makeTrapezoid('y','FlatArea',sum(gradmoms(idx_T,rep,2),1),'FlatTime',dur,'system',sys);
-        adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
+          adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
+        
+%         adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime);
         
         %update revinder for gxgy ramp times, from second event
         gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);
@@ -171,7 +178,11 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         idx_T=size(gradmoms,1)-1; % T(2)
         gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
         gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
-        seq.addBlock(gxPost,gyPost);
+        if nonsel
+            seq.addBlock(gxPost,gyPost); 
+        else
+            seq.addBlock(gxPost,gyPost,gzr); % added gzr rewinder for balancing
+        end
         
         %  last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
@@ -196,6 +207,15 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         subplot(2,3,2), imagesc(scanner_dict_target.event_times'); title('delays');colorbar
         subplot(2,3,3), imagesc(scanner_dict_target.grad_moms(:,:,1)');         title('gradmomx');colorbar
         subplot(2,3,6), imagesc(scanner_dict_target.grad_moms(:,:,2)');          title('gradmomy');colorbar
+        
+        [ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
+        figure; plot(ktraj'); % plot the entire k-space trajectory
+%         figure; plot(ktraj(1,:),ktraj(2,:),'c',...
+%             ktraj_adc(1,:),ktraj_adc(2,:),'g.'); % a 2D plot
+        figure; plot3(ktraj(1,:),ktraj(2,:),ktraj(3,:),'c',...
+            ktraj_adc(1,:),ktraj_adc(2,:),ktraj_adc(3,:),'g.'); % a 3D plot
+        axis('equal'); % enforce aspect ratio for the correct trajectory display
+
     end
     %subplot(3,2,1), title(experiment_id,'Interpreter','none');
     k = k + 1;    
