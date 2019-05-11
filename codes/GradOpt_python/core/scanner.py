@@ -1279,10 +1279,10 @@ class Scanner_fast(Scanner):
         super().forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)   
         
     def do_dummy_scans(self,spins,event_time,nrep=0):
-        super().do_dummy_scans(spins,event_time,compact_grad_tensor=False,nrep=0)
+        super().do_dummy_scans(spins,event_time,compact_grad_tensor=False,nrep=nrep)
 
     def do_dummy_scans_sparse(self,spins,event_time,nrep=0):
-        super().do_dummy_scans_sparse(spins,event_time,compact_grad_tensor=False,nrep=0)
+        super().do_dummy_scans_sparse(spins,event_time,compact_grad_tensor=False,nrep=nrep)
         
     # compute adjoint encoding op-based reco    <            
     def adjoint(self,spins):

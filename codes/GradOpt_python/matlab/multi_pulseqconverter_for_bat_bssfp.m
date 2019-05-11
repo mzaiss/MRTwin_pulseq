@@ -47,11 +47,122 @@ idxarray_exported_itersteps = [1:20,30:10:niter];
 idxarray_exported_itersteps = [1:50, 52:2:100, 110:10:niter];
 % idxarray_exported_itersteps = [1:2:100, 100:10:150, 160:20:1140];
 idxarray_exported_itersteps = [1:30 35:5:340 350:50:niter];
-idxarray_exported_itersteps = [1:2:100 110:10:190 205:5:400 450:50:1000];
-idxarray_exported_itersteps = [1:2:60 62:4:110 111:130 132:4:250];
+idxarray_exported_itersteps = [1:2:100 110:10:350 400:100:2000];
 
 % idxarray_exported_itersteps = [niter-10:niter];
-
+ idxarray_exported_itersteps = [1:niter];
+ idxarray_exported_itersteps=[ 1
+           2
+           3
+           4
+           5
+           6
+           7
+           8
+           9
+          10
+          11
+          12
+          13
+          14
+          15
+          16
+          17
+          18
+          19
+          20
+          21
+          22
+          23
+          24
+          25
+          26
+          27
+          28
+          29
+          30
+          35
+          40
+          45
+          50
+          55
+          60
+          65
+          70
+          75
+          80
+          85
+          90
+          95
+         100
+         105
+         110
+         115
+         120
+         125
+         130
+         135
+         140
+         145
+         150
+         155
+         160
+         165
+         170
+         175
+         180
+         185
+         190
+         195
+         200
+         205
+         210
+         215
+         220
+         225
+         230
+         235
+         240
+         245
+         250
+         255
+         260
+         265
+         270
+         275
+         280
+         285
+         290
+         295
+         300
+         305
+         310
+         315
+         320
+         325
+         330
+         335
+         340
+         350
+         400
+         450
+         500
+         550
+         600
+         650
+         700
+         750
+         800
+         850
+         900
+         950
+        1000
+        1050
+        1100
+        1150
+        1200
+        1250]';
+    idxarray_exported_itersteps=idxarray_exported_itersteps(90:end);
 idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_itersteps<=niter); % catch to high iteration numbers
 
 for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
@@ -115,73 +226,84 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         
     else
         flips = double(squeeze(scanner_dict.flips(idx,:,:,:)));
-        event_times = double(abs(squeeze(scanner_dict.event_times(idx,:,:))));
+        event_times = double(squeeze(scanner_dict.event_times(idx,:,:)));
         gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
     end
+    
+nonsel = 0;
 
-% put blocks together
-for rep=1:NRep
-
-
-    % first two extra events T(1:2)
-    % first
-      idx_T=1; % T(1)
-      
-      RFdur=0;
-      if abs(flips(idx_T,rep,1)) > 1e-8
-        use = 'excitation';
-        RFdur=1*1e-3;
-        sliceThickness=200e-3;
-        rfex = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
-        seq.addBlock(rfex);
-        gxPre90 = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep)-RFdur,'system',sys);
-        seq.addBlock(gxPre90);  % this is the revinder between 90 and first 180
-      else
-        seq.addBlock(mr.makeDelay(event_times(idx_T,rep))) % 
-      end
-      
-      
-    % second      
-        idx_T=2; % T(2)
-        use = 'refocusing';
-        RFdur=0;
+    % put blocks together
+    for rep=1:NRep
+        
+        % first two extra events T(1:2)
+        % first
+        idx_T=1; % T(1)
+        
+        if flips(1,1,1) ==0  % take care of seqs with 0 flipangles
+            flips(1,1,1) = 10^-2;
+        end            
+        RFdur=0;    
         if abs(flips(idx_T,rep,1)) > 1e-8
-          RFdur=1*1e-3;
-          rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
-          seq.addBlock(rf);
+            use = 'excitation';
+            if nonsel
+            % block pulse non-selective
+                sliceThickness=200e-3;
+                rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+                seq.addBlock(rf);
+                RFdur= 0.8*1e-3;
+            else
+            % alternatively slice selective:
+                sliceThickness=5e-3;     % slice
+                [rf, gz,gzr] = mr.makeSincPulse(single(flips(idx_T,rep,1)),'Duration',1e-3,'PhaseOffset',flips(idx_T,rep,2),'SliceThickness',sliceThickness,'apodization',0.5,'timeBwProduct',4,'system',sys,'use',use);
+                seq.addBlock(rf,gz);
+                seq.addBlock(gzr);  
+                RFdur= gz.riseTime+gz.flatTime+gz.fallTime+ (gzr.riseTime+gzr.flatTime+gzr.fallTime);
+            end
         end
-        seq.addBlock(mr.makeDelay(event_times(idx_T,rep)-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
+        (event_times(idx_T,rep)-RFdur); % this is the actual timing from spyder
+        seq.addBlock(mr.makeDelay(0.002-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
 
+        % second  (rewinder)
+        idx_T=2; % T(2)
+        % calculated here, update in next event
         gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));
         eventtime_revinder = squeeze(event_times(idx_T,rep));
-             
-    % line acquisition T(3:end-1)
+        
+        % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-2; % T(2)
         dur=sum(event_times(idx_T,rep));
+        
         gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
-        adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rfex.phaseOffset);
-    
-    %update revinder for gxgy ramp times, from second event
+        gy = mr.makeTrapezoid('y','FlatArea',sum(gradmoms(idx_T,rep,2),1),'FlatTime',dur,'system',sys);
+          adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
+        
+%         adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime);
+        
+        %update revinder for gxgy ramp times, from second event
         gxPre = mr.makeTrapezoid('x','Area',gradmom_revinder(1)-gx.amplitude*gx.riseTime/2,'Duration',eventtime_revinder,'system',sys);
-        gyPre = mr.makeTrapezoid('y','Area',gradmom_revinder(2),'Duration',eventtime_revinder,'system',sys);
-        seq.addBlock(gxPre,gyPre);
-        seq.addBlock(gx,adc);
-      
-    % second last extra event  T(end)
+        gyPre = mr.makeTrapezoid('y','Area',gradmom_revinder(2)-gy.amplitude*gy.riseTime/2,'Duration',eventtime_revinder,'system',sys);
+        seq.addBlock(gxPre,gyPre); % add updated rewinder event from second event, including the full event time
+        
+        seq.addBlock(gx,gy,adc);  % add ADC grad event
+        
+        % second last extra event  T(end)  % adjusted also for fallramps of ADC
         idx_T=size(gradmoms,1)-1; % T(2)
         gxPost = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1)-gx.amplitude*gx.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
-        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2),'Duration',event_times(idx_T,rep),'system',sys);
-        seq.addBlock(gxPost,gyPost);
+        gyPost = mr.makeTrapezoid('y','Area',gradmoms(idx_T,rep,2)-gy.amplitude*gy.fallTime/2,'Duration',event_times(idx_T,rep),'system',sys);
+        if nonsel
+            seq.addBlock(gxPost,gyPost); 
+        else
+            seq.addBlock(gxPost,gyPost,gzr); % added gzr rewinder for balancing
+        end
         
-    %  last extra event  T(end)
+        %  last extra event  T(end)
         idx_T=size(gradmoms,1); % T(2)
         seq.addBlock(mr.makeDelay(event_times(idx_T,rep)))
-     
-
-end
+        
+        
+    end
     
     seq.setDefinition('FOV', [SeqOpts.FOV SeqOpts.FOV sliceThickness]*1e3);
-    seq.setDefinition('type','non slab selective RARE');
 
     %write sequence
     seq.write(seq_fn);
@@ -197,6 +319,15 @@ end
         subplot(2,3,2), imagesc(scanner_dict_target.event_times'); title('delays');colorbar
         subplot(2,3,3), imagesc(scanner_dict_target.grad_moms(:,:,1)');         title('gradmomx');colorbar
         subplot(2,3,6), imagesc(scanner_dict_target.grad_moms(:,:,2)');          title('gradmomy');colorbar
+        
+        [ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
+        figure; plot(ktraj'); % plot the entire k-space trajectory
+%         figure; plot(ktraj(1,:),ktraj(2,:),'c',...
+%             ktraj_adc(1,:),ktraj_adc(2,:),'g.'); % a 2D plot
+        figure; plot3(ktraj(1,:),ktraj(2,:),ktraj(3,:),'c',...
+            ktraj_adc(1,:),ktraj_adc(2,:),ktraj_adc(3,:),'g.'); % a 3D plot
+        axis('equal'); % enforce aspect ratio for the correct trajectory display
+
     end
     %subplot(3,2,1), title(experiment_id,'Interpreter','none');
     k = k + 1;    
