@@ -344,18 +344,34 @@ class Scanner():
         self.IVP = IVP        
         
     def set_grad_op(self,r):
+          
+        B0X = torch.unsqueeze(torch.unsqueeze(self.grads[:,r,0],1),1) * self.rampX
+        B0Y = torch.unsqueeze(torch.unsqueeze(self.grads[:,r,1],1),1) * self.rampY
         
-        self.G[:,:,0,0] = self.B0_grad_cos[:,r,:]
-        self.G[:,:,0,1] = -self.B0_grad_sin[:,r,:]
-        self.G[:,:,1,0] = self.B0_grad_sin[:,r,:]
-        self.G[:,:,1,1] = self.B0_grad_cos[:,r,:]
+        B0_grad = (B0X + B0Y).view([self.T,self.NVox])
+        
+        B0_grad_cos = torch.cos(B0_grad)
+        B0_grad_sin = torch.sin(B0_grad)          
+       
+        self.G[:,:,0,0] = B0_grad_cos
+        self.G[:,:,0,1] = -B0_grad_sin
+        self.G[:,:,1,0] = B0_grad_sin
+        self.G[:,:,1,1] = B0_grad_cos
         
     def set_grad_adj_op(self,r):
+          
+        B0X = torch.unsqueeze(torch.unsqueeze(self.kspace_loc[:,r,0],1),1) * self.rampX
+        B0Y = torch.unsqueeze(torch.unsqueeze(self.kspace_loc[:,r,1],1),1) * self.rampY
         
-        self.G_adj[:,:,0,0] = self.B0_grad_adj_cos[:,r,:]
-        self.G_adj[:,:,0,1] = self.B0_grad_adj_sin[:,r,:]
-        self.G_adj[:,:,1,0] = -self.B0_grad_adj_sin[:,r,:]
-        self.G_adj[:,:,1,1] = self.B0_grad_adj_cos[:,r,:]
+        B0_grad = (B0X + B0Y).view([self.T,self.NVox])
+        
+        B0_grad_adj_cos = torch.cos(B0_grad)
+        B0_grad_adj_sin = torch.sin(B0_grad)       
+        
+        self.G_adj[:,:,0,0] = B0_grad_adj_cos
+        self.G_adj[:,:,0,1] = B0_grad_adj_sin
+        self.G_adj[:,:,1,0] = -B0_grad_adj_sin
+        self.G_adj[:,:,1,1] = B0_grad_adj_cos
         
     def set_gradient_precession_tensor(self,grad_moms,refocusing=False,epi=False):
         grads=grad_moms
@@ -366,13 +382,13 @@ class Scanner():
         temp = temp[:-1,:,:]
         k=torch.cumsum(temp,0)
         
-        B0X = torch.unsqueeze(grads[:,:,0],2) * self.rampX
-        B0Y = torch.unsqueeze(grads[:,:,1],2) * self.rampY
-        
-        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
-        
-        self.B0_grad_cos = torch.cos(B0_grad)
-        self.B0_grad_sin = torch.sin(B0_grad)
+#        B0X = torch.unsqueeze(grads[:,:,0],2) * self.rampX
+#        B0Y = torch.unsqueeze(grads[:,:,1],2) * self.rampY
+#        
+#        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
+#        
+#        self.B0_grad_cos = torch.cos(B0_grad)
+#        self.B0_grad_sin = torch.sin(B0_grad)
         
         # for backward pass
         if refocusing:
@@ -394,13 +410,15 @@ class Scanner():
                     kloc += temp[t,r,:]
                     k[t,r,:] = kloc              
             
-        B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
-        B0Y = torch.unsqueeze(k[:,:,1],2) * self.rampY
+#        B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
+#        B0Y = torch.unsqueeze(k[:,:,1],2) * self.rampY
+#        
+#        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
+#        
+#        self.B0_grad_adj_cos = torch.cos(B0_grad)
+#        self.B0_grad_adj_sin = torch.sin(B0_grad)
         
-        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
-        
-        self.B0_grad_adj_cos = torch.cos(B0_grad)
-        self.B0_grad_adj_sin = torch.sin(B0_grad)
+        self.grads = grads
         
         # save grad_moms for intravoxel precession op
         self.grad_moms_for_intravoxel_precession = grad_moms
