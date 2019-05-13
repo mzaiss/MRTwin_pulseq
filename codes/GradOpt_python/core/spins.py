@@ -24,9 +24,14 @@ class SpinSystem():
         # aux
         self.R2 = None
         self.use_gpu = use_gpu
+        self.double_precision = False
         
     # device setter
     def setdevice(self,x):
+        if self.double_precision:
+            x = x.double()
+        else:
+            x = x.float()
         if self.use_gpu > 0:
             x = x.cuda(self.use_gpu-1)
             
