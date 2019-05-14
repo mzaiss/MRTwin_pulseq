@@ -7,7 +7,7 @@ def throw(msg):
     
 # WHAT we measure
 class SpinSystem():
-    def __init__(self,sz,NVox,NSpins,use_gpu):
+    def __init__(self,sz,NVox,NSpins,use_gpu,double_precision=False):
         
         self.sz = sz                                             # image size
         self.NVox = sz[0]*sz[1]                                 # voxel count
@@ -24,7 +24,7 @@ class SpinSystem():
         # aux
         self.R2 = None
         self.use_gpu = use_gpu
-        self.double_precision = False
+        self.double_precision = double_precision
         
     # device setter
     def setdevice(self,x):
