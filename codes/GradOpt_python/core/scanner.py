@@ -17,7 +17,7 @@ def roll(x,n,dim):
 
 # HOW we measure
 class Scanner():
-    def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu):
+    def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu,double_precision=False):
         
         self.sz = sz                                             # image size
         self.NVox = sz[0]*sz[1]                                 # voxel count
@@ -51,7 +51,7 @@ class Scanner():
         self.lastM = None
         self.AF = None
         self.use_gpu =  use_gpu
-        self.double_precision = False
+        self.double_precision = double_precision
         
         
         # experimental (fast grad op)
@@ -596,8 +596,8 @@ class Scanner():
                 
                 
         # kill numerically unstable parts of M vector for backprop
-        self.tmask = torch.zeros((self.NVox)).byte()
-        self.tmask = self.setdevice(self.tmask)
+        self.tmask = torch.zeros((self.NVox))
+        self.tmask = self.setdevice(self.tmask).byte()
         
         self.tmask[spins.T1 < 1e-2] = 1
         self.tmask[spins.T2 < 1e-2] = 1
@@ -654,8 +654,8 @@ class Scanner():
                 spins_cut = GradIntravoxelPrecessClass.apply(self.IVP,spins_cut,self)
                 
         # kill numerically unstable parts of M vector for backprop
-        self.tmask = torch.zeros((self.NVox)).byte()
-        self.tmask = self.setdevice(self.tmask)
+        self.tmask = torch.zeros((self.NVox))
+        self.tmask = self.setdevice(self.tmask).byte()
         
         self.tmask[spins.T1 < 1e-2] = 1
         self.tmask[spins.T2 < 1e-2] = 1
@@ -790,8 +790,8 @@ class Scanner():
 
                     
         # kill numerically unstable parts of M vector for backprop
-        self.tmask = torch.zeros((self.NVox)).byte()
-        self.tmask = self.setdevice(self.tmask)
+        self.tmask = torch.zeros((self.NVox))
+        self.tmask = self.setdevice(self.tmask).byte()
         
         self.tmask[spins.T1 < 1e-2] = 1
         self.tmask[spins.T2 < 1e-2] = 1
@@ -926,8 +926,8 @@ class Scanner():
                         total_delay += delay
                     
         # kill numerically unstable parts of M vector for backprop
-        self.tmask = torch.zeros((self.NVox)).byte()
-        self.tmask = self.setdevice(self.tmask)
+        self.tmask = torch.zeros((self.NVox))
+        self.tmask = self.setdevice(self.tmask).byte()
         
         self.tmask[spins.T1 < 1e-2] = 1
         self.tmask[spins.T2 < 1e-2] = 1
@@ -961,10 +961,11 @@ class Scanner():
                 B0_grad_sin = torch.sin(B0_grad)          
                
                 G = scanner.setdevice(torch.zeros((scanner.NVox,3,3), dtype=torch.float32))
+                G[:,2,2] = 1
                 G[:,0,0] = B0_grad_cos
                 G[:,0,1] = -B0_grad_sin
                 G[:,1,0] = B0_grad_sin
-                G[:,1,1] = B0_grad_cos            
+                G[:,1,1] = B0_grad_cos    
                 
                 return torch.matmul(G, x)
             
@@ -981,13 +982,13 @@ class Scanner():
                 B0_grad_sin = torch.sin(B0_grad)          
                
                 G = scanner.setdevice(torch.zeros((scanner.NVox,3,3), dtype=torch.float32))
+                G[:,2,2] = 1
                 G[:,0,0] = B0_grad_cos
                 G[:,0,1] = -B0_grad_sin
                 G[:,1,0] = B0_grad_sin
                 G[:,1,1] = B0_grad_cos
                 
                 ctx.scanner.lastM = torch.matmul(G.permute([0,2,1]),ctx.scanner.lastM)
-                
                 gx = torch.matmul(G.permute([0,2,1]),grad_output)
                 
                 return (None, gx, None)
@@ -1011,6 +1012,7 @@ class Scanner():
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
                 G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
+                G_adj[:,:,2,2] = 1
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1037,6 +1039,7 @@ class Scanner():
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
                 G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
+                G_adj[:,:,2,2] = 1
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1046,7 +1049,7 @@ class Scanner():
                 FWD = G_adj[:,:,:,:].permute([0,1,3,2])
                 FWD = torch.matmul(REW, FWD)  
                 
-                gx = torch.matmul(FWD,grad_output)
+                gx = torch.matmul(FWD.permute([0,1,3,2]),grad_output)
                 gx = gx.sum(1).unsqueeze(0)
                 gx = torch.repeat_interleave(gx,ctx.scanner.NSpins,0)
                 
@@ -1060,8 +1063,8 @@ class Scanner():
                 
                 nmb_a = f.shape[0]
                 
-                B0X = torch.unsqueeze(torch.unsqueeze(f[:,0],1),1) * scanner.rampX
-                B0Y = torch.unsqueeze(torch.unsqueeze(f[:,1],1),1) * scanner.rampY
+                B0X = torch.unsqueeze(torch.unsqueeze(ctx.f[:,0],1),1) * scanner.rampX
+                B0Y = torch.unsqueeze(torch.unsqueeze(ctx.f[:,1],1),1) * scanner.rampY
                 
                 B0_grad = (B0X + B0Y).view([nmb_a,scanner.NVox])
                 
@@ -1069,6 +1072,7 @@ class Scanner():
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
                 G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
+                G_adj[:,:,2,2] = 1
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1095,6 +1099,7 @@ class Scanner():
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
                 G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
+                G_adj[:,:,2,2] = 1
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1104,8 +1109,8 @@ class Scanner():
                 FWD = G_adj[1,:,:,:].permute([0,2,1])
                 FWD = torch.matmul(REW, FWD)
                 
-                ctx.scanner.lastM = torch.matmul(FWD,ctx.scanner.lastM)
-                gx = torch.matmul(FWD,grad_output)
+                ctx.scanner.lastM = torch.matmul(FWD.permute([0,2,1]),ctx.scanner.lastM)
+                gx = torch.matmul(FWD.permute([0,2,1]),grad_output)
                 
                 return (None, gx, None)  
             
@@ -1119,7 +1124,7 @@ class Scanner():
                 ctx.t = t
                 ctx.thresh = 1e-2
                 
-                if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+                if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0 and False:
                     ctx.M = x.clone()
                     
                 out = torch.matmul(f,x)
@@ -1134,7 +1139,7 @@ class Scanner():
                 gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
                 gf = torch.sum(gf,[0])
                 
-                if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+                if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0 and False:
                     ctx.scanner.lastM = ctx.M
                 else:
                     d1 = ctx.f[0,:,0,0]
@@ -1155,10 +1160,6 @@ class Scanner():
         for r in range(self.NRep):                         # for all repetitions
             total_delay = 0
             start_t = 0
-
-            # REM
-            #self.set_grad_op(r)
-            #self.set_grad_adj_op(r)            
             
             for t in range(self.T):                            # for all actions
                 delay = torch.abs(event_time[t,r]) + 1e-6
@@ -1250,8 +1251,8 @@ class Scanner():
 
                     
         # kill numerically unstable parts of M vector for backprop
-        self.tmask = torch.zeros((self.NVox)).byte()
-        self.tmask = self.setdevice(self.tmask)
+        self.tmask = torch.zeros((self.NVox))
+        self.tmask = self.setdevice(self.tmask).byte()
         
         self.tmask[spins.T1 < 1e-2] = 1
         self.tmask[spins.T2 < 1e-2] = 1
@@ -1348,8 +1349,8 @@ class Scanner():
                             total_delay += delay
                     
         # kill numerically unstable parts of M vector for backprop
-        self.tmask = torch.zeros((self.NVox)).byte()
-        self.tmask = self.setdevice(self.tmask)
+        self.tmask = torch.zeros((self.NVox))
+        self.tmask = self.setdevice(self.tmask).byte()
         
         self.tmask[spins.T1 < 1e-2] = 1
         self.tmask[spins.T2 < 1e-2] = 1
@@ -1455,8 +1456,8 @@ class Scanner():
                             total_delay += delay
                         
         # kill numerically unstable parts of M vector for backprop
-        self.tmask = torch.zeros((self.NVox)).byte()
-        self.tmask = self.setdevice(self.tmask)
+        self.tmask = torch.zeros((self.NVox))
+        self.tmask = self.setdevice(self.tmask).byte()
         
         self.tmask[spins.T1 < 1e-2] = 1
         self.tmask[spins.T2 < 1e-2] = 1
@@ -1506,6 +1507,7 @@ class Scanner():
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
                 G_adj = scanner.setdevice(torch.zeros((scanner.T,scanner.NVox,3,3), dtype=torch.float32))
+                G_adj[:,:,2,2] = 1
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1527,6 +1529,7 @@ class Scanner():
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
                 G_adj = scanner.setdevice(torch.zeros((scanner.T,scanner.NVox,3,3), dtype=torch.float32))
+                G_adj[:,:,2,2] = 1
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
