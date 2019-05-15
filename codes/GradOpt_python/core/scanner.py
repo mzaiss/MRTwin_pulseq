@@ -1124,7 +1124,7 @@ class Scanner():
                 ctx.t = t
                 ctx.thresh = 1e-2
                 
-                if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0 and False:
+                if ctx.delay > ctx.thresh or ctx.t == 0 and False:
                     ctx.M = x.clone()
                     
                 out = torch.matmul(f,x)
@@ -1139,7 +1139,7 @@ class Scanner():
                 gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
                 gf = torch.sum(gf,[0])
                 
-                if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0 and False:
+                if ctx.delay > ctx.thresh or ctx.t == 0 and False:
                     ctx.scanner.lastM = ctx.M
                 else:
                     d1 = ctx.f[0,:,0,0]
@@ -1167,8 +1167,8 @@ class Scanner():
                 ctx.r = r
                 ctx.thresh = 1e-2
                 
-                #if ctx.delay > ctx.thresh or np.mod(ctx.r,16) == 0:
-                if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+                if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
+                #if ctx.delay > ctx.thresh or ctx.t == 0:
                     ctx.M = x.clone().cpu()
                     
                 out = torch.matmul(f,x)
@@ -1183,8 +1183,8 @@ class Scanner():
                 gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
                 gf = torch.sum(gf,[0])
                 
-                #if ctx.delay > ctx.thresh or np.mod(ctx.r,16) == 0:
-                if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+                if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
+                #if ctx.delay > ctx.thresh or ctx.t == 0:
                     ctx.scanner.lastM = ctx.scanner.setdevice(ctx.M)
                 else:
                     d1 = ctx.f[0,:,0,0]
@@ -1798,7 +1798,7 @@ class RelaxClass(torch.autograd.Function):
         ctx.t = t
         ctx.thresh = 1e-2
         
-        if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+        if ctx.delay > ctx.thresh or ctx.t == 0:
             ctx.M = x.clone()
             
         out = torch.matmul(f,x)
@@ -1813,7 +1813,7 @@ class RelaxClass(torch.autograd.Function):
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[0])
         
-        if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+        if ctx.delay > ctx.thresh or ctx.t == 0:
             ctx.scanner.lastM = ctx.M
         else:
             d1 = ctx.f[0,:,0,0]
@@ -1841,7 +1841,7 @@ class RelaxSparseClass(torch.autograd.Function):
         ctx.thresh = 1e-2
         ctx.mask = mask
         
-        if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+        if ctx.delay > ctx.thresh or ctx.t == 0:
             ctx.M = x.clone()
             
         out = torch.matmul(f,x)
@@ -1856,7 +1856,7 @@ class RelaxSparseClass(torch.autograd.Function):
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[0])
         
-        if ctx.delay > ctx.thresh or np.mod(ctx.t,ctx.scanner.T) == 0:
+        if ctx.delay > ctx.thresh or ctx.t == 0:
             ctx.scanner.lastM = ctx.M
         else:
             d1 = ctx.f[0,:,0,0]
