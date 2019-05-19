@@ -6,6 +6,7 @@ Created on Tue Jan 29 14:38:26 2019
 """
 
 experiment_id = 't05_tgtEPI_tskEPI'
+sequence_class = "EPI"
 experiment_description = """
 EPI
 """
@@ -26,6 +27,7 @@ import core.target_seq_holder
 
 use_gpu = 0
 gpu_dev = 0
+do_scanner_query = False
 
 # NRMSE error function
 def e(gt,x):
@@ -184,7 +186,7 @@ grad_moms = setdevice(grad_moms)
 
 # end sequence 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,epi=True)  # refocusing=True for RARE, adjust for higher echoes
+scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=True for RARE, adjust for higher echoes
 
 #############################################################################
 ## Forward process ::: ######################################################
@@ -216,7 +218,20 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     
     targetSeq.export_to_matlab(experiment_id)
                     
-#    stop()
+    if do_scanner_query:
+        targetSeq.export_to_pulseq(experiment_id,sequence_class)
+        scanner.send_job_to_real_system(experiment_id)
+        scanner.get_signal_from_real_system(experiment_id)
+        
+        plt.subplot(121)
+        scanner.adjoint(spins)
+        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        plt.title("real measurement IFFT")
+        plt.subplot(122)
+        scanner.reco = scanner.do_ifft_reco()
+        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        plt.title("real measurement ADJOINT")
+     
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -275,7 +290,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.set_ADC_rot_tensor(-flips[0,:,1] )  # GRE/FID specific, this must be the excitation pulse
           
     scanner.init_gradient_tensor_holder()          
-    scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,epi=True) # RARE specific, maybe adjust for higher echoes
+    scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # RARE specific, maybe adjust for higher echoes
          
     # forward/adjoint pass
     scanner.forward_fast(spins, event_time)

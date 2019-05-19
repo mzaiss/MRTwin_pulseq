@@ -5,7 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't01_tgtGRESP_tsk_GRESP_no_grad_noflip_kspaceloss_new'
+experiment_id = 'e08_GRE_python_scanner_loop'
 sequence_class = "GRE"
 experiment_description = """
 tgt FLASHspoiled_relax20ms, with spoilers and random phase cycling
@@ -30,9 +30,22 @@ import core.scanner
 import core.opt_helper
 import core.target_seq_holder
 
-use_gpu = 0
+sys.path.append("../scannerloop_libs")
+from pypulseq.sequence import Sequence
+from pypulseq.calc_duration import calc_duration
+from pypulseq.make_adc import makeadc
+from pypulseq.make_delay import make_delay
+from pypulseq.make_sinc import make_sinc_pulse
+from pypulseq.make_trap import make_trapezoid
+from pypulseq.make_block import make_block_pulse
+from pypulseq.opts import Opts
+
+# for trap and sinc
+from pypulseq.holder import Holder
+
+do_scanner_query = True
+use_gpu = 1
 gpu_dev = 0
-do_scanner_query = False
 
 # NRMSE error function
 def e(gt,x):
@@ -62,10 +75,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 30**2                                # number of spin sims in each voxel
+NSpins = 20**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -178,12 +191,12 @@ grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, yblip rewinder
 grad_moms = setdevice(grad_moms)
 
 #     centric ordering
-grad_moms[1,:,1] = 0
-for i in range(1,int(sz[1]/2)+1):
-    grad_moms[1,i*2-1,1] = (-i)
-    if i < sz[1]/2:
-        grad_moms[1,i*2,1] = i
-grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
+#grad_moms[1,:,1] = 0
+#for i in range(1,int(sz[1]/2)+1):
+#    grad_moms[1,i*2-1,1] = (-i)
+#    if i < sz[1]/2:
+#        grad_moms[1,i*2,1] = i
+#grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 
 # end sequence 
 
@@ -203,7 +216,7 @@ target = scanner.reco.clone()
    
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
-
+    
 if True: # check sanity: is target what you expect and is sequence what you expect
     targetSeq.print_status(True, reco=None)
     
@@ -216,154 +229,133 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-    targetSeq.export_to_matlab(experiment_id)
+#############################################################################
+## PREPARE sequence ::: #####################################
+
+
+hgfhgfh
+
+# gradient tranform
+grad_moms_numpy = np.array(scanner_dict['grad_moms'], dtype=np.float32)
+
+seq_fn = os.path.join(seq_dir,experiment_id+".seq")
+
+resolution = sz
+FOV = 220e-3
+maxSlew = 140
+
+# gradients
+Nx = sz[0]
+Ny = sz[1]
+
+kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": maxSlew, "slew_unit": "T/m/s"}
+system = Opts(kwargs_for_opts)
+seq = Sequence(system)
+
+# init sequence and system
+deltak = 1 / FOV
+
+# read gradient
+
+T = grad_moms.shape[0]
+NRep = grad_moms.shape[1]
+flips = np.array(scanner_dict['flips'], dtype=np.float32)
+event_times = np.array(scanner_dict['event_times'], dtype=np.float32)
+grad_moms *= deltak
+
+# put blocks together
+for rep in range(NRep):
+#for rep in range(1):
     
-    if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,sequence_class)
-        scanner.send_job_to_real_system(experiment_id)
-        scanner.get_signal_from_real_system(experiment_id)
+    # first action
+    idx_T = 0
+    if np.abs(flips[idx_T,rep,0]) > 1e-8:
+        use = "excitation"
         
-        plt.subplot(121)
-        scanner.adjoint(spins)
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement IFFT")
-        plt.subplot(122)
-        scanner.reco = scanner.do_ifft_reco()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement ADJOINT")    
-                    
-#    stop()
+        # alternatively slice selective:
+        slice_thickness = 5e-3     # slice
         
-    # %% ###     OPTIMIZATION functions phi and init ######################################################
-#############################################################################    
+        kwargs_for_sinc = {"flip_angle": flips[idx_T,rep,0], "system": system, "duration": 0.6*1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
+        rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
         
-def init_variables():
+        seq.add_block(rf, gz)
+        seq.add_block(gzr)
+        
+    delay = make_delay(event_times[idx_T,rep])
+    seq.add_block(delay)
     
-    adc_mask = targetSeq.adc_mask.clone()
+    # second  (rewinder)
+    idx_T = 1
     
-    flips = targetSeq.flips.clone()
-    #flips[0,:,:]=flips[0,:,:]*0
-    flips = setdevice(flips)
+    # calculated here, update in next event
+    gradmom_rewinder = np.squeeze(grad_moms[idx_T,rep,:])
+    eventtime_rewinder = np.squeeze(event_times[idx_T,rep])
     
-    flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
-    flip_mask[1:,:,:] = 0
-    flip_mask = setdevice(flip_mask)
-    flips.zero_grad_mask = flip_mask
+    # line acquisition T(3:end-1)
+    idx_T = np.arange(2, grad_moms.shape[0] - 2) # T(2)
+    dur = np.sum(event_times[idx_T,rep])
+    
+    kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(grad_moms[idx_T,rep,0],0), "flat_time": dur}
+    gx = make_trapezoid(kwargs_for_gx)    
+    
+    kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(grad_moms[idx_T,rep,1],0), "flat_time": dur}
+    gy = make_trapezoid(kwargs_for_gy)
+    
+    kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time, "phase_offset": rf.phase_offset}
+    adc = makeadc(kwargs_for_adc)    
+    
+    #update rewinder for gxgy ramp times, from second event
+    kwargs_for_gxpre = {"channel": 'x', "system": system, "area": gradmom_rewinder[0]-gx.amplitude*gx.rise_time/2, "duration": eventtime_rewinder}
+    gx_pre = make_trapezoid(kwargs_for_gxpre)
+    
+    kwargs_for_gypre = {"channel": 'y', "system": system, "area": gradmom_rewinder[1]-gy.amplitude*gy.rise_time/2, "duration": eventtime_rewinder}
+    gy_pre = make_trapezoid(kwargs_for_gypre)
+
+    seq.add_block(gx_pre, gy_pre)
+    seq.add_block(gx,gy,adc)
+    
+    # second last extra event  T(end)  # adjusted also for fallramps of ADC
+    idx_T = grad_moms.shape[0] - 2     # T(2)
+    
+    kwargs_for_gxpost = {"channel": 'x', "system": system, "area": grad_moms[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_times[idx_T,rep]}
+    gx_post = make_trapezoid(kwargs_for_gxpost)  
+    
+    kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_times[idx_T,rep]}
+    gy_post = make_trapezoid(kwargs_for_gypost)  
+    
+    seq.add_block(gx_post, gy_post)
+    
+    #  last extra event  T(end)
+    idx_T = grad_moms.shape[0] - 1 # T(2)
+    
+    delay = make_delay(event_times[idx_T,rep])
+    seq.add_block(delay)
+
+seq.plot()
+seq.write(seq_fn)
+
+# append version and definitions
+with open(seq_fn, 'r') as fin:
+    lines = fin.read().splitlines(True)
+    
+updated_lines = []
+updated_lines.append("# Pulseq sequence file\n")
+updated_lines.append("# Created by MRIzero/IMR/GPI pulseq converter\n")
+updated_lines.append("\n")
+updated_lines.append("[VERSION]\n")
+updated_lines.append("major 1\n")
+updated_lines.append("minor 2\n")   
+updated_lines.append("revision 1\n")  
+updated_lines.append("\n")    
+updated_lines.append("[DEFINITIONS]\n")
+updated_lines.append("FOV "+str(round(FOV*1e3))+" "+str(round(FOV*1e3))+" "+str(round(slice_thickness*1e3))+" \n")   
+updated_lines.append("\n")    
+
+updated_lines.extend(lines[3:])
+
+with open(seq_fn, 'w') as fout:
+    fout.writelines(updated_lines)  
       
-    event_time = targetSeq.event_time.clone()
-    #event_time = torch.from_numpy(1e-7*np.random.rand(scanner.T,scanner.NRep)).float()
-    #event_time*=0.5
-    #event_time[:,0] = 0.4*1e-3  
-    #event_time[-1,:] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
-    event_time = setdevice(event_time)
+
     
-    event_time_mask = torch.ones((scanner.T, scanner.NRep)).float()        
-    event_time_mask[2:-2,:] = 0
-    event_time_mask = setdevice(event_time_mask)
-    event_time.zero_grad_mask = event_time_mask
-        
-    grad_moms = targetSeq.grad_moms.clone()
-
-    grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()        
-    grad_moms_mask[1,:,:] = 1
-    grad_moms_mask[-2,:,:] = 1
-    grad_moms_mask = setdevice(grad_moms_mask)
-    grad_moms.zero_grad_mask = grad_moms_mask
-
-    #grad_moms[1,:,0] = grad_moms[2,:,0]*torch.rand(1)*0.1    # remove rewinder gradients 
-    #grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
-    #grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
     
-    #grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
-    #grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
-        
-    return [adc_mask, flips, event_time, grad_moms]
-    
-def reparameterize(opt_params):
-
-    return opt_params
-
-def phi_FRP_model(opt_params,aux_params):
-    
-    adc_mask,flips,event_time,grad_moms = reparameterize(opt_params)
-
-    scanner.init_flip_tensor_holder()
-    scanner.set_flipXY_tensor(flips)    
-    # rotate ADC according to excitation phase
-    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
-          
-    scanner.init_gradient_tensor_holder()          
-    scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # GRE/FID specific, maybe adjust for higher echoes
-         
-    # forward/adjoint pass
-    scanner.forward_fast(spins, event_time)
-    scanner.adjoint(spins)
-
-    lbd = 1*1e1         # switch on of SAR cost
-    loss_image = (scanner.reco - targetSeq.target_image)
-    #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
-    loss_image = torch.sum(loss_image.squeeze()**2/NVox)
-    loss_sar = torch.sum(flips[:,:,0]**2)
-    
-    lbd_kspace = 1e1
-    
-    k = torch.cumsum(grad_moms, 0)
-    k = k*torch.roll(scanner.adc_mask, -1).view([T,1,1])
-    k = k.flatten()
-    mask = (torch.abs(k) > sz[0]/2).float()
-    k = k * mask
-    loss_kspace = torch.sum(k**2) / (NRep*torch.sum(scanner.adc_mask))
-    
-    loss = loss_image + lbd*loss_sar + lbd_kspace*loss_kspace
-    
-    print("loss_image: {} loss_sar {} loss_kspace {}".format(loss_image, lbd*loss_sar, lbd_kspace*loss_kspace))
-    
-    phi = loss
-  
-    ereco = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    error = e(tonumpy(targetSeq.target_image).ravel(),ereco.ravel())     
-    
-    return (phi,scanner.reco, error)
-        
-# %% # OPTIMIZATION land
-
-opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
-opt.set_target(tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],2]))
-opt.target_seq_holder=targetSeq
-opt.experiment_description = experiment_description
-
-opt.optimzer_type = 'Adam'
-opt.opti_mode = 'seq'
-# 
-opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
-
-opt.set_handles(init_variables, phi_FRP_model,reparameterize)
-opt.scanner_opt_params = opt.init_variables()
-print('<seq> Optimization starts now, use_gpu = ' +str(use_gpu)) 
-
-
-lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.5, 0.2, 0.1, 0.1])
-#opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
-
-for i in range(7):
-    opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
-    print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=200, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-
-
-_,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
-
-# plot
-targetSeq.print_status(True, reco=None)
-opt.print_status(True, reco)
-
-stop()
-
-# %% # save optimized parameter history
-
-targetSeq.export_to_matlab(experiment_id)
-opt.save_param_reco_history(experiment_id)
-opt.export_to_matlab(experiment_id)
-            

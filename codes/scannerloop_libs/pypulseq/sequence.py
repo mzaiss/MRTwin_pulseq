@@ -1,13 +1,12 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-import block
-from read_seq import read
-from write_seq import write
-from calc_duration import calc_duration
-from event_lib import EventLibrary
-from opts import Opts
-
+from . import block
+from .read_seq import read
+from .write_seq import write
+from .calc_duration import calc_duration
+from .event_lib import EventLibrary
+from .opts import Opts
 
 class Sequence:
     def __init__(self, system=Opts()):

@@ -4,6 +4,12 @@ from termcolor import colored
 import matplotlib.pyplot as plt
 import os
 import scipy
+
+from sys import platform
+import time
+from shutil import copyfile
+
+from core.pulseq_exporter import pulseq_write_GRE
 # target images / sequence parameters holder
 # torch to numpy
 def tonumpy(x):
@@ -138,3 +144,63 @@ class TargetSequenceHolder():
         except:
             print('export_to_matlab: directory already exists')
         scipy.io.savemat(os.path.join(path,"scanner_dict_tgt.mat"), scanner_dict)
+
+    def export_to_pulseq(self, experiment_id):
+        today_datestr = time.strftime('%y%m%d')
+        today_datetimestr = time.strftime("%y%m%d%H%M%S")
+        
+        if platform == 'linux':
+            #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+            basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
+        else:
+            basepath = '???'
+            
+        basepath = os.path.join(basepath, "seq" + today_datestr)
+        basepath = os.path.join(basepath, experiment_id)
+        
+        fn_target_array = "target_arr.npy"
+        fn_pulseq = "target.seq"
+        
+        # overwrite protection (gets trigger if pulseq file already exists)
+        if os.path.isfile(os.path.join(basepath, fn_pulseq)):
+            try:
+                copyfile(os.path.join(basepath, fn_pulseq), os.path.join(basepath, fn_pulseq + ".bak." + today_datetimestr))    
+                copyfile(os.path.join(basepath, fn_target_array), os.path.join(basepath, fn_target_array + ".bak." + today_datetimestr))    
+            except:
+                pass
+        
+        flips_numpy = tonumpy(self.flips)
+        event_time_numpy = np.abs(tonumpy(self.event_time))
+        grad_moms_numpy = tonumpy(self.grad_moms)
+        
+        # save target seq param array
+        target_array = dict()
+        target_array['adc_mask'] = tonumpy(self.scanner.adc_mask)
+        target_array['B1'] = tonumpy(self.scanner.B1)
+        target_array['flips'] = flips_numpy
+        target_array['adc_mask'] = tonumpy(self.scanner.adc_mask)
+        target_array['event_times'] = event_time_numpy
+        target_array['grad_moms'] = grad_moms_numpy
+        target_array['kloc'] = tonumpy(self.scanner.kspace_loc)
+        target_array['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+        target_array['ROI'] = tonumpy(self.scanner.ROI_signal)
+        target_array['sz'] = self.scanner.sz
+        target_array['signal'] = tonumpy(self.scanner.signal)
+        
+        try:
+            os.makedirs(basepath)
+            os.makedirs(os.path.join(basepath,"data"))
+        except:
+            pass
+        np.save(os.path.join(os.path.join(basepath, fn_target_array)), target_array)
+        
+        # save sequence
+        seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
+        pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+        
+        return  os.path.join(basepath, fn_pulseq)
+        
+        
+        
+        
+        

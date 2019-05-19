@@ -1,5 +1,13 @@
 import numpy as np
 import torch
+import time
+import os
+import sys
+from sys import platform
+
+sys.path.append("../scannerloop_libs/twixreader")
+import twixreader as tr
+
 
 
 # general func
@@ -1616,8 +1624,89 @@ class Scanner():
         r = r.reshape([self.NRep,self.sz[0],self.sz[1],2]).flip([1,2]).permute([0,2,1,3]).reshape([self.NRep,self.NVox,2])
         
         self.reco = torch.sum(r,0)
-        return r        
+        return r 
+
+
+    # interaction with real system
+    def send_job_to_real_system(self, experiment_id):
+        if platform == 'linux':
+            #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+            basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
+        else:
+            basepath = '???'
+
+        today_datestr = time.strftime('%y%m%d')
+        
+        basepath_seq = os.path.join(basepath, "seq" + today_datestr)
+        basepath_seq = os.path.join(basepath_seq, experiment_id)
+        
+        fn_pulseq = "target.seq"
+        
+        control_filename = "control.txt"
+        position_filename = "position.txt"
+        
+        if os.path.isfile(os.path.join(basepath_seq, fn_pulseq)):
+            pass
+        else:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('sequence file missing ' + os.path.join(basepath_seq, fn_pulseq))
             
+        with open(os.path.join(basepath,position_filename),"r") as f:
+            position = int(f.read())
+            
+        with open(os.path.join(basepath,control_filename),"r") as f:
+            control_lines = f.readlines()
+            
+        control_lines = [l.strip() for l in control_lines]
+        
+        if position >= len(control_lines) or len(control_lines) == 0 or control_lines.count('wait') > 1 or control_lines.count('quit') > 1:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl("control file is corrupt")
+            
+        # add sequence file
+        if control_lines[-1] == 'wait':
+            control_lines[-1] = os.path.join(basepath_seq, fn_pulseq)
+            control_lines.append('wait')
+            
+        control_lines = [l+"\n" for l in control_lines]
+        
+        with open(os.path.join(basepath,control_filename),"w") as f:
+            f.writelines(control_lines)
+            
+    def get_signal_from_real_system(self, experiment_id):
+        today_datestr = time.strftime('%y%m%d')
+        
+        if platform == 'linux':
+            #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+            basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
+        else:
+            basepath = '???'
+            
+        basepath = os.path.join(basepath, "seq" + today_datestr)
+        basepath = os.path.join(basepath, experiment_id)
+        
+        # go into the infinite loop, checking if twix file is saved
+        done_flag = False
+        while not done_flag:
+            time.sleep(0.5)
+            if os.path.isfile(os.path.join(basepath, "data", "target.dat")):
+                # read twix file
+                print("TWIX file arrived. Reading....")
+                twixobj = tr.read_twix(os.path.join(basepath, "data", "target.dat"))
+                meas = twixobj.read_measurement(1, parse_buffers = False)
+                buf = meas.get_meas_buffer(0)
+                raw = np.array(buf)
+                
+                # inject into simulated scanner signal variable
+                adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
+                
+                # assume for now a single coil
+                coil_idx = 0
+                self.signal[0,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))
+                self.signal[0,adc_idx,:,1,0] = self.setdevice(torch.from_numpy(np.imag(raw[:,coil_idx,:])))
+                
+                done_flag = True            
+                
         
        
 

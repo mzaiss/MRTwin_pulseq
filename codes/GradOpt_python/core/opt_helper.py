@@ -309,6 +309,8 @@ class OPT_helper():
                 saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
                 saved_state['event_times'] = tonumpy(tosave_opt_params[2])
                 saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['kloc'] = tonumpy(self.scanner.kspace_loc.clone())
                 saved_state['learn_rates'] = self.custom_learning_rate
                 
                 legs=['x','y','z']
@@ -523,6 +525,7 @@ class OPT_helper():
         scanner_dict['flips'] = tonumpy(tosave_opt_params[1])
         scanner_dict['event_times'] = np.abs(tonumpy(tosave_opt_params[2]))
         scanner_dict['grad_moms'] = tonumpy(tosave_opt_params[3])
+        scanner_dict['kloc'] = tonumpy(self.scanner.kspace_loc)
         scanner_dict['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
@@ -569,6 +572,7 @@ class OPT_helper():
         all_flips = np.zeros((NIter,T,NRep,2))
         all_event_times = np.zeros((NIter,T,NRep))
         all_grad_moms = np.zeros((NIter,T,NRep,2))
+        all_kloc = np.zeros((NIter,T,NRep,2))
         all_reco_images = np.zeros((NIter,sz_x,sz_y,2))
         all_signals = np.zeros((NIter,T,NRep,3))
         all_errors = np.zeros((NIter,1))
@@ -578,6 +582,7 @@ class OPT_helper():
             all_flips[ni] = param_reco_history[ni]['flips_angles']
             all_event_times[ni] = param_reco_history[ni]['event_times']
             all_grad_moms[ni] = param_reco_history[ni]['grad_moms']
+            all_kloc[ni] = param_reco_history[ni]['kloc']
             all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
             all_signals[ni] = param_reco_history[ni]['signal'].reshape([T,NRep,3])
             all_errors[ni] = param_reco_history[ni]['error']
@@ -587,6 +592,7 @@ class OPT_helper():
         scanner_dict['flips'] = all_flips
         scanner_dict['event_times'] = all_event_times
         scanner_dict['grad_moms'] = all_grad_moms
+        scanner_dict['all_kloc'] = all_kloc
         scanner_dict['reco_images'] = all_reco_images
         scanner_dict['all_signals'] = all_signals
         scanner_dict['all_errors'] = all_errors

@@ -65,7 +65,7 @@ class RecoConvNet_residual(nn.Module):
     # kernel_size -- convolution kernel size
     
     def __init__(self,sz,nmb_conv_neurons_list,kernel_size=3,use_gpu=True,gpu_device=0):
-        super(RecoConvNet_basic, self).__init__()
+        super(RecoConvNet_residual, self).__init__()
         
         self.sz = sz
         self.layer_spec = nmb_conv_neurons_list
@@ -88,7 +88,7 @@ class RecoConvNet_residual(nn.Module):
             self.bn_layers.append(bnlayer)
             
             # since we use resnet, initialize all conv kern weight to small value
-            conv_layer.weight.data *= 1e-3
+            #conv_layer.weight.data *= 1e-3
             
             if use_gpu:
                 conv_layer = conv_layer.cuda(gpu_device)
