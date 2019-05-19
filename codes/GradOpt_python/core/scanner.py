@@ -89,6 +89,9 @@ class Scanner():
         if self.use_gpu > 0:
             x = x.cuda(self.use_gpu-1)
         return x        
+    
+    def tonumpy(self, x):
+        return x.detach().cpu().numpy()    
         
     def set_adc_mask(self):
         adc_mask = torch.from_numpy(np.ones((self.T,1))).float()
@@ -386,7 +389,7 @@ class Scanner():
         self.G_adj[:,:,1,0] = -B0_grad_adj_sin
         self.G_adj[:,:,1,1] = B0_grad_adj_cos
         
-    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,epi=False):
+    def set_gradient_precession_tensor(self,grad_moms,sequence_class):
         grads=grad_moms
         
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
@@ -395,18 +398,11 @@ class Scanner():
         temp = temp[:-1,:,:]
         k=torch.cumsum(temp,0)
         
-#        B0X = torch.unsqueeze(grads[:,:,0],2) * self.rampX
-#        B0Y = torch.unsqueeze(grads[:,:,1],2) * self.rampY
-#        
-#        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
-#        
-#        self.B0_grad_cos = torch.cos(B0_grad)
-#        self.B0_grad_sin = torch.sin(B0_grad)
-        
         # for backward pass
-        if refocusing:
-            #B0X = torch.unsqueeze(k[:,:,0]-self.sz[0]/2,2) * self.rampX
-            
+        if sequence_class.lower() == "gre" or sequence_class.lower() == "bssfp":
+            pass
+        
+        if sequence_class.lower() == "rare":
             refocusing_pulse_action_idx = 1
             kloc = 0
             for r in range(self.NRep):
@@ -416,21 +412,13 @@ class Scanner():
                     kloc += temp[t,r,:]
                     k[t,r,:] = kloc
                     
-        if epi:
+        if sequence_class.lower() == "epi":
             kloc = 0
             for r in range(self.NRep):
                 for t in range(self.T):
                     kloc += temp[t,r,:]
                     k[t,r,:] = kloc              
             
-#        B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
-#        B0Y = torch.unsqueeze(k[:,:,1],2) * self.rampY
-#        
-#        B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
-#        
-#        self.B0_grad_adj_cos = torch.cos(B0_grad)
-#        self.B0_grad_adj_sin = torch.sin(B0_grad)
-        
         self.grads = grads
         
         # save grad_moms for intravoxel precession op
@@ -511,6 +499,16 @@ class Scanner():
         space = roll(space,self.sz[0]//2-1,1)
        
         return space.reshape([self.NVox,2])
+    
+    def discard_out_of_kspace_sig(self):
+        kspace_loc_cloned = self.kspace_loc.clone().view([self.T*self.NRep,2])
+        out_of_kspace_x = np.where(np.abs(self.tonumpy(kspace_loc_cloned[:,0])) > self.sz[0]/2)[0]
+        out_of_kspace_y = np.where(np.abs(self.tonumpy(kspace_loc_cloned[:,1])) > self.sz[1]/2)[0]
+        
+        signal = self.signal.view([self.NCoils, self.T*self.NRep,3,1])
+        signal[:,out_of_kspace_x,:,:] = 0
+        signal[:,out_of_kspace_y,:,:] = 0
+        self.signal = signal.view([self.NCoils, self.T, self.NRep, 3, 1])        
         
     def read_signal(self,t,r,spins):
         if self.adc_mask[t] != 0:
@@ -1626,9 +1624,7 @@ class Scanner():
         self.reco = torch.sum(r,0)
         return r 
 
-
-    # interaction with real system
-    def send_job_to_real_system(self, experiment_id):
+    def get_base_path(self, experiment_id):
         if platform == 'linux':
             #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
             basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
@@ -1636,9 +1632,14 @@ class Scanner():
             basepath = '???'
 
         today_datestr = time.strftime('%y%m%d')
-        
         basepath_seq = os.path.join(basepath, "seq" + today_datestr)
         basepath_seq = os.path.join(basepath_seq, experiment_id)
+
+        return basepath, basepath_seq
+
+    # interaction with real system
+    def send_job_to_real_system(self, experiment_id):
+        basepath, basepath_seq = self.get_base_path(experiment_id)
         
         fn_pulseq = "target.seq"
         
@@ -1674,25 +1675,16 @@ class Scanner():
             f.writelines(control_lines)
             
     def get_signal_from_real_system(self, experiment_id):
-        today_datestr = time.strftime('%y%m%d')
-        
-        if platform == 'linux':
-            #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
-            basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
-        else:
-            basepath = '???'
-            
-        basepath = os.path.join(basepath, "seq" + today_datestr)
-        basepath = os.path.join(basepath, experiment_id)
+        _, basepath_seq = self.get_base_path(experiment_id)
         
         # go into the infinite loop, checking if twix file is saved
         done_flag = False
         while not done_flag:
             time.sleep(0.5)
-            if os.path.isfile(os.path.join(basepath, "data", "target.dat")):
+            if os.path.isfile(os.path.join(basepath_seq, "data", "target.dat")):
                 # read twix file
                 print("TWIX file arrived. Reading....")
-                twixobj = tr.read_twix(os.path.join(basepath, "data", "target.dat"))
+                twixobj = tr.read_twix(os.path.join(basepath_seq, "data", "target.dat"))
                 meas = twixobj.read_measurement(1, parse_buffers = False)
                 buf = meas.get_meas_buffer(0)
                 raw = np.array(buf)
@@ -1731,7 +1723,7 @@ class Scanner_fast(Scanner):
         
         self.IVP = IVP
         
-    def set_gradient_precession_tensor(self,grad_moms,refocusing=False,epi=False):
+    def set_gradient_precession_tensor(self,grad_moms,sequence_class):
         
         # we need to shift grad_moms to the right for adjoint pass, since at each repetition we have:
         # meas-signal, flip, relax,grad order  (signal comes before grads!)
@@ -1749,10 +1741,10 @@ class Scanner_fast(Scanner):
         B0_grad_cos = torch.cos(B0_grad)
         B0_grad_sin = torch.sin(B0_grad)
         
-        # for backward pass
-        if refocusing:
-            #B0X = torch.unsqueeze(k[:,:,0]-self.sz[0]/2,2) * self.rampX
-            
+        if sequence_class.lower() == "gre" or sequence_class.lower() == "bssfp":
+            pass
+        
+        if sequence_class.lower() == "rare":
             refocusing_pulse_action_idx = 1
             kloc = 0
             for r in range(self.NRep):
@@ -1761,13 +1753,13 @@ class Scanner_fast(Scanner):
                         kloc = -kloc
                     kloc += temp[t,r,:]
                     k[t,r,:] = kloc
-                
-        if epi:
+                    
+        if sequence_class.lower() == "epi":    
             kloc = 0
             for r in range(self.NRep):
                 for t in range(self.T):
                     kloc += temp[t,r,:]
-                    k[t,r,:] = kloc            
+                    k[t,r,:] = kloc              
                 
         B0X = torch.unsqueeze(k[:,:,0],2) * self.rampX
         B0Y = torch.unsqueeze(k[:,:,1],2) * self.rampY
