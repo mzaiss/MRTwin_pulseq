@@ -1,0 +1,48 @@
+<XProtocol> 
+{
+  <ID> 1000000 
+  
+  <ParamMap.""> 
+  {
+    <ParamMap."NIH"> 
+    {
+      <ParamMap."RawSendFunctor"> 
+      {
+	    <ParamString."Host"> 
+        {
+          <Comment> "The name of the host, to which to send the data" 
+          "192.168.2.5"
+	}
+				 
+        <ParamLong."Port"> 
+        {
+          <Comment> "The TCP/IP port, to which to send the data." 
+          9002 
+        }
+
+        <ParamBool."BlockData"> 
+        {
+          <Comment> "Block the data from the rest of the recon chain" 
+          <LimitRange> { "false" "true" }
+          "true" 
+        }
+      }
+    }
+  }
+          
+  <ProtocolComposer."IrisDefaultConfigurator"> 
+  {
+    <Dll>"IrisConfigurators"
+  }  
+    
+  <ProtocolComposer."IceDefaultConfigurator"> 
+  {
+    <Dll>"IceConfigurators"
+  }
+
+  <ProtocolComposer."NIH_RawSendConfigurator"> 
+  {
+    <Dll>"IceNIH_RawSend"
+  }
+
+}

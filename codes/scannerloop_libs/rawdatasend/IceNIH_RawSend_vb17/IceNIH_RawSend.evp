@@ -1,0 +1,49 @@
+<XProtocol> 
+{
+  
+  <ParamMap.""> 
+  {
+    
+    <ParamFunctor."NIH_RawSendConfigurator"> 
+    {
+      <Class> "NIH_RawSendConfigurator@IceNIH_RawSend" 
+    }
+  }
+}
+<XProtocol> 
+{
+  
+  <ParamMap.""> 
+  {
+    
+    <ParamFunctor."NIH_RawSendFunctor"> 
+    {
+      <Class> "NIH_RawSendFunctor@IceNIH_RawSend" 
+      
+      <ParamString."Hostname"> 
+      {
+      }
+      
+      <ParamLong."Port"> 
+      {
+      }
+      
+      <ParamBool."BlockData"> 
+      {
+        <LimitRange> { "false" "true" }
+      }
+      
+      <ParamString."InsertAfterFunctor"> 
+      {
+      }
+      
+      <Method."ComputeScan">  { "int32_t" "class IceAs &" "class MdhProxy &" "class ScanControl &"  }
+      
+      <Event."ScanReady">  { "int32_t" "class IceAs &" "class MdhProxy &" "class ScanControl &"  }
+      
+      <ParamLong."Threading"> 
+      {
+      }
+    }
+  }
+}
