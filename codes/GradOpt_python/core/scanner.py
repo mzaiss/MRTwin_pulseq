@@ -1824,9 +1824,30 @@ class Scanner_fast(Scanner):
         self.init_reco()
         
         s = torch.sum(self.signal,0)
-        
         r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
         self.reco = r[:,:2,0]
+        
+        # transpose for adjoint
+        self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
+        
+    def generalized_adjoint(self, spins, alpha=1e-4, nmb_iter=55):
+        self.init_reco()
+        
+        s = torch.sum(self.signal,0)
+        adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
+        s = s[adc_idx,:,:2]
+        s = s.view([adc_idx.size*self.NRep*2,1])
+        
+        A = self.G_adj[adc_idx,:,:,:2,:2].permute([2,3,0,1,4]).contiguous().view([self.NVox*2,adc_idx.size*self.NRep*2]).permute([1,0])
+        AtA = torch.matmul(A.permute([1,0]),A)
+        b = torch.matmul(A.permute([1,0]),s)
+        r = alpha*b
+        
+        for i in range(nmb_iter):
+            r = r - alpha*(torch.matmul(AtA,r) - b)
+        
+        r = r.view([self.NVox,2,1])
+        self.reco = r[:,:,0]
         
         # transpose for adjoint
         self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
