@@ -10,6 +10,8 @@ import time
 from shutil import copyfile
 
 from core.pulseq_exporter import pulseq_write_GRE
+from core.pulseq_exporter import pulseq_write_RARE
+from core.pulseq_exporter import pulseq_write_BSSFP
 # target images / sequence parameters holder
 # torch to numpy
 def tonumpy(x):
@@ -144,19 +146,23 @@ class TargetSequenceHolder():
         except:
             print('export_to_matlab: directory already exists')
         scipy.io.savemat(os.path.join(path,"scanner_dict_tgt.mat"), scanner_dict)
-
-    def export_to_pulseq(self, experiment_id):
-        today_datestr = time.strftime('%y%m%d')
-        today_datetimestr = time.strftime("%y%m%d%H%M%S")
         
+    def get_base_path(self, experiment_id):
         if platform == 'linux':
             #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
             basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
         else:
             basepath = '???'
-            
+
+        today_datestr = time.strftime('%y%m%d')
         basepath = os.path.join(basepath, "seq" + today_datestr)
         basepath = os.path.join(basepath, experiment_id)
+
+        return basepath
+
+    def export_to_pulseq(self, experiment_id, sequence_class):
+        today_datetimestr = time.strftime("%y%m%d%H%M%S")
+        basepath = self.get_base_path(experiment_id)
         
         fn_target_array = "target_arr.npy"
         fn_pulseq = "target.seq"
@@ -178,7 +184,6 @@ class TargetSequenceHolder():
         target_array['adc_mask'] = tonumpy(self.scanner.adc_mask)
         target_array['B1'] = tonumpy(self.scanner.B1)
         target_array['flips'] = flips_numpy
-        target_array['adc_mask'] = tonumpy(self.scanner.adc_mask)
         target_array['event_times'] = event_time_numpy
         target_array['grad_moms'] = grad_moms_numpy
         target_array['kloc'] = tonumpy(self.scanner.kspace_loc)
@@ -196,9 +201,17 @@ class TargetSequenceHolder():
         
         # save sequence
         seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
-        pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
         
-        return  os.path.join(basepath, fn_pulseq)
+        if sequence_class.lower() == "gre":
+            pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+        elif sequence_class.lower() == "rare":
+            pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+        elif sequence_class.lower() == "bssfp":
+            pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+        elif sequence_class.lower() == "epi":
+            # WIP
+            raise
+            pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
         
         
         

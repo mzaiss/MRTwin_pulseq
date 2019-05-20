@@ -1846,7 +1846,7 @@ class Scanner_fast(Scanner):
         for i in range(nmb_iter):
             r = r - alpha*(torch.matmul(AtA,r) - b)
         
-        r = r.view([self.NVox,2,1])
+        r = r.view([self.NVox,2,1]) / alpha
         self.reco = r[:,:,0]
         
         # transpose for adjoint
