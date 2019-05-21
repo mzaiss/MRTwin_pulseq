@@ -221,8 +221,8 @@ scanner.G_adj[:,:,:,0,1] = B0_grad_adj_sin
 scanner.G_adj[:,:,:,1,0] = -B0_grad_adj_sin
 scanner.G_adj[:,:,:,1,1] = B0_grad_adj_cos  
 
-#scanner.adjoint(spins)
-scanner.inverse(spins)
+scanner.adjoint(spins)
+#scanner.inverse(spins)
 #scanner.cholesky_inverse(spins)
 #scanner.generalized_adjoint(spins)
 #scanner.do_nufft_reco()

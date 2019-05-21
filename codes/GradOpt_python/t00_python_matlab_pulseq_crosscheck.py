@@ -153,7 +153,7 @@ scanner.set_adc_mask()
 scanner.adc_mask[:2]  = 0
 scanner.adc_mask[-2:] = 0
 
-# RF events: flips and phases
+# RF events: flips_numpy and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
@@ -229,16 +229,26 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
+seq_dir = "../scannerloop_libs/matlab_python_crosstests/seq_and_data"
+    
+# save target dict array
+scanner_dict = dict()
+scanner_dict['adc_mask'] = tonumpy(scanner.adc_mask)
+scanner_dict['B1'] = tonumpy(scanner.B1)
+scanner_dict['flips'] = tonumpy(flips)
+scanner_dict['event_times'] = np.abs(tonumpy(event_time))
+scanner_dict['grad_moms'] = tonumpy(grad_moms)
+scanner_dict['reco'] = tonumpy(target).reshape([scanner.sz[0],scanner.sz[1],2])
+scanner_dict['ROI'] = tonumpy(scanner.ROI_signal)
+scanner_dict['sz'] = scanner.sz
+scanner_dict['signal'] = tonumpy(scanner.signal)
+
+scipy.io.savemat(os.path.join(seq_dir,"scanner_dict_tgt.mat"), scanner_dict)
+    
 #############################################################################
 ## PREPARE sequence ::: #####################################
 
-
-hgfhgfh
-
-# gradient tranform
-grad_moms_numpy = np.array(scanner_dict['grad_moms'], dtype=np.float32)
-
-seq_fn = os.path.join(seq_dir,experiment_id+".seq")
+seq_fn = os.path.join(seq_dir,"test.seq")
 
 resolution = sz
 FOV = 220e-3
@@ -259,9 +269,11 @@ deltak = 1 / FOV
 
 T = grad_moms.shape[0]
 NRep = grad_moms.shape[1]
-flips = np.array(scanner_dict['flips'], dtype=np.float32)
-event_times = np.array(scanner_dict['event_times'], dtype=np.float32)
-grad_moms *= deltak
+flips_numpy = tonumpy(flips)
+event_times_numpy = tonumpy(event_time)
+grad_moms_numpy = tonumpy(grad_moms)
+
+grad_moms_numpy *= deltak
 
 # put blocks together
 for rep in range(NRep):
@@ -269,36 +281,36 @@ for rep in range(NRep):
     
     # first action
     idx_T = 0
-    if np.abs(flips[idx_T,rep,0]) > 1e-8:
+    if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
         use = "excitation"
         
         # alternatively slice selective:
         slice_thickness = 5e-3     # slice
         
-        kwargs_for_sinc = {"flip_angle": flips[idx_T,rep,0], "system": system, "duration": 0.6*1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
+        kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 0.6*1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
         rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
         
         seq.add_block(rf, gz)
         seq.add_block(gzr)
         
-    delay = make_delay(event_times[idx_T,rep])
+    delay = make_delay(event_times_numpy[idx_T,rep])
     seq.add_block(delay)
     
     # second  (rewinder)
     idx_T = 1
     
     # calculated here, update in next event
-    gradmom_rewinder = np.squeeze(grad_moms[idx_T,rep,:])
-    eventtime_rewinder = np.squeeze(event_times[idx_T,rep])
+    gradmom_rewinder = np.squeeze(grad_moms_numpy[idx_T,rep,:])
+    eventtime_rewinder = np.squeeze(event_times_numpy[idx_T,rep])
     
     # line acquisition T(3:end-1)
-    idx_T = np.arange(2, grad_moms.shape[0] - 2) # T(2)
-    dur = np.sum(event_times[idx_T,rep])
+    idx_T = np.arange(2, grad_moms_numpy.shape[0] - 2) # T(2)
+    dur = np.sum(event_times_numpy[idx_T,rep])
     
-    kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(grad_moms[idx_T,rep,0],0), "flat_time": dur}
+    kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,0],0), "flat_time": dur}
     gx = make_trapezoid(kwargs_for_gx)    
     
-    kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(grad_moms[idx_T,rep,1],0), "flat_time": dur}
+    kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,1],0), "flat_time": dur}
     gy = make_trapezoid(kwargs_for_gy)
     
     kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time, "phase_offset": rf.phase_offset}
@@ -315,20 +327,20 @@ for rep in range(NRep):
     seq.add_block(gx,gy,adc)
     
     # second last extra event  T(end)  # adjusted also for fallramps of ADC
-    idx_T = grad_moms.shape[0] - 2     # T(2)
+    idx_T = grad_moms_numpy.shape[0] - 2     # T(2)
     
-    kwargs_for_gxpost = {"channel": 'x', "system": system, "area": grad_moms[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_times[idx_T,rep]}
+    kwargs_for_gxpost = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_times_numpy[idx_T,rep]}
     gx_post = make_trapezoid(kwargs_for_gxpost)  
     
-    kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_times[idx_T,rep]}
+    kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_times_numpy[idx_T,rep]}
     gy_post = make_trapezoid(kwargs_for_gypost)  
     
     seq.add_block(gx_post, gy_post)
     
     #  last extra event  T(end)
-    idx_T = grad_moms.shape[0] - 1 # T(2)
+    idx_T = grad_moms_numpy.shape[0] - 1 # T(2)
     
-    delay = make_delay(event_times[idx_T,rep])
+    delay = make_delay(event_times_numpy[idx_T,rep])
     seq.add_block(delay)
 
 seq.plot()

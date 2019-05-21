@@ -16,6 +16,7 @@ from shutil import copyfile
 from core.pulseq_exporter import pulseq_write_GRE
 from core.pulseq_exporter import pulseq_write_RARE
 from core.pulseq_exporter import pulseq_write_BSSFP
+from core.pulseq_exporter import pulseq_write_EPI
 
 if sys.version_info[0] < 3:
     import cPickle as pickle
@@ -615,9 +616,7 @@ class OPT_helper():
         elif sequence_class.lower() == "bssfp":
             pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
         elif sequence_class.lower() == "epi":
-            # WIP
-            raise
-            pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+            pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
         
     # save entire history of the optimized parameters
     def save_param_reco_history(self, experiment_id, sequence_class, generate_pulseq=True):
@@ -692,9 +691,7 @@ class OPT_helper():
                 elif sequence_class.lower() == "bssfp":
                     pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)
                 elif sequence_class.lower() == "epi":
-                    # WIP
-                    raise
-                    pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)            
+                    pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)          
         
         
     # save entire history of the optimized parameters (to Matlab)

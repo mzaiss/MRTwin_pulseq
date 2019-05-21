@@ -7,10 +7,10 @@ import vbspec as vb
 import vbvd_common as vbvd
 import os
 from header_parser import header_parser as hp
-
 from json_html_viewer import json_html_viewer as jview
 
-
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def detect_vb_or_vd(datpath):
     

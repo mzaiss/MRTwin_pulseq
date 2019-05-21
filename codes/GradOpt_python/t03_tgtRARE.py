@@ -204,7 +204,7 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
     
 # forward/adjoint pass
 scanner.forward_sparse_fast(spins, event_time)
-scanner.adjoint(spins)
+scanner.adjoint()
 
 # try to fit this
 # scanner.reco = scanner.do_ifft_reco()
@@ -233,7 +233,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         scanner.get_signal_from_real_system(experiment_id)
         
         plt.subplot(121)
-        scanner.adjoint(spins)
+        scanner.adjoint()
         plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
         plt.title("real measurement IFFT")
         plt.subplot(122)
@@ -304,7 +304,7 @@ def phi_FRP_model(opt_params,aux_params):
          
     # forward/adjoint pass
     scanner.forward_sparse_fast(spins, event_time)
-    scanner.adjoint(spins)
+    scanner.adjoint()
 
     lbd = 0.4*1e1         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)

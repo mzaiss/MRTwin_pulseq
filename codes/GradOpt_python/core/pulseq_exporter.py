@@ -220,7 +220,6 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     # save pulseq definition
     MAXSLEW = 140
     FOV = 220
-    slice_thickness = 5e-3     # slice
     
     deltak = 1.0 / FOV
     grad_moms_numpy *= deltak  # adjust for FOV
@@ -235,16 +234,32 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         ###              first action
         idx_T = 0
         if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+            slice_thickness = 200e-3     # slice
             use = "excitation"
             
             # alternatively slice selective:
-            kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 0.6*1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
+            RFdur = 0.8*1e-3
+            kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+            rf = make_block_pulse(kwargs_for_block, 1)
+            
+            seq.add_block(rf)     
+        else:
+            # alternatively slice selective:
+            use = "excitation"
+            
+            slice_thickness = 5e-3
+            
+            # alternatively slice selective:
+            kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "phase_offset": flips_numpy[idx_T,rep,1], "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
             rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
             
             seq.add_block(rf, gz)
-            seq.add_block(gzr)
+            seq.add_block(gzr)            
             
-        seq.add_block(make_delay(event_time_numpy[idx_T,rep]))
+            RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time;
+                
+        
+        seq.add_block(make_delay(0.002-RFdur))
         
         ###############################
         ###              secoond action
@@ -276,7 +291,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         gy_pre = make_trapezoid(kwargs_for_gypre)
     
         seq.add_block(gx_pre, gy_pre)
-        seq.add_block(gx,gy,adc)
+        seq.add_block(gx,adc)
         
         ###############################
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
@@ -301,6 +316,10 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     seq.write(seq_fn)
     
     append_header(seq_fn, FOV,slice_thickness)    
+    
+def pulseq_write_EPI(seq_params, seq_fn, plot_seq=False):
+    raise
+    pass
     
 
         

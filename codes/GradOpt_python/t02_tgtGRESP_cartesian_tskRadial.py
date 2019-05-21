@@ -183,7 +183,7 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
     
 # forward/adjoint pass
 scanner.forward_fast(spins, event_time)
-scanner.adjoint(spins)
+scanner.adjoint()
 
 # try to fit this2
 target = scanner.reco.clone()
@@ -211,7 +211,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         scanner.get_signal_from_real_system(experiment_id)
         
         plt.subplot(121)
-        scanner.adjoint(spins)
+        scanner.adjoint()
         plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
         plt.title("real measurement IFFT")
         plt.subplot(122)
@@ -276,7 +276,7 @@ def init_variables():
          
     # forward/adjoint pass
     scanner.forward_fast(spins, event_time)
-    scanner.adjoint(spins)
+    scanner.adjoint()
         
     return [adc_mask, flips, event_time, grad_moms]
 
@@ -363,7 +363,7 @@ adc_idx = np.where(tonumpy(scanner.adc_mask))[0]
 scanner.signal[0,adc_idx,:,0,0] = setdevice(torch.from_numpy(np.real(raw_data['spectrum'])))
 scanner.signal[0,adc_idx,:,1,0] = setdevice(torch.from_numpy(np.imag(raw_data['spectrum'])))
 
-scanner.adjoint(spins)
+scanner.adjoint()
 if use_multichannel_input:
     reco_input = scanner.adjoint_separable(spins)
     reco_input = reco_input.permute([1,0,2])

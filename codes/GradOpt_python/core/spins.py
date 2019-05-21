@@ -69,7 +69,7 @@ class SpinSystem():
         # find and store in mask locations with zero PD
         PD0_mask = PD.reshape([self.sz[0],self.sz[1]]) > 1e-6
 
-        self.PD0_mask = self.setdevice(PD0_mask)
+        self.PD0_mask = self.setdevice(PD0_mask).byte()
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
         self.PD = self.setdevice(PD)
@@ -129,7 +129,7 @@ class SpinSystem_batched(SpinSystem):
         omega = torch.from_numpy(0*np.random.rand(self.batch_size,self.NSpins,self.NVox).reshape([self.batch_size,self.NSpins,self.NVox])).float()
         
 
-        self.PD0_mask = self.setdevice(PD0_mask)
+        self.PD0_mask = self.setdevice(PD0_mask).byte()
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
         self.PD = self.setdevice(PD)
