@@ -4,6 +4,7 @@ import time
 import os
 import sys
 from sys import platform
+import scipy
 
 sys.path.append("../scannerloop_libs/twixreader")
 import twixreader as tr # twixreader install: conda install pyyaml; conda install -c certik antlr4-python3-runtime
@@ -490,15 +491,45 @@ class Scanner():
         
         # fftshift
         spectrum = roll(spectrum,self.sz[0]//2-1,0)
-        spectrum = roll(spectrum,self.sz[0]//2-1,1)
+        spectrum = roll(spectrum,self.sz[1]//2-1,1)
         
         space = torch.ifft(spectrum,2)
         
         # fftshift
         space = roll(space,self.sz[0]//2-1,0)
-        space = roll(space,self.sz[0]//2-1,1)
+        space = roll(space,self.sz[1]//2-1,1)
        
-        return space.reshape([self.NVox,2])
+        self.reco = space.reshape([self.NVox,2])
+        
+    def do_nufft_reco(self):
+        sz = self.sz
+        
+        adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
+        spectrum = self.signal[0,self.adc_mask.flatten()!=0,:,:2,0].detach().cpu().numpy()
+        
+        X, Y = np.meshgrid(np.linspace(0,sz[0]-1,sz[0]) - sz[0] / 2, np.linspace(0,sz[1]-1,sz[1]) - sz[1]/2)
+        
+        grid = self.kspace_loc[adc_idx,:,:]
+        grid = torch.flip(grid, [2]).detach().cpu().numpy()
+        
+        spectrum_resampled_x = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,0].ravel(), (X, Y), method='cubic')
+        spectrum_resampled_y = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,1].ravel(), (X, Y), method='cubic')
+        
+        spectrum_resampled = np.stack((spectrum_resampled_x.reshape(sz),spectrum_resampled_y.reshape(sz))).transpose([1,2,0])
+        spectrum_resampled[np.isnan(spectrum_resampled)] = 0
+        spectrum_resampled = self.setdevice(torch.from_numpy(spectrum_resampled).float())
+        
+        # fftshift
+        spectrum_resampled = roll(spectrum_resampled,self.sz[0]//2-1,0)
+        spectrum_resampled = roll(spectrum_resampled,self.sz[1]//2-1,1)
+        
+        space = torch.ifft(spectrum_resampled,2)
+        
+        # fftshift
+        space = roll(space,self.sz[0]//2-1,0)
+        space = roll(space,self.sz[1]//2-1,1)
+           
+        self.reco = space.reshape([self.NVox,2])
     
     def discard_out_of_kspace_sig(self):
         kspace_loc_cloned = self.kspace_loc.clone().view([self.T*self.NRep,2])
@@ -1851,6 +1882,46 @@ class Scanner_fast(Scanner):
         
         # transpose for adjoint
         self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
+        
+    def inverse(self, spins):
+        self.init_reco()
+        
+        s = torch.sum(self.signal,0)
+        adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
+        s = s[adc_idx,:,:2]
+        s = s.view([adc_idx.size*self.NRep*2,1])
+        
+        A = self.G_adj[adc_idx,:,:,:2,:2].permute([2,3,0,1,4]).contiguous().view([self.NVox*2,adc_idx.size*self.NRep*2]).permute([1,0])
+        r = torch.matmul(torch.inverse(A), s)
+        
+        r = r.view([self.NVox,2,1])
+        self.reco = r[:,:,0]
+        
+        # transpose for adjoint
+        self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])          
+        
+    def cholesky_inverse(self, spins):
+        self.init_reco()
+        
+        s = torch.sum(self.signal,0)
+        adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
+        s = s[adc_idx,:,:2]
+        s = s.view([adc_idx.size*self.NRep*2,1])
+        
+        A = self.G_adj[adc_idx,:,:,:2,:2].permute([2,3,0,1,4]).contiguous().view([self.NVox*2,adc_idx.size*self.NRep*2]).permute([1,0])
+        AtA = torch.mm(A, A.t()) + 1e-05 * self.setdevice(torch.eye(A.shape[0]))
+        b = torch.matmul(A.permute([1,0]),s)
+        u = torch.cholesky(AtA)
+        AtAinv = torch.cholesky_inverse(u)
+        
+        r = torch.matmul(AtAinv, b)
+        r = torch.matmul(torch.inverse(A), s)
+        
+        r = r.view([self.NVox,2,1])
+        self.reco = r[:,:,0]
+        
+        # transpose for adjoint
+        self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])        
         
     def adjoint_separable(self,spins):
         self.init_reco()
