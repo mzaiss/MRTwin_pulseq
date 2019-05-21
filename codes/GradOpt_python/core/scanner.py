@@ -6,7 +6,7 @@ import sys
 from sys import platform
 
 sys.path.append("../scannerloop_libs/twixreader")
-import twixreader as tr
+import twixreader as tr # twixreader install: conda install pyyaml; conda install -c certik antlr4-python3-runtime
 
 
 
