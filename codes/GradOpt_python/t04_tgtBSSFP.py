@@ -6,6 +6,7 @@ Created on Tue Jan 29 14:38:26 2019
 """
 
 experiment_id = 't04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep'
+sequence_class = "BSSFP"
 experiment_description = """
 bSSFP with alpha/2 prep
 """
@@ -26,6 +27,7 @@ import core.target_seq_holder
 
 use_gpu = 0
 gpu_dev = 0
+do_scanner_query = False
 
 # NRMSE error function
 def e(gt,x):
@@ -197,7 +199,7 @@ grad_moms = setdevice(grad_moms)
 
 # end sequence 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,refocusing=False)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 
 #############################################################################
 ## Forward process ::: ######################################################
@@ -205,7 +207,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False)  # refocusing
 scanner.do_dummy_scans(spins,event_time,nrep=0)   # do dummies
 # forward/adjoint pass
 scanner.forward_fast(spins, event_time,do_dummy_scans=True)
-scanner.adjoint(spins)
+scanner.adjoint()
 
 # try to fit this
 target = scanner.reco.clone()
@@ -226,6 +228,20 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     plt.show()
     
     targetSeq.export_to_matlab(experiment_id)
+    
+    if do_scanner_query:
+        targetSeq.export_to_pulseq(experiment_id,sequence_class)
+        scanner.send_job_to_real_system(experiment_id)
+        scanner.get_signal_from_real_system(experiment_id)
+        
+        plt.subplot(121)
+        scanner.adjoint()
+        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        plt.title("real measurement IFFT")
+        plt.subplot(122)
+        scanner.reco = scanner.do_ifft_reco()
+        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        plt.title("real measurement ADJOINT")    
                     
 #    stop()
         
@@ -287,12 +303,12 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
           
     scanner.init_gradient_tensor_holder()          
-    scanner.set_gradient_precession_tensor(grad_moms,refocusing=False) # GRE/FID specific, maybe adjust for higher echoes
+    scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # GRE/FID specific, maybe adjust for higher echoes
          
     # forward/adjoint pass
     #scanner.forward_mem(spins, event_time)
     scanner.forward_fast(spins, event_time)
-    scanner.adjoint(spins)
+    scanner.adjoint()
 
     lbd = 1*1e1         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)

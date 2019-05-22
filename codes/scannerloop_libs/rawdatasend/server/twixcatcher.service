@@ -1,0 +1,10 @@
+[Unit]
+Description=TwixCatcher: Waiting for raw data from mrir
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/twixcatcher/twixcatcher.py
+
+[Install]
+WantedBy=default.target

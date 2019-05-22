@@ -1,0 +1,75 @@
+##-----------------------------------------------------------------------------
+##  Copyright (C) Siemens AG 2005  All Rights Reserved.  Confidential
+##-----------------------------------------------------------------------------
+##
+## Project: NUMARIS/4
+##    File: \n4_servers3\pkg\MrServers\MrVista\Ice\IceIdeaFunctors\IceInverter\makefile.trs
+## Version:
+##  Author: BV_ICE
+##    Date: n.a.
+##
+##    Lang: make
+##
+## Descrip: Makefile fuer Target InverterFunctor
+##
+## MODIFICATION HISTORY:
+##    2012/09/19, Jacco A. de Zwart, NIH
+##        Version for IceNIH_RawSend
+##
+##-----------------------------------------------------------------------------
+
+##-----------------------------------------------------------------------------
+## Naehere Informationen zum den moeglichen Macros im Makefile siehe
+## MedMake-Dokumentation Q:/csw/MedMake/html/contents_t6.html
+##
+
+##-----------------------------------------------------------------------------
+## enter NLS library
+##
+
+##-----------------------------------------------------------------------------
+## enter local compiler flags
+##
+
+##-----------------------------------------------------------------------------
+## enter include paths
+##
+CPPFLAGS(-DICEIDEAFUNCTORS_EXPORTS)
+CPPFLAGS(-DVD)
+
+##-----------------------------------------------------------------------------
+## enter source files
+##
+CPPSOURCES(NIH_RawSendConfigurator)
+CPPSOURCES(NIH_RawSendFunctor)
+CPPSOURCES(NIH_RawSendObjectMap)
+
+##-----------------------------------------------------------------------------
+## enter local linker flags
+##
+
+##-----------------------------------------------------------------------------
+## enter link libraries
+##
+LDLIBS(IceAlgos)
+LDLIBS(IceBasic)
+LDLIBS(IceUtils)
+##LDLIBS(IceImageReconFunctors)
+##LDLIBS(IceScanFunctors)
+LDLIBS(MrParc)
+LDLIBS(UTrace)
+# StdExcept
+MSDEV_i586_WinNT400(LDLIBS(MrClassDump))
+
+##-----------------------------------------------------------------------------
+## enter target name
+##
+LIB(IceNIH_RawSend)
+EVPTLB(IceNIH_RawSend)
+
+##-----------------------------------------------------------------------------
+##  Copyright (C) Siemens AG 2005  All Rights Reserved.  Confidential
+##-----------------------------------------------------------------------------
+
+VISTA_GCC_LINUX_AMD64(LDLIBS(ace)) 
+GCC_Linux(LDLIBS(ace)) 

@@ -10,6 +10,14 @@ import scipy
 import math
 from torch.optim.optimizer import Optimizer
 
+from sys import platform
+import time
+from shutil import copyfile
+from core.pulseq_exporter import pulseq_write_GRE
+from core.pulseq_exporter import pulseq_write_RARE
+from core.pulseq_exporter import pulseq_write_BSSFP
+from core.pulseq_exporter import pulseq_write_EPI
+
 if sys.version_info[0] < 3:
     import cPickle as pickle
 else:
@@ -309,6 +317,8 @@ class OPT_helper():
                 saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
                 saved_state['event_times'] = tonumpy(tosave_opt_params[2])
                 saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['kloc'] = tonumpy(self.scanner.kspace_loc.clone())
                 saved_state['learn_rates'] = self.custom_learning_rate
                 
                 legs=['x','y','z']
@@ -523,6 +533,7 @@ class OPT_helper():
         scanner_dict['flips'] = tonumpy(tosave_opt_params[1])
         scanner_dict['event_times'] = np.abs(tonumpy(tosave_opt_params[2]))
         scanner_dict['grad_moms'] = tonumpy(tosave_opt_params[3])
+        scanner_dict['kloc'] = tonumpy(self.scanner.kspace_loc)
         scanner_dict['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
@@ -536,8 +547,155 @@ class OPT_helper():
             print('export_to_matlab: directory already exists')
         scipy.io.savemat(os.path.join(path,"scanner_dict.mat"), scanner_dict)
         
+    def get_base_path(self, experiment_id):
+        if platform == 'linux':
+            #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+            basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
+        else:
+            basepath = '???'
+
+        today_datestr = time.strftime('%y%m%d')
+        basepath = os.path.join(basepath, "seq" + today_datestr)
+        basepath = os.path.join(basepath, experiment_id)
+
+        return basepath   
+        
+    def export_to_pulseq(self, experiment_id, sequence_class):
+        today_datetimestr = time.strftime("%y%m%d%H%M%S")
+        basepath = self.get_base_path(experiment_id)
+        
+        fn_lastiter_array = "lastiter_arr.npy"
+        fn_pulseq = "lastiter.seq"
+        
+        # overwrite protection (gets trigger if pulseq file already exists)
+        if os.path.isfile(os.path.join(basepath, fn_pulseq)):
+            try:
+                copyfile(os.path.join(basepath, fn_pulseq), os.path.join(basepath, fn_pulseq + ".bak." + today_datetimestr))    
+                copyfile(os.path.join(basepath, fn_lastiter_array), os.path.join(basepath, fn_lastiter_array + ".bak." + today_datetimestr))    
+            except:
+                pass
+            
+        _,reco,error = self.phi_FRP_model(self.scanner_opt_params, None)
+        tosave_opt_params = self.scanner_opt_params
+        
+        # i.e. non-cartesian trajectiries, any custom reparameterization
+        if self.reparameterize is not None:
+            tosave_opt_params =self.reparameterize(tosave_opt_params)            
+        
+        flips_numpy = tonumpy(tosave_opt_params[1])
+        event_time_numpy = tonumpy(tosave_opt_params[2])
+        grad_moms_numpy = tonumpy(tosave_opt_params[3])
+        
+        # save lastiter seq param array
+        lastiter_array = dict()
+        lastiter_array['adc_mask'] = tonumpy(self.scanner.adc_mask)
+        lastiter_array['B1'] = tonumpy(self.scanner.B1)
+        lastiter_array['flips'] = flips_numpy
+        lastiter_array['event_times'] = event_time_numpy
+        lastiter_array['grad_moms'] = grad_moms_numpy
+        lastiter_array['kloc'] = tonumpy(self.scanner.kspace_loc)
+        lastiter_array['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+        lastiter_array['ROI'] = tonumpy(self.scanner.ROI_signal)
+        lastiter_array['sz'] = self.scanner.sz
+        lastiter_array['signal'] = tonumpy(self.scanner.signal)
+        
+        try:
+            os.makedirs(basepath)
+            os.makedirs(os.path.join(basepath,"data"))
+        except:
+            pass
+        np.save(os.path.join(os.path.join(basepath, fn_lastiter_array)), lastiter_array)
+        
+        # save sequence
+        seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
+        
+        if sequence_class.lower() == "gre":
+            pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+        elif sequence_class.lower() == "rare":
+            pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+        elif sequence_class.lower() == "bssfp":
+            pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+        elif sequence_class.lower() == "epi":
+            pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+        
     # save entire history of the optimized parameters
-    def save_param_reco_history(self, experiment_id):
+    def save_param_reco_history(self, experiment_id, sequence_class, generate_pulseq=True):
+        basepath = self.get_base_path(experiment_id)
+        
+        fn_alliter_array = "alliter_arr.npy"
+        
+        param_reco_history = self.param_reco_history
+        
+        NIter = len(param_reco_history)
+        sz_x = self.scanner.sz[0]
+        sz_y = self.scanner.sz[1]
+        
+        T = self.scanner.T
+        NRep = self.scanner.NRep
+        
+        all_adc_masks = np.zeros((NIter,T))
+        all_flips = np.zeros((NIter,T,NRep,2))
+        all_event_times = np.zeros((NIter,T,NRep))
+        all_grad_moms = np.zeros((NIter,T,NRep,2))
+        all_kloc = np.zeros((NIter,T,NRep,2))
+        all_reco_images = np.zeros((NIter,sz_x,sz_y,2))
+        all_signals = np.zeros((NIter,T,NRep,3))
+        all_errors = np.zeros((NIter,1))
+        
+        for ni in range(NIter):
+            all_adc_masks[ni] = param_reco_history[ni]['adc_mask'].ravel()
+            all_flips[ni] = param_reco_history[ni]['flips_angles']
+            all_event_times[ni] = param_reco_history[ni]['event_times']
+            all_grad_moms[ni] = param_reco_history[ni]['grad_moms']
+            all_kloc[ni] = param_reco_history[ni]['kloc']
+            all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
+            all_signals[ni] = param_reco_history[ni]['signal'].reshape([T,NRep,3])
+            all_errors[ni] = param_reco_history[ni]['error']
+        
+        alliter_dict = dict()
+        alliter_dict['all_adc_masks'] = all_adc_masks
+        alliter_dict['flips'] = all_flips
+        alliter_dict['event_times'] = all_event_times
+        alliter_dict['grad_moms'] = all_grad_moms
+        alliter_dict['all_kloc'] = all_kloc
+        alliter_dict['reco_images'] = all_reco_images
+        alliter_dict['all_signals'] = all_signals
+        alliter_dict['all_errors'] = all_errors
+        alliter_dict['sz'] = np.array([sz_x,sz_y])
+        alliter_dict['T'] = T
+        alliter_dict['NRep'] = NRep
+        alliter_dict['target'] = self.target
+        
+        try:
+            os.makedirs(basepath)
+            os.makedirs(os.path.join(basepath,"data"))
+        except:
+            pass
+        np.save(os.path.join(os.path.join(basepath, fn_alliter_array)), alliter_dict)
+        
+        # generate sequence files
+        if generate_pulseq:
+            for ni in range(NIter):
+                fn_pulseq = "iter" + str(ni).zfill(6) + ".seq"
+                
+                flips_numpy = param_reco_history[ni]['flips_angles']
+                event_time_numpy = param_reco_history[ni]['event_times']
+                grad_moms_numpy = param_reco_history[ni]['grad_moms']    
+                
+                seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
+                
+                if sequence_class.lower() == "gre":
+                    pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)
+                elif sequence_class.lower() == "rare":
+                    pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)
+                elif sequence_class.lower() == "bssfp":
+                    pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)
+                elif sequence_class.lower() == "epi":
+                    pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)          
+        
+        
+    # save entire history of the optimized parameters (to Matlab)
+    def save_param_reco_history_matlab(self, experiment_id):
         path=os.path.join('./out/',experiment_id)
         try:
             os.mkdir(path)
@@ -569,6 +727,7 @@ class OPT_helper():
         all_flips = np.zeros((NIter,T,NRep,2))
         all_event_times = np.zeros((NIter,T,NRep))
         all_grad_moms = np.zeros((NIter,T,NRep,2))
+        all_kloc = np.zeros((NIter,T,NRep,2))
         all_reco_images = np.zeros((NIter,sz_x,sz_y,2))
         all_signals = np.zeros((NIter,T,NRep,3))
         all_errors = np.zeros((NIter,1))
@@ -578,6 +737,7 @@ class OPT_helper():
             all_flips[ni] = param_reco_history[ni]['flips_angles']
             all_event_times[ni] = param_reco_history[ni]['event_times']
             all_grad_moms[ni] = param_reco_history[ni]['grad_moms']
+            all_kloc[ni] = param_reco_history[ni]['kloc']
             all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
             all_signals[ni] = param_reco_history[ni]['signal'].reshape([T,NRep,3])
             all_errors[ni] = param_reco_history[ni]['error']
@@ -587,6 +747,7 @@ class OPT_helper():
         scanner_dict['flips'] = all_flips
         scanner_dict['event_times'] = all_event_times
         scanner_dict['grad_moms'] = all_grad_moms
+        scanner_dict['all_kloc'] = all_kloc
         scanner_dict['reco_images'] = all_reco_images
         scanner_dict['all_signals'] = all_signals
         scanner_dict['all_errors'] = all_errors

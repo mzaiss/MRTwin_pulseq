@@ -1,0 +1,84 @@
+            body {
+                font-family: 'Roboto Mono', monospace;
+                font-size:smaller
+            }
+
+            li {
+                display: block;
+                word-wrap: break-word;
+                max-width: 160em;
+            }
+
+            li:hover{
+                background-color: rgb(241, 247, 255);
+                font-weight: bold;
+            }
+
+            li:hover ul {
+                background-color: white;
+                font-weight: normal;
+            }
+
+            .num {
+                color: #616161;
+            }
+
+            .bool {
+                color: #008000;
+            }
+
+            .string {
+                color: #BA2121;
+            }
+
+            .null {
+                color:  #0000FF; 
+            }
+
+            .key {
+                color: #19177C;
+                display: inline;
+            }
+
+            input {
+                display: inline;
+            }
+
+            input[type="checkbox"]+label+span+ul {
+                display: none;
+            }
+
+            input[type="checkbox"]:checked+label+span+ul {
+                display: block;
+            }
+
+            ul{
+                padding-left: 2em;
+                display: block;
+            }
+    
+            input[type='checkbox']+label:before {
+                content: "\25B6";
+                font-size: 10;
+                font-family: "Arial Unicode MS", "Lucida Sans Unicode", "DejaVu Sans", "Quivira", "Symbola", "Code2000";
+                -webkit-transition: 0.05s ease-in-out;
+                -moz-transition: 0.05s ease-in-out;
+                -o-transition: 0.05s ease-in-out;
+                transition: 0.05s ease-in-out;
+                margin-left: -1em;
+            }
+
+            input[type='checkbox']:checked+label:before {
+                font-size: 10;
+                transform: rotate(90deg);
+                display: inline-block;
+                font-family: "Arial Unicode MS", "Lucida Sans Unicode", "DejaVu Sans", "Quivira", "Symbola", "Code2000";
+            }
+
+            input[type='checkbox'] {
+                display: none;
+            }
+
+            label {
+                cursor: pointer;
+            }

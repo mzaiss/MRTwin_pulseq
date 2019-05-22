@@ -7,7 +7,7 @@ def throw(msg):
     
 # WHAT we measure
 class SpinSystem():
-    def __init__(self,sz,NVox,NSpins,use_gpu):
+    def __init__(self,sz,NVox,NSpins,use_gpu,double_precision=False):
         
         self.sz = sz                                             # image size
         self.NVox = sz[0]*sz[1]                                 # voxel count
@@ -24,9 +24,14 @@ class SpinSystem():
         # aux
         self.R2 = None
         self.use_gpu = use_gpu
+        self.double_precision = double_precision
         
     # device setter
     def setdevice(self,x):
+        if self.double_precision:
+            x = x.double()
+        else:
+            x = x.float()
         if self.use_gpu > 0:
             x = x.cuda(self.use_gpu-1)
             
@@ -64,7 +69,7 @@ class SpinSystem():
         # find and store in mask locations with zero PD
         PD0_mask = PD.reshape([self.sz[0],self.sz[1]]) > 1e-6
 
-        self.PD0_mask = self.setdevice(PD0_mask)
+        self.PD0_mask = self.setdevice(PD0_mask).byte()
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
         self.PD = self.setdevice(PD)
@@ -124,7 +129,7 @@ class SpinSystem_batched(SpinSystem):
         omega = torch.from_numpy(0*np.random.rand(self.batch_size,self.NSpins,self.NVox).reshape([self.batch_size,self.NSpins,self.NVox])).float()
         
 
-        self.PD0_mask = self.setdevice(PD0_mask)
+        self.PD0_mask = self.setdevice(PD0_mask).byte()
         self.T1 = self.setdevice(T1)
         self.T2 = self.setdevice(T2)
         self.PD = self.setdevice(PD)

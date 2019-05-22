@@ -19,7 +19,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'e17_tgtGRESP_tsk_GRESP_no_grad_noflip_supervised_32_bsz8_sparse_fast'
+experiment_id = 'e17_tgtGRESP_tsk_GRESP_no_grad_noflip_supervised_48_sparse_fast_onlyPE'
 experiment_description = """
 tgt FLASHspoiled_relax0.1s task find all grads except read ADC grads
 this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
@@ -91,7 +91,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                               # image size
+sz = np.array([48,48])                                               # image size
 NRep = sz[1]                                            # number of repetitions
 T = sz[0] + 4                                          # number of events F/R/P
 NSpins = 40**2                               # number of spin sims in each voxel
@@ -118,20 +118,21 @@ real_phantom_resized[real_phantom_resized < 0] = 0
 
 # initialize the training database, let it be just a bunch squares (<csz> x <csz>) with random PD/T1/T2
 # ignore B0 inhomogeneity:-> since non-zero PD regions are just tiny squares, the effect of B0 is just constant phase accum in respective region
-csz = 2
-nmb_samples = 32
+csz = 6
+nmb_samples = 64
 spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
 
 for i in range(nmb_samples):
     rvx = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
     rvy = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
     
-    pd = 0.5 + np.random.rand()
-    t2 = 0.3 + np.random.rand()               # t2 is always smaller than t1...
-    t1 = t2 + np.random.rand()
-    
     for j in range(rvx,rvx+csz):
         for k in range(rvy,rvy+csz):
+            
+            pd = 0.5 + np.random.rand()
+            t2 = 0.3 + np.random.rand()               # t2 is always smaller than t1...
+            t1 = t2 + np.random.rand()
+            
             spin_db_input[i,j,k,0] = pd
             spin_db_input[i,j,k,1] = t1
             spin_db_input[i,j,k,2] = t2
@@ -200,7 +201,7 @@ scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,wrap_k=False) 
 ## Forward process ::: ######################################################
 
 # forward/adjoint pass
-scanner.forward_sparse(spins, event_time)
+scanner.forward_sparse_fast(spins, event_time)
 scanner.adjoint(spins)
 
 # try to fit this
@@ -215,7 +216,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
     for i in range(3):
         plt.subplot(1, 3, i+1)
-        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T+1)*scanner.NRep]) )
+        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T)*scanner.NRep]) )
         plt.title("ROI_def %d" % scanner.ROI_def)
         fig = plt.gcf()
         fig.set_size_inches(16, 3)
@@ -231,7 +232,7 @@ target_db = setdevice(torch.zeros((nmb_samples,NVox,2)).float())
 for i in range(nmb_samples):
     spins.set_system(spin_db_input[i,:,:,:])
     
-    scanner.forward_sparse(spins, event_time)
+    scanner.forward_sparse_fast(spins, event_time)
     scanner.adjoint(spins)
     
     target_db[i,:,:] = scanner.reco.clone().squeeze()
@@ -277,7 +278,7 @@ def init_variables():
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
     
-    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
+    #grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
     grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
     
     #grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
@@ -330,7 +331,7 @@ def phi_FRP_model(opt_params,aux_params,do_test_onphantom=False):
         else:
             tgt = target_phantom
         
-        scanner.forward_sparse(spins, event_time)
+        scanner.forward_sparse_fast(spins, event_time)
         scanner.adjoint(spins)
         
         loss_diff = (scanner.reco - tgt)
@@ -386,6 +387,37 @@ opt.print_status(True, reco)
 print("e: %f, total flipangle is %f °, total scan time is %f s," % (error, np.abs(tonumpy(opt.scanner_opt_params[1].permute([1,0]))).sum()*180/np.pi, tonumpy(torch.abs(opt.scanner_opt_params[2])[:,:,0].permute([1,0])).sum() ))
 
 stop()
+
+
+# %% # save optimized parameter history
+
+#idxarray_exported_itersteps = [1:2:100 110:10:190 200:50:1000 1001:250:niter];
+all_steps = []
+#all_steps.extend(list(range(0,99,2)))
+all_steps.extend(list(range(109,189,10)))
+all_steps.extend(list(range(199,999,50)))
+all_steps.extend(list(range(1000,9000,250)))
+
+
+
+for iter_id in all_steps:
+
+    opt.scanner_opt_params[1] = setdevice(torch.from_numpy(opt.param_reco_history[iter_id]['flips_angles']))
+    opt.scanner_opt_params[3] = setdevice(torch.from_numpy(opt.param_reco_history[iter_id]['grad_moms']))
+    
+    spins.set_system(real_phantom_resized)
+    _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params, do_test_onphantom=False)
+    print("Pixel: iter %d e: %f" % (iter_id,error))
+    
+    # plot
+    opt.print_status(True, reco)
+    
+    spins.set_system(real_phantom_resized)
+    _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params, do_test_onphantom=True)
+    
+    # plot
+    opt.print_status(True, reco)
+    print("Phantom: iter %d e: %f" % (iter_id,error))
 
 # %% # save optimized parameter history
 

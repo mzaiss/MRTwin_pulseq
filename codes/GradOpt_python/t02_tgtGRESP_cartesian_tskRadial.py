@@ -6,6 +6,7 @@ Created on Tue Jan 29 14:38:26 2019
 """
 
 experiment_id = 't02_tgtGRESP_cartesian_tskRadial'
+sequence_class = "GRE"
 experiment_description = """
 target - cartesian grid GRE
 learn: radial  (dont optimize gradmoms, hardset them to radial) + NN reco to compensate for density
@@ -28,6 +29,7 @@ import core.target_seq_holder
 
 use_gpu = 1
 gpu_dev = 0
+do_scanner_query = False
 
 # NRMSE error function
 def e(gt,x):
@@ -174,14 +176,14 @@ grad_moms = setdevice(grad_moms)
 
 # end sequence 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,refocusing=False,)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 
 #############################################################################
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
 scanner.forward_fast(spins, event_time)
-scanner.adjoint(spins)
+scanner.adjoint()
 
 # try to fit this2
 target = scanner.reco.clone()
@@ -202,6 +204,20 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     plt.show()
     
     targetSeq.export_to_matlab(experiment_id)
+    
+    if do_scanner_query:
+        targetSeq.export_to_pulseq(experiment_id,sequence_class)
+        scanner.send_job_to_real_system(experiment_id)
+        scanner.get_signal_from_real_system(experiment_id)
+        
+        plt.subplot(121)
+        scanner.adjoint()
+        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        plt.title("real measurement IFFT")
+        plt.subplot(122)
+        scanner.reco = scanner.do_ifft_reco()
+        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        plt.title("real measurement ADJOINT")    
     
 #############################################################################
 ## Optimization land ::: ####################################################
@@ -256,11 +272,11 @@ def init_variables():
     scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
           
     scanner.init_gradient_tensor_holder()          
-    scanner.set_gradient_precession_tensor(grad_moms,refocusing=False) # GRE/FID specific, maybe adjust for higher echoes
+    scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # GRE/FID specific, maybe adjust for higher echoes
          
     # forward/adjoint pass
     scanner.forward_fast(spins, event_time)
-    scanner.adjoint(spins)
+    scanner.adjoint()
         
     return [adc_mask, flips, event_time, grad_moms]
 
@@ -347,7 +363,7 @@ adc_idx = np.where(tonumpy(scanner.adc_mask))[0]
 scanner.signal[0,adc_idx,:,0,0] = setdevice(torch.from_numpy(np.real(raw_data['spectrum'])))
 scanner.signal[0,adc_idx,:,1,0] = setdevice(torch.from_numpy(np.imag(raw_data['spectrum'])))
 
-scanner.adjoint(spins)
+scanner.adjoint()
 if use_multichannel_input:
     reco_input = scanner.adjoint_separable(spins)
     reco_input = reco_input.permute([1,0,2])

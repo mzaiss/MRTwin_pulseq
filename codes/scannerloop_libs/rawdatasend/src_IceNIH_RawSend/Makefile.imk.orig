@@ -1,0 +1,90 @@
+########################################################################
+# Attention:           THIS FILE MUST BE IN UNIX Format
+#                      use dos2unix after editing 
+#                      (also done automatic by caller MakeIcePrg.bash)
+#
+# Example Makefile for IceInverter
+#
+# Makefile for icePrograms(d).dll icePrograms.evp libicePrograms.so
+#
+# This Makefile works only with:
+#    - gnu make.exe and unix sh.exe    ( use: idea_make --unix -f Makefile.imk)
+#    - cygwin tools     ( with $SHELLHOME defined)
+#    - MSVStudio6 tools ( with $MSDEVDIR  defined)
+#
+#
+# example call:
+# idea_make --unix -f Makefile.imk clean all
+########################################################################
+
+
+all :: dll dlld evp so
+
+
+#************************************************************************
+# Target naming
+#************************************************************************
+TARGET = IceNIH_RawSend
+
+# another nice alternative
+# TARGET := $(shell basename `pwd`)
+
+
+#************************************************************************
+# add myself to dependency list (if we make changes here, recompile)
+#************************************************************************
+MAKEFILE_CHAIN += Makefile.imk
+
+
+
+#************************************************************************
+# Sources and destinations
+#************************************************************************
+## we can also use the following statement
+## SOURCES := $(wildcard *.cpp)
+##  another valid notation is
+## SOURCES += ../xyz.cpp
+
+SOURCES     = NIH_RawSendConfigurator.cpp NIH_RawSendFunctor.cpp NIH_RawSendObjectMap.cpp
+SOURCE_PATH = $(IDEA_BASE)/n4/pkg/MrServers/MrVista/Ice/IceIdeaFunctors/IceNIH_RawSend
+
+
+#************************************************************************
+# Target specific CPPFLAGS
+#************************************************************************
+CPPFLAGS_LOCAL   += -DICEIDEAFUNCTORS_EXPORTS
+CPPFLAGS_LOCAL  += -DBUILD_$(TARGET)
+
+
+# Target specific include path e.g.
+# INCLPATHS_LOCAL  += -I$(IDEA_BASE)/n4/pkg/ -I$(IDEA_BASE)/something
+
+
+#************************************************************************
+# Libs
+#************************************************************************
+
+# LDLIBS
+LDLIBS += IceAlgos
+LDLIBS += IceBasic
+LDLIBS += IceUtils
+LDLIBS += MrParc
+
+
+# X86 - Only LDLIBS
+LDLIBS_WIN_aa += MrClassDump
+
+
+# XLINUX - Only LDLIBS
+LDLIBS_XLINUX += stlport
+LDLIBS_XLINUX += ace
+
+                          
+
+#************************************************************************
+# INCLUDE General gnumake rules for ice programs
+#************************************************************************
+
+include $(IDEA_BASE)/n4/pkg/MrApplications/MrIDEA/utils/MakeIce.mk
+
+
