@@ -1,0 +1,118 @@
+<XProtocol> 
+{
+  
+  <ParamMap.""> 
+  {
+    
+    <ParamFunctor."NIH_RawSendConfigurator"> 
+    {
+      <Class> "NIH_RawSendConfigurator@IceNIH_RawSend" 
+      <Visible> "true" 
+    }
+  }
+}
+<XProtocol> 
+{
+  
+  <ParamMap.""> 
+  {
+    
+    <ParamFunctor."NIH_RawSendFunctor"> 
+    {
+      <Class> "NIH_RawSendFunctor@IceNIH_RawSend" 
+      <Visible> "true" 
+      
+      <ParamString."Hostname"> 
+      {
+        <Visible> "true" 
+      }
+      
+      <ParamLong."Port"> 
+      {
+        <Visible> "true" 
+      }
+      
+      <ParamBool."BlockData"> 
+      {
+        <Visible> "true" 
+        <LimitRange> { "false" "true" }
+      }
+      
+      <ParamBool."Anonymize"> 
+      {
+        <Visible> "true" 
+        <LimitRange> { "false" "true" }
+      }
+      
+      <ParamString."InsertFunctorAfter"> 
+      {
+        <Visible> "true" 
+      }
+      
+      <ParamLong."MeasUID"> 
+      {
+        <Visible> "true" 
+        -1 
+      }
+      
+      <ParamString."ProtocolName"> 
+      {
+        <Visible> "true" 
+        "_unknown_" 
+      }
+      
+      <ParamString."CopyMDH"> 
+      {
+        <Visible> "true" 
+        "_blank_" 
+      }
+      
+      <ParamBool."CopyMDHFlag"> 
+      {
+        <Visible> "true" 
+        <LimitRange> { "false" "true" }
+        "true" 
+      }
+      
+      <Method."ComputeScan">  { "uint64_t" "class IceAs" "class MdhProxy" "class ScanControl"  }
+      
+      <Event."ScanReady">  { "uint64_t" "class IceAs" "class MdhProxy" "class ScanControl"  }
+      
+      <ParamLong."Threading"> 
+      {
+        <Visible> "true" 
+      }
+      
+      <ParamBool."_Execute"> 
+      {
+        <Visible> "true" 
+        <LimitRange> { "false" "true" }
+        "true" 
+      }
+      
+      <ParamArray."_BypassEvents"> 
+      {
+        <Visible> "true" 
+        <MinSize> 0 
+        <MaxSize> 2147483647 
+        <Default> <ParamString.""> 
+        {
+          <Visible> "true" 
+        }
+        
+      }
+      
+      <ParamArray."_BypassSinks"> 
+      {
+        <Visible> "true" 
+        <MinSize> 0 
+        <MaxSize> 2147483647 
+        <Default> <ParamString.""> 
+        {
+          <Visible> "true" 
+        }
+        
+      }
+    }
+  }
+}
