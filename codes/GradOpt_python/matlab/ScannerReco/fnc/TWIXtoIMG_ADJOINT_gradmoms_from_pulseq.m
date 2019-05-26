@@ -59,7 +59,7 @@ function [G_adj] = get_adjoint_mtx(k)
   sz = sz(1);
   NVox = sz*sz;
 
-  G_adj = zeros(sz,sz,NVox,3,3);
+  G_adj = zeros(sz,sz,NVox,3,3, 'single');
   G_adj(:,:,:,3,3) = 1;
 
   % get ramps
@@ -83,11 +83,12 @@ function [G_adj] = get_adjoint_mtx(k)
   B0_grad_adj_sin = sin(B0_grad);      
 
   % adjoint
-  G_adj(:,:,:,1,1) = B0_grad_adj_cos;
-  G_adj(:,:,:,1,2) = B0_grad_adj_sin;
-  G_adj(:,:,:,2,1) = -B0_grad_adj_sin;
-  G_adj(:,:,:,2,2) = B0_grad_adj_cos;
-
+  G_adj(:,:,:,1,1) = single(B0_grad_adj_cos);
+  G_adj(:,:,:,1,2) = single(B0_grad_adj_sin);
+  G_adj(:,:,:,2,1) = -single(B0_grad_adj_sin);
+  G_adj(:,:,:,2,2) = single(B0_grad_adj_cos);
+ 
+  G_adj = single(G_adj);
   G_adj = permute(G_adj,[3,4,1,2,5]);
 
   G_adj = G_adj(:,1:2,:,:,1:2);

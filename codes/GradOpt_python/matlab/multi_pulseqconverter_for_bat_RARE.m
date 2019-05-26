@@ -48,7 +48,7 @@ idxarray_exported_itersteps = [1:50, 52:2:100, 110:10:niter];
 % idxarray_exported_itersteps = [1:2:100, 100:10:150, 160:20:1140];
 idxarray_exported_itersteps = [1:30 35:5:340 350:50:niter];
 idxarray_exported_itersteps = [1:2:100 110:10:190 205:5:400 450:50:1000];
-idxarray_exported_itersteps = [1:2:60 62:4:110 111:130 132:4:250];
+idxarray_exported_itersteps = [1:2:60 70:20:780];
 
 % idxarray_exported_itersteps = [niter-10:niter];
 

@@ -29,6 +29,7 @@ import core.spins
 import core.scanner
 import core.opt_helper
 import core.target_seq_holder
+import time
 
 use_gpu = 0
 gpu_dev = 0
@@ -62,10 +63,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 30**2                                # number of spin sims in each voxel
+NSpins = 15**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -94,6 +95,8 @@ for i in range(5):
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1 # Tweak dB0
+
+real_phantom_resized = real_phantom_resized[::-1,::-1,:].copy()
  
 spins.set_system(real_phantom_resized)
 # end initialize scanned object
@@ -178,12 +181,13 @@ grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, yblip rewinder
 grad_moms = setdevice(grad_moms)
 
 #     centric ordering
-grad_moms[1,:,1] = 0
-for i in range(1,int(sz[1]/2)+1):
-    grad_moms[1,i*2-1,1] = (-i)
-    if i < sz[1]/2:
-        grad_moms[1,i*2,1] = i
-grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
+if True:
+    grad_moms[1,:,1] = 0
+    for i in range(1,int(sz[1]/2)+1):
+        grad_moms[1,i*2-1,1] = (-i)
+        if i < sz[1]/2:
+            grad_moms[1,i*2,1] = i
+    grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 
 # end sequence 
 
@@ -223,16 +227,19 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         scanner.send_job_to_real_system(experiment_id)
         scanner.get_signal_from_real_system(experiment_id)
         
-        plt.subplot(121)
+        plt.subplot(131)
         scanner.adjoint()
         plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement IFFT")
-        plt.subplot(122)
-        scanner.reco = scanner.do_ifft_reco()
+        plt.title("real ADJOINT")
+        plt.subplot(132)
+        scanner.do_ifft_reco()
         plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement ADJOINT")    
+        plt.title("real IFFT")    
+        plt.subplot(133)
+        plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
+        plt.title("simulation ADJOINT")           
                     
-#    stop()
+    stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    

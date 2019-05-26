@@ -24,7 +24,7 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     
     # save pulseq definition
     MAXSLEW = 140
-    FOV = 220
+    FOV = 0.220
     slice_thickness = 5e-3     # slice
     
     deltak = 1.0 / FOV
@@ -43,13 +43,15 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
             use = "excitation"
             
             # alternatively slice selective:
-            kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 0.6*1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
+            kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
             rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
             
             seq.add_block(rf, gz)
             seq.add_block(gzr)
             
-        seq.add_block(make_delay(event_time_numpy[idx_T,rep]))
+            RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
+            
+        seq.add_block(make_delay(0.002-RFdur))
         
         ###############################
         ###              secoond action
@@ -114,7 +116,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     
     # save pulseq definition
     MAXSLEW = 140
-    FOV = 220
+    FOV = 0.220
     slice_thickness = 200e-3     # slice
     
     deltak = 1.0 / FOV
@@ -219,7 +221,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     
     # save pulseq definition
     MAXSLEW = 140
-    FOV = 220
+    FOV = 0.220
     
     deltak = 1.0 / FOV
     grad_moms_numpy *= deltak  # adjust for FOV
@@ -256,7 +258,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
             seq.add_block(rf, gz)
             seq.add_block(gzr)            
             
-            RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time;
+            RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
                 
         
         seq.add_block(make_delay(0.002-RFdur))
@@ -331,6 +333,7 @@ def append_header(seq_fn, FOV,slice_thickness):
     updated_lines = []
     updated_lines.append("# Pulseq sequence file\n")
     updated_lines.append("# Created by MRIzero/IMR/GPI pulseq converter\n")
+    updated_lines.append('#' + seq_fn + "\n")
     updated_lines.append("\n")
     updated_lines.append("[VERSION]\n")
     updated_lines.append("major 1\n")
@@ -338,7 +341,7 @@ def append_header(seq_fn, FOV,slice_thickness):
     updated_lines.append("revision 1\n")  
     updated_lines.append("\n")    
     updated_lines.append("[DEFINITIONS]\n")
-    updated_lines.append("FOV "+str(round(FOV))+" "+str(round(FOV))+" "+str(round(slice_thickness*1e3))+" \n")   
+    updated_lines.append("FOV "+str(round(FOV*1e3))+" "+str(round(FOV*1e3))+" "+str(round(slice_thickness*1e3))+" \n")   
     updated_lines.append("\n")    
     
     updated_lines.extend(lines[3:])

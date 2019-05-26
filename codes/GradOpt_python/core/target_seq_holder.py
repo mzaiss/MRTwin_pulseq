@@ -129,6 +129,9 @@ class TargetSequenceHolder():
             
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id):
+
+        basepath = self.get_base_path(experiment_id)        
+        
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
         scanner_dict['B1'] = tonumpy(self.scanner.B1)
@@ -140,20 +143,29 @@ class TargetSequenceHolder():
         scanner_dict['sz'] = self.scanner.sz
         #scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
         scanner_dict['signal'] = tonumpy(self.scanner.signal)
-
-        path=os.path.join('./out/',experiment_id)
+        
+        fn_target_array = "scanner_dict_tgt.mat"
+        
         try:
-            os.mkdir(path)
+            os.makedirs(basepath)
+            os.makedirs(os.path.join(basepath,"data"))
         except:
-            print('export_to_matlab: directory already exists')
-        scipy.io.savemat(os.path.join(path,"scanner_dict_tgt.mat"), scanner_dict)
+            pass
+        scipy.io.savemat(os.path.join(basepath,fn_target_array), scanner_dict)
+
+        #path=os.path.join('./out/',experiment_id)
+        #try:
+        #    os.mkdir(path)
+        #except:
+        #    print('export_to_matlab: directory already exists')
+        
         
     def get_base_path(self, experiment_id):
         if platform == 'linux':
             #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
             basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
         else:
-            basepath = '???'
+            basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
         today_datestr = time.strftime('%y%m%d')
         basepath = os.path.join(basepath, "seq" + today_datestr)

@@ -6,8 +6,8 @@ import sys
 from sys import platform
 import scipy
 
-sys.path.append("../scannerloop_libs/twixreader")
-import twixreader as tr # twixreader install: conda install pyyaml; conda install -c certik antlr4-python3-runtime
+#sys.path.append("../scannerloop_libs/twixreader")
+#import twixreader as tr # twixreader install: conda install pyyaml; conda install -c certik antlr4-python3-runtime
 
 
 
@@ -1799,7 +1799,7 @@ class Scanner():
             #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
             basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
         else:
-            basepath = '???'
+            basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
         today_datestr = time.strftime('%y%m%d')
         basepath_seq = os.path.join(basepath, "seq" + today_datestr)
@@ -1810,6 +1810,8 @@ class Scanner():
     # interaction with real system
     def send_job_to_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target"):
         basepath, basepath_seq = self.get_base_path(experiment_id)
+        
+        basepath = 'K:\CEST_seq\pulseq_zero\control'
         
         if basepath_seq_override is not None:
             basepath_seq = basepath_seq_override
@@ -1840,9 +1842,16 @@ class Scanner():
             class ExecutionControl(Exception): pass
             raise ExecutionControl("control file is corrupt")
             
+        today_datestr = time.strftime('%y%m%d')
+        basepath_seq = os.path.join(basepath, "seq" + today_datestr)
+        basepath_seq = os.path.join(basepath_seq, experiment_id)            
+            
+        basepath_out = "//mrz3t//upload//CEST_seq//pulseq_zero//sequences//" + "seq" + today_datestr + "//" + experiment_id
+            
         # add sequence file
         if control_lines[-1] == 'wait':
-            control_lines[-1] = os.path.join(basepath_seq, fn_pulseq)
+            #control_lines[-1] = os.path.join(basepath_out, fn_pulseq)
+            control_lines[-1] = basepath_out + "//" + fn_pulseq
             control_lines.append('wait')
             
         control_lines = [l+"\n" for l in control_lines]
@@ -1866,24 +1875,46 @@ class Scanner():
         # go into the infinite loop, checking if twix file is saved
         done_flag = False
         while not done_flag:
-            time.sleep(0.5)
-            if os.path.isfile(os.path.join(basepath_seq, "data", fn_twix)):
+            fn_twix = "target.seq.dat"
+            #fnpath = os.path.isfile(os.path.join(basepath_seq, "data", fn_twix))
+            fnpath = os.path.isfile(os.path.join(basepath_seq, fn_twix))
+            
+            if fnpath:
                 # read twix file
                 print("TWIX file arrived. Reading....")
-                twixobj = tr.read_twix(os.path.join(basepath_seq, "data", fn_twix))
-                meas = twixobj.read_measurement(1, parse_buffers = False)
-                buf = meas.get_meas_buffer(0)
-                raw = np.array(buf)
+                
+                raw_file = os.path.join(basepath_seq, fn_twix)
+                ncoils = 2
+                
+                a = np.loadtxt(raw_file)
+                szsqr = np.int(np.sqrt(a.shape[0]/2))
+                a = a.reshape([szsqr,ncoils,szsqr,2])
+                
+                #a = a[:,0,:,:]
+                a = a[:,:,:,0] + 1j*a[:,:,:,1]
+                raw = a
+                
+                #twixobj = tr.read_twix(os.path.join(basepath_seq, "data", fn_twix))
+                #meas = twixobj.read_measurement(1, parse_buffers = False)
+                #buf = meas.get_meas_buffer(0)
+                #raw = np.array(buf)
                 
                 # inject into simulated scanner signal variable
                 adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
+                
+                raw = raw.transpose([2,1,0])
+                #raw = np.flip(raw,axis=0)
+                #raw = np.flip(raw,axis=2)
+                raw = np.copy(raw)
                 
                 # assume for now a single coil
                 coil_idx = 0
                 self.signal[0,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))
                 self.signal[0,adc_idx,:,1,0] = self.setdevice(torch.from_numpy(np.imag(raw[:,coil_idx,:])))
                 
-                done_flag = True            
+                done_flag = True   
+                
+                time.sleep(0.5)
                 
         
        
