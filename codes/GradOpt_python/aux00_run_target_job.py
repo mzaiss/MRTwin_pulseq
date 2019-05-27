@@ -5,16 +5,6 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't01_tgtGRESP_tsk_GRESP_no_grad_noflip_kspaceloss_new'
-sequence_class = "GRE"
-experiment_description = """
-tgt FLASHspoiled_relax20ms, with spoilers and random phase cycling
-task find all grads except read ADC grads
-opt: SARloss, kloss, 
-
-this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
-and high initial learning rate
-"""
 
 import os, sys
 import numpy as np
@@ -60,11 +50,13 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
     
-input_path = "/is/ei/aloktyus/Desktop/pulseq_mat_py/seq190521"
-experiment_id = "e08_GRE_python_scanner_loop"
+input_path = "/is/ei/aloktyus/Desktop/pulseq_mat_py/seq190527"
+input_path = 'K:\CEST_seq\pulseq_zero\sequences\seq190527'
+
+experiment_id = "t04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep_FA45_phaseincr5"
 fullpath_seq = os.path.join(input_path, experiment_id)
 
-use_target = True
+use_target = False
     
 if use_target:
     input_array = np.load(os.path.join(fullpath_seq, "target_arr.npy"))
@@ -92,6 +84,7 @@ scanner.B1 = setdevice(torch.from_numpy(input_array['B1']))
 scanner.signal = setdevice(torch.from_numpy(input_array['signal']))
 scanner.reco = setdevice(torch.from_numpy(input_array['reco']).reshape([NVox,2]))
 scanner.kspace_loc = setdevice(torch.from_numpy(input_array['kloc']))
+sequence_class = input_array['sequence_class']
 
 flips = setdevice(torch.from_numpy(input_array['flips']))
 event_time = setdevice(torch.from_numpy(input_array['event_times']))

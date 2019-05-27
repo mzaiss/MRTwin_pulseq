@@ -539,20 +539,24 @@ class OPT_helper():
         scanner_dict['sz'] = self.scanner.sz
         #scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
         scanner_dict['signal'] = tonumpy(self.scanner.signal)
-
-        path=os.path.join('./out/',experiment_id)
+        
+        basepath = self.get_base_path(experiment_id)
+        
         try:
-            os.mkdir(path)
+            os.makedirs(basepath)
+            os.makedirs(os.path.join(basepath,"data"))
         except:
             print('export_to_matlab: directory already exists')
-        scipy.io.savemat(os.path.join(path,"scanner_dict.mat"), scanner_dict)
+            pass        
+            
+        scipy.io.savemat(os.path.join(basepath,"scanner_dict.mat"), scanner_dict)
         
     def get_base_path(self, experiment_id):
         if platform == 'linux':
-            #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
-            basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
+            basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+            #basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
         else:
-            basepath = '???'
+            basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
         today_datestr = time.strftime('%y%m%d')
         basepath = os.path.join(basepath, "seq" + today_datestr)
@@ -598,6 +602,7 @@ class OPT_helper():
         lastiter_array['ROI'] = tonumpy(self.scanner.ROI_signal)
         lastiter_array['sz'] = self.scanner.sz
         lastiter_array['signal'] = tonumpy(self.scanner.signal)
+        lastiter_array['sequence_class'] = sequence_class
         
         try:
             os.makedirs(basepath)
@@ -665,6 +670,7 @@ class OPT_helper():
         alliter_dict['T'] = T
         alliter_dict['NRep'] = NRep
         alliter_dict['target'] = self.target
+        alliter_dict['sequence_class'] = sequence_class
         
         try:
             os.makedirs(basepath)
@@ -696,11 +702,13 @@ class OPT_helper():
         
     # save entire history of the optimized parameters (to Matlab)
     def save_param_reco_history_matlab(self, experiment_id):
-        path=os.path.join('./out/',experiment_id)
+        basepath = self.get_base_path(experiment_id)
         try:
-            os.mkdir(path)
+            os.makedirs(basepath)
+            os.makedirs(os.path.join(basepath,"data"))
         except:
             print('save_param_reco_history: directory already exists')
+            pass
             
         param_reco_history = self.param_reco_history
         
@@ -710,7 +718,7 @@ class OPT_helper():
         aux_info['T'] = self.scanner.T
         aux_info['target'] = self.target
         aux_info['ROI_def'] = self.scanner.ROI_def
-        fpath=path+'/param_reco_history.pdb'
+        fpath=basepath+'/param_reco_history.pdb'
 #        fpath=os.path.join(path,"param_reco_history.pdb")
         f = open(fpath, "wb")
         pickle.dump((param_reco_history, aux_info), f)
@@ -756,7 +764,7 @@ class OPT_helper():
         scanner_dict['NRep'] = NRep
         scanner_dict['target'] = self.target
         
-        scipy.io.savemat(os.path.join(path,"all_iter.mat"), scanner_dict)
+        scipy.io.savemat(os.path.join(basepath,"all_iter.mat"), scanner_dict)
                                    
 
     

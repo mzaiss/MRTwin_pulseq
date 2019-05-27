@@ -90,8 +90,6 @@ real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 
-real_phantom_resized = real_phantom_resized[::-1,::-1,:].copy()
- 
 spins.set_system(real_phantom_resized)
 # end initialize scanned object
 
@@ -128,7 +126,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
 # begin sequence definition
@@ -204,8 +202,9 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 #############################################################################
 ## Forward process ::: ######################################################
     
+
 # forward/adjoint pass
-scanner.forward_sparse_fast(spins, event_time)
+scanner.forward_fast_supermem(spins, event_time)
 scanner.adjoint()
 
 # try to fit this

@@ -32,7 +32,7 @@ double_precision = False
 use_supermem = False
 do_scanner_query = False
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 # NRMSE error function
@@ -63,10 +63,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([128,128])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 1**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
@@ -141,10 +141,11 @@ event_time[0,:] = 1*1e-3
 event_time[0,1:] = 0.01*1e-3
 event_time[-1,:] = 0.01*1e-3
 event_time[1,:] = 1*1e-3
-event_time[0,0] = (sz[0]/2)*0.1e-4 + (1e-3)
+event_time[0,0] = (sz[0]/2)*0.1e-4 + (2e-3)
 #event_time[1:,0,0] = 0.2*1e-3
 event_time[-2,:] = 0.98*1e-3
 event_time = setdevice(event_time)
+
 TE2_90   = torch.sum(event_time[0,0])  # time after 90 until 180
 TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1]) # time after 180 til center k-space
 TE2_180_2= torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1] # time after center k-space til next 180
@@ -177,12 +178,9 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-if use_supermem:
-    scanner.forward_fast_supermem(spins, event_time)
-    scanner.adjoint_supermem(spins)
-else:
-    scanner.forward_fast(spins, event_time)
-    scanner.adjoint()
+#scanner.forward_fast_supermem(spins, event_time)
+scanner.init_signal()
+scanner.adjoint()
 
 
 # try to fit this
@@ -203,21 +201,24 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-    #targetSeq.export_to_matlab(experiment_id)
+    targetSeq.export_to_matlab(experiment_id)
     
     if do_scanner_query:
         targetSeq.export_to_pulseq(experiment_id,sequence_class)
         scanner.send_job_to_real_system(experiment_id)
         scanner.get_signal_from_real_system(experiment_id)
         
-        plt.subplot(121)
+        plt.subplot(131)
         scanner.adjoint()
         plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement IFFT")
-        plt.subplot(122)
-        scanner.reco = scanner.do_ifft_reco()
+        plt.title("real ADJOINT")
+        plt.subplot(132)
+        scanner.do_ifft_reco()
         plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement ADJOINT")    
+        plt.title("real IFFT")    
+        plt.subplot(133)
+        plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
+        plt.title("simulation ADJOINT")   
                     
     stop()
         

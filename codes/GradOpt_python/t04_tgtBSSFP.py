@@ -57,7 +57,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([32,32])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -143,7 +143,7 @@ flips[0,:,0] = 45*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 deg
 
 # randomize RF phases
 #flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
-flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*1.0,1.0),360)*np.pi/180)  # 180 phace cycling for bSSFP
+flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*180,180),360)*np.pi/180)  # 180 phace cycling for bSSFP
 flips[0,0,0] = flips[0,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
 
 
@@ -232,18 +232,25 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     if do_scanner_query:
         targetSeq.export_to_pulseq(experiment_id,sequence_class)
         scanner.send_job_to_real_system(experiment_id)
+
+        import time
+        time.sleep(1)
+
         scanner.get_signal_from_real_system(experiment_id)
         
-        plt.subplot(121)
+        plt.subplot(131)
         scanner.adjoint()
         plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement IFFT")
-        plt.subplot(122)
-        scanner.reco = scanner.do_ifft_reco()
+        plt.title("real ADJOINT")
+        plt.subplot(132)
+        scanner.do_ifft_reco()
         plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement ADJOINT")    
+        plt.title("real IFFT")    
+        plt.subplot(133)
+        plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
+        plt.title("simulation ADJOINT")    
                     
-#    stop()
+    stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -352,7 +359,7 @@ opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
 
-opt.train_model(training_iter=1, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
@@ -366,5 +373,7 @@ stop()
 
 new_exp_id=experiment_id+'_FA45_phaseincr5';
 targetSeq.export_to_matlab(new_exp_id)
-opt.save_param_reco_history(new_exp_id)
+targetSeq.export_to_pulseq(new_exp_id, sequence_class)
+opt.save_param_reco_history(new_exp_id, sequence_class)
+opt.save_param_reco_history_matlab(new_exp_id)
 opt.export_to_matlab(new_exp_id)

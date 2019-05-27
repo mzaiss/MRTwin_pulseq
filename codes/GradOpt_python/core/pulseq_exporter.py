@@ -138,9 +138,9 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
             # alternatively slice selective:
             RFdur = 1*1e-3
             kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
-            rf = make_block_pulse(kwargs_for_block, 1)
+            rf_ex = make_block_pulse(kwargs_for_block, 1)
             
-            seq.add_block(rf)     
+            seq.add_block(rf_ex)     
             
             kwargs_for_gxPre90 = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0], "duration": event_time_numpy[idx_T,rep]-RFdur}
             gxPre90 = make_trapezoid(kwargs_for_gxPre90) 
@@ -178,7 +178,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,0],0), "flat_time": dur}
         gx = make_trapezoid(kwargs_for_gx)   
         
-        kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time, "phase_offset": rf.phase_offset}
+        kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time, "phase_offset": rf_ex.phase_offset}
         adc = makeadc(kwargs_for_adc)    
         
         #update rewinder for gxgy ramp times, from second event

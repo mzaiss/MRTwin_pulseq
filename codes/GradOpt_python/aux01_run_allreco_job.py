@@ -61,12 +61,10 @@ def stop():
     sys.tracebacklimit = 1000
     
 input_path = "/is/ei/aloktyus/Desktop/pulseq_mat_py/seq190521"
-experiment_id = "e08_GRE_python_scanner_loop"
+input_path = 'K:\CEST_seq\pulseq_zero\sequences\seq190527'
+
+experiment_id = "t04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep_FA45_phaseincr5"
 fullpath_seq = os.path.join(input_path, experiment_id)
-
-
-
-hgfhgfhgf
 
 
 use_target = True

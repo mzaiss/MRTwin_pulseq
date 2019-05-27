@@ -130,7 +130,7 @@ class TargetSequenceHolder():
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id):
 
-        basepath = self.get_base_path(experiment_id)        
+        basepath = self.get_base_path(experiment_id)
         
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)

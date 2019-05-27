@@ -96,8 +96,6 @@ real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 
-real_phantom_resized = real_phantom_resized[::-1,::-1,:].copy()
- 
 spins.set_system(real_phantom_resized)
 # end initialize scanned object
 
