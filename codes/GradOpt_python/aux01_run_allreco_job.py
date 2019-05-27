@@ -40,6 +40,7 @@ def magimg_torch(x):
 
 # device setter
 def setdevice(x):
+    x = x.float()
     if use_gpu:
         x = x.cuda(gpu_dev)    
     return x
@@ -72,126 +73,159 @@ NSpins = 2**2
 NCoils = alliter_array['all_signals'].shape[1]
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
+jobtype = "iter"
 
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
-scanner.adc_mask = setdevice(torch.from_numpy(alliter_array['all_adc_masks'][0]))
 scanner.B1 = setdevice(torch.from_numpy(alliter_array['B1']))
-#scanner.signal = setdevice(torch.from_numpy(alliter_array['signal']))
-#scanner.reco = setdevice(torch.from_numpy(alliter_array['reco']).reshape([NVox,2]))
-#scanner.kspace_loc = setdevice(torch.from_numpy(alliter_array['kloc']))
 sequence_class = alliter_array['sequence_class']
 
 nmb_iter = alliter_array['all_signals'].shape[0]
 
+all_sim_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_sim_reco_generalized_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_sim_reco_ifft = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_sim_reco_nufft = np.zeros([nmb_iter,sz[0],sz[1],2])
 
+all_sim_kspace = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_real_kspace = np.zeros([nmb_iter,sz[0],sz[1],2])
 
+all_real_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_real_reco_generalized_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_real_reco_ifft = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_real_reco_nufft = np.zeros([nmb_iter,sz[0],sz[1],2])
 
-flips = setdevice(torch.from_numpy(alliter_array['flips']))
-event_time = setdevice(torch.from_numpy(alliter_array['event_times']))
-grad_moms = setdevice(torch.from_numpy(alliter_array['grad_moms']))
+for c_iter in range(nmb_iter):
+    
+    print("Processing the iteration {} ...".format(c_iter))
+    
+    scanner.adc_mask = setdevice(torch.from_numpy(alliter_array['all_adc_masks'][c_iter]))
+    scanner.signal = setdevice(torch.from_numpy(alliter_array['all_signals'][c_iter])).unsqueeze(4)
+    scanner.reco = setdevice(torch.from_numpy(alliter_array['reco_images'][c_iter]).reshape([NVox,2]))
+    scanner.kspace_loc = setdevice(torch.from_numpy(alliter_array['all_kloc'][c_iter]))
+    
+    flips = setdevice(torch.from_numpy(alliter_array['flips'][c_iter]))
+    event_time = setdevice(torch.from_numpy(alliter_array['event_times'][c_iter]))
+    grad_moms = setdevice(torch.from_numpy(alliter_array['grad_moms'][c_iter]))
+    
+    scanner.init_flip_tensor_holder()
+    scanner.set_flipXY_tensor(flips)
+    
+    # rotate ADC according to excitation phase
+    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
+    
+    TR=torch.sum(event_time[:,1])
+    TE=torch.sum(event_time[:11,1])
+    
+    scanner.init_gradient_tensor_holder()
+    scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+    
+    ###############################################################################
+    ######### SIMULATION
+    
+    # simulation adjoint
+    scanner.adjoint()
+    sim_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_sim_reco_adjoint[c_iter] = sim_reco_adjoint
+    
+    # simulation generalized adjoint
+    scanner.generalized_adjoint()
+    sim_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_sim_reco_generalized_adjoint[c_iter] = sim_reco_generalized_adjoint
+    
+    # simulation IFFT
+    scanner.do_ifft_reco()
+    sim_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_sim_reco_ifft[c_iter] = sim_reco_ifft
+    
+    # simulation NUFFT
+    scanner.do_nufft_reco()
+    sim_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_sim_reco_nufft[c_iter] = sim_reco_nufft
+    
+    coil_idx = 0
+    adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
+    sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
+    sim_kspace = tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2])
+    all_sim_kspace[c_iter] = sim_kspace
+    
+    # send to scanner
+    iterfile = "iter" + str(c_iter).zfill(6) + ".seq"
+    
+    scanner.send_job_to_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+    scanner.get_signal_from_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+    
+    real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
+    real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
+    all_real_kspace[c_iter] = real_kspace
+    
+    # real adjoint
+    scanner.adjoint()
+    real_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_real_reco_adjoint[c_iter] = real_reco_adjoint
+    
+    # real generalized adjoint
+    scanner.generalized_adjoint()
+    real_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_real_reco_generalized_adjoint[c_iter] = real_reco_generalized_adjoint
+    
+    # real IFFT
+    scanner.do_ifft_reco()
+    real_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_real_reco_ifft[c_iter] = real_reco_ifft
+    
+    # real NUFFT
+    scanner.do_nufft_reco()
+    real_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_real_reco_nufft[c_iter] = real_reco_nufft
+    
+    
+draw_iter = 5
 
-scanner.init_flip_tensor_holder()
-scanner.set_flipXY_tensor(flips)
-
-# rotate ADC according to excitation phase
-scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
-
-TR=torch.sum(event_time[:,1])
-TE=torch.sum(event_time[:11,1])
-
-scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
-
-###############################################################################
-######### SIMULATION
-
-# simulation adjoint
-scanner.adjoint()
-sim_reco_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
-
-# simulation generalized adjoint
-scanner.generalized_adjoint()
-sim_reco_generalized_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
-
-# simulation IFFT
-scanner.do_ifft_reco()
-sim_reco_ifft = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
-
-# simulation NUFFT
-scanner.do_nufft_reco()
-sim_reco_nufft = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
+# Visualize simulated images
 
 plt.subplot(221)
-plt.imshow(sim_reco_adjoint, interpolation='none')
+plt.imshow(magimg(all_sim_reco_adjoint[draw_iter]), interpolation='none')
 plt.title("sim ADJOINT")
 plt.subplot(222)
-plt.imshow(sim_reco_generalized_adjoint, interpolation='none')
+plt.imshow(magimg(all_sim_reco_generalized_adjoint[draw_iter]), interpolation='none')
 plt.title("sim GENERALIZED ADJOINT") 
 plt.subplot(223)
-plt.imshow(sim_reco_ifft, interpolation='none')
+plt.imshow(magimg(all_sim_reco_ifft[draw_iter]), interpolation='none')
 plt.title("sim IFFT")
 plt.subplot(224)
-plt.imshow(sim_reco_nufft, interpolation='none')
+plt.imshow(magimg(all_sim_reco_nufft[draw_iter]), interpolation='none')
 plt.title("sim NUFFT") 
 
 plt.ion()
 plt.show()
 
-coil_idx = 0
-adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
-sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
-sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2]))
-
-###############################################################################
-######### REAL
-
-# send to scanner
-scanner.send_job_to_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype)
-scanner.get_signal_from_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype)
-
-real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
-real_kspace = magimg(tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2]))
+# Visualize kspace
 
 plt.subplot(121)
-plt.imshow(sim_kspace, interpolation='none')
+plt.imshow(magimg(all_sim_kspace[draw_iter]), interpolation='none')
 plt.title("sim kspace pwr")
 plt.subplot(122)
-plt.imshow(real_kspace, interpolation='none')
+plt.imshow(magimg(all_real_kspace[draw_iter]), interpolation='none')
 plt.title("real kspace pwr") 
 
 plt.ion()
 plt.show()
 
-    
-# real adjoint
-scanner.adjoint()
-real_reco_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
-
-# real generalized adjoint
-scanner.generalized_adjoint()
-real_reco_generalized_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
-
-# real IFFT
-scanner.do_ifft_reco()
-real_reco_ifft = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
-
-# real NUFFT
-scanner.do_nufft_reco()
-real_reco_nufft = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
+# Visualize measured images
 
 plt.subplot(221)
-plt.imshow(real_reco_adjoint, interpolation='none')
+plt.imshow(magimg(all_real_reco_adjoint[draw_iter]), interpolation='none')
 plt.title("real ADJOINT")
 plt.subplot(222)
-plt.imshow(real_reco_generalized_adjoint, interpolation='none')
+plt.imshow(magimg(all_real_reco_generalized_adjoint[draw_iter]), interpolation='none')
 plt.title("real GENERALIZED ADJOINT") 
 plt.subplot(223)
-plt.imshow(real_reco_ifft, interpolation='none')
+plt.imshow(magimg(all_real_reco_ifft[draw_iter]), interpolation='none')
 plt.title("real IFFT")
 plt.subplot(224)
-plt.imshow(real_reco_nufft, interpolation='none')
+plt.imshow(magimg(all_real_reco_nufft[draw_iter]), interpolation='none')
 plt.title("real NUFFT") 
 
 plt.ion()
