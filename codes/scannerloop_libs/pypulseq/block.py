@@ -63,6 +63,7 @@ def add_block(self, block_index, *args):
             shape_id, found = self.shape_library.find(data)
             if not found:
                 self.shape_library.insert(shape_id, data, None)
+            
             data = np.array([amplitude, shape_id, event.delay])
             index, found = self.grad_library.find(data)
             if not found:

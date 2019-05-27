@@ -19,7 +19,8 @@ def compress_shape(decompressed_shape):
     """
 
     if decompressed_shape.shape[0] != 1:
-        raise ValueError("input should be of shape (1,x)")
+        decompressed_shape = decompressed_shape.reshape([1,decompressed_shape.shape[0]])
+        #raise ValueError("input should be of shape (1,x)")
     if not isinstance(decompressed_shape, np.ndarray):
         raise TypeError("input should be of type numpy.ndarray")
 

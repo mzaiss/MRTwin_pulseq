@@ -50,17 +50,23 @@ def make_trapezoid(kwargs):
             if rise_time == 0:
                 dC = 1 / abs(2 * max_slew) + 1 / abs(2 * max_slew)
                 amplitude = (duration - sqrt(pow(duration, 2) - 4 * abs(area_result) * dC)) / (2 * dC)
+                possible = duration**2 > 4*abs(area_result)*dC
             else:
                 amplitude = area_result / (duration - rise_time)
+                possible = duration>2*rise_time and abs(amplitude)<max_grad;
+                
+            if not possible:
+                raise ValueError('Requested area is too large for this gradient.')
 
         if rise_time == 0:
             rise_time = ceil(
-                amplitude / max_slew / system.grad_raster_time) * system.grad_raster_time
+                abs(amplitude) / max_slew / system.grad_raster_time) * system.grad_raster_time
 
         fall_time = rise_time
         flat_time = (duration - rise_time - fall_time)
 
         amplitude = area_result / (rise_time / 2 + fall_time / 2 + flat_time) if amplitude_result == -1 else amplitude
+
     else:
         if area_result == -1:
             raise ValueError("makeTrapezoid:invalidArguments','Must supply area at least")
@@ -155,7 +161,23 @@ def make_trapezoid(kwargs):
 #
 #        amplitude = area_result / (rise_time / 2 + fall_time / 2 + flat_time) if amplitude_result == -1 else amplitude
 #    else:
-#        raise ValueError('Must supply a duration')
+#        if area_result == -1:
+#            raise ValueError("makeTrapezoid:invalidArguments','Must supply area at least")
+#        else:
+#            #
+#            # find the shortest possible duration
+#            # first check if the area can be realized as a triangle
+#            # if not we calculate a trapezoid
+#            rise_time=ceil(sqrt(abs(area_result)/max_slew)/system.grad_raster_time)*system.grad_raster_time
+#            amplitude=area_result/rise_time
+#            tEff=rise_time
+#            if abs(amplitude)>max_grad:
+#                tEff=ceil((abs(area_result)/max_grad)/system.grad_raster_time)*system.grad_raster_time
+#                amplitude=area_result/tEff
+#                rise_time=ceil((abs(amplitude)/max_slew)/system.grad_raster_time)*system.grad_raster_time
+#                
+#            flat_time=tEff-rise_time
+#            fall_time=rise_time        
 #
 #    if abs(amplitude) > max_grad:
 #        raise ValueError("Amplitude violation")
@@ -171,4 +193,4 @@ def make_trapezoid(kwargs):
 #    grad.flat_area = amplitude * flat_time
 #    grad.delay = delay
 #
-#    return grad
+#    return grad    

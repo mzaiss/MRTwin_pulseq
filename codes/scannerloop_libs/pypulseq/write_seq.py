@@ -113,7 +113,7 @@ def write(self, file_name):
             #s = s.format(1020)
             output_file.write(s)
             s = '{:g}\n'
-            for x in shape_data[0][4:]:
+            for x in shape_data[0][1:]:
                 s1 = s.format(x)
                 output_file.write(s1)
             output_file.write('\n')
