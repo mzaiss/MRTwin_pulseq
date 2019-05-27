@@ -108,10 +108,9 @@ def write(self, file_name):
             s = s.format(k)
             output_file.write(s)
             s = 'num_samples {:>g}\n'
-            #s = s.format(shape_data[0][0])
+            s = s.format(shape_data[0][0])
             # TODO -- HARD SETTING num_samples!!!!
-            
-            s = s.format(1020)
+            #s = s.format(1020)
             output_file.write(s)
             s = '{:g}\n'
             for x in shape_data[0][4:]:

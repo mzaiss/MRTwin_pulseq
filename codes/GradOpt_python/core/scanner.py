@@ -1796,8 +1796,8 @@ class Scanner():
 
     def get_base_path(self, experiment_id):
         if platform == 'linux':
-            #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
-            basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
+            basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+            #basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
@@ -1808,7 +1808,7 @@ class Scanner():
         return basepath, basepath_seq
 
     # interaction with real system
-    def send_job_to_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target"):
+    def send_job_to_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target", iterfile=None):
         basepath, basepath_seq = self.get_base_path(experiment_id)
         
         basepath = 'K:\CEST_seq\pulseq_zero\control'
@@ -1818,8 +1818,17 @@ class Scanner():
         
         if jobtype == "target":
             fn_pulseq = "target.seq"
+            fn_twix = "target.dat"
         elif jobtype == "lastiter":
             fn_pulseq = "lastiter.seq"
+            fn_twix = "lastiter.dat"
+        elif jobtype == "iter":
+            fn_pulseq = iterfile + ".seq"
+            fn_twix = iterfile + ".dat"
+            
+        #if os.path.isfile(os.path.join(basepath_seq, "data", fn_twix)):
+        #    print('TWIX file already exists. Not sending job to scanner... ' + fn_twix)
+        #    return            
         
         control_filename = "control.txt"
         position_filename = "position.txt"
@@ -1859,7 +1868,7 @@ class Scanner():
         with open(os.path.join(basepath,control_filename),"w") as f:
             f.writelines(control_lines)
             
-    def get_signal_from_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target"):
+    def get_signal_from_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target", iterfile=None):
         _, basepath_seq = self.get_base_path(experiment_id)
         
         if basepath_seq_override is not None:
@@ -1870,7 +1879,11 @@ class Scanner():
         if jobtype == "target":
             fn_twix = "target.dat"
         elif jobtype == "lastiter":
-            fn_twix = "lastiter.dat"        
+            fn_twix = "lastiter.dat"   
+        elif jobtype == "iter":
+            fn_twix = iterfile + ".dat"   
+            
+        print('waiting for TWIX file from the scanner... ' + fn_twix)
         
         # go into the infinite loop, checking if twix file is saved
         done_flag = False
@@ -1879,6 +1892,8 @@ class Scanner():
             #fnpath = os.path.isfile(os.path.join(basepath_seq, "data", fn_twix))
             fnpath = os.path.isfile(os.path.join(basepath_seq, fn_twix))
             
+            time.sleep(0.5)
+            
             if fnpath:
                 # read twix file
                 print("TWIX file arrived. Reading....")
@@ -1886,25 +1901,16 @@ class Scanner():
                 raw_file = os.path.join(basepath_seq, fn_twix)
                 ncoils = 2
                 
-                a = np.loadtxt(raw_file)
-                szsqr = np.int(np.sqrt(a.shape[0]/2))
-                a = a.reshape([szsqr,ncoils,szsqr,2])
+                raw = np.loadtxt(raw_file)
+                szsqr = np.int(np.sqrt(raw.shape[0]/2))
+                raw = raw.reshape([szsqr,ncoils,szsqr,2])
                 
-                #a = a[:,0,:,:]
-                a = a[:,:,:,0] + 1j*a[:,:,:,1]
-                raw = a
-                
-                #twixobj = tr.read_twix(os.path.join(basepath_seq, "data", fn_twix))
-                #meas = twixobj.read_measurement(1, parse_buffers = False)
-                #buf = meas.get_meas_buffer(0)
-                #raw = np.array(buf)
+                raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
                 
                 # inject into simulated scanner signal variable
                 adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
                 
                 raw = raw.transpose([2,1,0])
-                #raw = np.flip(raw,axis=0)
-                #raw = np.flip(raw,axis=2)
                 raw = np.copy(raw)
                 
                 # assume for now a single coil

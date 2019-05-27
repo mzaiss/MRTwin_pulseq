@@ -162,8 +162,8 @@ class TargetSequenceHolder():
         
     def get_base_path(self, experiment_id):
         if platform == 'linux':
-            #basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
-            basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
+            basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+            #basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
@@ -181,12 +181,12 @@ class TargetSequenceHolder():
         fn_pulseq = "target.seq"
         
         # overwrite protection (gets trigger if pulseq file already exists)
-        if os.path.isfile(os.path.join(basepath, fn_pulseq)):
-            try:
-                copyfile(os.path.join(basepath, fn_pulseq), os.path.join(basepath, fn_pulseq + ".bak." + today_datetimestr))    
-                copyfile(os.path.join(basepath, fn_target_array), os.path.join(basepath, fn_target_array + ".bak." + today_datetimestr))    
-            except:
-                pass
+#        if os.path.isfile(os.path.join(basepath, fn_pulseq)):
+#            try:
+#                copyfile(os.path.join(basepath, fn_pulseq), os.path.join(basepath, fn_pulseq + ".bak." + today_datetimestr))    
+#                copyfile(os.path.join(basepath, fn_target_array), os.path.join(basepath, fn_target_array + ".bak." + today_datetimestr))    
+#            except:
+#                pass
         
         flips_numpy = tonumpy(self.flips)
         event_time_numpy = np.abs(tonumpy(self.event_time))
@@ -204,6 +204,7 @@ class TargetSequenceHolder():
         target_array['ROI'] = tonumpy(self.scanner.ROI_signal)
         target_array['sz'] = self.scanner.sz
         target_array['signal'] = tonumpy(self.scanner.signal)
+        target_array['sequence_class'] = sequence_class
         
         try:
             os.makedirs(basepath)

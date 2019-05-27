@@ -18,7 +18,7 @@ from pypulseq.holder import Holder
 
 
 def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
-    flips_numpy, event_time_numpy, grad_moms_numpy = seq_params
+    flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
     
     NRep = flips_numpy.shape[1]
     
@@ -28,7 +28,7 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     slice_thickness = 5e-3     # slice
     
     deltak = 1.0 / FOV
-    grad_moms_numpy *= deltak  # adjust for FOV
+    grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
@@ -108,9 +108,10 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     seq.write(seq_fn)
     
     append_header(seq_fn, FOV,slice_thickness)
+
         
 def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
-    flips_numpy, event_time_numpy, grad_moms_numpy = seq_params
+    flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
     
     NRep = flips_numpy.shape[1]
     
@@ -120,7 +121,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     slice_thickness = 200e-3     # slice
     
     deltak = 1.0 / FOV
-    grad_moms_numpy *= deltak  # adjust for FOV
+    grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
@@ -215,7 +216,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     append_header(seq_fn, FOV,slice_thickness)
     
 def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
-    flips_numpy, event_time_numpy, grad_moms_numpy = seq_params
+    flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
     
     NRep = flips_numpy.shape[1]
     
@@ -224,7 +225,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     FOV = 0.220
     
     deltak = 1.0 / FOV
-    grad_moms_numpy *= deltak  # adjust for FOV
+    grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)

@@ -76,22 +76,20 @@ def make_sinc_pulse(kwargs, nargout=1):
         kwargs_for_trap = {"channel": 'z', "system": system, "flat_time": duration, "flat_area": area}
         gz = make_trapezoid(kwargs_for_trap)
         
-
-        
-        fill_time = gz.rise_time
-        nfill_time = int(round(fill_time / 1e-6))
-        t_fill = np.zeros((1, nfill_time))
-        for x in range(1, nfill_time + 1):
-            t_fill[0][x - 1] = x * 1e-6
-        temp = np.concatenate((t_fill[0], rf.t[0] + t_fill[0][-1]))
-        temp = temp.reshape((1, len(temp)))
-        rf.t = np.resize(rf.t, temp.shape)
-        rf.t[0] = temp
-        z = np.zeros((1, t_fill.shape[1]))
-        temp2 = np.concatenate((z[0], rf.signal[0]))
-        temp2 = temp2.reshape((1, len(temp2)))
-        rf.signal = np.resize(rf.signal, temp2.shape)
-        rf.signal[0] = temp2
+#        fill_time = gz.rise_time
+#        nfill_time = int(round(fill_time / 1e-6))
+#        t_fill = np.zeros((1, nfill_time))
+#        for x in range(1, nfill_time + 1):
+#            t_fill[0][x - 1] = x * 1e-6
+#        temp = np.concatenate((t_fill[0], rf.t[0] + t_fill[0][-1]))
+#        temp = temp.reshape((1, len(temp)))
+#        rf.t = np.resize(rf.t, temp.shape)
+#        rf.t[0] = temp
+#        z = np.zeros((1, t_fill.shape[1]))
+#        temp2 = np.concatenate((z[0], rf.signal[0]))
+#        temp2 = temp2.reshape((1, len(temp2)))
+#        rf.signal = np.resize(rf.signal, temp2.shape)
+#        rf.signal[0] = temp2
         
     if nargout > 2:        
         centerpos = 0.5
@@ -106,11 +104,11 @@ def make_sinc_pulse(kwargs, nargout=1):
             rf.delay = gz.rise_time+gz.delay # these are on the grad raster already which is coarser         
 
     # Add dead time to start of pulse, if required
-    if fill_time < rf.dead_time:
-        fill_time = rf.dead_time - fill_time
-        t_fill = (np.arange(int(round(fill_time / 1e-6))) * 1e-6)[np.newaxis, :]
-        rf.t = np.concatenate((t_fill, (rf.t + t_fill[0, -1])), axis=1)
-        rf.signal = np.concatenate((np.zeros(t_fill.shape), rf.signal), axis=1)
+#    if fill_time < rf.dead_time:
+#        fill_time = rf.dead_time - fill_time
+#        t_fill = (np.arange(int(round(fill_time / 1e-6))) * 1e-6)[np.newaxis, :]
+#        rf.t = np.concatenate((t_fill, (rf.t + t_fill[0, -1])), axis=1)
+#        rf.signal = np.concatenate((np.zeros(t_fill.shape), rf.signal), axis=1)
 
     if rf.ring_down_time > 0:
         t_fill = (np.arange(1, round(rf.ring_down_time / 1e-6) + 1) * 1e-6)[np.newaxis, :]
@@ -118,8 +116,8 @@ def make_sinc_pulse(kwargs, nargout=1):
         rf.signal = np.concatenate((rf.signal, np.zeros(t_fill.shape)), axis=1)
 
     # Following 2 lines of code are workarounds for numpy returning 3.14... for np.angle(-0.00...)
-    negative_zero_indices = np.where(rf.signal == -0.0)
-    rf.signal[negative_zero_indices] = 0
+#    negative_zero_indices = np.where(rf.signal == -0.0)
+#    rf.signal[negative_zero_indices] = 0
 
     if nargout > 2:
         return rf, gz, gzr
@@ -159,7 +157,7 @@ def make_sinc_pulse(kwargs, nargout=1):
 #    max_slew = kwargs.get("max_slew", 0)
 #    slice_thickness = kwargs.get("slice_thickness", 0)
 #    delay = kwargs.get("delay", 0)
-#    
+#
 #    BW = time_bw_product / duration
 #    alpha = apodization
 #    N = int(round(duration / 1e-6))
@@ -185,8 +183,7 @@ def make_sinc_pulse(kwargs, nargout=1):
 #    rf.delay = delay
 #    
 #    if rf.dead_time > rf.delay:
-#        rf.delay = rf.dead_time
-#
+#        rf.delay = rf.dead_time    
 #
 #    fill_time = 0
 #    if nargout > 1:
@@ -201,16 +198,7 @@ def make_sinc_pulse(kwargs, nargout=1):
 #        kwargs_for_trap = {"channel": 'z', "system": system, "flat_time": duration, "flat_area": area}
 #        gz = make_trapezoid(kwargs_for_trap)
 #        
-#        centerpos = 0.5
-#        gzr_area = -area*(1-centerpos)-0.5*(gz.area-area)
-#        kwargs_for_trap_gzr = {"channel": 'z', "system": system, "flat_time": duration, "area": gzr_area}
-#        gzr = make_trapezoid(kwargs_for_trap_gzr)
-#        
-#        if rf.delay > gz.rise_time:
-#            gz.delay = np.ceil((rf.delay - gz.rise_time)/system.grad_raster_time)*system.grad_raster_time # round-up to gradient raster
 #
-#        if rf.delay < (gz.rise_time + gz.delay):
-#            rf.delay = gz.rise_time+gz.delay # these are on the grad raster already which is coarser 
 #        
 #        fill_time = gz.rise_time
 #        nfill_time = int(round(fill_time / 1e-6))
@@ -226,6 +214,18 @@ def make_sinc_pulse(kwargs, nargout=1):
 #        temp2 = temp2.reshape((1, len(temp2)))
 #        rf.signal = np.resize(rf.signal, temp2.shape)
 #        rf.signal[0] = temp2
+#        
+#    if nargout > 2:        
+#        centerpos = 0.5
+#        gzr_area = -area*(1-centerpos)-0.5*(gz.area-area)
+#        kwargs_for_trap_gzr = {"channel": 'z', "system": system, "area": gzr_area}
+#        gzr = make_trapezoid(kwargs_for_trap_gzr)       
+#        
+#        if rf.delay > gz.rise_time:
+#            gz.delay = np.ceil((rf.delay - gz.rise_time)/system.grad_raster_time)*system.grad_raster_time # round-up to gradient raster
+#
+#        if rf.delay < (gz.rise_time + gz.delay):
+#            rf.delay = gz.rise_time+gz.delay # these are on the grad raster already which is coarser         
 #
 #    # Add dead time to start of pulse, if required
 #    if fill_time < rf.dead_time:
@@ -243,7 +243,9 @@ def make_sinc_pulse(kwargs, nargout=1):
 #    negative_zero_indices = np.where(rf.signal == -0.0)
 #    rf.signal[negative_zero_indices] = 0
 #
-#    if nargout > 1:
+#    if nargout > 2:
 #        return rf, gz, gzr
+#    elif nargout > 1:
+#        return rf, gz
 #    else:
 #        return rf
