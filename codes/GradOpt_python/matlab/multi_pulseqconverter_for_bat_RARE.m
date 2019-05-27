@@ -150,10 +150,10 @@ for rep=1:NRep
           rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
           seq.addBlock(rf);
         end
-        seq.addBlock(mr.makeDelay(event_times(idx_T,rep)-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
+        %seq.addBlock(mr.makeDelay(event_times(idx_T,rep)-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
 
         gradmom_revinder = squeeze(gradmoms(idx_T,rep,:));
-        eventtime_revinder = squeeze(event_times(idx_T,rep));
+        eventtime_revinder = squeeze(event_times(idx_T,rep)-RFdur);
              
     % line acquisition T(3:end-1)
         idx_T=3:size(gradmoms,1)-2; % T(2)

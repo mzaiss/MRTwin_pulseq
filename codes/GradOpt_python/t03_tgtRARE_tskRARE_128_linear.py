@@ -63,10 +63,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([128,128])                                           # image size
+sz = np.array([96,96])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 1**2                                # number of spin sims in each voxel
+NSpins = 2**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
@@ -136,19 +136,21 @@ scanner.set_flipXY_tensor(flips)
 # rotate ADC according to excitation phase
 scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 # event timing vector 
-event_time = torch.from_numpy(0.1*1e-4*np.ones((scanner.T,scanner.NRep))).float()
-event_time[0,:] = 1*1e-3
-event_time[0,1:] = 0.01*1e-3
-event_time[-1,:] = 0.01*1e-3
-event_time[1,:] = 1*1e-3
-event_time[0,0] = (sz[0]/2)*0.1e-4 + (2e-3)
+
+TEd= 0.1*1e-3 # increase to reduce SAR
+event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float()
+event_time[0,1:] = 0.2*1e-3     # for TE2_180_2   delay only
+event_time[-1,:] = 0.8*1e-3     # for TE2_180_2   delay only
+event_time[1,:] =  1.7*1e-3 +TEd      # for TE2_180     180 + prewinder   
+event_time[0,0] = torch.sum(event_time[1:int(sz[0]/2+2),1])     # for TE2_90      90 +  rewinder
 #event_time[1:,0,0] = 0.2*1e-3
-event_time[-2,:] = 0.98*1e-3
+event_time[-2,:] = 0.7*1e-3 +TEd                        # spoiler
 event_time = setdevice(event_time)
 
-TE2_90   = torch.sum(event_time[0,0])  # time after 90 until 180
-TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1]) # time after 180 til center k-space
-TE2_180_2= torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1] # time after center k-space til next 180
+TE2_90   = torch.sum(event_time[0,0])*1000  # time after 90 until 180
+TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1])*1000 # time after 180 til center k-space
+TE2_180_2= (torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1])*1000 # time after center k-space til next 180
+TACQ = torch.sum(event_time)*1000
 # gradient-driver precession
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
