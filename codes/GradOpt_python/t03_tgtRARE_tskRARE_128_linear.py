@@ -137,7 +137,7 @@ scanner.set_flipXY_tensor(flips)
 scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 # event timing vector 
 
-TEd= 0.1*1e-3 # increase to reduce SAR
+TEd= 0.95*1e-3 # increase to reduce SAR
 event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,1:] = 0.2*1e-3     # for TE2_180_2   delay only
 event_time[-1,:] = 0.8*1e-3     # for TE2_180_2   delay only
@@ -151,6 +151,10 @@ TE2_90   = torch.sum(event_time[0,0])*1000  # time after 90 until 180
 TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1])*1000 # time after 180 til center k-space
 TE2_180_2= (torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1])*1000 # time after center k-space til next 180
 TACQ = torch.sum(event_time)*1000
+
+watchdog_norm = 100 / 1.8098
+SAR_watchdog = torch.sum(flips[:,:,0]**2) / TACQ
+
 # gradient-driver precession
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
@@ -204,6 +208,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     plt.show()
     
     targetSeq.export_to_matlab(experiment_id)
+    print("SAR_watchdog = {}%".format(np.round(SAR_watchdog*watchdog_norm)))
     
     if do_scanner_query:
         targetSeq.export_to_pulseq(experiment_id,sequence_class)

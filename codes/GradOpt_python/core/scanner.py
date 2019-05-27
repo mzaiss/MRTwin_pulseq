@@ -1892,7 +1892,7 @@ class Scanner():
         while not done_flag:
             fnpath = os.path.join(basepath_seq, fn_twix)
         
-            time.sleep(0.5)
+            time.sleep(2.5)
             
             if os.path.isfile(fnpath):
                 # read twix file
@@ -1923,8 +1923,7 @@ class Scanner():
                 dp_twix = os.path.dirname(fnpath)
                 
                 shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix.split('.')[0]+".dat"))
-                
-                time.sleep(0.5)
+
                 
         
        

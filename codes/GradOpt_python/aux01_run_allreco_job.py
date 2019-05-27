@@ -151,7 +151,7 @@ for c_iter in range(nmb_iter):
     all_sim_kspace[c_iter] = sim_kspace
     
     # send to scanner
-    iterfile = "iter" + str(c_iter).zfill(6) + ".seq"
+    iterfile = "iter" + str(c_iter).zfill(6)
     
     scanner.send_job_to_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
     scanner.get_signal_from_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
@@ -181,7 +181,7 @@ for c_iter in range(nmb_iter):
     all_real_reco_nufft[c_iter] = real_reco_nufft
     
     
-draw_iter = 5
+draw_iter = 0
 
 # Visualize simulated images
 

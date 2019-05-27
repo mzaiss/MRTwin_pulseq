@@ -278,7 +278,7 @@ class OPT_helper():
             
         
     # main training function
-    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False):
+    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False, experiment_id=None, sequence_class=None):
         
         for i in range(len(self.scanner_opt_params)):
             if i in self.opt_param_idx:
@@ -302,7 +302,6 @@ class OPT_helper():
             if inner_iter == 0:
                 _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None)
             print(colored("\033[93m iter %d, recon error = %f \033[0m" % (inner_iter,self.last_error), 'green'))
-            
             
             # save entire history of optimized params/reco images
             if save_intermediary_results:
@@ -336,6 +335,24 @@ class OPT_helper():
 
             #self.new_batch()
             self.optimizer.step(self.weak_closure)
+            
+            if query_scanner:
+                # do real scanner reco
+                self.export_to_pulseq(experiment_id,sequence_class)
+                self.scanner.send_job_to_real_system(experiment_id,jobtype="lastiter")
+                self.scanner.get_signal_from_real_system(experiment_id,jobtype="lastiter")
+                
+                plt.subplot(131)
+                self.scanner.adjoint()
+                plt.imshow(magimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
+                plt.title("real ADJOINT")
+                plt.subplot(132)
+                self.scanner.do_ifft_reco()
+                plt.imshow(magimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
+                plt.title("real IFFT")    
+                
+                plt.ion()
+                plt.show()
 
                 
         
@@ -563,7 +580,7 @@ class OPT_helper():
 
         return basepath   
         
-    def export_to_pulseq(self, experiment_id, sequence_class):
+    def export_to_pulseq(self, experiment_id, sequence_class,plot_seq=False):
         today_datetimestr = time.strftime("%y%m%d%H%M%S")
         basepath = self.get_base_path(experiment_id)
         
@@ -614,13 +631,13 @@ class OPT_helper():
         seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
         
         if sequence_class.lower() == "gre":
-            pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+            pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "rare":
-            pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+            pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "bssfp":
-            pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+            pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "epi":
-            pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+            pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         
     # save entire history of the optimized parameters
     def save_param_reco_history(self, experiment_id, sequence_class, generate_pulseq=True):
@@ -697,7 +714,7 @@ class OPT_helper():
                 elif sequence_class.lower() == "bssfp":
                     pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)
                 elif sequence_class.lower() == "epi":
-                    pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)          
+                    pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)          
         
         
     # save entire history of the optimized parameters (to Matlab)
