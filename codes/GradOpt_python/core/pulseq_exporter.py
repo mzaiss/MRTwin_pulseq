@@ -231,35 +231,39 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)    
     
+    nonsel = 0
+    
     for rep in range(NRep):
         
         ###############################
         ###              first action
         idx_T = 0
         if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
-            slice_thickness = 200e-3     # slice
-            use = "excitation"
             
-            # alternatively slice selective:
-            RFdur = 0.8*1e-3
-            kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
-            rf = make_block_pulse(kwargs_for_block, 1)
-            
-            seq.add_block(rf)     
-        else:
-            # alternatively slice selective:
-            use = "excitation"
-            
-            slice_thickness = 5e-3
-            
-            # alternatively slice selective:
-            kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "phase_offset": flips_numpy[idx_T,rep,1], "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
-            rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
-            
-            seq.add_block(rf, gz)
-            seq.add_block(gzr)            
-            
-            RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
+            if nonsel:
+                slice_thickness = 200e-3     # slice
+                use = "excitation"
+                
+                # alternatively slice selective:
+                RFdur = 0.8*1e-3
+                kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+                rf = make_block_pulse(kwargs_for_block, 1)
+                
+                seq.add_block(rf)     
+            else:
+                # alternatively slice selective:
+                use = "excitation"
+                
+                slice_thickness = 5e-3
+                
+                # alternatively slice selective:
+                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "phase_offset": flips_numpy[idx_T,rep,1], "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
+                rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
+                
+                seq.add_block(rf, gz)
+                seq.add_block(gzr)            
+                
+                RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
                 
         
         seq.add_block(make_delay(0.002-RFdur))
@@ -294,7 +298,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         gy_pre = make_trapezoid(kwargs_for_gypre)
     
         seq.add_block(gx_pre, gy_pre)
-        seq.add_block(gx,adc)
+        seq.add_block(gx,gy,adc)
         
         ###############################
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
@@ -306,7 +310,11 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gy_post = make_trapezoid(kwargs_for_gypost)  
         
-        seq.add_block(gx_post, gy_post)
+        if nonsel:
+            seq.add_block(gx_post, gy_post)
+        else:
+            seq.add_block(gx_post, gy_post, gzr)
+            
         
         ###############################
         ###     last extra event  T(end)
