@@ -554,7 +554,6 @@ class OPT_helper():
     def get_base_path(self, experiment_id):
         if platform == 'linux':
             basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
-            #basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
@@ -644,7 +643,7 @@ class OPT_helper():
         all_grad_moms = np.zeros((NIter,T,NRep,2))
         all_kloc = np.zeros((NIter,T,NRep,2))
         all_reco_images = np.zeros((NIter,sz_x,sz_y,2))
-        all_signals = np.zeros((NIter,T,NRep,3))
+        all_signals = np.zeros((NIter,self.scanner.NCoils,T,NRep,3))
         all_errors = np.zeros((NIter,1))
         
         for ni in range(NIter):
@@ -654,7 +653,7 @@ class OPT_helper():
             all_grad_moms[ni] = param_reco_history[ni]['grad_moms']
             all_kloc[ni] = param_reco_history[ni]['kloc']
             all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
-            all_signals[ni] = param_reco_history[ni]['signal'].reshape([T,NRep,3])
+            all_signals[ni] = param_reco_history[ni]['signal'].reshape([self.scanner.NCoils,T,NRep,3])
             all_errors[ni] = param_reco_history[ni]['error']
         
         alliter_dict = dict()
@@ -671,6 +670,7 @@ class OPT_helper():
         alliter_dict['NRep'] = NRep
         alliter_dict['target'] = self.target
         alliter_dict['sequence_class'] = sequence_class
+        alliter_dict['B1'] = tonumpy(self.scanner.B1)
         
         try:
             os.makedirs(basepath)

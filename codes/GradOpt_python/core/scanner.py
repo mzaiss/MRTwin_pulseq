@@ -5,6 +5,7 @@ import os
 import sys
 from sys import platform
 import scipy
+import shutil
 
 #sys.path.append("../scannerloop_libs/twixreader")
 #import twixreader as tr # twixreader install: conda install pyyaml; conda install -c certik antlr4-python3-runtime
@@ -1797,7 +1798,6 @@ class Scanner():
     def get_base_path(self, experiment_id):
         if platform == 'linux':
             basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
-            #basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
@@ -1818,13 +1818,13 @@ class Scanner():
         
         if jobtype == "target":
             fn_pulseq = "target.seq"
-            fn_twix = "target.dat"
+            #fn_twix = "target.dat"
         elif jobtype == "lastiter":
             fn_pulseq = "lastiter.seq"
-            fn_twix = "lastiter.dat"
+            #fn_twix = "lastiter.dat"
         elif jobtype == "iter":
             fn_pulseq = iterfile + ".seq"
-            fn_twix = iterfile + ".dat"
+            #fn_twix = iterfile + ".dat"
             
         #if os.path.isfile(os.path.join(basepath_seq, "data", fn_twix)):
         #    print('TWIX file already exists. Not sending job to scanner... ' + fn_twix)
@@ -1877,24 +1877,24 @@ class Scanner():
         print('wating for TWIX file from the scanner...')
         
         if jobtype == "target":
-            fn_twix = "target.dat"
+            fn_twix = "target.seq"
         elif jobtype == "lastiter":
-            fn_twix = "lastiter.dat"   
+            fn_twix = "lastiter.seq"   
         elif jobtype == "iter":
-            fn_twix = iterfile + ".dat"   
+            fn_twix = iterfile + ".seq"   
+            
+        fn_twix += ".dat"
             
         print('waiting for TWIX file from the scanner... ' + fn_twix)
         
         # go into the infinite loop, checking if twix file is saved
         done_flag = False
         while not done_flag:
-            fn_twix = "target.seq.dat"
-            #fnpath = os.path.isfile(os.path.join(basepath_seq, "data", fn_twix))
-            fnpath = os.path.isfile(os.path.join(basepath_seq, fn_twix))
-            
+            fnpath = os.path.join(basepath_seq, fn_twix)
+        
             time.sleep(0.5)
             
-            if fnpath:
+            if os.path.isfile(fnpath):
                 # read twix file
                 print("TWIX file arrived. Reading....")
                 
@@ -1918,7 +1918,11 @@ class Scanner():
                 self.signal[0,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))
                 self.signal[0,adc_idx,:,1,0] = self.setdevice(torch.from_numpy(np.imag(raw[:,coil_idx,:])))
                 
-                done_flag = True   
+                done_flag = True
+                
+                dp_twix = os.path.dirname(fnpath)
+                
+                shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix.split('.')[0]+".dat"))
                 
                 time.sleep(0.5)
                 

@@ -5,17 +5,6 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't01_tgtGRESP_tsk_GRESP_no_grad_noflip_kspaceloss_new'
-sequence_class = "GRE"
-experiment_description = """
-tgt FLASHspoiled_relax20ms, with spoilers and random phase cycling
-task find all grads except read ADC grads
-opt: SARloss, kloss, 
-
-this is the same as e05_tgtGRE_tskGREnogspoil.py, but now with more automatic restarting
-and high initial learning rate
-"""
-
 import os, sys
 import numpy as np
 import scipy
@@ -29,6 +18,7 @@ import core.spins
 import core.scanner
 import core.opt_helper
 import core.target_seq_holder
+from sys import platform
 
 use_gpu = 0
 gpu_dev = 0
@@ -60,45 +50,47 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
     
-input_path = "/is/ei/aloktyus/Desktop/pulseq_mat_py/seq190521"
-input_path = 'K:\CEST_seq\pulseq_zero\sequences\seq190527'
-
-experiment_id = "t04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep_FA45_phaseincr5"
-fullpath_seq = os.path.join(input_path, experiment_id)
-
-
-use_target = True
-    
-if use_target:
-    input_array = np.load(os.path.join(fullpath_seq, "target_arr.npy"))
-    jobtype = "target"
+if platform == 'linux':
+    basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
 else:
-    input_array = np.load(os.path.join(fullpath_seq, "lastiter_arr.npy"))
-    jobtype = "lastiter"
+    basepath = 'K:\CEST_seq\pulseq_zero\sequences'
     
-input_array = input_array.item()
+date_str = "seq190527"
+experiment_id = "t04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep_multiitertest"
+fullpath_seq = os.path.join(basepath, date_str, experiment_id)
+
+fn_alliter_array = "alliter_arr.npy"
+alliter_array = np.load(os.path.join(os.path.join(fullpath_seq, fn_alliter_array)))
+
+alliter_array = alliter_array.item()
 
 # define setup
-sz = input_array['sz']
+sz = alliter_array['sz']
 NRep = sz[1]
 T = sz[0] + 4
 NSpins = 2**2
-NCoils = input_array['signal'].shape[0]
+NCoils = alliter_array['all_signals'].shape[1]
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
 
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
-scanner.adc_mask = setdevice(torch.from_numpy(input_array['adc_mask']))
-scanner.B1 = setdevice(torch.from_numpy(input_array['B1']))
-scanner.signal = setdevice(torch.from_numpy(input_array['signal']))
-scanner.reco = setdevice(torch.from_numpy(input_array['reco']).reshape([NVox,2]))
-scanner.kspace_loc = setdevice(torch.from_numpy(input_array['kloc']))
+scanner.adc_mask = setdevice(torch.from_numpy(alliter_array['all_adc_masks'][0]))
+scanner.B1 = setdevice(torch.from_numpy(alliter_array['B1']))
+#scanner.signal = setdevice(torch.from_numpy(alliter_array['signal']))
+#scanner.reco = setdevice(torch.from_numpy(alliter_array['reco']).reshape([NVox,2]))
+#scanner.kspace_loc = setdevice(torch.from_numpy(alliter_array['kloc']))
+sequence_class = alliter_array['sequence_class']
 
-flips = setdevice(torch.from_numpy(input_array['flips']))
-event_time = setdevice(torch.from_numpy(input_array['event_times']))
-grad_moms = setdevice(torch.from_numpy(input_array['grad_moms']))
+nmb_iter = alliter_array['all_signals'].shape[0]
+
+
+
+
+flips = setdevice(torch.from_numpy(alliter_array['flips']))
+event_time = setdevice(torch.from_numpy(alliter_array['event_times']))
+grad_moms = setdevice(torch.from_numpy(alliter_array['grad_moms']))
 
 scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)

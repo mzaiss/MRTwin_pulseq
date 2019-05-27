@@ -129,7 +129,6 @@ class TargetSequenceHolder():
             
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id):
-
         basepath = self.get_base_path(experiment_id)
         
         scanner_dict = dict()
@@ -141,7 +140,6 @@ class TargetSequenceHolder():
         scanner_dict['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
-        #scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
         scanner_dict['signal'] = tonumpy(self.scanner.signal)
         
         fn_target_array = "scanner_dict_tgt.mat"
@@ -153,17 +151,10 @@ class TargetSequenceHolder():
             pass
         scipy.io.savemat(os.path.join(basepath,fn_target_array), scanner_dict)
 
-        #path=os.path.join('./out/',experiment_id)
-        #try:
-        #    os.mkdir(path)
-        #except:
-        #    print('export_to_matlab: directory already exists')
-        
         
     def get_base_path(self, experiment_id):
         if platform == 'linux':
             basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
-            #basepath = '/is/ei/aloktyus/Desktop/pulseq_mat_py'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
@@ -174,13 +165,13 @@ class TargetSequenceHolder():
         return basepath
 
     def export_to_pulseq(self, experiment_id, sequence_class):
-        today_datetimestr = time.strftime("%y%m%d%H%M%S")
         basepath = self.get_base_path(experiment_id)
         
         fn_target_array = "target_arr.npy"
         fn_pulseq = "target.seq"
         
         # overwrite protection (gets trigger if pulseq file already exists)
+#        today_datetimestr = time.strftime("%y%m%d%H%M%S")
 #        if os.path.isfile(os.path.join(basepath, fn_pulseq)):
 #            try:
 #                copyfile(os.path.join(basepath, fn_pulseq), os.path.join(basepath, fn_pulseq + ".bak." + today_datetimestr))    

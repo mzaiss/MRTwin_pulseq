@@ -163,11 +163,11 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
           rf = make_block_pulse(kwargs_for_block, 1)
           seq.add_block(rf)         
           
-        seq.add_block(make_delay(event_time_numpy[idx_T,rep]-RFdur)) # this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
+        #seq.add_block(make_delay(event_time_numpy[idx_T,rep]-RFdur)) # this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
     
         # calculated here, update in next event
         gradmom_rewinder = np.squeeze(grad_moms_numpy[idx_T,rep,:])
-        eventtime_rewinder = np.squeeze(event_time_numpy[idx_T,rep])
+        eventtime_rewinder = np.squeeze(event_time_numpy[idx_T,rep]-RFdur)
         
         ###############################
         ###              line acquisition T(3:end-1)

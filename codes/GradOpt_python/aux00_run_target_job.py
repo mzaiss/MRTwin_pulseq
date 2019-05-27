@@ -19,6 +19,7 @@ import core.spins
 import core.scanner
 import core.opt_helper
 import core.target_seq_holder
+from sys import platform
 
 use_gpu = 0
 gpu_dev = 0
@@ -50,11 +51,14 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
     
-input_path = "/is/ei/aloktyus/Desktop/pulseq_mat_py/seq190527"
-input_path = 'K:\CEST_seq\pulseq_zero\sequences\seq190527'
-
+if platform == 'linux':
+    basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+else:
+    basepath = 'K:\CEST_seq\pulseq_zero\sequences'
+    
+date_str = "seq190527"
 experiment_id = "t04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep_FA45_phaseincr5"
-fullpath_seq = os.path.join(input_path, experiment_id)
+fullpath_seq = os.path.join(basepath, date_str, experiment_id)
 
 use_target = False
     
