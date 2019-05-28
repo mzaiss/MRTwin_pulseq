@@ -564,19 +564,20 @@ class OPT_helper():
         return basepath   
         
     def export_to_pulseq(self, experiment_id, sequence_class):
-        today_datetimestr = time.strftime("%y%m%d%H%M%S")
+        
         basepath = self.get_base_path(experiment_id)
         
         fn_lastiter_array = "lastiter_arr.npy"
         fn_pulseq = "lastiter.seq"
         
         # overwrite protection (gets trigger if pulseq file already exists)
-        if os.path.isfile(os.path.join(basepath, fn_pulseq)):
-            try:
-                copyfile(os.path.join(basepath, fn_pulseq), os.path.join(basepath, fn_pulseq + ".bak." + today_datetimestr))    
-                copyfile(os.path.join(basepath, fn_lastiter_array), os.path.join(basepath, fn_lastiter_array + ".bak." + today_datetimestr))    
-            except:
-                pass
+#        today_datetimestr = time.strftime("%y%m%d%H%M%S")
+#        if os.path.isfile(os.path.join(basepath, fn_pulseq)):
+#            try:
+#                copyfile(os.path.join(basepath, fn_pulseq), os.path.join(basepath, fn_pulseq + ".bak." + today_datetimestr))    
+#                copyfile(os.path.join(basepath, fn_lastiter_array), os.path.join(basepath, fn_lastiter_array + ".bak." + today_datetimestr))    
+#            except:
+#                pass
             
         _,reco,error = self.phi_FRP_model(self.scanner_opt_params, None)
         tosave_opt_params = self.scanner_opt_params
