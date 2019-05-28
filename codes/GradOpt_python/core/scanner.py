@@ -1919,6 +1919,7 @@ class Scanner():
                 NCol = np.where(self.adc_mask.cpu().numpy())[0].size
                 raw = raw.reshape([self.NRep,ncoils,NCol,2])
                 raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
+                raw /= np.max(np.abs(raw))
                 
                 # inject into simulated scanner signal variable
                 adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
