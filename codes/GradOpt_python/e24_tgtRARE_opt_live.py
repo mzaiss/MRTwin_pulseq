@@ -4,7 +4,7 @@
 Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
-experiment_id = 't03_tgtRARE_tskRARE_128_linear'
+experiment_id = 'e24_tgtRARE_opt_live'
 sequence_class = "RARE"
 experiment_description = """
 RARE, cpmg
@@ -30,7 +30,7 @@ print('32x float forwardfast oS')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = False
+do_scanner_query = True
 
 use_gpu = 0
 gpu_dev = 0
@@ -63,10 +63,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([96,96])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 2**2                                # number of spin sims in each voxel
+NSpins = 25**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
@@ -184,8 +184,8 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-#scanner.forward_fast_supermem(spins, event_time)
-scanner.init_signal()
+scanner.forward_fast_supermem(spins, event_time)
+#scanner.init_signal()
 scanner.adjoint()
 
 
@@ -225,9 +225,9 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.title("real IFFT")    
         plt.subplot(133)
         plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("simulation ADJOINT")   
+        plt.title("simulation ADJOINT")
                     
-    stop()
+    #stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -236,7 +236,8 @@ def init_variables():
     adc_mask = targetSeq.adc_mask.clone()
     
     flips = targetSeq.flips.clone()
-    #flips[1,:,:]=flips[1,:,:]*0 + setdevice(torch.rand(flips[1,:,:].shape)*1e-3)
+    flips[1,:,:]=flips[1,:,:]*0 + setdevice(torch.rand(flips[1,:,:].shape)*1e-3)
+    #flips[:] = 0
     flips = setdevice(flips)
     
     flip_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()     
@@ -274,9 +275,11 @@ def init_variables():
 def reparameterize(opt_params):
     adc_mask,flips,event_time,grad_moms= opt_params
     
-    rflips = setdevice(torch.zeros(flips.shape))
-    rflips[:,:,0]=torch.abs(flips[:,:,0])
-    rflips[:,:,1]=flips[:,:,1]     
+    #rflips = setdevice(torch.zeros(flips.shape))
+    #rflips[:,:,0]=torch.abs(flips[:,:,0])
+    #rflips[:,:,1]=flips[:,:,1]     
+    
+    rflips = flips
        
     return adc_mask,rflips,event_time,grad_moms
 
@@ -341,7 +344,7 @@ opt.custom_learning_rate = [0.01,0.05,0.00001,0.1]
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
-opt.train_model(training_iter=1000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=1000, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 # plot
 targetSeq.print_status(True, reco=None)
