@@ -1916,9 +1916,8 @@ class Scanner():
                 dp_twix = os.path.dirname(fnpath)
                 shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix.split('.')[0]+".dat"))
                 
-                szsqr = np.int(np.sqrt(raw.shape[0]/2))
-                raw = raw.reshape([szsqr,ncoils,szsqr,2])
-                
+                NCol = np.where(self.adc_mask.cpu().numpy())[0].size
+                raw = raw.reshape([self.NRep,ncoils,NCol,2])
                 raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
                 
                 # inject into simulated scanner signal variable

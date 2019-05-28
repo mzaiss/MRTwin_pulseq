@@ -234,7 +234,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         cax = plt.subplot(122)
         ax = plt.imshow(phaseimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
         fig = plt.gcf()
-        fig.colorbar(ax, ax=cax)
+        fig.colorbar(ax,fraction=0.046, pad=0.04)
         plt.title("meas phase ADJOINT")    
         
         plt.ion()
