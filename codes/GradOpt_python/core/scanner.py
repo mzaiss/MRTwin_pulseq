@@ -94,6 +94,13 @@ class Scanner():
     
     def tonumpy(self, x):
         return x.detach().cpu().numpy()    
+    
+    def do_SAR_test(self, flips, event_time):
+        TACQ = torch.sum(event_time)*1000
+        watchdog_norm = 100 / 1.8098
+        SAR_watchdog = torch.sum(flips[:,:,0]**2) / TACQ
+        print("SAR_watchdog = {}%".format(np.round(SAR_watchdog*watchdog_norm)))
+        
         
     def set_adc_mask(self):
         adc_mask = torch.from_numpy(np.ones((self.T,1))).float()
@@ -1818,13 +1825,14 @@ class Scanner():
         
         if jobtype == "target":
             fn_pulseq = "target.seq"
-            #fn_twix = "target.dat"
         elif jobtype == "lastiter":
             fn_pulseq = "lastiter.seq"
-            #fn_twix = "lastiter.dat"
         elif jobtype == "iter":
             fn_pulseq = iterfile + ".seq"
-            #fn_twix = iterfile + ".dat"
+            
+        fnpath = os.path.join(basepath_seq, fn_pulseq + ".dat")
+        if os.path.isfile(fnpath):            
+            os.remove(fnpath)
             
         #if os.path.isfile(os.path.join(basepath_seq, "data", fn_twix)):
         #    print('TWIX file already exists. Not sending job to scanner... ' + fn_twix)
@@ -1881,7 +1889,7 @@ class Scanner():
         elif jobtype == "lastiter":
             fn_twix = "lastiter.seq"   
         elif jobtype == "iter":
-            fn_twix = iterfile + ".seq"   
+            fn_twix = iterfile + ".seq"
             
         fn_twix += ".dat"
             
@@ -1892,7 +1900,7 @@ class Scanner():
         while not done_flag:
             fnpath = os.path.join(basepath_seq, fn_twix)
         
-            time.sleep(2.5)
+            #time.sleep(2.5)
             
             if os.path.isfile(fnpath):
                 # read twix file
@@ -1902,6 +1910,10 @@ class Scanner():
                 ncoils = 2
                 
                 raw = np.loadtxt(raw_file)
+                
+                dp_twix = os.path.dirname(fnpath)
+                shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix.split('.')[0]+".dat"))
+                
                 szsqr = np.int(np.sqrt(raw.shape[0]/2))
                 raw = raw.reshape([szsqr,ncoils,szsqr,2])
                 
@@ -1912,6 +1924,7 @@ class Scanner():
                 
                 raw = raw.transpose([2,1,0])
                 raw = np.copy(raw)
+                #raw = np.roll(raw,1,axis=0)
                 
                 # assume for now a single coil
                 coil_idx = 0
@@ -1920,9 +1933,6 @@ class Scanner():
                 
                 done_flag = True
                 
-                dp_twix = os.path.dirname(fnpath)
-                
-                shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix.split('.')[0]+".dat"))
 
                 
         

@@ -30,7 +30,7 @@ print('32x float forwardfast oS')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = False
+do_scanner_query = True
 
 use_gpu = 0
 gpu_dev = 0
@@ -47,6 +47,9 @@ def magimg(x):
   return np.sqrt(np.sum(np.abs(x)**2,2))
 def magimg_torch(x):
   return torch.sqrt(torch.sum(torch.abs(x)**2,1))
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
+
 # device setter
 def setdevice(x):
     if double_precision:
@@ -63,7 +66,7 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([96,96])                                           # image size
+sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 2**2                                # number of spin sims in each voxel
@@ -134,15 +137,15 @@ flips = setdevice(flips)
 scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)
 # rotate ADC according to excitation phase
-scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
+scanner.set_ADC_rot_tensor(flips[0,:,1]*0 + 2*np.pi/2) #GRE/FID specific
 # event timing vector 
 
-TEd= 0.95*1e-3 # increase to reduce SAR
+TEd= 20.99*1e-3 # increase to reduce SAR
 event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,1:] = 0.2*1e-3     # for TE2_180_2   delay only
 event_time[-1,:] = 0.8*1e-3     # for TE2_180_2   delay only
-event_time[1,:] =  1.7*1e-3 +TEd      # for TE2_180     180 + prewinder   
-event_time[0,0] = torch.sum(event_time[1:int(sz[0]/2+2),1])     # for TE2_90      90 +  rewinder
+event_time[1,:] =  1.7*1e-3 +TEd     # for TE2_180     180 + prewinder   
+event_time[0,0] = torch.sum(event_time[1:int(sz[0]/2+2),1])    # for TE2_90      90 +  rewinder
 #event_time[1:,0,0] = 0.2*1e-3
 event_time[-2,:] = 0.7*1e-3 +TEd                        # spoiler
 event_time = setdevice(event_time)
@@ -152,8 +155,6 @@ TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1])*1000 # time after 180 til c
 TE2_180_2= (torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1])*1000 # time after center k-space til next 180
 TACQ = torch.sum(event_time)*1000
 
-watchdog_norm = 100 / 1.8098
-SAR_watchdog = torch.sum(flips[:,:,0]**2) / TACQ
 
 # gradient-driver precession
 # Cartesian encoding
@@ -170,12 +171,12 @@ grad_moms[-2,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree h
 #grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 #grad_moms[[1,-2],:,1] = torch.roll(grad_moms[[1,-2],:,1],0,dims=[1])
 #     centric ordering
-#grad_moms[1,:,1] = 0
-#for i in range(1,int(sz[1]/2)+1):
-#    grad_moms[1,i*2-1,1] = (-i)
-#    if i < sz[1]/2:
-#        grad_moms[1,i*2,1] = i
-#grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
+grad_moms[1,:,1] = 0
+for i in range(1,int(sz[1]/2)+1):
+    grad_moms[1,i*2-1,1] = (-i)
+    if i < sz[1]/2:
+        grad_moms[1,i*2,1] = i
+grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 grad_moms = setdevice(grad_moms)
 # end sequence 
 scanner.init_gradient_tensor_holder()
@@ -184,8 +185,8 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-#scanner.forward_fast_supermem(spins, event_time)
-scanner.init_signal()
+scanner.forward_fast_supermem(spins, event_time)
+#scanner.init_signal()
 scanner.adjoint()
 
 
@@ -196,6 +197,30 @@ target = scanner.reco.clone()
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
 if True: # check sanity: is target what you expect and is sequence what you expect
+    targetSeq.export_to_matlab(experiment_id)
+    scanner.do_SAR_test(flips, event_time)
+    
+    if do_scanner_query:
+        targetSeq.export_to_pulseq(experiment_id,sequence_class)
+        scanner.send_job_to_real_system(experiment_id)
+        scanner.get_signal_from_real_system(experiment_id)
+        
+        plt.subplot(121)
+        scanner.adjoint()
+        ax = plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        #fig.colorbar(ax)
+        plt.title("meas mag ADJOINT")
+        
+        plt.subplot(122)
+        ax = plt.imshow(phaseimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)
+        plt.title("meas phase ADJOINT")    
+        
+        plt.ion()
+        plt.show()
+        
     targetSeq.print_status(True, reco=None)
     
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
@@ -206,26 +231,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig = plt.gcf()
         fig.set_size_inches(16, 3)
     plt.show()
-    
-    targetSeq.export_to_matlab(experiment_id)
-    print("SAR_watchdog = {}%".format(np.round(SAR_watchdog*watchdog_norm)))
-    
-    if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,sequence_class)
-        scanner.send_job_to_real_system(experiment_id)
-        scanner.get_signal_from_real_system(experiment_id)
         
-        plt.subplot(131)
-        scanner.adjoint()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real ADJOINT")
-        plt.subplot(132)
-        scanner.do_ifft_reco()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real IFFT")    
-        plt.subplot(133)
-        plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("simulation ADJOINT")   
                     
     stop()
         

@@ -29,11 +29,18 @@ import core.spins
 import core.scanner
 import core.opt_helper
 import core.target_seq_holder
-import time
+
+from importlib import reload
+reload(core.scanner)
+
+print('32x float forwardfast oS')
+
+double_precision = False
+use_supermem = False
+do_scanner_query = True
 
 use_gpu = 0
 gpu_dev = 0
-do_scanner_query = False
 
 # NRMSE error function
 def e(gt,x):
@@ -42,16 +49,20 @@ def e(gt,x):
 # torch to numpy
 def tonumpy(x):
     return x.detach().cpu().numpy()
-
 # get magnitude image
 def magimg(x):
   return np.sqrt(np.sum(np.abs(x)**2,2))
-
 def magimg_torch(x):
   return torch.sqrt(torch.sum(torch.abs(x)**2,1))
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
 
 # device setter
 def setdevice(x):
+    if double_precision:
+        x = x.double()
+    else:
+        x = x.float()
     if use_gpu:
         x = x.cuda(gpu_dev)    
     return x
@@ -61,12 +72,11 @@ def stop():
     class ExecutionControl(Exception): pass
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
-
 # define setup
 sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 15**2                                # number of spin sims in each voxel
+NSpins = 10**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -77,10 +87,8 @@ NVox = sz[0]*sz[1]
 ## Init spin system ::: #####################################
 
 # initialize scanned object
-spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
-
+spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 cutoff = 1e-12
-
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
@@ -132,7 +140,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 scanner.set_adc_mask()
 
 # begin sequence definition
@@ -155,7 +163,7 @@ scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)
 
 # rotate ADC according to excitation phase
-scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-flips[0,:,1] + -np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -179,7 +187,7 @@ grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, yblip rewinder
 grad_moms = setdevice(grad_moms)
 
 #     centric ordering
-if True:
+if False:
     grad_moms[1,:,1] = 0
     for i in range(1,int(sz[1]/2)+1):
         grad_moms[1,i*2-1,1] = (-i)
@@ -196,7 +204,9 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
+#scanner.forward_fast_supermem(spins, event_time)
 scanner.forward_fast(spins, event_time)
+#scanner.init_signal()
 scanner.adjoint()
 
 # try to fit this
@@ -205,8 +215,31 @@ target = scanner.reco.clone()
    
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
-
 if True: # check sanity: is target what you expect and is sequence what you expect
+    targetSeq.export_to_matlab(experiment_id)
+    scanner.do_SAR_test(flips, event_time)
+    
+    if do_scanner_query:
+        targetSeq.export_to_pulseq(experiment_id,sequence_class)
+        scanner.send_job_to_real_system(experiment_id)
+        scanner.get_signal_from_real_system(experiment_id)
+        
+        plt.subplot(121)
+        scanner.adjoint()
+        ax = plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        #fig.colorbar(ax)
+        plt.title("meas mag ADJOINT")
+        
+        cax = plt.subplot(122)
+        ax = plt.imshow(phaseimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax, ax=cax)
+        plt.title("meas phase ADJOINT")    
+        
+        plt.ion()
+        plt.show()
+        
     targetSeq.print_status(True, reco=None)
     
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
@@ -217,25 +250,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig = plt.gcf()
         fig.set_size_inches(16, 3)
     plt.show()
-    
-    targetSeq.export_to_matlab(experiment_id)
-    
-    if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,sequence_class)
-        scanner.send_job_to_real_system(experiment_id)
-        scanner.get_signal_from_real_system(experiment_id)
         
-        plt.subplot(131)
-        scanner.adjoint()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real ADJOINT")
-        plt.subplot(132)
-        scanner.do_ifft_reco()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real IFFT")    
-        plt.subplot(133)
-        plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("simulation ADJOINT")           
                     
     stop()
         
@@ -243,7 +258,6 @@ if True: # check sanity: is target what you expect and is sequence what you expe
 #############################################################################    
         
 def init_variables():
-    
     adc_mask = targetSeq.adc_mask.clone()
     
     flips = targetSeq.flips.clone()
@@ -315,7 +329,7 @@ def phi_FRP_model(opt_params,aux_params):
     k = torch.cumsum(grad_moms, 0)
     k = k*torch.roll(scanner.adc_mask, -1).view([T,1,1])
     k = k.flatten()
-    mask = (torch.abs(k) > sz[0]/2).float()
+    mask = setdevice((torch.abs(k) > sz[0]/2))
     k = k * mask
     loss_kspace = torch.sum(k**2) / (NRep*torch.sum(scanner.adc_mask))
     
@@ -367,8 +381,8 @@ opt.print_status(True, reco)
 stop()
 
 # %% # save optimized parameter history
-
-targetSeq.export_to_matlab(experiment_id)
-opt.save_param_reco_history(experiment_id)
-opt.export_to_matlab(experiment_id)
+new_exp_id=experiment_id+'prtrb_no_refoc_2';
+targetSeq.export_to_matlab(new_exp_id)
+opt.save_param_reco_history(new_exp_id)
+opt.export_to_matlab(new_exp_id)
             
