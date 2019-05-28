@@ -1818,7 +1818,10 @@ class Scanner():
     def send_job_to_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target", iterfile=None):
         basepath, basepath_seq = self.get_base_path(experiment_id)
         
-        basepath = 'K:\CEST_seq\pulseq_zero\control'
+        if platform == 'linux':
+            basepath_control = '/media/upload3t/CEST_seq/pulseq_zero/control'
+        else:
+            basepath_control = 'K:\CEST_seq\pulseq_zero\control'
         
         if basepath_seq_override is not None:
             basepath_seq = basepath_seq_override
@@ -1847,10 +1850,10 @@ class Scanner():
             class ExecutionControl(Exception): pass
             raise ExecutionControl('sequence file missing ' + os.path.join(basepath_seq, fn_pulseq))
             
-        with open(os.path.join(basepath,position_filename),"r") as f:
+        with open(os.path.join(basepath_control,position_filename),"r") as f:
             position = int(f.read())
             
-        with open(os.path.join(basepath,control_filename),"r") as f:
+        with open(os.path.join(basepath_control,control_filename),"r") as f:
             control_lines = f.readlines()
             
         control_lines = [l.strip() for l in control_lines]
@@ -1867,7 +1870,6 @@ class Scanner():
             
         # add sequence file
         if control_lines[-1] == 'wait':
-            #control_lines[-1] = os.path.join(basepath_out, fn_pulseq)
             control_lines[-1] = basepath_out + "//" + fn_pulseq
             control_lines.append('wait')
             
@@ -1934,8 +1936,8 @@ class Scanner():
                 done_flag = True
                 
 
+                time.sleep(0.5)
                 
-        
        
 
 # Fast, but memory inefficient version (also for now does not support parallel imagigng)
