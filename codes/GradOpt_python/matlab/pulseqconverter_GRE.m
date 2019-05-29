@@ -169,7 +169,7 @@ seq.write(seq_fn);
 
 
 %% new single-function call for trajectory calculation
-[ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
+[ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace('trajectory_delay',0);
 
 % plot k-spaces
 ktraj_adc=ktraj_adc/deltak;

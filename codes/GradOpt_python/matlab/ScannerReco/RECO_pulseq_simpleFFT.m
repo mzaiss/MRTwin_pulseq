@@ -5,8 +5,7 @@
 data_file_path=[datpath datfilename];
 twix_obj = mapVBVD(data_file_path);
 
-
-%% sort in the k-space data
+% sort in the k-space data
 if iscell(twix_obj)
     data_unsorted = twix_obj{2}.image.unsorted();
 else
@@ -19,6 +18,22 @@ nCoils = size(data_coils_last, 3);
 
 data = data_coils_last;
 % data(end,:,:)=0;
+
+%% Load raw data text
+[datfilename,datpath] = uigetfile('*.dat', 'select raw data file','\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences');
+data_file_path=[datpath datfilename];
+M = importdata(data_file_path);
+
+Mr=M(:,1) +1j*M(:,2);
+data = reshape(Mr,128,2,128);
+data = permute(data, [1,3,2]);
+size(data)
+
+%% load from scannerdict
+T=signal;
+T=squeeze(T);
+data(:,:,1)=T(3:end-2,:,1)+1j*T(3:end-2,:,2);
+data(:,:,2)=T(3:end-2,:,1)+1j*T(3:end-2,:,2);
 %% show kspace data
 figure(101)
 subplot(2,2,1), imagesc((abs(data(:,:,1)))), title('coil 1'), axis('image'); xlabel('PE/reps'); ylabel('read/T');
