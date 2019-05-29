@@ -25,6 +25,7 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     # save pulseq definition
     MAXSLEW = 140
     FOV = 0.220
+    #FOV = 0.110
     slice_thickness = 5e-3     # slice
     
     deltak = 1.0 / FOV

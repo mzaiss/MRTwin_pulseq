@@ -1875,7 +1875,7 @@ class Scanner():
             
         control_lines = [l+"\n" for l in control_lines]
         
-        with open(os.path.join(basepath,control_filename),"w") as f:
+        with open(os.path.join(basepath_control,control_filename),"w") as f:
             f.writelines(control_lines)
             
     def get_signal_from_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target", iterfile=None):
