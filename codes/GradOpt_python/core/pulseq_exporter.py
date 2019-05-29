@@ -16,9 +16,21 @@ from pypulseq.opts import Opts
 # for trap and sinc
 from pypulseq.holder import Holder
 
+def rectify_flips(flips):
+    rflips = np.copy(flips)
+    
+    for i in range(rflips.shape[0]):
+        for j in range(rflips.shape[1]):
+            if rflips[i,j,0] < 0:
+                rflips[i,j,0] = -rflips[i,j,0]
+                rflips[i,j,1] += np.pi
+                rflips[i,j,1] = np.mod(rflips[i,j,1], 2*np.pi)
+    return rflips
 
 def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
+    
+    flips_numpy = rectify_flips(flips_numpy)
     
     NRep = flips_numpy.shape[1]
     
@@ -113,6 +125,8 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         
 def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
+    
+    flips_numpy = rectify_flips(flips_numpy)
     
     NRep = flips_numpy.shape[1]
     
@@ -218,6 +232,8 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     
 def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
+    
+    flips_numpy = rectify_flips(flips_numpy)
     
     NRep = flips_numpy.shape[1]
     
