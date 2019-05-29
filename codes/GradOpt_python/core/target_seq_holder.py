@@ -164,7 +164,7 @@ class TargetSequenceHolder():
 
         return basepath
 
-    def export_to_pulseq(self, experiment_id, sequence_class):
+    def export_to_pulseq(self, experiment_id, sequence_class, plot_seq=True):
         basepath = self.get_base_path(experiment_id)
         
         fn_target_array = "target_arr.npy"
@@ -208,13 +208,13 @@ class TargetSequenceHolder():
         seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
         
         if sequence_class.lower() == "gre":
-            pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+            pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "rare":
-            pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+            pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "bssfp":
-            pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+            pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "epi":
-            pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=True)
+            pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         
         
         

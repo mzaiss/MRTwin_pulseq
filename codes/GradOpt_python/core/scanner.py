@@ -1875,7 +1875,7 @@ class Scanner():
             
         control_lines = [l+"\n" for l in control_lines]
         
-        with open(os.path.join(basepath,control_filename),"w") as f:
+        with open(os.path.join(basepath_control,control_filename),"w") as f:
             f.writelines(control_lines)
             
     def get_signal_from_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target", iterfile=None):
@@ -1919,6 +1919,7 @@ class Scanner():
                 NCol = np.where(self.adc_mask.cpu().numpy())[0].size
                 raw = raw.reshape([self.NRep,ncoils,NCol,2])
                 raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
+                raw /= np.max(np.abs(raw))
                 
                 # inject into simulated scanner signal variable
                 adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
