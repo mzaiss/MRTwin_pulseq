@@ -63,10 +63,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([64,64])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 2**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
@@ -137,7 +137,7 @@ scanner.set_flipXY_tensor(flips)
 scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 # event timing vector 
 
-TEd= 0.95*1e-3 # increase to reduce SAR
+TEd= 1.95*1e-3 # increase to reduce SAR
 event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,1:] = 0.2*1e-3     # for TE2_180_2   delay only
 event_time[-1,:] = 0.8*1e-3     # for TE2_180_2   delay only
@@ -227,7 +227,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
         plt.title("simulation ADJOINT")
                     
-    #stop()
+stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
