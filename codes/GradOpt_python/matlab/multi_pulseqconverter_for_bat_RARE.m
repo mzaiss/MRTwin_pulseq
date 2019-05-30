@@ -119,6 +119,8 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
     end
 
+    nonsel=1
+    
 % put blocks together
 for rep=1:NRep
 
@@ -130,13 +132,23 @@ for rep=1:NRep
       RFdur=0;
       if abs(flips(idx_T,rep,1)) > 1e-8
         use = 'excitation';
-        RFdur=1*1e-3;
-        sliceThickness=200e-3;
-        rfex = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
-        seq.addBlock(rfex);
-        gxPre90 = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep)-RFdur,'system',sys);
-        seq.addBlock(gxPre90);  % this is the revinder between 90 and first 180
-      else
+        if nonsel
+            RFdur=1*1e-3;
+            sliceThickness=200e-3;
+            rfex = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+            seq.addBlock(rfex);
+            gxPre90 = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep)-RFdur,'system',sys);
+            seq.addBlock(gxPre90);  % this is the revinder between 90 and first 180
+        else
+            RFdur=1*1e-3;
+            sliceThickness=5-3;
+            rfex = mr.makeSincPulse(flips(idx_T,rep,1),'Duration',RFdur,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+            seq.addBlock(rfex);
+            gxPre90 = mr.makeTrapezoid('x','Area',gradmoms(idx_T,rep,1),'Duration',event_times(idx_T,rep)-RFdur,'system',sys);
+            seq.addBlock(gxPre90);  % this is the revinder between 90 and first 180
+        end
+        
+     else
         seq.addBlock(mr.makeDelay(event_times(idx_T,rep))) % 
       end
       
