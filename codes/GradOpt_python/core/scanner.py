@@ -1802,21 +1802,20 @@ class Scanner():
         self.reco = torch.sum(r,0)
         return r 
 
-    def get_base_path(self, experiment_id):
+    def get_base_path(self, experiment_id, today_datestr):
         if platform == 'linux':
             basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
-        today_datestr = time.strftime('%y%m%d')
         basepath_seq = os.path.join(basepath, "seq" + today_datestr)
         basepath_seq = os.path.join(basepath_seq, experiment_id)
 
         return basepath, basepath_seq
 
     # interaction with real system
-    def send_job_to_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target", iterfile=None):
-        basepath, basepath_seq = self.get_base_path(experiment_id)
+    def send_job_to_real_system(self, experiment_id, today_datestr, basepath_seq_override=None, jobtype="target", iterfile=None):
+        basepath, basepath_seq = self.get_base_path(experiment_id, today_datestr)
         
         if platform == 'linux':
             basepath_control = '/media/upload3t/CEST_seq/pulseq_zero/control'
@@ -1862,10 +1861,6 @@ class Scanner():
             class ExecutionControl(Exception): pass
             raise ExecutionControl("control file is corrupt")
             
-        today_datestr = time.strftime('%y%m%d')
-        basepath_seq = os.path.join(basepath, "seq" + today_datestr)
-        basepath_seq = os.path.join(basepath_seq, experiment_id)            
-            
         basepath_out = "//mrz3t//upload//CEST_seq//pulseq_zero//sequences//" + "seq" + today_datestr + "//" + experiment_id
             
         # add sequence file
@@ -1878,8 +1873,8 @@ class Scanner():
         with open(os.path.join(basepath_control,control_filename),"w") as f:
             f.writelines(control_lines)
             
-    def get_signal_from_real_system(self, experiment_id, basepath_seq_override=None, jobtype="target", iterfile=None):
-        _, basepath_seq = self.get_base_path(experiment_id)
+    def get_signal_from_real_system(self, experiment_id, today_datestr, basepath_seq_override=None, jobtype="target", iterfile=None):
+        _, basepath_seq = self.get_base_path(experiment_id, today_datestr)
         
         if basepath_seq_override is not None:
             basepath_seq = basepath_seq_override        

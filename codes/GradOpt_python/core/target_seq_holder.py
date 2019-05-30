@@ -128,8 +128,8 @@ class TargetSequenceHolder():
             plt.pause(0.02)
             
     # save current optimized parameter state to matlab array
-    def export_to_matlab(self, experiment_id):
-        basepath = self.get_base_path(experiment_id)
+    def export_to_matlab(self, experiment_id, today_datestr):
+        basepath = self.get_base_path(experiment_id, today_datestr)
         
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
@@ -152,20 +152,19 @@ class TargetSequenceHolder():
         scipy.io.savemat(os.path.join(basepath,fn_target_array), scanner_dict)
 
         
-    def get_base_path(self, experiment_id):
+    def get_base_path(self, experiment_id, today_datestr):
         if platform == 'linux':
             basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
-        today_datestr = time.strftime('%y%m%d')
         basepath = os.path.join(basepath, "seq" + today_datestr)
         basepath = os.path.join(basepath, experiment_id)
 
         return basepath
 
-    def export_to_pulseq(self, experiment_id, sequence_class, plot_seq=True):
-        basepath = self.get_base_path(experiment_id)
+    def export_to_pulseq(self, experiment_id, today_datestr, sequence_class, plot_seq=True):
+        basepath = self.get_base_path(experiment_id, today_datestr)
         
         fn_target_array = "target_arr.npy"
         fn_pulseq = "target.seq"

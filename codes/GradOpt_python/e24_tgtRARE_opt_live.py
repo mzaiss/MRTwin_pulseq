@@ -22,6 +22,7 @@ import core.spins
 import core.scanner
 import core.opt_helper
 import core.target_seq_holder
+import time
 
 from importlib import reload
 reload(core.scanner)
@@ -32,8 +33,8 @@ double_precision = False
 use_supermem = False
 do_scanner_query = True
 
-use_gpu = 0
-gpu_dev = 0
+use_gpu = 1
+gpu_dev = 3
 
 # NRMSE error function
 def e(gt,x):
@@ -70,6 +71,8 @@ NSpins = 10**2                                # number of spin sims in each voxe
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
+today_datestr = time.strftime('%y%m%d')
+
 #############################################################################
 ## Init spin system ::: #####################################
 # initialize scanned object
@@ -207,13 +210,13 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(16, 3)
     plt.show()
     
-    targetSeq.export_to_matlab(experiment_id)
+    targetSeq.export_to_matlab(experiment_id, today_datestr)
     print("SAR_watchdog = {}%".format(np.round(SAR_watchdog*watchdog_norm)))
     
     if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,sequence_class)
-        scanner.send_job_to_real_system(experiment_id)
-        scanner.get_signal_from_real_system(experiment_id)
+        targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+        scanner.send_job_to_real_system(experiment_id,today_datestr)
+        scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
         plt.subplot(131)
         scanner.adjoint()
@@ -227,7 +230,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
         plt.title("simulation ADJOINT")
                     
-#stop()
+stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -346,15 +349,18 @@ opt.custom_learning_rate = [0.01,0.05,0.00001,0.1]
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+
+query_kwargs = experiment_id, today_datestr, sequence_class
+
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
 
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)

@@ -545,7 +545,7 @@ class OPT_helper():
             plt.pause(0.02)
             
     # save current optimized parameter state to matlab array
-    def export_to_matlab(self, experiment_id):
+    def export_to_matlab(self, experiment_id, today_datestr):
         _,reco,error = self.phi_FRP_model(self.scanner_opt_params, None)
         
         tosave_opt_params = self.scanner_opt_params
@@ -567,7 +567,7 @@ class OPT_helper():
         #scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
         scanner_dict['signal'] = tonumpy(self.scanner.signal)
         
-        basepath = self.get_base_path(experiment_id)
+        basepath = self.get_base_path(experiment_id, today_datestr)
         
         try:
             os.makedirs(basepath)
@@ -578,20 +578,19 @@ class OPT_helper():
             
         scipy.io.savemat(os.path.join(basepath,"scanner_dict.mat"), scanner_dict)
         
-    def get_base_path(self, experiment_id):
+    def get_base_path(self, experiment_id, today_datestr):
         if platform == 'linux':
             basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
-        today_datestr = time.strftime('%y%m%d')
         basepath = os.path.join(basepath, "seq" + today_datestr)
         basepath = os.path.join(basepath, experiment_id)
 
         return basepath   
         
-    def export_to_pulseq(self, experiment_id, sequence_class,plot_seq=False):
-        basepath = self.get_base_path(experiment_id)
+    def export_to_pulseq(self, experiment_id, today_datestr, sequence_class, plot_seq=False):
+        basepath = self.get_base_path(experiment_id, today_datestr)
         
         fn_lastiter_array = "lastiter_arr.npy"
         fn_pulseq = "lastiter.seq"
@@ -650,8 +649,8 @@ class OPT_helper():
             pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         
     # save entire history of the optimized parameters
-    def save_param_reco_history(self, experiment_id, sequence_class, generate_pulseq=True):
-        basepath = self.get_base_path(experiment_id)
+    def save_param_reco_history(self, experiment_id, today_datestr, sequence_class, generate_pulseq=True):
+        basepath = self.get_base_path(experiment_id, today_datestr)
         
         fn_alliter_array = "alliter_arr.npy"
         
@@ -728,8 +727,8 @@ class OPT_helper():
         
         
     # save entire history of the optimized parameters (to Matlab)
-    def save_param_reco_history_matlab(self, experiment_id):
-        basepath = self.get_base_path(experiment_id)
+    def save_param_reco_history_matlab(self, experiment_id, today_datestr):
+        basepath = self.get_base_path(experiment_id, today_datestr)
         try:
             os.makedirs(basepath)
             os.makedirs(os.path.join(basepath,"data"))
