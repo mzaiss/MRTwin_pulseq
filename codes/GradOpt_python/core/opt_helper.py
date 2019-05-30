@@ -345,11 +345,21 @@ class OPT_helper():
                 plt.subplot(131)
                 self.scanner.adjoint()
                 plt.imshow(magimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
-                plt.title("real ADJOINT")
+                plt.title("meas ADJOINT")
+                
                 plt.subplot(132)
+                ax = plt.imshow(phaseimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
+                plt.clim(-np.pi,np.pi)
+                fig = plt.gcf()
+                fig.colorbar(ax,fraction=0.046, pad=0.04)
+                plt.title("meas phase ADJOINT")
+                
+                plt.subplot(133)
                 self.scanner.do_ifft_reco()
                 plt.imshow(magimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
-                plt.title("real IFFT")    
+                plt.title("real IFFT")   
+                
+    
                 
                 plt.ion()
                 plt.show()

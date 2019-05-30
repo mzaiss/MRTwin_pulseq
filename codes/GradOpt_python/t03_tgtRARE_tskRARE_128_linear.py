@@ -66,7 +66,7 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([24,24])                                           # image size
+sz = np.array([48,48])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 2**2                                # number of spin sims in each voxel
@@ -122,7 +122,7 @@ spins.omega = setdevice(spins.omega)
 #end nspins with R*
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 scanner.set_adc_mask()
 # begin sequence definition
 # allow for relaxation and spoiling in the first two and last two events (after last readout event)
@@ -137,7 +137,7 @@ flips = setdevice(flips)
 scanner.init_flip_tensor_holder()
 scanner.set_flipXY_tensor(flips)
 # rotate ADC according to excitation phase
-scanner.set_ADC_rot_tensor(flips[0,:,1]*0 + 2*np.pi/2) #GRE/FID specific
+scanner.set_ADC_rot_tensor(flips[0,:,1]*0 -np.pi/2) #GRE/FID specific
 # event timing vector 
 
 TEd= 2.99*1e-3 # increase to reduce SAR
@@ -171,13 +171,13 @@ grad_moms[-2,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree h
 #grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 #grad_moms[[1,-2],:,1] = torch.roll(grad_moms[[1,-2],:,1],0,dims=[1])
 #     centric ordering
-grad_moms[1,:,1] = 0
-for i in range(1,int(sz[1]/2)+1):
-    grad_moms[1,i*2-1,1] = (-i)
-    if i < sz[1]/2:
-        grad_moms[1,i*2,1] = i
-grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
-grad_moms = setdevice(grad_moms)
+#grad_moms[1,:,1] = 0
+#for i in range(1,int(sz[1]/2)+1):
+#    grad_moms[1,i*2-1,1] = (-i)
+#    if i < sz[1]/2:
+#        grad_moms[1,i*2,1] = i
+#grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
+#grad_moms = setdevice(grad_moms)
 # end sequence 
 scanner.init_gradient_tensor_holder()
 scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=True for RARE, adjust for higher echoes
@@ -185,7 +185,7 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-scanner.forward_fast_supermem(spins, event_time)
+scanner.forward_fast(spins, event_time)
 #scanner.init_signal()
 scanner.adjoint()
 
@@ -206,6 +206,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         scanner.get_signal_from_real_system(experiment_id)
         
         plt.subplot(121)
+        #scanner.generalized_adjoint()
         scanner.adjoint()
         ax = plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
         fig = plt.gcf()
@@ -293,7 +294,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.init_flip_tensor_holder()
     scanner.set_flipXY_tensor(flips)    
     # rotate ADC according to excitation phase
-    scanner.set_ADC_rot_tensor(-flips[0,:,1]*0)  # GRE/FID specific, this must be the excitation pulse
+    scanner.set_ADC_rot_tensor(flips[0,:,1]*0 -np.pi/2)  # GRE/FID specific, this must be the excitation pulse
           
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # RARE specific, maybe adjust for higher echoes
