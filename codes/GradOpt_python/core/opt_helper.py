@@ -278,7 +278,7 @@ class OPT_helper():
             
         
     # main training function
-    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False, experiment_id=None, sequence_class=None):
+    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False, query_kwargs = None):
         
         for i in range(len(self.scanner_opt_params)):
             if i in self.opt_param_idx:
@@ -337,10 +337,12 @@ class OPT_helper():
             self.optimizer.step(self.weak_closure)
             
             if query_scanner:
+                experiment_id, today_datestr, sequence_class = query_kwargs
+                
                 # do real scanner reco
-                self.export_to_pulseq(experiment_id,sequence_class)
-                self.scanner.send_job_to_real_system(experiment_id,jobtype="lastiter")
-                self.scanner.get_signal_from_real_system(experiment_id,jobtype="lastiter")
+                self.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+                self.scanner.send_job_to_real_system(experiment_id,today_datestr,jobtype="lastiter")
+                self.scanner.get_signal_from_real_system(experiment_id,today_datestr,jobtype="lastiter")
                 
                 plt.subplot(131)
                 self.scanner.adjoint()
