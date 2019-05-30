@@ -20,8 +20,15 @@ import core.opt_helper
 import core.target_seq_holder
 from sys import platform
 
+from core.pulseq_exporter import pulseq_write_GRE
+from core.pulseq_exporter import pulseq_write_RARE
+from core.pulseq_exporter import pulseq_write_BSSFP
+from core.pulseq_exporter import pulseq_write_EPI
+
 use_gpu = 0
 gpu_dev = 0
+use_gen_adjoint = False
+recreate_pulseq_files = False
 
 # NRMSE error function
 def e(gt,x):
@@ -56,12 +63,12 @@ if platform == 'linux':
 else:
     basepath = 'K:\CEST_seq\pulseq_zero\sequences'
     
-date_str = "seq190527"
-experiment_id = "t04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep_multiitertest"
+date_str = "seq190529"
+experiment_id = "t03_tgtRARE_tskRARE_128_linear_init"
 fullpath_seq = os.path.join(basepath, date_str, experiment_id)
 
 fn_alliter_array = "alliter_arr.npy"
-alliter_array = np.load(os.path.join(os.path.join(fullpath_seq, fn_alliter_array)))
+alliter_array = np.load(os.path.join(os.path.join(fullpath_seq, fn_alliter_array)), allow_pickle=True)
 
 alliter_array = alliter_array.item()
 
@@ -75,7 +82,11 @@ noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
 jobtype = "iter"
 
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+if use_gen_adjoint:
+    scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+else:
+    scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+    
 scanner.set_adc_mask()
 
 scanner.B1 = setdevice(torch.from_numpy(alliter_array['B1']))
@@ -96,7 +107,7 @@ all_real_reco_generalized_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
 all_real_reco_ifft = np.zeros([nmb_iter,sz[0],sz[1],2])
 all_real_reco_nufft = np.zeros([nmb_iter,sz[0],sz[1],2])
 
-for c_iter in range(nmb_iter):
+for c_iter in range(0, nmb_iter):
     
     print("Processing the iteration {} ...".format(c_iter))
     
@@ -121,6 +132,7 @@ for c_iter in range(nmb_iter):
     scanner.init_gradient_tensor_holder()
     scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
     
+
     ###############################################################################
     ######### SIMULATION
     
@@ -130,9 +142,10 @@ for c_iter in range(nmb_iter):
     all_sim_reco_adjoint[c_iter] = sim_reco_adjoint
     
     # simulation generalized adjoint
-    scanner.generalized_adjoint()
-    sim_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    all_sim_reco_generalized_adjoint[c_iter] = sim_reco_generalized_adjoint
+    if use_gen_adjoint:
+        scanner.generalized_adjoint()
+        sim_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+        all_sim_reco_generalized_adjoint[c_iter] = sim_reco_generalized_adjoint
     
     # simulation IFFT
     scanner.do_ifft_reco()
@@ -153,6 +166,29 @@ for c_iter in range(nmb_iter):
     # send to scanner
     iterfile = "iter" + str(c_iter).zfill(6)
     
+    if recreate_pulseq_files:
+	    fn_pulseq = "iter" + str(c_iter).zfill(6) + ".seq"
+	    iflips = alliter_array['flips'][c_iter]
+	    ivent = alliter_array['event_times'][c_iter]
+	    gmo = alliter_array['grad_moms'][c_iter]
+
+	    seq_params = iflips, ivent, gmo
+	    
+	    import time
+	    today_datestr = time.strftime('%y%m%d')
+	    basepath_out = os.path.join(basepath, "seq" + today_datestr)
+	    basepath_out = os.path.join(basepath_out, experiment_id)
+	    
+	    if sequence_class.lower() == "gre":
+		pulseq_write_GRE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+	    elif sequence_class.lower() == "rare":
+		pulseq_write_RARE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+	    elif sequence_class.lower() == "bssfp":
+		pulseq_write_BSSFP(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+	    elif sequence_class.lower() == "epi":
+		pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)          
+        
+    
     scanner.send_job_to_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
     scanner.get_signal_from_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
     
@@ -166,9 +202,10 @@ for c_iter in range(nmb_iter):
     all_real_reco_adjoint[c_iter] = real_reco_adjoint
     
     # real generalized adjoint
-    scanner.generalized_adjoint()
-    real_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    all_real_reco_generalized_adjoint[c_iter] = real_reco_generalized_adjoint
+    if use_gen_adjoint:
+        scanner.generalized_adjoint()
+        real_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+        all_real_reco_generalized_adjoint[c_iter] = real_reco_generalized_adjoint
     
     # real IFFT
     scanner.do_ifft_reco()
@@ -181,7 +218,7 @@ for c_iter in range(nmb_iter):
     all_real_reco_nufft[c_iter] = real_reco_nufft
     
     
-draw_iter = 0
+draw_iter = 305
 
 # Visualize simulated images
 
@@ -230,5 +267,36 @@ plt.title("real NUFFT")
 
 plt.ion()
 plt.show()
+
+## EXPORT LAND
+
+all_sim_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_sim_reco_generalized_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_sim_reco_ifft = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_sim_reco_nufft = np.zeros([nmb_iter,sz[0],sz[1],2])
+
+all_sim_kspace = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_real_kspace = np.zeros([nmb_iter,sz[0],sz[1],2])
+
+all_real_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_real_reco_generalized_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_real_reco_ifft = np.zeros([nmb_iter,sz[0],sz[1],2])
+all_real_reco_nufft = np.zeros([nmb_iter,sz[0],sz[1],2])
+
+allreco_dict = dict()
+allreco_dict['all_sim_reco_adjoint'] = all_sim_reco_adjoint
+allreco_dict['all_sim_reco_generalized_adjoint'] = all_sim_reco_generalized_adjoint
+allreco_dict['all_sim_reco_ifft'] = all_sim_reco_ifft
+allreco_dict['all_sim_reco_nufft'] = all_sim_reco_nufft
+allreco_dict['all_sim_kspace'] = all_sim_kspace
+allreco_dict['all_real_kspace'] = all_real_kspace
+allreco_dict['all_real_reco_adjoint'] = all_real_reco_adjoint
+allreco_dict['all_real_reco_generalized_adjoint'] = all_real_reco_generalized_adjoint
+allreco_dict['all_real_reco_ifft'] = all_real_reco_ifft
+allreco_dict['all_real_reco_nufft'] = all_real_reco_nufft
+
+
+np.save(os.path.join(os.path.join(fullpath_seq, "allreco_dict.npy")), allreco_dict)
+        
 
     

@@ -23,6 +23,7 @@ from sys import platform
 
 use_gpu = 0
 gpu_dev = 0
+use_gen_adjoint = False
 
 # NRMSE error function
 def e(gt,x):
@@ -56,17 +57,17 @@ if platform == 'linux':
 else:
     basepath = 'K:\CEST_seq\pulseq_zero\sequences'
     
-date_str = "seq190527"
-experiment_id = "t04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep_FA45_phaseincr5"
+date_str = "seq190529"
+experiment_id = "t03_tgtRARE_tskRARE_128_linear_init"
 fullpath_seq = os.path.join(basepath, date_str, experiment_id)
 
-use_target = False
+use_target = True
     
 if use_target:
-    input_array = np.load(os.path.join(fullpath_seq, "target_arr.npy"))
+    input_array = np.load(os.path.join(fullpath_seq, "target_arr.npy"), allow_pickle=True)
     jobtype = "target"
 else:
-    input_array = np.load(os.path.join(fullpath_seq, "lastiter_arr.npy"))
+    input_array = np.load(os.path.join(fullpath_seq, "lastiter_arr.npy"), allow_pickle=True)
     jobtype = "lastiter"
     
 input_array = input_array.item()
@@ -80,7 +81,10 @@ NCoils = input_array['signal'].shape[0]
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
 
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+if use_gen_adjoint:
+    scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+else:
+    scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 scanner.set_adc_mask()
 
 scanner.adc_mask = setdevice(torch.from_numpy(input_array['adc_mask']))
@@ -114,7 +118,10 @@ scanner.adjoint()
 sim_reco_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
 
 # simulation generalized adjoint
-scanner.generalized_adjoint()
+if use_gen_adjoint:
+    scanner.generalized_adjoint()
+else:
+    scanner.adjoint()
 sim_reco_generalized_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
 
 # simulation IFFT
@@ -172,7 +179,10 @@ scanner.adjoint()
 real_reco_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
 
 # real generalized adjoint
-scanner.generalized_adjoint()
+if use_gen_adjoint:
+    scanner.generalized_adjoint()
+else:
+    scanner.adjoint()
 real_reco_generalized_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
 
 # real IFFT
