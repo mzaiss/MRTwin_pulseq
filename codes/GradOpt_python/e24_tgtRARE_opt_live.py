@@ -4,7 +4,7 @@
 Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
-experiment_id = 'e24_tgtRARE_opt_live'
+experiment_id = 'e24_tgtRARE_opt_live_fullgradandRF'
 sequence_class = "RARE"
 experiment_description = """
 RARE, cpmg
@@ -63,10 +63,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([64,64])                                           # image size
+sz = np.array([48,48])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 2**2                                # number of spin sims in each voxel
+NSpins = 10**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
@@ -227,7 +227,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
         plt.title("simulation ADJOINT")
                     
-stop()
+#stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -258,17 +258,19 @@ def init_variables():
     event_time.zero_grad_mask = event_time_mask
     
     grad_moms = targetSeq.grad_moms.clone()
-    grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()        
+    grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()  
+    grad_moms_mask[0,:,:] = 1      
     grad_moms_mask[1,:,:] = 1
     grad_moms_mask[-2,:,:] = 1
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
     
-    #grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
-    #grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+    grad_moms[0,:,0] = grad_moms[0,:,0]*0    # remove rewinder gradients
+    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
+    grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
     
-    #grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
-    #grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
+    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
     
     return [adc_mask, flips, event_time, grad_moms]
     
@@ -339,12 +341,22 @@ opt.experiment_description = experiment_description
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([1]) # ADC, RF, time, grad
+opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
 opt.custom_learning_rate = [0.01,0.05,0.00001,0.1]
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
-opt.train_model(training_iter=1000, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True, query_scanner=True,experiment_id=experiment_id, sequence_class=sequence_class) # save_intermediary_results=1 if you want to plot them later
+
+
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 # plot
 targetSeq.print_status(True, reco=None)

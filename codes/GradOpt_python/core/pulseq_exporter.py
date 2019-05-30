@@ -85,7 +85,7 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,1],0), "flat_time": dur}
         gy = make_trapezoid(kwargs_for_gy)
         
-        kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time, "phase_offset": rf.phase_offset}
+        kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": (gx.rise_time - event_time_numpy[idx_T[0],rep]/2), "phase_offset": rf.phase_offset}
         adc = makeadc(kwargs_for_adc)    
         
         #update rewinder for gxgy ramp times, from second event
@@ -193,7 +193,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,0],0), "flat_time": dur}
         gx = make_trapezoid(kwargs_for_gx)   
         
-        kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time, "phase_offset": rf_ex.phase_offset}
+        kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time - event_time_numpy[idx_T[0],rep]/2, "phase_offset": rf_ex.phase_offset}
         adc = makeadc(kwargs_for_adc)    
         
         #update rewinder for gxgy ramp times, from second event
@@ -304,7 +304,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,1],0), "flat_time": dur}
         gy = make_trapezoid(kwargs_for_gy)
         
-        kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time, "phase_offset": rf.phase_offset}
+        kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time - event_time_numpy[idx_T[0],rep]/2, "phase_offset": rf.phase_offset}
         adc = makeadc(kwargs_for_adc)    
         
         #update rewinder for gxgy ramp times, from second event
