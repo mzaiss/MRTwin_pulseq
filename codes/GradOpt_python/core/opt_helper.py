@@ -303,34 +303,6 @@ class OPT_helper():
                 _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None)
             print(colored("\033[93m iter %d, recon error = %f \033[0m" % (inner_iter,self.last_error), 'green'))
             
-            # save entire history of optimized params/reco images
-            if save_intermediary_results:
-                tosave_opt_params = self.scanner_opt_params
-                
-                # i.e. non-cartesian trajectiries, any custom reparameterization
-                if self.reparameterize is not None:
-                    tosave_opt_params = self.reparameterize(tosave_opt_params)
-                
-                saved_state = dict()
-                saved_state['adc_mask'] = tonumpy(tosave_opt_params[0])
-                saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
-                saved_state['event_times'] = tonumpy(tosave_opt_params[2])
-                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
-                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
-                saved_state['kloc'] = tonumpy(self.scanner.kspace_loc.clone())
-                saved_state['learn_rates'] = self.custom_learning_rate
-                
-                legs=['x','y','z']
-                for i in range(3):
-                    M_roi = tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep])
-                    saved_state['ROI_def %d, %s'  % (self.scanner.ROI_def,legs[i])]  = M_roi
-
-                saved_state['reco_image'] = tonumpy(self.last_reco.clone())
-                saved_state['signal'] = tonumpy(self.scanner.signal)
-                saved_state['error'] = self.last_error
-                
-                self.param_reco_history.append(saved_state)
-
             self.print_status(do_vis_image,self.last_reco)
 
             #self.new_batch()
@@ -361,10 +333,36 @@ class OPT_helper():
                 plt.imshow(magimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
                 plt.title("real IFFT")   
                 
-    
-                
                 plt.ion()
                 plt.show()
+                
+            # save entire history of optimized params/reco images
+            if save_intermediary_results:
+                tosave_opt_params = self.scanner_opt_params
+                
+                # i.e. non-cartesian trajectiries, any custom reparameterization
+                if self.reparameterize is not None:
+                    tosave_opt_params = self.reparameterize(tosave_opt_params)
+                
+                saved_state = dict()
+                saved_state['adc_mask'] = tonumpy(tosave_opt_params[0])
+                saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
+                saved_state['event_times'] = tonumpy(tosave_opt_params[2])
+                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['kloc'] = tonumpy(self.scanner.kspace_loc.clone())
+                saved_state['learn_rates'] = self.custom_learning_rate
+                
+                legs=['x','y','z']
+                for i in range(3):
+                    M_roi = tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep])
+                    saved_state['ROI_def %d, %s'  % (self.scanner.ROI_def,legs[i])]  = M_roi
+
+                saved_state['reco_image'] = tonumpy(self.last_reco.clone())
+                saved_state['signal'] = tonumpy(self.scanner.signal)
+                saved_state['error'] = self.last_error
+                
+                self.param_reco_history.append(saved_state)                   
 
                 
         

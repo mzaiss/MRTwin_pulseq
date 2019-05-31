@@ -62,6 +62,7 @@ class Scanner():
         self.AF = None
         self.use_gpu =  use_gpu
         self.double_precision = double_precision
+        self.NCol = None # number of samples in readout (computed at adc_mask set)
         
         
         # experimental (fast grad op)
@@ -102,9 +103,15 @@ class Scanner():
         print("SAR_watchdog = {}%".format(np.round(SAR_watchdog*watchdog_norm)))
         
         
-    def set_adc_mask(self):
-        adc_mask = torch.from_numpy(np.ones((self.T,1))).float()
-        self.adc_mask = self.setdevice(adc_mask)
+    def set_adc_mask(self, adc_mask = None):
+        if adc_mask == None:
+            adc_mask = torch.from_numpy(np.ones((self.T,1))).float()
+            self.adc_mask = self.setdevice(adc_mask)
+        else:
+            self.adc_mask = adc_mask
+        
+        adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
+        self.NCol = adc_idx.size
 
     def init_ramps(self):
         use_nonlinear_grads = False                       # very experimental
