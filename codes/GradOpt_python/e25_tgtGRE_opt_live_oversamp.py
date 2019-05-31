@@ -38,7 +38,7 @@ print('32x float forwardfast oS')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = False
+do_scanner_query = True
 
 use_gpu = 1
 gpu_dev = 0
@@ -78,7 +78,7 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 osamp_factor = 2
 T = osamp_factor*sz[0] + 4                                        # number of events F/R/P
@@ -182,7 +182,7 @@ TE=torch.sum(event_time[:11,1])
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
-grad_moms[1,:,0] = -sz[0]/2 + sz[0]/2         # GRE/FID specific, rewinder in second event block
+grad_moms[1,:,0] = -sz[0]/2 + 0*sz[0]/2         # GRE/FID specific, rewinder in second event block
 grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
 grad_moms[2:-2,:,0] = torch.ones(int(scanner.NCol)).view(int(scanner.NCol),1).repeat([1,NRep]) / osamp_factor # ADC open, readout, freq encoding
 grad_moms[-2,:,0] = torch.ones(1)*sz[0]*2  # GRE/FID specific, SPOILER
@@ -213,7 +213,7 @@ else:
     scanner.forward_fast(spins, event_time)
     
 #scanner.init_signal()
-scanner.discard_out_of_kspace_sig()
+#scanner.discard_out_of_kspace_sig()
 scanner.adjoint()
 
 # try to fit this
@@ -246,7 +246,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         
     targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
                     
-    stop()
+stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    

@@ -136,7 +136,7 @@ class TargetSequenceHolder():
                 plt.subplot(141)
                 ax = plt.imshow(magimg(tonumpy(self.meas_reco.detach()).reshape([self.sz[0],self.sz[1],2])), interpolation='none')
                 fig = plt.gcf()
-                #fig.colorbar(ax)
+                fig.colorbar(ax)
                 plt.title("meas mag ADJ")
                 
                 plt.subplot(142)

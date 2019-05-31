@@ -22,6 +22,10 @@ if sys.version_info[0] < 3:
     import cPickle as pickle
 else:
     import pickle
+    
+# NRMSE error function
+def e(gt,x):
+    return 100*np.linalg.norm((gt-x).ravel())/np.linalg.norm(gt.ravel())
 
 # torch to numpy
 def tonumpy(x):
@@ -301,7 +305,7 @@ class OPT_helper():
             # evaluate initial image state before doing optimizer step
             if inner_iter == 0:
                 _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None)
-            print(colored("\033[93m iter %d, recon error = %f \033[0m" % (inner_iter,self.last_error), 'green'))
+            print(colored("\033[93m iter %d, recon error = %f \033[0m%%" % (inner_iter,self.last_error), 'green'))
             
             self.print_status(do_vis_image,self.last_reco)
 
@@ -318,20 +322,23 @@ class OPT_helper():
                 self.scanner.send_job_to_real_system(experiment_id,today_datestr,jobtype="lastiter")
                 self.scanner.get_signal_from_real_system(experiment_id,today_datestr,jobtype="lastiter")
                 
+                self.scanner.adjoint()
                 meas_sig = self.scanner.signal.clone()
                 meas_reco = self.scanner.reco.clone()                
                 
                 plt.subplot(141)
-                ax = plt.imshow(magimg(tonumpy(meas_reco.detach()).reshape([self.sz[0],self.sz[1],2])), interpolation='none')
-                mag_meas_target = magimg(tonumpy(self.target_seq_holder.meas_reco))
+                meas_reco = tonumpy(meas_reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+                ax = plt.imshow(magimg(meas_reco), interpolation='none')
+                meas_target = tonumpy(self.target_seq_holder.meas_reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+                mag_meas_target = magimg(meas_target)
                 plt.clim(np.min(mag_meas_target),np.max(mag_meas_target))
                 
                 fig = plt.gcf()
-                #fig.colorbar(ax)
+                fig.colorbar(ax)
                 plt.title("meas mag ADJ")
                 
                 plt.subplot(142)
-                ax = plt.imshow(phaseimg(tonumpy(meas_reco.detach()).reshape([self.sz[0],self.sz[1],2])), interpolation='none')
+                ax = plt.imshow(phaseimg(meas_reco), interpolation='none')
                 fig = plt.gcf()
                 fig.colorbar(ax)
                 plt.title("meas phase ADJ")
@@ -359,6 +366,9 @@ class OPT_helper():
                 
                 plt.ion()
                 plt.show()
+                
+                meas_error = e(meas_target.ravel(),meas_reco.ravel())    
+                print(colored("\033[93m iter %d, REAL MEAS error = %f \033[0m%%" % (inner_iter,meas_error), 'green'))
                 
             # save entire history of optimized params/reco images
             if save_intermediary_results:
@@ -388,7 +398,7 @@ class OPT_helper():
                 
                 if query_scanner:
                     saved_state['meas_signal'] = tonumpy(meas_sig)
-                    saved_state['meas_adj_reco'] = tonumpy(meas_reco)
+                    saved_state['meas_adj_reco'] = meas_reco
                 
                 self.param_reco_history.append(saved_state)                   
 
