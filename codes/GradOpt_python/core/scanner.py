@@ -99,12 +99,12 @@ class Scanner():
     def do_SAR_test(self, flips, event_time):
         TACQ = torch.sum(event_time)*1000
         watchdog_norm = 100 / 1.8098
-        SAR_watchdog = torch.sum(flips[:,:,0]**2) / TACQ
+        SAR_watchdog = (torch.sum(flips[:,:,0]**2) / TACQ).cpu()
         print("SAR_watchdog = {}%".format(np.round(SAR_watchdog*watchdog_norm)))
         
         
     def set_adc_mask(self, adc_mask = None):
-        if adc_mask == None:
+        if adc_mask is None:
             adc_mask = torch.from_numpy(np.ones((self.T,1))).float()
             self.adc_mask = self.setdevice(adc_mask)
         else:
@@ -505,10 +505,15 @@ class Scanner():
         spectrum = self.signal[0,self.adc_mask.flatten()!=0,:,:2,0].clone()
         
         # fftshift
-        spectrum = roll(spectrum,self.sz[0]//2-1,0)
-        spectrum = roll(spectrum,self.sz[1]//2-1,1)
+        spectrum = roll(spectrum,self.NCol//2-1,0)
+        spectrum = roll(spectrum,self.NRep//2-1,1)
         
         space = torch.ifft(spectrum,2)
+        
+        if self.NCol > self.sz[0]:
+            print("do_ifft_reco: oversampled singal detected, doing crop around center in space...")
+            hsz = (self.NCol - self.sz[0])//2
+            space = space[hsz:hsz+self.sz[0]]
         
         # fftshift
         space = roll(space,self.sz[0]//2-1,0)
@@ -518,11 +523,13 @@ class Scanner():
         
     def do_nufft_reco(self):
         sz = self.sz
+        NCol = self.NCol
+        NRep = self.NRep
         
         adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
         spectrum = self.signal[0,self.adc_mask.flatten()!=0,:,:2,0].detach().cpu().numpy()
         
-        X, Y = np.meshgrid(np.linspace(0,sz[0]-1,sz[0]) - sz[0] / 2, np.linspace(0,sz[1]-1,sz[1]) - sz[1]/2)
+        X, Y = np.meshgrid(np.linspace(0,NCol-1,NCol) - NCol / 2, np.linspace(0,NRep-1,NRep) - NRep/2)
         
         grid = self.kspace_loc[adc_idx,:,:]
         grid = torch.flip(grid, [2]).detach().cpu().numpy()
@@ -535,10 +542,15 @@ class Scanner():
         spectrum_resampled = self.setdevice(torch.from_numpy(spectrum_resampled).float())
         
         # fftshift
-        spectrum_resampled = roll(spectrum_resampled,self.sz[0]//2-1,0)
-        spectrum_resampled = roll(spectrum_resampled,self.sz[1]//2-1,1)
+        spectrum_resampled = roll(spectrum_resampled,NCol//2-1,0)
+        spectrum_resampled = roll(spectrum_resampled,NRep//2-1,1)
         
         space = torch.ifft(spectrum_resampled,2)
+        
+        if NCol > sz[0]:
+            print("do_nufft_reco: oversampled singal detected, doing crop around center in space...")
+            hsz = (NCol - sz[0])//2
+            space = space[hsz:hsz+sz[0]]        
         
         # fftshift
         space = roll(space,self.sz[0]//2-1,0)
@@ -1918,8 +1930,7 @@ class Scanner():
                 dp_twix = os.path.dirname(fnpath)
                 shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix.split('.')[0]+".dat"))
                 
-                NCol = np.where(self.adc_mask.cpu().numpy())[0].size
-                raw = raw.reshape([self.NRep,ncoils,NCol,2])
+                raw = raw.reshape([self.NRep,ncoils,self.NCol,2])
                 raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
                 raw /= np.max(np.abs(raw))
                 
@@ -1937,7 +1948,6 @@ class Scanner():
                 
                 done_flag = True
                 
-
                 time.sleep(0.5)
                 
        
@@ -1964,7 +1974,6 @@ class Scanner_fast(Scanner):
         self.IVP = IVP
         
     def set_gradient_precession_tensor(self,grad_moms,sequence_class):
-        
         # we need to shift grad_moms to the right for adjoint pass, since at each repetition we have:
         # meas-signal, flip, relax,grad order  (signal comes before grads!)
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)

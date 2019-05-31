@@ -311,27 +311,51 @@ class OPT_helper():
             if query_scanner:
                 experiment_id, today_datestr, sequence_class = query_kwargs
                 
+                sim_sig = self.scanner.signal.clone()
+                
                 # do real scanner reco
                 self.export_to_pulseq(experiment_id,today_datestr,sequence_class)
                 self.scanner.send_job_to_real_system(experiment_id,today_datestr,jobtype="lastiter")
                 self.scanner.get_signal_from_real_system(experiment_id,today_datestr,jobtype="lastiter")
                 
-                plt.subplot(131)
-                self.scanner.adjoint()
-                plt.imshow(magimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
-                plt.title("meas ADJOINT")
+                meas_sig = self.scanner.signal.clone()
+                meas_reco = self.scanner.reco.clone()                
                 
-                plt.subplot(132)
-                ax = plt.imshow(phaseimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
-                plt.clim(-np.pi,np.pi)
+                plt.subplot(141)
+                ax = plt.imshow(magimg(tonumpy(meas_reco.detach()).reshape([self.sz[0],self.sz[1],2])), interpolation='none')
+                mag_meas_target = magimg(tonumpy(self.target_seq_holder.meas_reco))
+                plt.clim(np.min(mag_meas_target),np.max(mag_meas_target))
+                
                 fig = plt.gcf()
-                fig.colorbar(ax,fraction=0.046, pad=0.04)
-                plt.title("meas phase ADJOINT")
+                #fig.colorbar(ax)
+                plt.title("meas mag ADJ")
                 
-                plt.subplot(133)
-                self.scanner.do_ifft_reco()
-                plt.imshow(magimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
-                plt.title("real IFFT")   
+                plt.subplot(142)
+                ax = plt.imshow(phaseimg(tonumpy(meas_reco.detach()).reshape([self.sz[0],self.sz[1],2])), interpolation='none')
+                fig = plt.gcf()
+                fig.colorbar(ax)
+                plt.title("meas phase ADJ")
+                
+                NCol = self.scanner.NCol
+                NRep = self.scanner.NRep                
+                
+                coil_idx = 0
+                adc_idx = np.where(self.scanner.adc_mask.cpu().numpy())[0]
+                sim_kspace = sim_sig[coil_idx,adc_idx,:,:2,0]
+                sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([NCol,NRep,2]))
+                
+                plt.subplot(143)
+                plt.imshow(sim_kspace, interpolation='none')
+                plt.title("sim kspace")                
+                
+                meas_kspace = meas_sig[coil_idx,adc_idx,:,:2,0]
+                meas_kspace = magimg(tonumpy(meas_kspace.detach()).reshape([NCol,NRep,2]))     
+                
+                plt.subplot(144)
+                plt.imshow(meas_kspace, interpolation='none')
+                plt.title("meas kspace")                   
+
+                fig.set_size_inches(18, 3)
                 
                 plt.ion()
                 plt.show()
@@ -361,6 +385,10 @@ class OPT_helper():
                 saved_state['reco_image'] = tonumpy(self.last_reco.clone())
                 saved_state['signal'] = tonumpy(self.scanner.signal)
                 saved_state['error'] = self.last_error
+                
+                if query_scanner:
+                    saved_state['meas_signal'] = tonumpy(meas_sig)
+                    saved_state['meas_adj_reco'] = tonumpy(meas_reco)
                 
                 self.param_reco_history.append(saved_state)                   
 

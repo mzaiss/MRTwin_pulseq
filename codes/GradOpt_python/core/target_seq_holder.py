@@ -133,31 +133,37 @@ class TargetSequenceHolder():
             plt.pause(0.02)
             
             if do_scanner_query:
-                plt.subplot(131)
+                plt.subplot(141)
                 ax = plt.imshow(magimg(tonumpy(self.meas_reco.detach()).reshape([self.sz[0],self.sz[1],2])), interpolation='none')
                 fig = plt.gcf()
                 #fig.colorbar(ax)
-                plt.title("meas mag ADJOINT")
+                plt.title("meas mag ADJ")
                 
-                plt.subplot(132)
+                plt.subplot(142)
                 ax = plt.imshow(phaseimg(tonumpy(self.meas_reco.detach()).reshape([self.sz[0],self.sz[1],2])), interpolation='none')
                 fig = plt.gcf()
                 fig.colorbar(ax)
-                plt.title("meas phase ADJOINT")
+                plt.title("meas phase ADJ")
+                
+                NCol = self.scanner.NCol
+                NRep = self.scanner.NRep
                 
                 coil_idx = 0
                 adc_idx = np.where(self.scanner.adc_mask.cpu().numpy())[0]
-                sim_kspace = self.sim_sigl[coil_idx,adc_idx,:,:2,0]
-                sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([self.sz[0],self.sz[1],2]))
+                sim_kspace = self.sim_sig[coil_idx,adc_idx,:,:2,0]
+                sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([NCol,NRep,2]))
                 
-                ###############################################################################
-                ######### REAL
+                plt.subplot(143)
+                plt.imshow(sim_kspace, interpolation='none')
+                plt.title("sim kspace")                
                 
                 meas_kspace = self.scanner.signal[coil_idx,adc_idx,:,:2,0]
-                meas_kspace = magimg(tonumpy(meas_kspace.detach()).reshape([self.sz[0],self.sz[1],2]))                
+                meas_kspace = magimg(tonumpy(meas_kspace.detach()).reshape([NCol,NRep,2]))     
                 
-                
-                
+                plt.subplot(144)
+                plt.imshow(meas_kspace, interpolation='none')
+                plt.title("meas kspace")                   
+
                 fig.set_size_inches(18, 3)
                 
                 plt.ion()

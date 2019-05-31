@@ -80,7 +80,7 @@ def stop():
 # define setup
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
-osamp_factor = 1
+osamp_factor = 2
 T = osamp_factor*sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -213,7 +213,7 @@ else:
     scanner.forward_fast(spins, event_time)
     
 #scanner.init_signal()
-#scanner.discard_out_of_kspace_sig()
+scanner.discard_out_of_kspace_sig()
 scanner.adjoint()
 
 # try to fit this

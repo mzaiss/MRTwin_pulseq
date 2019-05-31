@@ -31,10 +31,15 @@ print('32x float forwardfast oS 128')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = True
+do_scanner_query = False
 
-use_gpu = 0
+use_gpu = 1
 gpu_dev = 0
+
+if sys.platform != 'linux':
+    use_gpu = 0
+    gpu_dev = 0
+
 
 # NRMSE error function
 def e(gt,x):
@@ -64,7 +69,7 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([24,24])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 20**2                                # number of spin sims in each voxel
@@ -122,12 +127,15 @@ spins.omega = setdevice(spins.omega)
 #end nspins with R*
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
-scanner.set_adc_mask()
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+
 # begin sequence definition
 # allow for relaxation and spoiling in the first two and last two events (after last readout event)
-scanner.adc_mask[:2]  = 0
-scanner.adc_mask[-2:] = 0
+adc_mask = torch.from_numpy(np.ones((T,1))).float()
+adc_mask[:2]  = 0
+adc_mask[-2:] = 0
+scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
+
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[0,0,0] = 90*np.pi/180  # RARE specific, RARE preparation part 1 : 90 degree excitation 
@@ -200,8 +208,6 @@ target = scanner.reco.clone()
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
 if True: # check sanity: is target what you expect and is sequence what you expect
-    targetSeq.print_status(True, reco=None)
-    
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
     for i in range(3):
         plt.subplot(1, 3, i+1)
@@ -210,28 +216,23 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig = plt.gcf()
         fig.set_size_inches(16, 3)
     plt.show()
-    
+
+    scanner.do_SAR_test(flips, event_time)    
     targetSeq.export_to_matlab(experiment_id, today_datestr)
-    scanner.do_SAR_test(flips, event_time)
+    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
     
     if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
         scanner.send_job_to_real_system(experiment_id,today_datestr)
         scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
-        plt.subplot(131)
         scanner.adjoint()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real ADJOINT")
-        plt.subplot(132)
-        scanner.do_ifft_reco()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real IFFT")    
-        plt.subplot(133)
-        plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("simulation ADJOINT")
+        
+        targetSeq.meas_sig = scanner.signal.clone()
+        targetSeq.meas_reco = scanner.reco.clone()
+        
+    targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
                     
-#stop()
+stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
