@@ -1861,12 +1861,20 @@ class Scanner():
         
         control_filename = "control.txt"
         position_filename = "position.txt"
+        lock_filename = "lock"
         
         if os.path.isfile(os.path.join(basepath_seq, fn_pulseq)):
             pass
         else:
             class ExecutionControl(Exception): pass
             raise ExecutionControl('sequence file missing ' + os.path.join(basepath_seq, fn_pulseq))
+            
+        ready_flag = False
+        fp_lock = os.path.join(basepath_control, lock_filename)
+        while not ready_flag:
+            if not os.path.isfile(fp_lock):
+                open(fp_lock, 'a').close()
+                ready_flag = True            
             
         with open(os.path.join(basepath_control,position_filename),"r") as f:
             position = int(f.read())
@@ -1891,6 +1899,8 @@ class Scanner():
         
         with open(os.path.join(basepath_control,control_filename),"w") as f:
             f.writelines(control_lines)
+            
+        os.remove(fp_lock)
             
     def get_signal_from_real_system(self, experiment_id, today_datestr, basepath_seq_override=None, jobtype="target", iterfile=None):
         _, basepath_seq = self.get_base_path(experiment_id, today_datestr)
