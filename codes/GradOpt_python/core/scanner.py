@@ -947,6 +947,46 @@ class Scanner():
                         else:
                             REW = G_adj_cut[start_t,r,:,:,:]
                         
+                        # read signal
+                        if t == (self.T - half_read*2)//2 + half_read:  # read signal
+                            if compact_grad_tensor:
+                                FWD = G_adj_cut[start_t:start_t+half_read*2,:,:,:].permute([0,1,3,2])
+                            else:
+                                FWD = G_adj_cut[start_t:start_t+half_read*2,r,:,:,:].permute([0,1,3,2])
+                                
+                            FWD = torch.matmul(REW, FWD)
+                            
+                            intraSpins = spins.M
+                            
+                            grad_intravoxel = self.kspace_loc[start_t:start_t+half_read*2,r,:]
+                            intra_b0 = grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
+                            intra_b0 = torch.sum(intra_b0,2)
+                            
+                            IVP_nspins_cos = torch.cos(intra_b0)
+                            IVP_nspins_sin = torch.sin(intra_b0)                            
+        
+                            IVP = torch.zeros((self.NSpins,self.NCol,1,3,3), dtype=torch.float32)
+                            IVP = self.setdevice(IVP)
+                            IVP[:,:,0,2,2] = 1
+                            
+                            IVP[:,:,0,0,0] = IVP_nspins_cos
+                            IVP[:,:,0,0,1] = -IVP_nspins_sin
+                            IVP[:,:,0,1,0] = IVP_nspins_sin
+                            IVP[:,:,0,1,1] = IVP_nspins_cos
+                            
+                            intraSpins = torch.matmul(IVP, intraSpins)
+                            
+                            signal = torch.matmul(FWD,torch.sum(intraSpins,0,keepdim=True))
+                            signal = torch.sum(signal,[2])
+                            
+                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
+                            
+                        # do gradient precession (use adjoint as free kumulator)
+                        if compact_grad_tensor:
+                            FWD = G_adj_cut[t+1,:,:,:].permute([0,2,1])
+                        else:
+                            FWD = G_adj_cut[t+1,r,:,:,:].permute([0,2,1])
+                            
                         # set grad intravoxel precession tensor
                         kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
                         intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
@@ -961,27 +1001,7 @@ class Scanner():
                         self.IVP[:,0,0,1,1] = IVP_nspins_cos                
                         
                         # do intravoxel precession
-                        spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
-                        
-                        # read signal
-                        if t == (self.T - half_read*2)//2 + half_read:  # read signal
-                            if compact_grad_tensor:
-                                FWD = G_adj_cut[start_t:start_t+half_read*2,:,:,:].permute([0,1,3,2])
-                            else:
-                                FWD = G_adj_cut[start_t:start_t+half_read*2,r,:,:,:].permute([0,1,3,2])
-                                
-                            FWD = torch.matmul(REW, FWD)
-                            
-                            signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
-                            signal = torch.sum(signal,[2])
-                            
-                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
-                            
-                        # do gradient precession (use adjoint as free kumulator)
-                        if compact_grad_tensor:
-                            FWD = G_adj_cut[t+1,:,:,:].permute([0,2,1])
-                        else:
-                            FWD = G_adj_cut[t+1,r,:,:,:].permute([0,2,1])
+                        spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)                            
                             
                         FWD = torch.matmul(REW, FWD)
                         spins.M = torch.matmul(FWD,spins.M)                            
