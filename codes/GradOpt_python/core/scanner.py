@@ -958,13 +958,13 @@ class Scanner():
                             
                             intraSpins = spins.M
                             
-                            grad_intravoxel = self.kspace_loc[start_t:start_t+half_read*2,r,:]
-                            intra_b0 = grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
+                            kum_grad_intravoxel = torch.cumsum(self.grad_moms_for_intravoxel_precession[start_t:start_t+half_read*2,r,:],0)
+                            intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
                             intra_b0 = torch.sum(intra_b0,2)
                             
                             IVP_nspins_cos = torch.cos(intra_b0)
                             IVP_nspins_sin = torch.sin(intra_b0)                            
-        
+                            
                             IVP = torch.zeros((self.NSpins,self.NCol,1,3,3), dtype=torch.float32)
                             IVP = self.setdevice(IVP)
                             IVP[:,:,0,2,2] = 1
@@ -1218,13 +1218,35 @@ class Scanner():
             
         class AuxGetSignalGradMul(torch.autograd.Function):
             @staticmethod
-            def forward(ctx, f, x, scanner):
+            def forward(ctx, f, x, scanner, t1, t2):
                 ctx.f = f.clone()
                 ctx.scanner = scanner
                 
-                ctx.presignal = torch.sum(x,0,keepdim=True)
-                
                 nmb_a = f.shape[0]
+                
+                # Intra-voxel grad precession
+                intraSpins = x
+                            
+                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[t1:t2,r,:],0)
+                intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
+                intra_b0 = torch.sum(intra_b0,2)
+                
+                IVP_nspins_cos = torch.cos(intra_b0)
+                IVP_nspins_sin = torch.sin(intra_b0)                            
+                
+                IVP = torch.zeros((ctx.scanner.NSpins,ctx.scanner.NCol,1,3,3), dtype=torch.float32)
+                IVP = ctx.scanner.setdevice(IVP)
+                IVP[:,:,0,2,2] = 1
+                
+                IVP[:,:,0,0,0] = IVP_nspins_cos
+                IVP[:,:,0,0,1] = -IVP_nspins_sin
+                IVP[:,:,0,1,0] = IVP_nspins_sin
+                IVP[:,:,0,1,1] = IVP_nspins_cos
+                
+                intraSpins = torch.matmul(IVP, intraSpins)
+                
+                # Inter-voxel grad precession
+                presignal = torch.sum(intraSpins,0,keepdim=True)
                 
                 B0X = torch.unsqueeze(torch.unsqueeze(f[:,0],1),1) * scanner.rampX
                 B0Y = torch.unsqueeze(torch.unsqueeze(f[:,1],1),1) * scanner.rampY
@@ -1243,9 +1265,9 @@ class Scanner():
                 
                 REW = G_adj[0,:,:,:]
                 FWD = G_adj[:,:,:,:].permute([0,1,3,2])
-                FWD = torch.matmul(REW, FWD)
+                FWD = torch.matmul(REW, FWD)                
                 
-                return torch.matmul(FWD,ctx.presignal)
+                return torch.matmul(FWD, presignal)
             
             @staticmethod
             def backward(ctx, grad_output):
@@ -1253,6 +1275,26 @@ class Scanner():
                 
                 nmb_a = ctx.f.shape[0]
                 
+                # Intra-voxel grad precession
+                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[t1:t2,r,:],0)
+                intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
+                intra_b0 = torch.sum(intra_b0,2)
+                
+                IVP_nspins_cos = torch.cos(intra_b0)
+                IVP_nspins_sin = torch.sin(intra_b0)                            
+                
+                IVP = torch.zeros((ctx.scanner.NSpins,ctx.scanner.NCol,1,3,3), dtype=torch.float32)
+                IVP = ctx.scanner.setdevice(IVP)
+                IVP[:,:,0,2,2] = 1
+                
+                IVP[:,:,0,0,0] = IVP_nspins_cos
+                IVP[:,:,0,0,1] = -IVP_nspins_sin
+                IVP[:,:,0,1,0] = IVP_nspins_sin
+                IVP[:,:,0,1,1] = IVP_nspins_cos
+                
+                grad_output = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)                
+                
+                # Inter-voxel grad precession
                 B0X = torch.unsqueeze(torch.unsqueeze(ctx.f[:,0],1),1) * scanner.rampX
                 B0Y = torch.unsqueeze(torch.unsqueeze(ctx.f[:,1],1),1) * scanner.rampY
                 
@@ -1276,7 +1318,7 @@ class Scanner():
                 gx = gx.sum(1).unsqueeze(0)
                 gx = torch.repeat_interleave(gx,ctx.scanner.NSpins,0)
                 
-                return (None, gx, None)
+                return (None, gx, None, None, None)
             
         class AuxReadoutGradMul(torch.autograd.Function):
             @staticmethod
@@ -1473,6 +1515,28 @@ class Scanner():
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
                         spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                         
+                        # read signal
+                        if t == (self.T - half_read*2)//2 + half_read:  # read signal
+                            if False:
+                                REW = self.G_adj[start_t,:,:,:]
+                                FWD = self.G_adj[start_t:start_t+half_read*2,:,:,:].permute([0,1,3,2])
+                                FWD = torch.matmul(REW, FWD)
+                                signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
+                            
+                            signal = AuxGetSignalGradMul.apply(self.kspace_loc[start_t:start_t+half_read*2,r,:],spins.M,self,start_t,start_t+half_read*2)
+                                
+                            signal = torch.sum(signal,[2])
+                            signal *= self.adc_mask[start_t:start_t+half_read*2].view([1,signal.shape[1],1,1])
+                            
+                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
+                            
+                        # do gradient precession (use adjoint as free kumulator)
+                        if False:
+                            REW = self.G_adj[start_t,:,:,:]
+                            FWD = self.G_adj[t+1,:,:,:].permute([0,2,1])
+                            FWD = torch.matmul(REW, FWD)
+                            spins.M = torch.matmul(FWD,spins.M)
+                            
                         # set grad intravoxel precession tensor
                         kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
                         intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
@@ -1487,29 +1551,7 @@ class Scanner():
                         self.IVP[:,0,0,1,1] = IVP_nspins_cos                
                         
                         # do intravoxel precession
-                        spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
-                        
-                        # read signal
-                        if t == (self.T - half_read*2)//2 + half_read:  # read signal
-                            if False:
-                                REW = self.G_adj[start_t,:,:,:]
-                                FWD = self.G_adj[start_t:start_t+half_read*2,:,:,:].permute([0,1,3,2])
-                                FWD = torch.matmul(REW, FWD)
-                                signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
-                            
-                            signal = AuxGetSignalGradMul.apply(self.kspace_loc[start_t:start_t+half_read*2,r,:],spins.M,self)
-                                
-                            signal = torch.sum(signal,[2])
-                            signal *= self.adc_mask[start_t:start_t+half_read*2].view([1,signal.shape[1],1,1])
-                            
-                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
-                            
-                        # do gradient precession (use adjoint as free kumulator)
-                        if False:
-                            REW = self.G_adj[start_t,:,:,:]
-                            FWD = self.G_adj[t+1,:,:,:].permute([0,2,1])
-                            FWD = torch.matmul(REW, FWD)
-                            spins.M = torch.matmul(FWD,spins.M)   
+                        spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)                            
                             
                         spins.M = AuxReadoutGradMul.apply(self.kspace_loc[[start_t,t+1],r,:],spins.M,self)
                         
@@ -1946,8 +1988,6 @@ class Scanner():
         while not done_flag:
             fnpath = os.path.join(basepath_seq, fn_twix)
         
-            #time.sleep(2.5)
-            
             if os.path.isfile(fnpath):
                 # read twix file
                 print("TWIX file arrived. Reading....")
@@ -1960,9 +2000,14 @@ class Scanner():
                 dp_twix = os.path.dirname(fnpath)
                 shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix.split('.')[0]+".dat"))
                 
-                raw = raw.reshape([self.NRep,ncoils,self.NCol,2])
-                raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
-                raw /= np.max(np.abs(raw))
+                if raw.size != self.NRep*ncoils*self.NCol*2:
+                      print("get_signal_from_real_system: SERIOUS ERROR, TWIX dimensions corrupt, returning zero array..")
+                      raw = np.zeros((self.NRep,ncoils,self.NCol,2))
+                      raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
+                else:
+                      raw = raw.reshape([self.NRep,ncoils,self.NCol,2])
+                      raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
+                      raw /= np.max(np.abs(raw))
                 
                 # inject into simulated scanner signal variable
                 adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
