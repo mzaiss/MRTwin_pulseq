@@ -1227,7 +1227,7 @@ class Scanner():
                 nmb_a = f.shape[0]
                 
                 # Intra-voxel grad precession
-                intraSpins = x[:,:,:,:2,:]
+                intraSpins = x
                             
                 kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[t1:t2,r,:],0)
                 intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
@@ -1275,24 +1275,6 @@ class Scanner():
                 
                 nmb_a = ctx.f.shape[0]
                 
-                # Intra-voxel grad precession
-                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[ctx.t1:ctx.t2,r,:],0)
-                intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
-                intra_b0 = torch.sum(intra_b0,2)
-                
-                IVP_nspins_cos = torch.cos(intra_b0)
-                IVP_nspins_sin = torch.sin(intra_b0)                            
-                
-                IVP = torch.zeros((ctx.scanner.NSpins,ctx.scanner.NCol,1,2,2), dtype=torch.float32)
-                IVP = ctx.scanner.setdevice(IVP)
-                
-                IVP[:,:,0,0,0] = IVP_nspins_cos
-                IVP[:,:,0,0,1] = -IVP_nspins_sin
-                IVP[:,:,0,1,0] = IVP_nspins_sin
-                IVP[:,:,0,1,1] = IVP_nspins_cos
-                
-                grad_output = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output[:,:,:,:2,:])
-                
                 # Inter-voxel grad precession
                 B0X = torch.unsqueeze(torch.unsqueeze(ctx.f[:,0],1),1) * scanner.rampX
                 B0Y = torch.unsqueeze(torch.unsqueeze(ctx.f[:,1],1),1) * scanner.rampY
@@ -1312,9 +1294,28 @@ class Scanner():
                 FWD = G_adj[:,:,:,:].permute([0,1,3,2])
                 FWD = torch.matmul(REW, FWD)  
                 
-                gx = torch.matmul(FWD.permute([0,1,3,2]),grad_output)
-                gx = gx.sum(1).unsqueeze(0)
-                gx = torch.repeat_interleave(gx,ctx.scanner.NSpins,0)
+                grad_output = torch.matmul(FWD.permute([0,1,3,2]),grad_output[:,:,:,:2,:])
+                
+                grad_output = grad_output.sum(1).unsqueeze(0)
+                grad_output = torch.repeat_interleave(grad_output,ctx.scanner.NSpins,0)
+                
+                # Intra-voxel grad precession
+                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[ctx.t1:ctx.t2,r,:],0)
+                intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
+                intra_b0 = torch.sum(intra_b0,2)
+                
+                IVP_nspins_cos = torch.cos(intra_b0)
+                IVP_nspins_sin = torch.sin(intra_b0)                            
+                
+                IVP = torch.zeros((ctx.scanner.NSpins,ctx.scanner.NCol,1,2,2), dtype=torch.float32)
+                IVP = ctx.scanner.setdevice(IVP)
+                
+                IVP[:,:,0,0,0] = IVP_nspins_cos
+                IVP[:,:,0,0,1] = -IVP_nspins_sin
+                IVP[:,:,0,1,0] = IVP_nspins_sin
+                IVP[:,:,0,1,1] = IVP_nspins_cos
+                
+                gx = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)
                 
                 return (None, gx, None, None, None)
             
@@ -1521,7 +1522,7 @@ class Scanner():
                                 FWD = torch.matmul(REW, FWD)
                                 signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
                             
-                            signal = AuxGetSignalGradMul.apply(self.kspace_loc[start_t:start_t+half_read*2,r,:],spins.M,self,start_t,start_t+half_read*2)
+                            signal = AuxGetSignalGradMul.apply(self.kspace_loc[start_t:start_t+half_read*2,r,:],spins.M[:,:,:,:2,:],self,start_t,start_t+half_read*2)
                                 
                             signal = torch.sum(signal,[2])
                             signal *= self.adc_mask[start_t:start_t+half_read*2].view([1,signal.shape[1],1,1])
@@ -1550,7 +1551,6 @@ class Scanner():
                         
                         # do intravoxel precession
                         spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)                            
-                            
                         spins.M = AuxReadoutGradMul.apply(self.kspace_loc[[start_t,t+1],r,:],spins.M,self)
                         
                         # reset readout position tracking vars
