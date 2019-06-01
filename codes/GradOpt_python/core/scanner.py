@@ -2108,6 +2108,7 @@ class Scanner_fast(Scanner):
         
         # save grad_moms for intravoxel precession op
         self.grad_moms_for_intravoxel_precession = grad_moms
+        self.grads = grad_moms
         
         self.kspace_loc = k
         
@@ -2135,6 +2136,9 @@ class Scanner_fast(Scanner):
         
     def forward_fast(self,spins,event_time,do_dummy_scans=False):
         super().forward_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+        
+    def forward_fast_supermem(self,spins,event_time,do_dummy_scans=False):
+        super().forward_fast_supermem(spins,event_time)        
         
     def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False):
         super().forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)   
