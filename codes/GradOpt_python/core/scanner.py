@@ -1300,7 +1300,6 @@ class Scanner():
                 
                 grad_output = torch.matmul(FWD.permute([0,1,3,2]),grad_output[:,:,:,:2,:])
                 
-                grad_output = grad_output.sum(1).unsqueeze(0)
                 grad_output = torch.repeat_interleave(grad_output,ctx.scanner.NSpins,0)
                 
                 # Intra-voxel grad precession
@@ -1309,7 +1308,7 @@ class Scanner():
                 intra_b0 = torch.sum(intra_b0,2)
                 
                 IVP_nspins_cos = torch.cos(intra_b0)
-                IVP_nspins_sin = torch.sin(intra_b0)                            
+                IVP_nspins_sin = torch.sin(intra_b0)
                 
                 IVP = torch.zeros((ctx.scanner.NSpins,ctx.scanner.NCol,1,2,2), dtype=torch.float32)
                 IVP = ctx.scanner.setdevice(IVP)
@@ -1320,6 +1319,7 @@ class Scanner():
                 IVP[:,:,0,1,1] = IVP_nspins_cos
                 
                 gx = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)
+                gx = torch.sum(gx,1, keepdim=True)
                 
                 return (None, gx, None, None, None)
             
