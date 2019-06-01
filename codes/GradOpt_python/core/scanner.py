@@ -534,12 +534,16 @@ class Scanner():
         grid = self.kspace_loc[adc_idx,:,:]
         grid = torch.flip(grid, [2]).detach().cpu().numpy()
         
-        spectrum_resampled_x = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,0].ravel(), (X, Y), method='cubic')
-        spectrum_resampled_y = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,1].ravel(), (X, Y), method='cubic')
-        
-        spectrum_resampled = np.stack((spectrum_resampled_x.reshape(sz),spectrum_resampled_y.reshape(sz))).transpose([1,2,0])
-        spectrum_resampled[np.isnan(spectrum_resampled)] = 0
-        spectrum_resampled = self.setdevice(torch.from_numpy(spectrum_resampled).float())
+        try:
+            spectrum_resampled_x = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,0].ravel(), (X, Y), method='cubic')
+            spectrum_resampled_y = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,1].ravel(), (X, Y), method='cubic')
+            
+            spectrum_resampled = np.stack((spectrum_resampled_x.reshape(sz),spectrum_resampled_y.reshape(sz))).transpose([1,2,0])
+            spectrum_resampled[np.isnan(spectrum_resampled)] = 0
+            spectrum_resampled = self.setdevice(torch.from_numpy(spectrum_resampled).float())
+        except:
+            print("do_nufft_reco: FATAL, gridding failed, returning zeros")
+            spectrum_resampled = self.setdevice(torch.from_numpy(spectrum))
         
         # fftshift
         spectrum_resampled = roll(spectrum_resampled,NCol//2-1,0)
