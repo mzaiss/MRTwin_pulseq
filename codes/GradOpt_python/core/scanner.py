@@ -1221,11 +1221,13 @@ class Scanner():
             def forward(ctx, f, x, scanner, t1, t2):
                 ctx.f = f.clone()
                 ctx.scanner = scanner
+                ctx.t1 = t1
+                ctx.t2 = t2
                 
                 nmb_a = f.shape[0]
                 
                 # Intra-voxel grad precession
-                intraSpins = x
+                intraSpins = x[:,:,:,:2,:]
                             
                 kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[t1:t2,r,:],0)
                 intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
@@ -1234,9 +1236,8 @@ class Scanner():
                 IVP_nspins_cos = torch.cos(intra_b0)
                 IVP_nspins_sin = torch.sin(intra_b0)                            
                 
-                IVP = torch.zeros((ctx.scanner.NSpins,ctx.scanner.NCol,1,3,3), dtype=torch.float32)
+                IVP = torch.zeros((ctx.scanner.NSpins,ctx.scanner.NCol,1,2,2), dtype=torch.float32)
                 IVP = ctx.scanner.setdevice(IVP)
-                IVP[:,:,0,2,2] = 1
                 
                 IVP[:,:,0,0,0] = IVP_nspins_cos
                 IVP[:,:,0,0,1] = -IVP_nspins_sin
@@ -1256,8 +1257,7 @@ class Scanner():
                 B0_grad_adj_cos = torch.cos(B0_grad)
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
-                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
-                G_adj[:,:,2,2] = 1
+                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,2,2), dtype=torch.float32))
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1276,23 +1276,22 @@ class Scanner():
                 nmb_a = ctx.f.shape[0]
                 
                 # Intra-voxel grad precession
-                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[t1:t2,r,:],0)
+                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[ctx.t1:ctx.t2,r,:],0)
                 intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
                 intra_b0 = torch.sum(intra_b0,2)
                 
                 IVP_nspins_cos = torch.cos(intra_b0)
                 IVP_nspins_sin = torch.sin(intra_b0)                            
                 
-                IVP = torch.zeros((ctx.scanner.NSpins,ctx.scanner.NCol,1,3,3), dtype=torch.float32)
+                IVP = torch.zeros((ctx.scanner.NSpins,ctx.scanner.NCol,1,2,2), dtype=torch.float32)
                 IVP = ctx.scanner.setdevice(IVP)
-                IVP[:,:,0,2,2] = 1
                 
                 IVP[:,:,0,0,0] = IVP_nspins_cos
                 IVP[:,:,0,0,1] = -IVP_nspins_sin
                 IVP[:,:,0,1,0] = IVP_nspins_sin
                 IVP[:,:,0,1,1] = IVP_nspins_cos
                 
-                grad_output = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)                
+                grad_output = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output[:,:,:,:2,:])
                 
                 # Inter-voxel grad precession
                 B0X = torch.unsqueeze(torch.unsqueeze(ctx.f[:,0],1),1) * scanner.rampX
@@ -1303,8 +1302,7 @@ class Scanner():
                 B0_grad_adj_cos = torch.cos(B0_grad)
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
-                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
-                G_adj[:,:,2,2] = 1
+                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,2,2), dtype=torch.float32))
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1528,7 +1526,7 @@ class Scanner():
                             signal = torch.sum(signal,[2])
                             signal *= self.adc_mask[start_t:start_t+half_read*2].view([1,signal.shape[1],1,1])
                             
-                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
+                            self.signal[0,start_t:start_t+half_read*2,r,:2,0] = signal.squeeze() / self.NSpins 
                             
                         # do gradient precession (use adjoint as free kumulator)
                         if False:
