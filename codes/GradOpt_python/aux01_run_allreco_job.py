@@ -19,6 +19,11 @@ import core.scanner
 import core.opt_helper
 import core.target_seq_holder
 from sys import platform
+import scipy.misc
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=DeprecationWarning)
 
 from core.pulseq_exporter import pulseq_write_GRE
 from core.pulseq_exporter import pulseq_write_RARE
@@ -27,8 +32,7 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-use_gen_adjoint = False
-recreate_pulseq_files = False
+recreate_pulseq_files = True
 
 # NRMSE error function
 def e(gt,x):
@@ -60,16 +64,35 @@ def stop():
     
 if platform == 'linux':
     basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+    dp_control = '/media/upload3t/CEST_seq/pulseq_zero/control'
 else:
     basepath = 'K:\CEST_seq\pulseq_zero\sequences'
+    dp_control = 'K:\CEST_seq\pulseq_zero\control'
     
 experiment_list = []
-experiment_list.append(["seq190601", "e25_opt_pitcher24_retry_fwd_fwd"])
+experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd"])
+experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfastsmem_genadj",True,[1e-4,10]])
+experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwdfastsmem__fwdfastsmem_genadj",True,[1e-4,10]])
+experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd_discard"])
+experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfast"])
+experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfastsmem"])
+experiment_list.append(["190601", "t03_tgtRARE_tskRARE_128_linear_saropt_lbd4_smemfixed"])
+experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss"])
+experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss_ortho"])
+experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
 
 for exp_current in experiment_list:
     date_str = exp_current[0]
     experiment_id = exp_current[1]
-    fullpath_seq = os.path.join(basepath, date_str, experiment_id)
+    
+    if len(exp_current) > 2:
+        use_gen_adjoint = exp_current[2]
+        adj_alpha = exp_current[3][0]
+        adj_iter = exp_current[3][1]
+    else:
+        use_gen_adjoint = False
+    
+    fullpath_seq = os.path.join(basepath, "seq" + date_str, experiment_id)
     
     fn_alliter_array = "alliter_arr.npy"
     alliter_array = np.load(os.path.join(os.path.join(fullpath_seq, fn_alliter_array)), allow_pickle=True)
@@ -133,7 +156,7 @@ for exp_current in experiment_list:
     
     # simulation generalized adjoint
     if use_gen_adjoint:
-        scanner.generalized_adjoint()
+        scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
     else:
         scanner.adjoint()
     target_sim_reco_generalized_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
@@ -151,8 +174,6 @@ for exp_current in experiment_list:
     sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
     target_sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2]))
     
-    gfdgfd
-    
     ######### REAL
     # send to scanner
     scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
@@ -167,7 +188,7 @@ for exp_current in experiment_list:
     
     # real generalized adjoint
     if use_gen_adjoint:
-        scanner.generalized_adjoint()
+        scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
     else:
         scanner.adjoint()
     target_real_reco_generalized_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
@@ -189,8 +210,15 @@ for exp_current in experiment_list:
     
     # autoiter metric
     itt = alliter_array['all_errors']
-    err_change_vec = np.floor(np.abs(itt[1:] - itt[:-1]))
-    nonboring_iter = np.where(err_change_vec > 2)[0]
+    
+    nonboring_iter = []
+    lasterror = 1e10
+    for c_iter in range(itt.size):
+        if np.abs(itt[c_iter] - lasterror) > 2:
+            lasterror = itt[c_iter]
+            nonboring_iter.append(c_iter)
+    
+    nonboring_iter = np.array(nonboring_iter)
     nmb_iter = nonboring_iter.size
     
     all_sim_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
@@ -209,7 +237,7 @@ for exp_current in experiment_list:
     lin_iter_counter = 0
     
     for c_iter in nonboring_iter:
-        print("Processing the iteration {} ...".format(c_iter))
+        print("Processing the iteration {}/{}  {}/{}".format(c_iter, nmb_total_iter, lin_iter_counter, nmb_iter))
         
         scanner.set_adc_mask(torch.from_numpy(alliter_array['all_adc_masks'][c_iter]))
         scanner.signal = setdevice(torch.from_numpy(alliter_array['all_signals'][c_iter])).unsqueeze(4)
@@ -242,7 +270,7 @@ for exp_current in experiment_list:
         
         # simulation generalized adjoint
         if use_gen_adjoint:
-            scanner.generalized_adjoint()
+            scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
             sim_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
             all_sim_reco_generalized_adjoint[lin_iter_counter] = sim_reco_generalized_adjoint
         
@@ -300,7 +328,7 @@ for exp_current in experiment_list:
         
         # real generalized adjoint
         if use_gen_adjoint:
-            scanner.generalized_adjoint()
+            scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
             real_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
             all_real_reco_generalized_adjoint[lin_iter_counter] = real_reco_generalized_adjoint
         
@@ -315,6 +343,12 @@ for exp_current in experiment_list:
         all_real_reco_nufft[lin_iter_counter] = real_reco_nufft
         
         lin_iter_counter += 1
+        
+        scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "sim_reco_adjoint.jpg"))
+        scipy.misc.toimage(magimg(sim_kspace)).save(os.path.join(dp_control, "sim_kspace.jpg"))
+        scipy.misc.toimage(magimg(real_kspace)).save(os.path.join(dp_control, "real_kspace.jpg"))
+        scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "real_reco_adjoint.jpg"))
+        
         
     allreco_dict = dict()
     
@@ -364,7 +398,7 @@ for exp_current in experiment_list:
 stop()
     
     
-draw_iter = 305
+draw_iter = 90
 
 # Visualize simulated images
 

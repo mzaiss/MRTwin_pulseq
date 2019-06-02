@@ -57,6 +57,9 @@ if platform == 'linux':
 else:
     basepath = 'K:\CEST_seq\pulseq_zero\sequences'
     
+class ExecutionControl(Exception): pass
+raise ExecutionControl('Out of sync!!')
+    
 date_str = "seq190529"
 experiment_id = "t03_tgtRARE_tskRARE_128_linear_init"
 fullpath_seq = os.path.join(basepath, date_str, experiment_id)
