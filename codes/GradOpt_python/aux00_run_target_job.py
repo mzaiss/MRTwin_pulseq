@@ -85,9 +85,8 @@ if use_gen_adjoint:
     scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 else:
     scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
-scanner.set_adc_mask()
 
-scanner.adc_mask = setdevice(torch.from_numpy(input_array['adc_mask']))
+scanner.set_adc_mask(torch.from_numpy(input_array['adc_mask']))
 scanner.B1 = setdevice(torch.from_numpy(input_array['B1']))
 scanner.signal = setdevice(torch.from_numpy(input_array['signal']))
 scanner.reco = setdevice(torch.from_numpy(input_array['reco']).reshape([NVox,2]))
