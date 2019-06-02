@@ -64,7 +64,7 @@ else:
     basepath = 'K:\CEST_seq\pulseq_zero\sequences'
     
 experiment_list = []
-experiment_list.append(["seq190601", "e25_opt_pitcher_retry_fwd_fwdfast"])
+experiment_list.append(["seq190601", "e25_opt_pitcher24_retry_fwd_fwd"])
 
 for exp_current in experiment_list:
     date_str = exp_current[0]
@@ -151,10 +151,12 @@ for exp_current in experiment_list:
     sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
     target_sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2]))
     
+    gfdgfd
+    
     ######### REAL
     # send to scanner
-    scanner.send_job_to_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype)
-    scanner.get_signal_from_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype)
+    scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
+    scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
     
     real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
     target_real_kspace = magimg(tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2]))
@@ -187,8 +189,9 @@ for exp_current in experiment_list:
     
     # autoiter metric
     itt = alliter_array['all_errors']
-    nonboring_iter = np.where(np.round(np.abs(itt[1:] - itt[:-1])))[0]
-    nmb_iter = nonboring_iter
+    err_change_vec = np.floor(np.abs(itt[1:] - itt[:-1]))
+    nonboring_iter = np.where(err_change_vec > 2)[0]
+    nmb_iter = nonboring_iter.size
     
     all_sim_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
     all_sim_reco_generalized_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
@@ -270,8 +273,7 @@ for exp_current in experiment_list:
     
     	    seq_params = iflips, ivent, gmo
     	    
-    	    import time
-    	    today_datestr = time.strftime('%y%m%d')
+    	    today_datestr = date_str
     	    basepath_out = os.path.join(basepath, "seq" + today_datestr)
     	    basepath_out = os.path.join(basepath_out, experiment_id)
     	    
@@ -282,12 +284,10 @@ for exp_current in experiment_list:
     	    elif sequence_class.lower() == "bssfp":
                 pulseq_write_BSSFP(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
     	    elif sequence_class.lower() == "epi":
-                pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)    
+                pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
                 
-        gfdgfdg
-        
-        scanner.send_job_to_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
-        scanner.get_signal_from_real_system(experiment_id, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+        scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+        scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
         
         real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
         real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
