@@ -1252,7 +1252,7 @@ class Scanner():
                 
                 # Inter-voxel grad precession
                 #presignal = torch.sum(intraSpins,0,keepdim=True)
-                
+               
                 presignal = torch.einsum('ijklm,inomp->jolp', [IVP, intraSpins]).unsqueeze(0)
                 
                 B0X = torch.unsqueeze(torch.unsqueeze(f[:,0],1),1) * scanner.rampX
@@ -1320,7 +1320,10 @@ class Scanner():
                 IVP[:,:,0,1,0] = IVP_nspins_sin
                 IVP[:,:,0,1,1] = IVP_nspins_cos
                 
-                gx = torch.einsum('ijklm,ijomp->ikolp', [IVP, grad_output])
+                #gx = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)
+                #gx = torch.sum(gx,1, keepdim=True)
+                
+                gx = torch.einsum('ijklm,ijolp->ikomp', [IVP, grad_output])
                 
                 return (None, gx, None, None, None)
             
