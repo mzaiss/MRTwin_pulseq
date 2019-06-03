@@ -23,6 +23,10 @@ import scipy.misc
 
 from PIL import Image
 
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=DeprecationWarning)
+
 from core.pulseq_exporter import pulseq_write_GRE
 from core.pulseq_exporter import pulseq_write_RARE
 from core.pulseq_exporter import pulseq_write_BSSFP
@@ -364,12 +368,12 @@ for exp_current in experiment_list:
         lin_iter_counter += 1
         
         if do_real_meas:
-            Image.fromarray(magimg(sim_reco_adjoint)).convert('RGB').save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
-            Image.fromarray(magimg(real_reco_adjoint)).convert('RGB').save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
-            Image.fromarray(phaseimg(sim_reco_adjoint)).convert('RGB').save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
-            Image.fromarray(phaseimg(real_reco_adjoint)).convert('RGB').save(os.path.join(dp_control, "status_related", "real_reco_adjoint_phase.jpg"))
-            Image.fromarray((1e-8+magimg(sim_kspace))).convert('RGB').save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
-            Image.fromarray((1e-8+magimg(real_kspace))).convert('RGB').save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
+            scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
+            scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
+            scipy.misc.toimage(phaseimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
+            scipy.misc.toimage(phaseimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint_phase.jpg"))
+            scipy.misc.toimage((1e-8+magimg(sim_kspace))).save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
+            scipy.misc.toimage((1e-8+magimg(real_kspace))).save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
             
             status_lines = []
             status_lines.append("experiment id: " + experiment_id + "\n")
@@ -377,7 +381,6 @@ for exp_current in experiment_list:
 
             with open(os.path.join(dp_control, "status_related", "status_lines.txt"),"w") as f:
                 f.writelines(status_lines)
-        
         
     allreco_dict = dict()
     
