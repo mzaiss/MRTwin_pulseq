@@ -21,9 +21,7 @@ import core.target_seq_holder
 from sys import platform
 import scipy.misc
 
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=DeprecationWarning)
+from PIL import Image
 
 from core.pulseq_exporter import pulseq_write_GRE
 from core.pulseq_exporter import pulseq_write_RARE
@@ -50,6 +48,9 @@ def magimg(x):
 def magimg_torch(x):
   return torch.sqrt(torch.sum(torch.abs(x)**2,1))
 
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
+
 # device setter
 def setdevice(x):
     x = x.float()
@@ -71,7 +72,7 @@ else:
     dp_control = 'K:\CEST_seq\pulseq_zero\control'
     
 experiment_list = []
-experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd"])
+#experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd"])
 #experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfastsmem_genadj",True,[1e-4,10]])
 #experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwdfastsmem__fwdfastsmem_genadj",True,[1e-4,10]])
 #experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd_discard"])
@@ -86,7 +87,7 @@ experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd"])
 #experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss"])
 #experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_ortho"])
 #experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
-#experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
+experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
 
 for exp_current in experiment_list:
     date_str = exp_current[0]
@@ -159,27 +160,27 @@ for exp_current in experiment_list:
     
     # simulation adjoint
     scanner.adjoint()
-    target_sim_reco_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
+    target_sim_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
     # simulation generalized adjoint
     if use_gen_adjoint:
         scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
     else:
         scanner.adjoint()
-    target_sim_reco_generalized_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
+    target_sim_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
     # simulation IFFT
     scanner.do_ifft_reco()
-    target_sim_reco_ifft = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
+    target_sim_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
     # simulation NUFFT
     scanner.do_nufft_reco()
-    target_sim_reco_nufft = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
+    target_sim_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
     coil_idx = 0
     adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
     sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
-    target_sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2]))
+    target_sim_kspace = tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2])
     
     ######### REAL
     # send to scanner
@@ -188,26 +189,26 @@ for exp_current in experiment_list:
         scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
     
     real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
-    target_real_kspace = magimg(tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2]))
+    target_real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
     
     # real adjoint
     scanner.adjoint()
-    target_real_reco_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
+    target_real_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
     # real generalized adjoint
     if use_gen_adjoint:
         scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
     else:
         scanner.adjoint()
-    target_real_reco_generalized_adjoint = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
+    target_real_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
     # real IFFT
     scanner.do_ifft_reco()
-    target_real_reco_ifft = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))
+    target_real_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
     # real NUFFT
     scanner.do_nufft_reco()
-    target_real_reco_nufft = magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))    
+    target_real_reco_nufft = tonumpy(scanner.reco.detach().reshape([sz[0],sz[1],2]))  
 
     ###########################################################################    
     ###########################################################################
@@ -219,7 +220,11 @@ for exp_current in experiment_list:
     # autoiter metric
     itt = alliter_array['all_errors']
 
-    error_threshold_percent = 5    
+    if do_real_meas:
+        error_threshold_percent = 5    
+    else:
+        error_threshold_percent = 1
+        
     nonboring_iter = []
     lasterror = 1e10
     for c_iter in range(itt.size):
@@ -359,10 +364,12 @@ for exp_current in experiment_list:
         lin_iter_counter += 1
         
         if do_real_meas:
-            scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
-            scipy.misc.toimage(magimg(sim_kspace)).save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
-            scipy.misc.toimage(magimg(real_kspace)).save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
-            scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
+            Image.fromarray(magimg(sim_reco_adjoint)).convert('RGB').save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
+            Image.fromarray(magimg(real_reco_adjoint)).convert('RGB').save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
+            Image.fromarray(phaseimg(sim_reco_adjoint)).convert('RGB').save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
+            Image.fromarray(phaseimg(real_reco_adjoint)).convert('RGB').save(os.path.join(dp_control, "status_related", "real_reco_adjoint_phase.jpg"))
+            Image.fromarray((1e-8+magimg(sim_kspace))).convert('RGB').save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
+            Image.fromarray((1e-8+magimg(real_kspace))).convert('RGB').save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
             
             status_lines = []
             status_lines.append("experiment id: " + experiment_id + "\n")
@@ -401,11 +408,21 @@ for exp_current in experiment_list:
         allreco_dict['all_real_reco_generalized_adjoint'] = all_real_reco_generalized_adjoint
         allreco_dict['all_real_reco_ifft'] = all_real_reco_ifft
         allreco_dict['all_real_reco_nufft'] = all_real_reco_nufft
+        
+    allreco_dict['target_adc_mask'] = input_array_target['adc_mask']
+    allreco_dict['target_target_B1'] = input_array_target['B1']
+    allreco_dict['target_signal'] = input_array_target['signal']
+    allreco_dict['target_reco'] = input_array_target['reco']
+    allreco_dict['target_kloc'] = input_array_target['kloc']
+    allreco_dict['target_flips'] = input_array_target['flips']
+    allreco_dict['target_event_times'] = input_array_target['event_times']
+    allreco_dict['target_grad_moms'] = input_array_target['grad_moms']
     
     allreco_dict['all_adc_masks'] = alliter_array['all_adc_masks']
-    allreco_dict['flips'] = alliter_array['flips']
-    allreco_dict['event_times'] = alliter_array['event_times']
-    allreco_dict['grad_moms'] = alliter_array['grad_moms']
+    
+    allreco_dict['all_flips'] = alliter_array['flips']
+    allreco_dict['all_event_times'] = alliter_array['event_times']
+    allreco_dict['all_grad_moms'] = alliter_array['grad_moms']
     allreco_dict['all_kloc'] = alliter_array['all_kloc']
     allreco_dict['all_errors'] = alliter_array['all_errors']
     allreco_dict['sz'] = alliter_array['sz']
