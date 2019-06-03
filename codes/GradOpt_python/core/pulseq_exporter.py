@@ -52,19 +52,26 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         ###############################
         ###              first action
         idx_T = 0
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-16:
             use = "excitation"
+            nonsel=1
             
-            # alternatively slice selective:
-            kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
-            rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
+            if nonsel:
+                RFdur = 1*1e-3
+                kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+                rf = make_block_pulse(kwargs_for_block, 1)
+                seq.add_block(rf)
+            else:
+                # alternatively slice selective:
+                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+                rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
+                seq.add_block(rf, gz)
+                seq.add_block(gzr)            
+                RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
             
-            seq.add_block(rf, gz)
-            seq.add_block(gzr)
-            
-            RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
-            
-        seq.add_block(make_delay(0.002-RFdur))
+#        seq.add_block(make_delay(0.002-RFdur))
+        seq.add_block(make_delay(event_time_numpy[idx_T,rep]-RFdur))
+         
         
         ###############################
         ###              secoond action

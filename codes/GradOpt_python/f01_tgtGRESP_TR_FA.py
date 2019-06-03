@@ -80,10 +80,10 @@ def stop():
 sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 15**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
-noise_std = 0*1e0                               # additive Gaussian noise std
+noise_std = 3*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
 NVox = sz[0]*sz[1]
 
@@ -127,11 +127,11 @@ plt.show()
 print('use_gpu = ' +str(use_gpu)) 
 
 #begin nspins with R*
-R2 = 0.0
+R2 =  0
 omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5    # cutoff might bee needed for opt.
 #omega = np.random.rand(NSpins,NVox) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
-omega*=0.9  # cutoff large freqs
+omega*=0.9999  # cutoff large freqs
 omega = R2 * np.tan ( np.pi  * omega)
 
 if NSpins==1:
@@ -152,7 +152,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 0.1*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[0,:,0] = 1*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
@@ -168,6 +168,7 @@ scanner.set_ADC_rot_tensor(-flips[0,:,1] + -np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time[0,:] =  2e-3       #+ 2e-3 
 event_time[1,:] =  2e-3       #+ 2e-3 
 event_time[-2,:] = 2*1e-3
 event_time[-1,:] = 12.6*1e-3 * 2 
@@ -207,6 +208,7 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 # forward/adjoint pass
 #scanner.forward_fast_supermem(spins, event_time)
 scanner.forward_fast(spins, event_time)
+#scanner.forward(spins, event_time)
 #scanner.init_signal()
 scanner.adjoint()
 

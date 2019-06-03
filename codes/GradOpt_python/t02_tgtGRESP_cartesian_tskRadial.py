@@ -34,7 +34,7 @@ if sys.platform != 'linux':
     use_gpu = 0
     gpu_dev = 0
     
-do_scanner_query = False
+do_scanner_query = True
 
 # NRMSE error function
 def e(gt,x):
@@ -67,7 +67,7 @@ def stop():
 sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 35**2                                # number of spin sims in each voxel
+NSpins = 16**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 import time; today_datestr = time.strftime('%y%m%d')
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -157,6 +157,7 @@ scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time[0,:] =  2e-3
 event_time[1,:] =  2e-3
 event_time[-2,:] = 2*1e-3
 event_time[-1,:] = 12.6*1e-3
