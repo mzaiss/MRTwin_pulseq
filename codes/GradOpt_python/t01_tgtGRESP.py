@@ -37,7 +37,7 @@ print('32x float forwardfast oS')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = False
+do_scanner_query = True
 
 use_gpu = 1
 gpu_dev = 0
@@ -80,7 +80,7 @@ def stop():
 sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 10**2                                # number of spin sims in each voxel
+NSpins = 16**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std

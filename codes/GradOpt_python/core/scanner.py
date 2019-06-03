@@ -2013,7 +2013,8 @@ class Scanner():
                 else:
                       raw = raw.reshape([self.NRep,ncoils,self.NCol,2])
                       raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
-                      raw /= np.max(np.abs(raw))
+#                      raw /= np.max(np.abs(raw))
+                      raw /= 0.05
                 
                 # inject into simulated scanner signal variable
                 adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
