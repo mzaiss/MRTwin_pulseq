@@ -33,6 +33,7 @@ from core.pulseq_exporter import pulseq_write_EPI
 use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
+do_real_meas = False
 
 # NRMSE error function
 def e(gt,x):
@@ -77,9 +78,15 @@ experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd_discard"])
 experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfast"])
 experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfastsmem"])
 experiment_list.append(["190601", "t03_tgtRARE_tskRARE_128_linear_saropt_lbd4_smemfixed"])
+
 experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss"])
 experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss_ortho"])
 experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
+
+experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss"])
+experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_ortho"])
+experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
+experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
 
 for exp_current in experiment_list:
     date_str = exp_current[0]
@@ -176,8 +183,9 @@ for exp_current in experiment_list:
     
     ######### REAL
     # send to scanner
-    scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
-    scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
+    if do_real_meas:
+        scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
+        scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
     
     real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
     target_real_kspace = magimg(tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2]))
@@ -210,13 +218,18 @@ for exp_current in experiment_list:
     
     # autoiter metric
     itt = alliter_array['all_errors']
-    
+
+    error_threshold_percent = 5    
     nonboring_iter = []
     lasterror = 1e10
     for c_iter in range(itt.size):
-        if np.abs(itt[c_iter] - lasterror) > 2:
+        if np.abs(itt[c_iter] - lasterror) > error_threshold_percent:
             lasterror = itt[c_iter]
             nonboring_iter.append(c_iter)
+        
+    # always compute last iteration
+    if nonboring_iter[-1] != itt.size-1:
+        nonboring_iter.append(itt.size-1)
     
     nonboring_iter = np.array(nonboring_iter)
     nmb_iter = nonboring_iter.size
@@ -293,7 +306,7 @@ for exp_current in experiment_list:
         # send to scanner
         iterfile = "iter" + str(c_iter).zfill(6)
         
-        if recreate_pulseq_files:
+        if recreate_pulseq_files and do_real_meas:
     	    fn_pulseq = "iter" + str(c_iter).zfill(6) + ".seq"
     	    iflips = alliter_array['flips'][c_iter]
     	    ivent = alliter_array['event_times'][c_iter]
@@ -314,8 +327,9 @@ for exp_current in experiment_list:
     	    elif sequence_class.lower() == "epi":
                 pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
                 
-        scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
-        scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+        if do_real_meas:
+            scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+            scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
         
         real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
         real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
@@ -344,10 +358,11 @@ for exp_current in experiment_list:
         
         lin_iter_counter += 1
         
-        scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "sim_reco_adjoint.jpg"))
-        scipy.misc.toimage(magimg(sim_kspace)).save(os.path.join(dp_control, "sim_kspace.jpg"))
-        scipy.misc.toimage(magimg(real_kspace)).save(os.path.join(dp_control, "real_kspace.jpg"))
-        scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "real_reco_adjoint.jpg"))
+        if do_real_meas:
+            scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "sim_reco_adjoint.jpg"))
+            scipy.misc.toimage(magimg(sim_kspace)).save(os.path.join(dp_control, "sim_kspace.jpg"))
+            scipy.misc.toimage(magimg(real_kspace)).save(os.path.join(dp_control, "real_kspace.jpg"))
+            scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "real_reco_adjoint.jpg"))
         
         
     allreco_dict = dict()
@@ -358,11 +373,13 @@ for exp_current in experiment_list:
     allreco_dict['target_sim_reco_ifft'] = target_sim_reco_ifft
     allreco_dict['target_sim_reco_nufft'] = target_sim_reco_nufft
     allreco_dict['target_sim_kspace'] = target_sim_kspace
-    allreco_dict['target_real_kspace'] = target_real_kspace
-    allreco_dict['target_real_reco_adjoint'] = target_real_reco_adjoint
-    allreco_dict['target_real_reco_generalized_adjoint'] = target_real_reco_generalized_adjoint
-    allreco_dict['target_real_reco_ifft'] = target_real_reco_ifft
-    allreco_dict['target_real_reco_nufft'] = target_real_reco_nufft     
+    
+    if do_real_meas:
+        allreco_dict['target_real_kspace'] = target_real_kspace
+        allreco_dict['target_real_reco_adjoint'] = target_real_reco_adjoint
+        allreco_dict['target_real_reco_generalized_adjoint'] = target_real_reco_generalized_adjoint
+        allreco_dict['target_real_reco_ifft'] = target_real_reco_ifft
+        allreco_dict['target_real_reco_nufft'] = target_real_reco_nufft     
     
     # iterations
     allreco_dict['all_sim_reco_adjoint'] = all_sim_reco_adjoint
@@ -370,11 +387,13 @@ for exp_current in experiment_list:
     allreco_dict['all_sim_reco_ifft'] = all_sim_reco_ifft
     allreco_dict['all_sim_reco_nufft'] = all_sim_reco_nufft
     allreco_dict['all_sim_kspace'] = all_sim_kspace
-    allreco_dict['all_real_kspace'] = all_real_kspace
-    allreco_dict['all_real_reco_adjoint'] = all_real_reco_adjoint
-    allreco_dict['all_real_reco_generalized_adjoint'] = all_real_reco_generalized_adjoint
-    allreco_dict['all_real_reco_ifft'] = all_real_reco_ifft
-    allreco_dict['all_real_reco_nufft'] = all_real_reco_nufft
+    
+    if do_real_meas:
+        allreco_dict['all_real_kspace'] = all_real_kspace
+        allreco_dict['all_real_reco_adjoint'] = all_real_reco_adjoint
+        allreco_dict['all_real_reco_generalized_adjoint'] = all_real_reco_generalized_adjoint
+        allreco_dict['all_real_reco_ifft'] = all_real_reco_ifft
+        allreco_dict['all_real_reco_nufft'] = all_real_reco_nufft
     
     allreco_dict['all_adc_masks'] = alliter_array['all_adc_masks']
     allreco_dict['flips'] = alliter_array['flips']
@@ -390,8 +409,18 @@ for exp_current in experiment_list:
     allreco_dict['B1'] = alliter_array['B1']
     allreco_dict['iter_idx'] = nonboring_iter
     
-    np.save(os.path.join(os.path.join(fullpath_seq, "all_meas_reco_dict.npy")), allreco_dict)
-    scipy.io.savemat(os.path.join(fullpath_seq,"all_meas_reco_dict.mat"), allreco_dict)
+    savepath = os.path.join(basepath, "results", "seq" + date_str, experiment_id)
+    try:
+        os.makedirs(savepath)
+    except:
+        pass
+    
+    if do_real_meas:
+        np.save(os.path.join(os.path.join(savepath, "all_meas_reco_dict.npy")), allreco_dict)
+        scipy.io.savemat(os.path.join(savepath,"all_meas_reco_dict.mat"), allreco_dict)
+    else:
+        np.save(os.path.join(os.path.join(savepath, "all_sim_reco_dict.npy")), allreco_dict)
+        scipy.io.savemat(os.path.join(savepath,"all_sim_reco_dict.mat"), allreco_dict)
         
         
     
