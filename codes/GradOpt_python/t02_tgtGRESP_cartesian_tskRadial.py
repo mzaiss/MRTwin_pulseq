@@ -29,6 +29,11 @@ import core.target_seq_holder
 
 use_gpu = 1
 gpu_dev = 0
+
+if sys.platform != 'linux':
+    use_gpu = 0
+    gpu_dev = 0
+    
 do_scanner_query = False
 
 # NRMSE error function
@@ -64,7 +69,7 @@ NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 35**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-
+import time; today_datestr = time.strftime('%y%m%d')
 noise_std = 0*1e0                               # additive Gaussian noise std
 
 NVox = sz[0]*sz[1]
@@ -129,13 +134,10 @@ spins.omega = setdevice(spins.omega)
 #############################################################################
 ## Init scanner system ::: #####################################
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
-scanner.set_adc_mask()
-
-# begin sequence definition
-
-# allow for relaxation and spoiling in the first two and last two events (after last readout event)
-scanner.adc_mask[:2]  = 0
-scanner.adc_mask[-2:] = 0
+adc_mask = torch.from_numpy(np.ones((T,1))).float()
+adc_mask[:2]  = 0
+adc_mask[-2:] = 0
+scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
@@ -190,10 +192,7 @@ target = scanner.reco.clone()
    
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
-
 if True: # check sanity: is target what you expect and is sequence what you expect
-    targetSeq.print_status(True, reco=None)
-    
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
     for i in range(3):
         plt.subplot(1, 3, i+1)
@@ -202,22 +201,21 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig = plt.gcf()
         fig.set_size_inches(16, 3)
     plt.show()
-    
-    targetSeq.export_to_matlab(experiment_id)
+
+    scanner.do_SAR_test(flips, event_time)    
+    targetSeq.export_to_matlab(experiment_id, today_datestr)
+    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
     
     if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,sequence_class)
-        scanner.send_job_to_real_system(experiment_id)
-        scanner.get_signal_from_real_system(experiment_id)
+        scanner.send_job_to_real_system(experiment_id,today_datestr)
+        scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
-        plt.subplot(121)
         scanner.adjoint()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement IFFT")
-        plt.subplot(122)
-        scanner.reco = scanner.do_ifft_reco()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real measurement ADJOINT")    
+        
+        targetSeq.meas_sig = scanner.signal.clone()
+        targetSeq.meas_reco = scanner.reco.clone()
+        
+    targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)  
     
 #############################################################################
 ## Optimization land ::: ####################################################
@@ -382,8 +380,12 @@ plt.imshow(magimg(ereco))
 
 # %% # save optimized parameter history
 
-opt.save_param_reco_history(experiment_id)
-opt.export_to_matlab(experiment_id)
+targetSeq.export_to_matlab(experiment_id, today_datestr)
+opt.export_to_matlab(experiment_id, today_datestr)
+
+opt.save_param_reco_history(experiment_id,today_datestr,sequence_class,generate_pulseq=False)
+opt.save_param_reco_history_matlab(experiment_id,today_datestr)
+opt.export_to_pulseq(experiment_id, today_datestr, sequence_class)
             
 
 # %% export model to matlab with onnx

@@ -22,6 +22,10 @@ if sys.version_info[0] < 3:
     import cPickle as pickle
 else:
     import pickle
+    
+# NRMSE error function
+def e(gt,x):
+    return 100*np.linalg.norm((gt-x).ravel())/np.linalg.norm(gt.ravel())
 
 # torch to numpy
 def tonumpy(x):
@@ -301,8 +305,71 @@ class OPT_helper():
             # evaluate initial image state before doing optimizer step
             if inner_iter == 0:
                 _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None)
-            print(colored("\033[93m iter %d, recon error = %f \033[0m" % (inner_iter,self.last_error), 'green'))
+            print(colored("\033[93m iter %d, recon error = %f \033[0m%%" % (inner_iter,self.last_error), 'green'))
             
+            self.print_status(do_vis_image,self.last_reco)
+
+            #self.new_batch()
+            self.optimizer.step(self.weak_closure)
+            
+            if query_scanner:
+                experiment_id, today_datestr, sequence_class = query_kwargs
+                
+                sim_sig = self.scanner.signal.clone()
+                
+                # do real scanner reco
+                self.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+                self.scanner.send_job_to_real_system(experiment_id,today_datestr,jobtype="lastiter")
+                self.scanner.get_signal_from_real_system(experiment_id,today_datestr,jobtype="lastiter")
+                
+                self.scanner.adjoint()
+                meas_sig = self.scanner.signal.clone()
+                meas_reco = self.scanner.reco.clone()                
+                
+                plt.subplot(141)
+                meas_reco = tonumpy(meas_reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+                ax = plt.imshow(magimg(meas_reco), interpolation='none')
+                meas_target = tonumpy(self.target_seq_holder.meas_reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+                mag_meas_target = magimg(meas_target)
+                plt.clim(np.min(mag_meas_target),np.max(mag_meas_target))
+                
+                fig = plt.gcf()
+                fig.colorbar(ax)
+                plt.title("meas mag ADJ")
+                
+                plt.subplot(142)
+                ax = plt.imshow(phaseimg(meas_reco), interpolation='none')
+                fig = plt.gcf()
+                fig.colorbar(ax)
+                plt.title("meas phase ADJ")
+                
+                NCol = self.scanner.NCol
+                NRep = self.scanner.NRep                
+                
+                coil_idx = 0
+                adc_idx = np.where(self.scanner.adc_mask.cpu().numpy())[0]
+                sim_kspace = sim_sig[coil_idx,adc_idx,:,:2,0]
+                sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([NCol,NRep,2]))
+                
+                plt.subplot(143)
+                plt.imshow(sim_kspace, interpolation='none')
+                plt.title("sim kspace")                
+                
+                meas_kspace = meas_sig[coil_idx,adc_idx,:,:2,0]
+                meas_kspace = magimg(tonumpy(meas_kspace.detach()).reshape([NCol,NRep,2]))     
+                
+                plt.subplot(144)
+                plt.imshow(meas_kspace, interpolation='none')
+                plt.title("meas kspace")                   
+
+                fig.set_size_inches(18, 3)
+                
+                plt.ion()
+                plt.show()
+                
+                meas_error = e(meas_target.ravel(),meas_reco.ravel())    
+                print(colored("\033[93m iter %d, REAL MEAS error = %f \033[0m%%" % (inner_iter,meas_error), 'green'))
+                
             # save entire history of optimized params/reco images
             if save_intermediary_results:
                 tosave_opt_params = self.scanner_opt_params
@@ -329,42 +396,11 @@ class OPT_helper():
                 saved_state['signal'] = tonumpy(self.scanner.signal)
                 saved_state['error'] = self.last_error
                 
-                self.param_reco_history.append(saved_state)
-
-            self.print_status(do_vis_image,self.last_reco)
-
-            #self.new_batch()
-            self.optimizer.step(self.weak_closure)
-            
-            if query_scanner:
-                experiment_id, today_datestr, sequence_class = query_kwargs
+                if query_scanner:
+                    saved_state['meas_signal'] = tonumpy(meas_sig)
+                    saved_state['meas_adj_reco'] = meas_reco
                 
-                # do real scanner reco
-                self.export_to_pulseq(experiment_id,today_datestr,sequence_class)
-                self.scanner.send_job_to_real_system(experiment_id,today_datestr,jobtype="lastiter")
-                self.scanner.get_signal_from_real_system(experiment_id,today_datestr,jobtype="lastiter")
-                
-                plt.subplot(131)
-                self.scanner.adjoint()
-                plt.imshow(magimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
-                plt.title("meas ADJOINT")
-                
-                plt.subplot(132)
-                ax = plt.imshow(phaseimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
-                plt.clim(-np.pi,np.pi)
-                fig = plt.gcf()
-                fig.colorbar(ax,fraction=0.046, pad=0.04)
-                plt.title("meas phase ADJOINT")
-                
-                plt.subplot(133)
-                self.scanner.do_ifft_reco()
-                plt.imshow(magimg(tonumpy(self.scanner.reco.detach()).reshape([self.scanner.sz[0],self.scanner.sz[1],2])), interpolation='none')
-                plt.title("real IFFT")   
-                
-    
-                
-                plt.ion()
-                plt.show()
+                self.param_reco_history.append(saved_state)                   
 
                 
         

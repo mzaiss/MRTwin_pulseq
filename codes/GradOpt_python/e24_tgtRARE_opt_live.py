@@ -4,7 +4,7 @@
 Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
-experiment_id = 'e24_tgtRARE_opt_live_fullgradandRF'
+experiment_id = 'e24_tgtRARE_opt_live'
 sequence_class = "RARE"
 experiment_description = """
 RARE, cpmg
@@ -22,19 +22,22 @@ import core.spins
 import core.scanner
 import core.opt_helper
 import core.target_seq_holder
-import time
 
 from importlib import reload
 reload(core.scanner)
 
-print('32x float forwardfast oS')
+print('32x float forwardfast oS 128')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = True
+do_scanner_query = False
 
-use_gpu = 0
-gpu_dev = 0
+
+if sys.platform != 'linux':
+    use_gpu = 0
+    gpu_dev = 0
+
+
 # NRMSE error function
 def e(gt,x):
     return 100*np.linalg.norm((gt-x).ravel())/np.linalg.norm(gt.ravel())
@@ -63,14 +66,14 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([48,48])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 10**2                                # number of spin sims in each voxel
+NSpins = 20**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
-today_datestr = time.strftime('%y%m%d')
+import time; today_datestr = time.strftime('%y%m%d')
 
 #############################################################################
 ## Init spin system ::: #####################################
@@ -121,12 +124,15 @@ spins.omega = setdevice(spins.omega)
 #end nspins with R*
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
-scanner.set_adc_mask()
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+
 # begin sequence definition
 # allow for relaxation and spoiling in the first two and last two events (after last readout event)
-scanner.adc_mask[:2]  = 0
-scanner.adc_mask[-2:] = 0
+adc_mask = torch.from_numpy(np.ones((T,1))).float()
+adc_mask[:2]  = 0
+adc_mask[-2:] = 0
+scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
+
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[0,0,0] = 90*np.pi/180  # RARE specific, RARE preparation part 1 : 90 degree excitation 
@@ -153,9 +159,6 @@ TE2_90   = torch.sum(event_time[0,0])*1000  # time after 90 until 180
 TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1])*1000 # time after 180 til center k-space
 TE2_180_2= (torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1])*1000 # time after center k-space til next 180
 TACQ = torch.sum(event_time)*1000
-
-watchdog_norm = 100 / 1.8098
-SAR_watchdog = torch.sum(flips[:,:,0]**2) / TACQ
 
 # gradient-driver precession
 # Cartesian encoding
@@ -186,7 +189,11 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 ## Forward process ::: ######################################################
     
 # forward/adjoint pass
-scanner.forward_fast_supermem(spins, event_time)
+if use_supermem:
+    scanner.forward_fast_supermem(spins, event_time)
+else:
+    scanner.forward_fast(spins, event_time)
+    
 #scanner.init_signal()
 scanner.adjoint()
 
@@ -198,8 +205,6 @@ target = scanner.reco.clone()
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
 if True: # check sanity: is target what you expect and is sequence what you expect
-    targetSeq.print_status(True, reco=None)
-    
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
     for i in range(3):
         plt.subplot(1, 3, i+1)
@@ -208,26 +213,21 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig = plt.gcf()
         fig.set_size_inches(16, 3)
     plt.show()
-    
+
+    scanner.do_SAR_test(flips, event_time)    
     targetSeq.export_to_matlab(experiment_id, today_datestr)
-    print("SAR_watchdog = {}%".format(np.round(SAR_watchdog*watchdog_norm)))
+    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
     
     if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
         scanner.send_job_to_real_system(experiment_id,today_datestr)
         scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
-        plt.subplot(131)
         scanner.adjoint()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real ADJOINT")
-        plt.subplot(132)
-        scanner.do_ifft_reco()
-        plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("real IFFT")    
-        plt.subplot(133)
-        plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
-        plt.title("simulation ADJOINT")
+        
+        targetSeq.meas_sig = scanner.signal.clone()
+        targetSeq.meas_reco = scanner.reco.clone()
+        
+    targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
                     
 #stop()
         
@@ -261,28 +261,23 @@ def init_variables():
     
     grad_moms = targetSeq.grad_moms.clone()
     grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()  
-    grad_moms_mask[0,:,:] = 1      
-    grad_moms_mask[1,:,:] = 1
-    grad_moms_mask[-2,:,:] = 1
+#    grad_moms_mask[0,:,:] = 1      
+#    grad_moms_mask[1,:,:] = 1
+#    grad_moms_mask[-2,:,:] = 1
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
     
-    grad_moms[0,:,0] = grad_moms[0,:,0]*0    # remove rewinder gradients
-    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
-    grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
-    
-    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
-    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+#    grad_moms[0,:,0] = grad_moms[0,:,0]*0    # remove rewinder gradients
+#    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
+#    grad_moms[1,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+#    
+#    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
+#    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
     
     return [adc_mask, flips, event_time, grad_moms]
     
 def reparameterize(opt_params):
     adc_mask,flips,event_time,grad_moms= opt_params
-    
-    #rflips = setdevice(torch.zeros(flips.shape))
-    #rflips[:,:,0]=torch.abs(flips[:,:,0])
-    #rflips[:,:,1]=flips[:,:,1]     
-    
     rflips = flips
        
     return adc_mask,rflips,event_time,grad_moms
@@ -302,7 +297,7 @@ def phi_FRP_model(opt_params,aux_params):
     # forward/adjoint pass
     if use_supermem:
         scanner.forward_fast_supermem(spins, event_time)
-        scanner.adjoint_supermem(spins)
+        scanner.adjoint_supermem()
     else:
         scanner.forward_fast(spins, event_time)
         scanner.adjoint()    
@@ -351,15 +346,17 @@ opt.scanner_opt_params = opt.init_variables()
 
 query_kwargs = experiment_id, today_datestr, sequence_class
 
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True, query_scanner=True,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+query_scanner = False
+
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=query_scanner,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=query_scanner,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=query_scanner,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=query_scanner,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=query_scanner,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=query_scanner,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=query_scanner,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, query_scanner=query_scanner,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True, query_scanner=query_scanner,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
 
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
@@ -368,8 +365,10 @@ targetSeq.print_status(True, reco=None)
 opt.print_status(True, reco)
 stop()
 # %% # save optimized parameter history
-new_exp_id=experiment_id+'prtrb_no_refoc_2';
-targetSeq.export_to_matlab(new_exp_id)
-opt.save_param_reco_history(new_exp_id)
-opt.export_to_matlab(new_exp_id)
+targetSeq.export_to_matlab(experiment_id, today_datestr)
+opt.export_to_matlab(experiment_id, today_datestr)
+
+opt.save_param_reco_history(experiment_id,today_datestr,sequence_class,generate_pulseq=False)
+opt.save_param_reco_history_matlab(experiment_id,today_datestr)
+opt.export_to_pulseq(experiment_id, today_datestr, sequence_class)
             

@@ -32,8 +32,12 @@ double_precision = False
 use_supermem = False
 do_scanner_query = True
 
-use_gpu = 0
+use_gpu = 1
 gpu_dev = 0
+
+if sys.platform != 'linux':
+    use_gpu = 0
+    gpu_dev = 0
 
 # NRMSE error function
 def e(gt,x):
@@ -73,6 +77,8 @@ NSpins = 2**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
+import time; today_datestr = time.strftime('%y%m%d')
+
 #############################################################################
 ## Init spin system ::: #####################################
 # initialize scanned object
@@ -123,11 +129,11 @@ spins.omega = setdevice(spins.omega)
 #############################################################################
 ## Init scanner system ::: #####################################
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
-scanner.set_adc_mask()
-# begin sequence definition
-# allow for relaxation and spoiling in the first two and last two events (after last readout event)
-scanner.adc_mask[:2]  = 0
-scanner.adc_mask[-2:] = 0
+adc_mask = torch.from_numpy(np.ones((T,1))).float()
+adc_mask[:2]  = 0
+adc_mask[-2:] = 0
+scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
+
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[0,0,0] = 90*np.pi/180  # RARE specific, RARE preparation part 1 : 90 degree excitation 
@@ -197,33 +203,6 @@ target = scanner.reco.clone()
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
 if True: # check sanity: is target what you expect and is sequence what you expect
-    targetSeq.export_to_matlab(experiment_id)
-    scanner.do_SAR_test(flips, event_time)
-    
-    if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,sequence_class)
-        scanner.send_job_to_real_system(experiment_id)
-        scanner.get_signal_from_real_system(experiment_id)
-        
-        plt.subplot(121)
-        #scanner.generalized_adjoint()
-        scanner.adjoint()
-        ax = plt.imshow(magimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        #fig.colorbar(ax)
-        plt.title("meas mag ADJOINT")
-        
-        plt.subplot(122)
-        ax = plt.imshow(phaseimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)
-        plt.title("meas phase ADJOINT")    
-        
-        plt.ion()
-        plt.show()
-        
-    targetSeq.print_status(True, reco=None)
-    
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
     for i in range(3):
         plt.subplot(1, 3, i+1)
@@ -232,6 +211,21 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig = plt.gcf()
         fig.set_size_inches(16, 3)
     plt.show()
+
+    scanner.do_SAR_test(flips, event_time)    
+    targetSeq.export_to_matlab(experiment_id, today_datestr)
+    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+    
+    if do_scanner_query:
+        scanner.send_job_to_real_system(experiment_id,today_datestr)
+        scanner.get_signal_from_real_system(experiment_id,today_datestr)
+        
+        scanner.adjoint()
+        
+        targetSeq.meas_sig = scanner.signal.clone()
+        targetSeq.meas_reco = scanner.reco.clone()
+        
+    targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
         
                     
     stop()
@@ -281,9 +275,10 @@ def init_variables():
 def reparameterize(opt_params):
     adc_mask,flips,event_time,grad_moms= opt_params
     
-    rflips = setdevice(torch.zeros(flips.shape))
-    rflips[:,:,0]=torch.abs(flips[:,:,0])
-    rflips[:,:,1]=flips[:,:,1]     
+    #rflips = setdevice(torch.zeros(flips.shape))
+    #rflips[:,:,0]=torch.abs(flips[:,:,0])
+    #rflips[:,:,1]=flips[:,:,1]     
+    rflips = flips
        
     return adc_mask,rflips,event_time,grad_moms
 
@@ -355,8 +350,10 @@ targetSeq.print_status(True, reco=None)
 opt.print_status(True, reco)
 stop()
 # %% # save optimized parameter history
-new_exp_id=experiment_id+'prtrb_no_refoc_2';
-targetSeq.export_to_matlab(new_exp_id)
-opt.save_param_reco_history(new_exp_id)
-opt.export_to_matlab(new_exp_id)
+targetSeq.export_to_matlab(experiment_id, today_datestr)
+opt.export_to_matlab(experiment_id, today_datestr)
+
+opt.save_param_reco_history(experiment_id,today_datestr,sequence_class,generate_pulseq=False)
+opt.save_param_reco_history_matlab(experiment_id,today_datestr)
+opt.export_to_pulseq(experiment_id, today_datestr, sequence_class)
             

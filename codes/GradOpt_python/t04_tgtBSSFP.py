@@ -371,7 +371,7 @@ stop()
 
 # %% # save optimized parameter history
 
-new_exp_id=experiment_id+'_FA45_phaseincr5';
+new_exp_id=experiment_id+'_multiitertest';
 targetSeq.export_to_matlab(new_exp_id)
 targetSeq.export_to_pulseq(new_exp_id, sequence_class)
 opt.save_param_reco_history(new_exp_id, sequence_class)

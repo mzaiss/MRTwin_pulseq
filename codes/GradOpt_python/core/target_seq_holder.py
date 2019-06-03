@@ -34,7 +34,12 @@ class TargetSequenceHolder():
         self.grad_moms = grad_moms.clone()
         self.event_time = event_time.clone()
         self.adc_mask = scanner.adc_mask.clone()
-        self.ROI_signal=scanner.ROI_signal.clone()        
+        self.ROI_signal=scanner.ROI_signal.clone()
+        
+        self.sim_sig = self.scanner.signal.clone()
+        
+        self.meas_sig = None
+        self.meas_reco = None
         
         self.ROI_def = 1
         self.PD0_mask = spins.PD0_mask
@@ -47,7 +52,7 @@ class TargetSequenceHolder():
             self.target_image = self.target_image[0,:,:]
             self.PD0_mask = self.PD0_mask[0,:,:]
         
-    def print_status(self, do_vis_image=False, reco=None):
+    def print_status(self, do_vis_image=False, reco=None, do_scanner_query=False):
         if do_vis_image:
             
             recoimg= (tonumpy(self.target_image).reshape([self.sz[0],self.sz[1],2]))
@@ -122,10 +127,48 @@ class TargetSequenceHolder():
             for i in range(kx.shape[1]):
                 plt.plot(kx[:,i],ky[:,i])
                 
-            fig.set_size_inches(18, 3)            
+            fig.set_size_inches(18, 3)
             
             plt.show()
             plt.pause(0.02)
+            
+            if do_scanner_query:
+                plt.subplot(141)
+                ax = plt.imshow(magimg(tonumpy(self.meas_reco.detach()).reshape([self.sz[0],self.sz[1],2])), interpolation='none')
+                fig = plt.gcf()
+                fig.colorbar(ax)
+                plt.title("meas mag ADJ")
+                
+                plt.subplot(142)
+                ax = plt.imshow(phaseimg(tonumpy(self.meas_reco.detach()).reshape([self.sz[0],self.sz[1],2])), interpolation='none')
+                fig = plt.gcf()
+                fig.colorbar(ax)
+                plt.title("meas phase ADJ")
+                
+                NCol = self.scanner.NCol
+                NRep = self.scanner.NRep
+                
+                coil_idx = 0
+                adc_idx = np.where(self.scanner.adc_mask.cpu().numpy())[0]
+                sim_kspace = self.sim_sig[coil_idx,adc_idx,:,:2,0]
+                sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([NCol,NRep,2]))
+                
+                plt.subplot(143)
+                plt.imshow(sim_kspace, interpolation='none')
+                plt.title("sim kspace")                
+                
+                meas_kspace = self.scanner.signal[coil_idx,adc_idx,:,:2,0]
+                meas_kspace = magimg(tonumpy(meas_kspace.detach()).reshape([NCol,NRep,2]))     
+                
+                plt.subplot(144)
+                plt.imshow(meas_kspace, interpolation='none')
+                plt.title("meas kspace")                   
+
+                fig.set_size_inches(18, 3)
+                
+                plt.ion()
+                plt.show()                
+                plt.pause(0.02)            
             
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id, today_datestr):
