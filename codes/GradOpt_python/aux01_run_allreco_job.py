@@ -35,7 +35,7 @@ from core.pulseq_exporter import pulseq_write_EPI
 use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
-do_real_meas = False
+do_real_meas = True
 
 # NRMSE error function
 def e(gt,x):
@@ -92,6 +92,10 @@ experiment_list = []
 #experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_ortho"])
 #experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
 experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
+#experiment_list.append(["190603", "e25_opt_pitcher48_onlysflips"])
+#experiment_list.append(["190603", "e25_opt_pitcher48_onlyPE"])
+#experiment_list.append(["190603", "e25_opt_pitcher48_onlyREAD"])
+
 
 for exp_current in experiment_list:
     date_str = exp_current[0]

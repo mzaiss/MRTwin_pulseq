@@ -874,7 +874,7 @@ class Scanner():
             self.signal = torch.matmul(self.AF,self.signal)
             
     # run throw all repetition/actions and yield signal
-    def forward_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True):
+    def forward_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True,kill_transverse=False):
         self.init_signal()
         if do_dummy_scans == False:
             spins.set_initial_magnetization()
@@ -1015,6 +1015,9 @@ class Scanner():
                         total_delay = delay
                     else:                                       # keep accumulating
                         total_delay += delay
+                        
+            if kill_transverse:
+                spins.M[:,0,:,:2,0] = 0
                     
         # kill numerically unstable parts of M vector for backprop
         self.tmask = torch.zeros((self.NVox))
@@ -1024,6 +1027,11 @@ class Scanner():
         self.tmask[spins.T2 < 1e-2] = 1
         
         self.lastM = spins.M.clone()
+        
+        if self.noise_std > 0:
+            noise = self.noise_std*torch.randn(self.signal[0,:,:,:2,0].shape).float()
+            noise = self.setdevice(noise)
+            self.signal[0,:,:,:2,0] += noise * self.adc_mask.view([self.T,1,1])
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -1161,6 +1169,11 @@ class Scanner():
         
         self.tmask = self.tmask[PD0_mask]
         self.lastM = spins_cut.clone()
+        
+        if self.noise_std > 0:
+            noise = self.noise_std*torch.randn(self.signal[0,t,r,:2].shape).float()
+            noise = self.setdevice(noise)
+            self.signal[0,t,r,:2] += noise * self.adc_mask.view([self.T,1,1])
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -1577,9 +1590,14 @@ class Scanner():
         
         self.lastM = spins.M.clone() 
         
+        if self.noise_std > 0:
+            noise = self.noise_std*torch.randn(self.signal[0,t,r,:2].shape).float()
+            noise = self.setdevice(noise)
+            self.signal[0,t,r,:2] += noise        
+        
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
-            self.signal = torch.matmul(self.AF,self.signal)      
+            self.signal = torch.matmul(self.AF,self.signal) * self.adc_mask.view([self.T,1,1,1])
             
     def do_dummy_scans(self,spins,event_time,compact_grad_tensor=True,nrep=0):
         spins.set_initial_magnetization()
@@ -2014,7 +2032,7 @@ class Scanner():
                       raw = raw.reshape([self.NRep,ncoils,self.NCol,2])
                       raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
 #                      raw /= np.max(np.abs(raw))
-                      raw /= 0.05
+                      raw /= 0.05*0.014/9
                 
                 # inject into simulated scanner signal variable
                 adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
@@ -2139,8 +2157,8 @@ class Scanner_fast(Scanner):
     def forward_sparse(self,spins,event_time,do_dummy_scans=False):
         super().forward_sparse(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
-    def forward_fast(self,spins,event_time,do_dummy_scans=False):
-        super().forward_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+    def forward_fast(self,spins,event_time,kill_transverse=False,do_dummy_scans=False):
+        super().forward_fast(spins,event_time,do_dummy_scans,kill_transverse=kill_transverse,compact_grad_tensor=False)
         
     def forward_fast_supermem(self,spins,event_time,do_dummy_scans=False):
         super().forward_fast_supermem(spins,event_time)        
