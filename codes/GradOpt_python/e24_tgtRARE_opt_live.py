@@ -22,7 +22,6 @@ import core.spins
 import core.scanner
 import core.opt_helper
 import core.target_seq_holder
-import time
 
 from importlib import reload
 reload(core.scanner)
@@ -76,7 +75,7 @@ NSpins = 20**2                                # number of spin sims in each voxe
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
-today_datestr = time.strftime('%y%m%d')
+import time; today_datestr = time.strftime('%y%m%d')
 
 #############################################################################
 ## Init spin system ::: #####################################
@@ -281,11 +280,6 @@ def init_variables():
     
 def reparameterize(opt_params):
     adc_mask,flips,event_time,grad_moms= opt_params
-    
-    #rflips = setdevice(torch.zeros(flips.shape))
-    #rflips[:,:,0]=torch.abs(flips[:,:,0])
-    #rflips[:,:,1]=flips[:,:,1]     
-    
     rflips = flips
        
     return adc_mask,rflips,event_time,grad_moms
@@ -373,8 +367,10 @@ targetSeq.print_status(True, reco=None)
 opt.print_status(True, reco)
 stop()
 # %% # save optimized parameter history
-new_exp_id=experiment_id+'prtrb_no_refoc_2';
-targetSeq.export_to_matlab(new_exp_id)
-opt.save_param_reco_history(new_exp_id)
-opt.export_to_matlab(new_exp_id)
+targetSeq.export_to_matlab(experiment_id, today_datestr)
+opt.export_to_matlab(experiment_id, today_datestr)
+
+opt.save_param_reco_history(experiment_id,today_datestr,sequence_class,generate_pulseq=False)
+opt.save_param_reco_history_matlab(experiment_id,today_datestr)
+opt.export_to_pulseq(experiment_id, today_datestr, sequence_class)
             
