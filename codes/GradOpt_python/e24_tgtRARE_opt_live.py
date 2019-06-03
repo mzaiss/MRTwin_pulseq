@@ -33,9 +33,8 @@ double_precision = False
 use_supermem = False
 do_scanner_query = True
 
-use_gpu = 1
-gpu_dev = 3
-
+use_gpu = 0
+gpu_dev = 0
 # NRMSE error function
 def e(gt,x):
     return 100*np.linalg.norm((gt-x).ravel())/np.linalg.norm(gt.ravel())
@@ -230,7 +229,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
         plt.title("simulation ADJOINT")
                     
-stop()
+#stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
