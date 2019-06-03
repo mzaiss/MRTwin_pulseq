@@ -72,21 +72,21 @@ else:
     
 experiment_list = []
 experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd"])
-experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfastsmem_genadj",True,[1e-4,10]])
-experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwdfastsmem__fwdfastsmem_genadj",True,[1e-4,10]])
-experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd_discard"])
-experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfast"])
-experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfastsmem"])
-experiment_list.append(["190601", "t03_tgtRARE_tskRARE_128_linear_saropt_lbd4_smemfixed"])
-
-experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss"])
-experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss_ortho"])
-experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
-
-experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss"])
-experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_ortho"])
-experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
-experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
+#experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfastsmem_genadj",True,[1e-4,10]])
+#experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwdfastsmem__fwdfastsmem_genadj",True,[1e-4,10]])
+#experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd_discard"])
+#experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfast"])
+#experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwdfastsmem"])
+#experiment_list.append(["190601", "t03_tgtRARE_tskRARE_128_linear_saropt_lbd4_smemfixed"])
+#
+#experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss"])
+#experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss_ortho"])
+#experiment_list.append(["190602", "e25_opt_pitcher24_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
+#
+#experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss"])
+#experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_ortho"])
+#experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
+#experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
 
 for exp_current in experiment_list:
     date_str = exp_current[0]
@@ -359,10 +359,17 @@ for exp_current in experiment_list:
         lin_iter_counter += 1
         
         if do_real_meas:
-            scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "sim_reco_adjoint.jpg"))
-            scipy.misc.toimage(magimg(sim_kspace)).save(os.path.join(dp_control, "sim_kspace.jpg"))
-            scipy.misc.toimage(magimg(real_kspace)).save(os.path.join(dp_control, "real_kspace.jpg"))
-            scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "real_reco_adjoint.jpg"))
+            scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
+            scipy.misc.toimage(magimg(sim_kspace)).save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
+            scipy.misc.toimage(magimg(real_kspace)).save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
+            scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
+            
+            status_lines = []
+            status_lines.append("experiment id: " + experiment_id + "\n")
+            status_lines.append("processing iteration {} out of {} \n".format(lin_iter_counter, nmb_iter))
+
+            with open(os.path.join(dp_control, "status_related", "status_lines.txt"),"w") as f:
+                f.writelines(status_lines)
         
         
     allreco_dict = dict()
@@ -416,14 +423,13 @@ for exp_current in experiment_list:
         pass
     
     if do_real_meas:
-        np.save(os.path.join(os.path.join(savepath, "all_meas_reco_dict.npy")), allreco_dict)
+        #np.save(os.path.join(os.path.join(savepath, "all_meas_reco_dict.npy")), allreco_dict)
         scipy.io.savemat(os.path.join(savepath,"all_meas_reco_dict.mat"), allreco_dict)
     else:
-        np.save(os.path.join(os.path.join(savepath, "all_sim_reco_dict.npy")), allreco_dict)
+        #np.save(os.path.join(os.path.join(savepath, "all_sim_reco_dict.npy")), allreco_dict)
         scipy.io.savemat(os.path.join(savepath,"all_sim_reco_dict.mat"), allreco_dict)
         
-        
-    
+
 stop()
     
     
