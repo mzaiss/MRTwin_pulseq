@@ -47,6 +47,21 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)    
     
+    # now comes dummy repetition because of bad ref first flip
+    first_flip = 90 * pi / 180
+    
+    RFdur = 1*1e-3
+    kwargs_for_block = {"flip_angle": first_flip, "system": system, "duration": RFdur}
+    rf = make_block_pulse(kwargs_for_block, 1)
+    seq.add_block(rf)
+    seq.add_block(make_delay(0.001))
+    kwargs_for_block = {"flip_angle": -first_flip, "system": system, "duration": RFdur}
+    rf = make_block_pulse(kwargs_for_block, 1)
+    seq.add_block(rf)
+    
+    seq.add_block(make_delay(1))
+    
+    
     for rep in range(NRep):
         
         ###############################
@@ -61,6 +76,9 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
                 kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
                 rf = make_block_pulse(kwargs_for_block, 1)
                 seq.add_block(rf)
+#                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness":  50e-3, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+#                rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
+#                seq.add_block(rf,gz)
             else:
                 # alternatively slice selective:
                 kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
@@ -147,7 +165,21 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
-    seq = Sequence(system)    
+    seq = Sequence(system)   
+    
+    # now comes dummy repetition because of bad ref first flip
+    first_flip = 90 * pi / 180
+    
+    RFdur = 1*1e-3
+    kwargs_for_block = {"flip_angle": first_flip, "system": system, "duration": RFdur}
+    rf = make_block_pulse(kwargs_for_block, 1)
+    seq.add_block(rf)
+    seq.add_block(make_delay(0.001))
+    kwargs_for_block = {"flip_angle": -first_flip, "system": system, "duration": RFdur}
+    rf = make_block_pulse(kwargs_for_block, 1)
+    seq.add_block(rf)
+    
+    seq.add_block(make_delay(1))
     
     for rep in range(NRep):
         

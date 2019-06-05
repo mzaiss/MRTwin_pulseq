@@ -118,7 +118,7 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
     end
     
-nonsel = 0;
+nonsel = 1;
 
     % put blocks together
     for rep=1:NRep
@@ -138,7 +138,8 @@ nonsel = 0;
                 sliceThickness=200e-3;
                 rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
                 seq.addBlock(rf);
-                RFdur= 0.8*1e-3;
+                %RFdur= 0.8*1e-3;
+                RFdur= 1e-3;
             else
             % alternatively slice selective:
                 sliceThickness=5e-3;     % slice
@@ -163,7 +164,7 @@ nonsel = 0;
         
         gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
         gy = mr.makeTrapezoid('y','FlatArea',sum(gradmoms(idx_T,rep,2),1),'FlatTime',dur,'system',sys);
-          adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime,'phaseOffset',rf.phaseOffset);
+          adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime - event_times(idx_T(1),rep)/2,'phaseOffset',rf.phaseOffset);
         
 %         adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime);
         

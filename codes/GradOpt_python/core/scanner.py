@@ -662,6 +662,10 @@ class Scanner():
                 self.set_grad_intravoxel_precess_tensor(t,r)
                 spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
                 
+#            spins.M[:,0,:,:2,0] = 0
+#            spins.set_initial_magnetization()
+            
+                
                 
         # kill numerically unstable parts of M vector for backprop
         self.tmask = torch.zeros((self.NVox))
@@ -2032,7 +2036,7 @@ class Scanner():
                       raw = raw.reshape([self.NRep,ncoils,self.NCol,2])
                       raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
 #                      raw /= np.max(np.abs(raw))
-                      raw /= 0.05*0.014/9
+#                      raw /= 0.05*0.014/9
                 
                 # inject into simulated scanner signal variable
                 adc_idx = np.where(self.adc_mask.cpu().numpy())[0]

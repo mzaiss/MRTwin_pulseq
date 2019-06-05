@@ -35,6 +35,7 @@ from core.pulseq_exporter import pulseq_write_EPI
 use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
+recreate_pulseq_files_for_sim = False
 do_real_meas = True
 
 # NRMSE error function
@@ -91,10 +92,22 @@ experiment_list = []
 #experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss"])
 #experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_ortho"])
 #experiment_list.append(["190602", "e25_opt_pitcher48_retry_fwdfastsmem_kspaceloss_genadj",True,[1e-4,10]])    
-experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
+#experiment_list.append(["190603", "e25_opt_pitcher48_onlysflips"])
+#experiment_list.append(["190603", "e25_opt_pitcher48_all_longTR"])
+#experiment_list.append(["190603", "e25_opt_pitcher48_onlyPE"])
+#experiment_list.append(["190603", "e25_opt_pitcher48_onlyREAD"])
+
 #experiment_list.append(["190603", "e25_opt_pitcher48_onlysflips"])
 #experiment_list.append(["190603", "e25_opt_pitcher48_onlyPE"])
 #experiment_list.append(["190603", "e25_opt_pitcher48_onlyREAD"])
+#experiment_list.append(["190603", "e25_opt_pitcher48_onlyspoilers"])
+#experiment_list.append(["190604", "e25_opt_pitcher48_onlysflips_redo_bad_flips"])
+#experiment_list.append(["190604", "e25_opt_pitcher48_onlyPE_t2st"])
+#experiment_list.append(["190604", "e25_opt_pitcher48_onlyREAD_t2st"])
+#experiment_list.append(["190604", "e25_opt_pitcher48_onlyspoilers_t2st"])
+experiment_list.append(["190604", "e25_opt_pitcher48_allgrad_t2st"])
+#experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
+
 
 
 for exp_current in experiment_list:
@@ -319,7 +332,7 @@ for exp_current in experiment_list:
         # send to scanner
         iterfile = "iter" + str(c_iter).zfill(6)
         
-        if recreate_pulseq_files and do_real_meas:
+        if (recreate_pulseq_files and do_real_meas) or recreate_pulseq_files_for_sim:
     	    fn_pulseq = "iter" + str(c_iter).zfill(6) + ".seq"
     	    iflips = alliter_array['flips'][c_iter]
     	    ivent = alliter_array['event_times'][c_iter]

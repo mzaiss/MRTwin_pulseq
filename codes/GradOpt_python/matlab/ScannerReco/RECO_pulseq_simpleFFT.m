@@ -25,7 +25,7 @@ data_file_path=[datpath datfilename];
 M = importdata(data_file_path);
 
 Mr=M(:,1) +1j*M(:,2);
-data = reshape(Mr,128,2,128);
+data = reshape(Mr,24,2,24);
 data = permute(data, [1,3,2]);
 size(data)
 

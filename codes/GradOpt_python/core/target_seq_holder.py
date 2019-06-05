@@ -154,15 +154,19 @@ class TargetSequenceHolder():
                 sim_kspace = magimg(tonumpy(sim_kspace.detach()).reshape([NCol,NRep,2]))
                 
                 plt.subplot(143)
-                plt.imshow(sim_kspace, interpolation='none')
-                plt.title("sim kspace")                
+                ax=plt.imshow(sim_kspace, interpolation='none')
+                plt.title("sim kspace")   
+                fig = plt.gcf()
+                fig.colorbar(ax)
                 
                 meas_kspace = self.scanner.signal[coil_idx,adc_idx,:,:2,0]
                 meas_kspace = magimg(tonumpy(meas_kspace.detach()).reshape([NCol,NRep,2]))     
                 
                 plt.subplot(144)
-                plt.imshow(meas_kspace, interpolation='none')
-                plt.title("meas kspace")                   
+                ax=plt.imshow(meas_kspace, interpolation='none')
+                plt.title("meas kspace")    
+                fig = plt.gcf()
+                fig.colorbar(ax)
 
                 fig.set_size_inches(18, 3)
                 
