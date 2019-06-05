@@ -2180,8 +2180,10 @@ class Scanner_fast(Scanner):
     def adjoint(self):
         self.init_reco()
         
-        s = torch.sum(self.signal,0)
-        r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
+        #s = torch.sum(self.signal,0)
+        #r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
+        #import pdb; pdb.set_trace()
+        r = torch.einsum("ijkln,oijnp->klp",[self.G_adj, self.signal])
         self.reco = r[:,:2,0]
         
         # transpose for adjoint
