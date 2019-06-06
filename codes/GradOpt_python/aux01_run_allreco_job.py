@@ -34,9 +34,9 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = True
+recreate_pulseq_files = False
 recreate_pulseq_files_for_sim = False
-do_real_meas = True
+do_real_meas = False
 
 # NRMSE error function
 def e(gt,x):
@@ -105,10 +105,11 @@ experiment_list = []
 #experiment_list.append(["190604", "e25_opt_pitcher48_onlyPE_t2st"])
 #experiment_list.append(["190604", "e25_opt_pitcher48_onlyREAD_t2st"])
 #experiment_list.append(["190604", "e25_opt_pitcher48_onlyspoilers_t2st"])
-experiment_list.append(["190604", "e25_opt_pitcher48_allgrad_t2st"])
+#experiment_list.append(["190604", "e25_opt_pitcher48_allgrad_t2st"])
 #experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
-
-
+#experiment_list.append(["190604", "e25_opt_pitcher96_onlyflips"])
+experiment_list.append(["190605", "e26_tgtGRESP_tskGRESP_bigX"])
+#experiment_list.append(["190605", "e26_tgtGRESP_tskGRESP_bigX_truelegs"])
 
 for exp_current in experiment_list:
     date_str = exp_current[0]

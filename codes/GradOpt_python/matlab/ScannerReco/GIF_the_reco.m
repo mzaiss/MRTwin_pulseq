@@ -37,7 +37,7 @@ niter = numel(scanner_dict.iter_idx)
 k = 1;
 array = 1:1:niter;
 
-methodstr='nufft';
+methodstr='adjoint';
 
 sos_tgt_sim= abs(scanner_dict.(['target_sim_reco_' methodstr])(:,:,1)+1j*scanner_dict.(['target_sim_reco_' methodstr])(:,:,2));
 phase_tgt_sim = angle(squeeze(scanner_dict.(['target_sim_reco_' methodstr])(:,:,1)+1j*scanner_dict.(['target_sim_reco_' methodstr])(:,:,2)));
@@ -59,7 +59,7 @@ jj=scanner_dict.iter_idx(ii)+1;
 sos_sim = abs(squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,2)));
 loss_image = squeeze(sos_sim - sos_tgt_sim);   % only magnitude optscanner_dict.iter_idximization
 loss(ii) = sum(loss_image(:).^2)/(sz(1)*sz(2));
-loss(ii) = 100*sqrt(loss(ii)) / sqrt(sum(scanner_dict.target_reco(:).^2)/(sz(1)*sz(2)));
+loss(ii) = 100*sqrt(loss(ii)) / sqrt(sum(sos_tgt_sim(:).^2)/(sz(1)*sz(2)));
 SARloss(ii) = sum(reshape((squeeze(scanner_dict.all_flips(jj,:,:,1).^2)),1,[]))./SAR_tgt_sim*100;
 end
 
