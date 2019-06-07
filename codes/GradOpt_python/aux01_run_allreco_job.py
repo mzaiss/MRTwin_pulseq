@@ -34,9 +34,9 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = False
+recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
-do_real_meas = False
+do_real_meas = True
 
 # NRMSE error function
 def e(gt,x):
@@ -108,8 +108,10 @@ experiment_list = []
 #experiment_list.append(["190604", "e25_opt_pitcher48_allgrad_t2st"])
 #experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
 #experiment_list.append(["190604", "e25_opt_pitcher96_onlyflips"])
-experiment_list.append(["190605", "e26_tgtGRESP_tskGRESP_bigX"])
-#experiment_list.append(["190605", "e26_tgtGRESP_tskGRESP_bigX_truelegs"])
+#experiment_list.append(["190605", "e26_tgtGRESP_tskGRESP_bigX"])
+#experiment_list.append(["190605", "e26_tgtGRESP_tskGRESP_bigX_truelegs"]) 
+#experiment_list.append(["190606", "e26_tgtGRESP_tskGRESP_bigX_truelegs",True,[1e-5,55]])
+experiment_list.append(["190604", "e25_opt_pitcher48_allparam_t2st_selective_nodummy"])
 
 for exp_current in experiment_list:
     date_str = exp_current[0]
@@ -253,7 +255,7 @@ for exp_current in experiment_list:
         if np.abs(itt[c_iter] - lasterror) > error_threshold_percent:
             lasterror = itt[c_iter]
             nonboring_iter.append(c_iter)
-        
+    
     # always compute last iteration
     if nonboring_iter[-1] != itt.size-1:
         nonboring_iter.append(itt.size-1)

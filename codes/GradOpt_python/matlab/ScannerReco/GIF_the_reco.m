@@ -15,6 +15,8 @@ else
   experiment_id=out{end};
 end
 
+% methodstr='generalized_adjoint';
+methodstr='adjoint';
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
@@ -36,8 +38,6 @@ NRep = scanner_dict.NRep;
 niter = numel(scanner_dict.iter_idx)
 k = 1;
 array = 1:1:niter;
-
-methodstr='adjoint';
 
 sos_tgt_sim= abs(scanner_dict.(['target_sim_reco_' methodstr])(:,:,1)+1j*scanner_dict.(['target_sim_reco_' methodstr])(:,:,2));
 phase_tgt_sim = angle(squeeze(scanner_dict.(['target_sim_reco_' methodstr])(:,:,1)+1j*scanner_dict.(['target_sim_reco_' methodstr])(:,:,2)));
@@ -105,6 +105,7 @@ subplot(3,4,6), h6=imagesc(phase_sim,PCLIM); title(' phase coil(1) '), axis('ima
 
 if real_exists
     subplot(3,4,3), h3=imagesc(sos_real,CLIM_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+    %subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
     subplot(3,4,7), h7=imagesc(phase_real,PCLIM); title(' phase coil(1) '), axis('image'); %colorbar;
     if kplot
     subplot(3,4,1), h1=imagesc(squeeze(abs(scanner_dict.all_sim_kspace(ii,:,:,1)))); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
@@ -142,8 +143,13 @@ ccc=colormap(gca,parula(size(temp,2)));
 set(gca, 'ColorOrder', ccc, 'NextPlot', 'replacechildren');
 plot(temp(:,:,1),temp(:,:,2),'-','DisplayName','k-sim'); hold on;% a 2D plot
 % set(gca, 'ColorOrder',mr circshift(get(gca, 'ColorOrder'),-1)); 
-plot(temp(3:end-2,:,1),temp(3:end-2,:,2),'.','DisplayName','k-sim'); % a 2D plot
-hold off; axis([-1 1 -1 1]*sz(1)/2*2);
+plot(temp(3:end-2,:,1),temp(3:end-2,:,2),'.','MarkerSize',3,'DisplayName','k-sim'); % a 2D plot
+hold off; 
+set(gca,'XTick',[-sz(1) sz(1)]/2); set(gca,'YTick',[-sz(2) sz(2)]/2); set(gca,'XTickLabel',{'-k','k'}); set(gca,'YTickLabel',[]);
+grid on;
+set(gca, 'Position',get(gca,'Position').*[0.3 0.5 1.6 1.6]) % extralarge
+axis([-1 1 -1 1]*sz(1)/2*1.5);
+
 
 subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,1,:,2)),'r','DisplayName','phase1'); hold on;% a 2D plot
 subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,2,:,2)),'b','DisplayName','phase2'); hold off; xlabel('rep'); ylabel('phase angle [°]');
@@ -154,7 +160,7 @@ subplot(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(2,:,1)),'b.','Dis
 subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,2,:,1))),'b','DisplayName','flips');hold off;  xlabel('rep'); ylabel('flip angle [°]');
 % subplot(3,3,7), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
 ylim= max([5, round( loss(ii)/(10^max([floor(log10(loss(ii))),0])))*(10^max([floor(log10(loss(ii))),0])*2)]);
-subplot(3,4,12), yyaxis left; plot(loss); hold on;  plot(ii,loss(ii),'b.'); plot(loss*0+min(loss(5:end)),'b:');hold off; axis([ii-50 ii+50 -10e-12 ylim]);ylabel('[%] error');
+subplot(3,4,12), yyaxis left; plot(loss); hold on;  plot(ii,loss(ii),'b.'); plot(loss*0+min(loss(3:end)),'b:');hold off; axis([ii-50 ii+50 -10e-12 ylim]);ylabel('[%] error');
 yyaxis right; plot(SARloss); hold on; plot(ii,SARloss(ii),'r.'); hold off; ylabel('[%] SAR'); grid on; 
 
 

@@ -50,15 +50,17 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     # now comes dummy repetition because of bad ref first flip
     first_flip = 90 * pi / 180
     
-    RFdur = 1*1e-3
-    kwargs_for_block = {"flip_angle": first_flip, "system": system, "duration": RFdur}
-    rf = make_block_pulse(kwargs_for_block, 1)
-    seq.add_block(rf)
-    seq.add_block(make_delay(0.001))
-    kwargs_for_block = {"flip_angle": -first_flip, "system": system, "duration": RFdur}
-    rf = make_block_pulse(kwargs_for_block, 1)
-    seq.add_block(rf)
-    
+    nonsel=0
+	if nonsel==1:
+	    RFdur = 1*1e-3
+	    kwargs_for_block = {"flip_angle": first_flip, "system": system, "duration": RFdur}
+	    rf = make_block_pulse(kwargs_for_block, 1)
+	    seq.add_block(rf)
+	    seq.add_block(make_delay(0.001))
+	    kwargs_for_block = {"flip_angle": -first_flip, "system": system, "duration": RFdur}
+	    rf = make_block_pulse(kwargs_for_block, 1)
+	    seq.add_block(rf)
+
     seq.add_block(make_delay(1))
     
     
@@ -69,7 +71,6 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         idx_T = 0
         if np.abs(flips_numpy[idx_T,rep,0]) > 1e-16:
             use = "excitation"
-            nonsel=1
             
             if nonsel:
                 RFdur = 1*1e-3
