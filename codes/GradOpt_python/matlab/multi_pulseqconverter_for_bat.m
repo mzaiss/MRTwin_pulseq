@@ -11,6 +11,7 @@ else
     seq_dir = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences', 'Select a sequence folder');
     out=regexp(seq_dir,'\','split');
     experiment_id=out{end};
+    seqdate_id=out{end-1};
 end
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
@@ -29,7 +30,7 @@ T = scanner_dict.T;
 NRep = scanner_dict.NRep;
 catch
 niter=0;
-warning('No all_iter found, hust create Target seq');
+warning('No all_iter found, just create Target seq');
 sz = double(scanner_dict_target.sz);
 T = size(scanner_dict_target.flips,1);
 NRep = size(scanner_dict_target.flips,2);
@@ -53,6 +54,11 @@ idxarray_exported_itersteps = [1:2:100 110:10:350 400:100:2000];
  idxarray_exported_itersteps = [1:niter];
 idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_itersteps<=niter); % catch to high iteration numbers
 
+idxarray_exported_itersteps = 1054
+
+scanner_dict_temp = load([seq_dir,'/../..','/results/',seqdate_id,'/',experiment_id,'/all_meas_reco_dict.mat']);
+idxarray_exported_itersteps = scanner_dict_temp.iter_idx;
+
 for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     
     idx = double(ni);
@@ -60,7 +66,13 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     
     % plug learned gradients into the sequence constructor
     % close all
-    seq_fn = [seq_dir,'/','seqiter',num2str(k),'.seq'];
+%     seq_fn = [seq_dir,'/','seqiter',num2str(k),'.seq'];
+if ni==0
+        seq_fn = [seq_dir,'/','target.seq'];
+else
+    seq_fn = [seq_dir,'/',sprintf( 'iter%06d', ni-1),'.seq'];
+end
+    
     
     
     SeqOpts.resolution = double(sz);                                                                                            % matrix size
@@ -107,7 +119,7 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     % Define other gradients and ADC events
     deltak=1/SeqOpts.FOV;
     % read gradient
-    if idx==0   % added traget sequence in the beginning
+    if ni==0   % added traget sequence in the beginning
         flips = double(squeeze(scanner_dict_target.flips(:,:,:)));
         event_times = double(squeeze(scanner_dict_target.event_times(:,:)));
         gradmoms = double(squeeze(scanner_dict_target.grad_moms(:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
@@ -117,8 +129,10 @@ for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
         event_times = double(squeeze(scanner_dict.event_times(idx,:,:)));
         gradmoms = double(squeeze(scanner_dict.grad_moms(idx,:,:,:)))*deltak;  % that brings the gradmoms to the k-space unit of deltak =1/FoV
     end
+
+flips=rectify_flips(flips); % added as in python.
     
-nonsel = 1;
+nonsel = 0;
 
     % put blocks together
     for rep=1:NRep
@@ -136,7 +150,7 @@ nonsel = 1;
             if nonsel
             % block pulse non-selective
                 sliceThickness=200e-3;
-                rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',0.8*1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
+                rf = mr.makeBlockPulse(flips(idx_T,rep,1),'Duration',1e-3,'PhaseOffset',flips(idx_T,rep,2), 'use',use);
                 seq.addBlock(rf);
                 %RFdur= 0.8*1e-3;
                 RFdur= 1e-3;
@@ -150,7 +164,7 @@ nonsel = 1;
             end
         end
         (event_times(idx_T,rep)-RFdur); % this is the actual timing from spyder
-        seq.addBlock(mr.makeDelay(0.002-RFdur)) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
+        seq.addBlock(mr.makeDelay((event_times(idx_T,rep)-RFdur))) % this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
 
         % second  (rewinder)
         idx_T=2; % T(2)
@@ -164,7 +178,7 @@ nonsel = 1;
         
         gx = mr.makeTrapezoid('x','FlatArea',sum(gradmoms(idx_T,rep,1),1),'FlatTime',dur,'system',sys);
         gy = mr.makeTrapezoid('y','FlatArea',sum(gradmoms(idx_T,rep,2),1),'FlatTime',dur,'system',sys);
-          adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime - event_times(idx_T(1),rep)/2,'phaseOffset',rf.phaseOffset);
+        adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime - 0*event_times(idx_T(1),rep)/2,'phaseOffset',rf.phaseOffset);
         
 %         adc = mr.makeAdc(numel(idx_T),'Duration',gx.flatTime,'Delay',gx.riseTime);
         
@@ -198,7 +212,7 @@ nonsel = 1;
     seq.write(seq_fn);
    % seq.writeBinary(seq_fn);
     
-    pause(2);
+%     pause(2);
     fprintf('%d of %d\n',k,numel(idxarray_exported_itersteps));
     if k==0
         seq.plot(); subplot(3,2,2); title('Target sequence');

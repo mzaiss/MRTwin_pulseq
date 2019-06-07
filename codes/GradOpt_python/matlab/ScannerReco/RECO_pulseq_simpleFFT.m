@@ -25,10 +25,10 @@ data_file_path=[datpath datfilename];
 M = importdata(data_file_path);
 
 Mr=M(:,1) +1j*M(:,2);
-data = reshape(Mr,24,2,24);
+data = reshape(Mr,48,2,48);
 data = permute(data, [1,3,2]);
 size(data)
-
+nCoils=2
 %% load from scannerdict
 T=signal;
 T=squeeze(T);

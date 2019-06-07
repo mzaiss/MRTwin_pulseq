@@ -34,7 +34,7 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = True
+recreate_pulseq_files = False
 recreate_pulseq_files_for_sim = False
 do_real_meas = True
 

@@ -51,15 +51,15 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     first_flip = 90 * pi / 180
     
     nonsel=0
-	if nonsel==1:
-	    RFdur = 1*1e-3
-	    kwargs_for_block = {"flip_angle": first_flip, "system": system, "duration": RFdur}
-	    rf = make_block_pulse(kwargs_for_block, 1)
-	    seq.add_block(rf)
-	    seq.add_block(make_delay(0.001))
-	    kwargs_for_block = {"flip_angle": -first_flip, "system": system, "duration": RFdur}
-	    rf = make_block_pulse(kwargs_for_block, 1)
-	    seq.add_block(rf)
+    if nonsel==1:
+        RFdur = 1*1e-3
+        kwargs_for_block = {"flip_angle": first_flip, "system": system, "duration": RFdur}
+        rf = make_block_pulse(kwargs_for_block, 1)
+        seq.add_block(rf)
+        seq.add_block(make_delay(0.001))
+        kwargs_for_block = {"flip_angle": -first_flip, "system": system, "duration": RFdur}
+        rf = make_block_pulse(kwargs_for_block, 1)
+        seq.add_block(rf)
 
     seq.add_block(make_delay(1))
     
