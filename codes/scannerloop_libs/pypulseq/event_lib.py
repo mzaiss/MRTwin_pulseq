@@ -14,16 +14,21 @@ class EventLibrary:
         s += "\ntype: " + str(len(self.type))
         return s
 
-    def find(self, new_data):
+    def find(self, new_data, forcenewkey=False):
         data_string = np.array2string(new_data, formatter={'float_kind': lambda x: "%.6g" % x})
         data_string = data_string.replace('[', '')
         data_string = data_string.replace(']', '')
-        try:
-            key_id = self.keymap[data_string]
-            found = True
-        except:
-            key_id = 1 if len(self.keys) == 0 else max(self.keys) + 1
-            found = False
+        
+        if not forcenewkey:
+            try:
+                key_id = self.keymap[data_string]
+                found = True
+            except:
+                key_id = 1 if len(self.keys) == 0 else max(self.keys) + 1
+                found = False
+        else:
+                key_id = 1 if len(self.keys) == 0 else max(self.keys) + 1
+                found = False            
 
         return key_id, found
 

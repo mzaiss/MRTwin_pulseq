@@ -47,23 +47,11 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)    
     
-    # now comes dummy repetition because of bad ref first flip
-    first_flip = 90 * pi / 180
-    
-    nonsel=0
+    nonsel=1
     if nonsel==1:
-        RFdur = 1*1e-3
-        kwargs_for_block = {"flip_angle": first_flip, "system": system, "duration": RFdur}
-        rf = make_block_pulse(kwargs_for_block, 1)
-        seq.add_block(rf)
-        seq.add_block(make_delay(0.001))
-        kwargs_for_block = {"flip_angle": -first_flip, "system": system, "duration": RFdur}
-        rf = make_block_pulse(kwargs_for_block, 1)
-        seq.add_block(rf)
+        slice_thickness = 200*1e-3
+      
 
-    seq.add_block(make_delay(1))
-    
-    
     for rep in range(NRep):
         
         ###############################
@@ -168,19 +156,9 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)   
     
-    # now comes dummy repetition because of bad ref first flip
-    first_flip = 90 * pi / 180
-    
-    RFdur = 1*1e-3
-    kwargs_for_block = {"flip_angle": first_flip, "system": system, "duration": RFdur}
-    rf = make_block_pulse(kwargs_for_block, 1)
-    seq.add_block(rf)
-    seq.add_block(make_delay(0.001))
-    kwargs_for_block = {"flip_angle": -first_flip, "system": system, "duration": RFdur}
-    rf = make_block_pulse(kwargs_for_block, 1)
-    seq.add_block(rf)
-    
-    seq.add_block(make_delay(1))
+    nonsel = 1
+    if nonsel==1:
+        slice_thickness = 200*1e-3
     
     for rep in range(NRep):
         
@@ -620,3 +598,4 @@ def append_header(seq_fn, FOV,slice_thickness):
 #    grad.flat_area = amplitude * flat_time
 #
 #    return grad    
+

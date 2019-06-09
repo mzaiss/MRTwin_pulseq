@@ -34,9 +34,9 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = False
-recreate_pulseq_files_for_sim = False
-do_real_meas = True
+recreate_pulseq_files = True
+recreate_pulseq_files_for_sim = True
+do_real_meas = False
 
 # NRMSE error function
 def e(gt,x):
@@ -111,7 +111,26 @@ experiment_list = []
 #experiment_list.append(["190605", "e26_tgtGRESP_tskGRESP_bigX"])
 #experiment_list.append(["190605", "e26_tgtGRESP_tskGRESP_bigX_truelegs"]) 
 #experiment_list.append(["190606", "e26_tgtGRESP_tskGRESP_bigX_truelegs",True,[1e-5,55]])
-experiment_list.append(["190604", "e25_opt_pitcher48_allparam_t2st_selective_nodummy"])
+#experiment_list.append(["190604", "e25_opt_pitcher48_allparam_t2st_selective_multishape"])
+
+#experiment_list.append(["190604", "e25_opt_pitcher48_allparam_t2st"])
+#experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar1x"])
+#experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar2x"])
+experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar5x"])
+experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar50x"])
+
+experiment_list.append(["190604", "e25_opt_pitcher96_onlyflips"])
+experiment_list.append(["190603", "e25_opt_pitcher48_onlysflips"])
+experiment_list.append(["190602", "t03_tgtRARE_tskRARE_128_init"])
+
+
+#experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar2x_sl"])
+#experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar5x_sl"])
+#experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar50x_sl"])
+#
+#experiment_list.append(["190604", "e25_opt_pitcher96_onlyflips_sl"])
+#experiment_list.append(["190603", "e25_opt_pitcher48_onlysflips_sl"])
+
 
 for exp_current in experiment_list:
     date_str = exp_current[0]
@@ -208,6 +227,27 @@ for exp_current in experiment_list:
     
     ######### REAL
     # send to scanner
+    if (recreate_pulseq_files and do_real_meas) or recreate_pulseq_files_for_sim:
+        fn_pulseq = "target.seq"
+        iflips = input_array_target['flips']
+        ivent = input_array_target['event_times']
+        gmo = input_array_target['grad_moms']
+        
+        seq_params = iflips, ivent, gmo
+        
+        today_datestr = date_str
+        basepath_out = os.path.join(basepath, "seq" + today_datestr)
+        basepath_out = os.path.join(basepath_out, experiment_id)
+        
+        if sequence_class.lower() == "gre":
+            pulseq_write_GRE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+        elif sequence_class.lower() == "rare":
+            pulseq_write_RARE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+        elif sequence_class.lower() == "bssfp":
+            pulseq_write_BSSFP(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+        elif sequence_class.lower() == "epi":
+            pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)        
+    
     if do_real_meas:
         scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
         scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
@@ -255,12 +295,14 @@ for exp_current in experiment_list:
         if np.abs(itt[c_iter] - lasterror) > error_threshold_percent:
             lasterror = itt[c_iter]
             nonboring_iter.append(c_iter)
-    
+            
     # always compute last iteration
     if nonboring_iter[-1] != itt.size-1:
         nonboring_iter.append(itt.size-1)
     
     nonboring_iter = np.array(nonboring_iter)
+    #nonboring_iter = np.concatenate((nonboring_iter[:5],nonboring_iter[-5:]))
+    
     nmb_iter = nonboring_iter.size
     
     all_sim_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
