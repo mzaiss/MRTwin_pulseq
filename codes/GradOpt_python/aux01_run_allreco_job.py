@@ -35,8 +35,8 @@ from core.pulseq_exporter import pulseq_write_EPI
 use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
-recreate_pulseq_files_for_sim = True
-do_real_meas = False
+recreate_pulseq_files_for_sim = False
+do_real_meas = True
 
 # NRMSE error function
 def e(gt,x):
@@ -114,8 +114,8 @@ experiment_list = []
 #experiment_list.append(["190604", "e25_opt_pitcher48_allparam_t2st_selective_multishape"])
 
 #experiment_list.append(["190604", "e25_opt_pitcher48_allparam_t2st"])
-experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar2x"])
 experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar1x"])
+experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar2x"])
 experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar5x"])
 experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar50x"])
 
@@ -284,9 +284,9 @@ for exp_current in experiment_list:
     itt = alliter_array['all_errors']
 
     if do_real_meas:
-        error_threshold_percent = 3    
+        error_threshold_percent = 0.3    
     else:
-        error_threshold_percent = 1
+        error_threshold_percent = 0.3
         
     nonboring_iter = []
     lasterror = 1e10
@@ -295,9 +295,6 @@ for exp_current in experiment_list:
             lasterror = itt[c_iter]
             nonboring_iter.append(c_iter)
             
-    # always compute last iteration
-    if nonboring_iter[-1] != itt.size-1:
-        nonboring_iter.append(itt.size-1)
     
     nonboring_iter = np.array(nonboring_iter)
     #nonboring_iter = np.concatenate((nonboring_iter[:5],nonboring_iter[-5:]))
