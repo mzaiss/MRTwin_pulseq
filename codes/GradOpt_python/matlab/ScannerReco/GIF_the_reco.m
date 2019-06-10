@@ -92,7 +92,7 @@ jj=scanner_dict.iter_idx(ii)+1; % index for parameters
  
 sos_sim = abs(squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,2)));
 phase_sim = angle(squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,2)));
-SAR_sim = sum(reshape((squeeze(scanner_dict.all_flips(ii,:,:,1).^2)),1,[]))./SAR_tgt_sim;
+SAR_sim = sum(reshape((squeeze(scanner_dict.all_flips(jj,:,:,1).^2)),1,[]))./SAR_tgt_sim;
 
 if real_exists
 sos_real = abs(squeeze(scanner_dict.(['all_real_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_real_reco_' methodstr])(ii,:,:,2)));

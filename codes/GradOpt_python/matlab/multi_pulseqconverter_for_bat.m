@@ -56,8 +56,12 @@ idxarray_exported_itersteps= idxarray_exported_itersteps(idxarray_exported_iters
 
 idxarray_exported_itersteps = 1054
 
+try
 scanner_dict_temp = load([seq_dir,'/../..','/results/',seqdate_id,'/',experiment_id,'/all_meas_reco_dict.mat']);
 idxarray_exported_itersteps = scanner_dict_temp.iter_idx;
+catch
+    idxarray_exported_itersteps = [];
+end
 
 for ni =  [0 idxarray_exported_itersteps] % add target seq in the beginning
     

@@ -152,7 +152,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 1*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[0,:,0] = 0.15*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
@@ -171,7 +171,7 @@ event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float(
 event_time[0,:] =  2e-3       #+ 2e-3 
 event_time[1,:] =  2e-3       #+ 2e-3 
 event_time[-2,:] = 2*1e-3
-event_time[-1,:] = 12.6*1e-3 * 2 
+event_time[-1,:] = 12.6*1e-3 
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])

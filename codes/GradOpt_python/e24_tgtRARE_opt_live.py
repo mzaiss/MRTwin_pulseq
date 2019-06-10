@@ -144,8 +144,8 @@ scanner.set_flipXY_tensor(flips)
 # rotate ADC according to excitation phase
 scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 # event timing vector 
-
-TEd= 1.95*1e-3 # increase to reduce SAR
+#TEd= 1.95*1e-3 # increase to reduce SAR
+TEd= 0*1e-3 # increase to reduce SAR
 event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,1:] = 0.2*1e-3     # for TE2_180_2   delay only
 event_time[-1,:] = 0.8*1e-3     # for TE2_180_2   delay only
