@@ -97,8 +97,8 @@ class Scanner():
         return x.detach().cpu().numpy()    
     
     def do_SAR_test(self, flips, event_time):
-        TACQ = torch.sum(event_time)*1000
-        watchdog_norm = 100 / 1.8098
+        TACQ = torch.sum(event_time)*1000 + 2e3
+        watchdog_norm = 100 / 0.45245
         SAR_watchdog = (torch.sum(flips[:,:,0]**2) / TACQ).cpu()
         print("SAR_watchdog = {}%".format(np.round(SAR_watchdog*watchdog_norm)))
         

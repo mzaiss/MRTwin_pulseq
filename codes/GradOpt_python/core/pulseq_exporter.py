@@ -47,6 +47,8 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)    
     
+    seq.add_block(make_delay(2.0))
+    
     nonsel=1
     if nonsel==1:
         slice_thickness = 200*1e-3
@@ -155,6 +157,8 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)   
+    
+    seq.add_block(make_delay(2.0))
     
     nonsel = 1
     if nonsel==1:
@@ -265,6 +269,8 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)    
+    
+    seq.add_block(make_delay(2.0))
     
     nonsel = 0
     
