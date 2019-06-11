@@ -1205,8 +1205,7 @@ class Scanner():
                 B0_grad_cos = torch.cos(B0_grad)
                 B0_grad_sin = torch.sin(B0_grad)          
                
-                G = scanner.setdevice(torch.zeros((scanner.NVox,3,3), dtype=torch.float32))
-                G[:,2,2] = 1
+                G = scanner.setdevice(torch.zeros((scanner.NVox,2,2), dtype=torch.float32))
                 G[:,0,0] = B0_grad_cos
                 G[:,0,1] = -B0_grad_sin
                 G[:,1,0] = B0_grad_sin
@@ -1226,15 +1225,14 @@ class Scanner():
                 B0_grad_cos = torch.cos(B0_grad)
                 B0_grad_sin = torch.sin(B0_grad)          
                
-                G = scanner.setdevice(torch.zeros((scanner.NVox,3,3), dtype=torch.float32))
-                G[:,2,2] = 1
+                G = scanner.setdevice(torch.zeros((scanner.NVox,2,2), dtype=torch.float32))
                 G[:,0,0] = B0_grad_cos
                 G[:,0,1] = -B0_grad_sin
                 G[:,1,0] = B0_grad_sin
                 G[:,1,1] = B0_grad_cos
                 
-                ctx.scanner.lastM = torch.matmul(G.permute([0,2,1]),ctx.scanner.lastM)
-                gx = torch.matmul(G.permute([0,2,1]),grad_output)
+                ctx.scanner.lastM[:,:,:,:2,:] = torch.matmul(G.permute([0,2,1]),ctx.scanner.lastM[:,:,:,:2,:])
+                gx = torch.matmul(G.permute([0,2,1]),grad_output[:,:,:,:2,:])
                 
                 return (None, gx, None)
             
@@ -1361,8 +1359,7 @@ class Scanner():
                 B0_grad_adj_cos = torch.cos(B0_grad)
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
-                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
-                G_adj[:,:,2,2] = 1
+                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,2,2), dtype=torch.float32))
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1388,8 +1385,7 @@ class Scanner():
                 B0_grad_adj_cos = torch.cos(B0_grad)
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
-                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
-                G_adj[:,:,2,2] = 1
+                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,2,2), dtype=torch.float32))
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1399,8 +1395,8 @@ class Scanner():
                 FWD = G_adj[1,:,:,:].permute([0,2,1])
                 FWD = torch.matmul(REW, FWD)
                 
-                ctx.scanner.lastM = torch.matmul(FWD.permute([0,2,1]),ctx.scanner.lastM)
-                gx = torch.matmul(FWD.permute([0,2,1]),grad_output)
+                ctx.scanner.lastM[:,:,:,:2,:] = torch.matmul(FWD.permute([0,2,1]),ctx.scanner.lastM[:,:,:,:2,:])
+                gx = torch.matmul(FWD.permute([0,2,1]),grad_output[:,:,:,:2,:])
                 
                 return (None, gx, None)  
             
@@ -1517,7 +1513,7 @@ class Scanner():
                     spins.M = DephaseClass.apply(self.P,spins.M,self)
                     spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                     
-                    spins.M = AuxGradMul.apply(self.grads[t,r,:],spins.M,self)
+                    spins.M[:,:,:,:2,:] = AuxGradMul.apply(self.grads[t,r,:],spins.M[:,:,:,:2,:],self)
 
                     self.set_grad_intravoxel_precess_tensor(t,r)
                     spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
@@ -1577,7 +1573,7 @@ class Scanner():
                         
                         # do intravoxel precession
                         spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)                            
-                        spins.M = AuxReadoutGradMul.apply(self.kspace_loc[[start_t,t+1],r,:],spins.M,self)
+                        spins.M[:,:,:,:2,:] = AuxReadoutGradMul.apply(self.kspace_loc[[start_t,t+1],r,:],spins.M[:,:,:,:2,:],self)
                         
                         # reset readout position tracking vars
                         start_t = t + 1
