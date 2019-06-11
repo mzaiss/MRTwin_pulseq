@@ -1281,8 +1281,11 @@ class Scanner():
                 
                 # Inter-voxel grad precession
                 #presignal = torch.sum(intraSpins,0,keepdim=True)
-               
-                presignal = torch.einsum('ijklm,inomp->jolp', [IVP, intraSpins]).unsqueeze(0)
+                
+                #presignal = torch.einsum('ijklm,inomp->jolp', [IVP, intraSpins]).unsqueeze(0)
+                #presignal = torch.matmul(scanner.SB0sig,presignal)
+                
+                presignal = torch.einsum('sjorl,ijklm,inomp->jorp', [scanner.SB0sig, IVP, intraSpins]).unsqueeze(0)
                 
                 B0X = torch.unsqueeze(torch.unsqueeze(f[:,0],1),1) * scanner.rampX
                 B0Y = torch.unsqueeze(torch.unsqueeze(f[:,1],1),1) * scanner.rampY
@@ -1351,8 +1354,9 @@ class Scanner():
                 #gx = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)
                 #gx = torch.sum(gx,1, keepdim=True)
                 
-                #import pdb; pdb.set_trace()
-                gx = torch.einsum('ijklm,njolp->inomp', [IVP, grad_output])
+                gx = torch.matmul(ctx.scanner.SB0sig.permute([0,1,2,4,3]),grad_output)
+                gx = torch.einsum('ijklm,njolp->inomp', [IVP, gx])
+                
                 
                 return (None, gx, None, None, None)
             
@@ -1535,6 +1539,23 @@ class Scanner():
                         total_delay = delay
                         start_t = t
                         
+                        # set B0 inhomo precession tensor
+                        S = torch.zeros((1,self.NCol,self.NVox,2,2), dtype=torch.float32)
+                        S = self.setdevice(S)
+                        
+                        B0_inhomo = spins.B0inhomo.view([self.NVox]) * 2*np.pi
+                        delay_ramp = delay * self.setdevice(torch.from_numpy(np.arange(self.NCol))).view([self.NCol,1]) * B0_inhomo.view([1, self.NVox])
+                        
+                        B0_nspins_cos = torch.cos(delay_ramp)
+                        B0_nspins_sin = torch.sin(delay_ramp)
+                         
+                        S[0,:,:,0,0] = B0_nspins_cos
+                        S[0,:,:,0,1] = -B0_nspins_sin
+                        S[0,:,:,1,0] = B0_nspins_sin
+                        S[0,:,:,1,1] = B0_nspins_cos
+                        
+                        self.SB0sig = S
+                        
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
                         self.ROI_signal[start_t:t+1,r,0] = delay
                         self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu().unsqueeze(0)
@@ -1547,7 +1568,7 @@ class Scanner():
                         spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,total_delay,t,r,self,spins)
                         #spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
-                        spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
+                        
                         
                         # read signal
                         if t == (self.T - half_read*2)//2 + half_read:  # read signal
@@ -1587,6 +1608,8 @@ class Scanner():
                         # do intravoxel precession
                         spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)                            
                         spins.M[:,:,:,:2,:] = AuxReadoutGradMul.apply(self.kspace_loc[[start_t,t+1],r,:],spins.M[:,:,:,:2,:],self)
+                        
+                        spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                         
                         # reset readout position tracking vars
                         start_t = t + 1
