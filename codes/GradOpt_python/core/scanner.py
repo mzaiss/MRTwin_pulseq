@@ -1318,8 +1318,7 @@ class Scanner():
                 FWD = torch.matmul(REW, FWD)  
                 
                 grad_output = torch.matmul(FWD.permute([0,1,3,2]),grad_output[:,:,:,:2,:])
-                
-                grad_output = torch.repeat_interleave(grad_output,ctx.scanner.NSpins,0)
+                #grad_output = torch.repeat_interleave(grad_output,ctx.scanner.NSpins,0)
                 
                 # Intra-voxel grad precession
                 kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[ctx.t1:ctx.t2,r,:],0)
@@ -1340,7 +1339,8 @@ class Scanner():
                 #gx = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)
                 #gx = torch.sum(gx,1, keepdim=True)
                 
-                gx = torch.einsum('ijklm,ijolp->ikomp', [IVP, grad_output])
+                #import pdb; pdb.set_trace()
+                gx = torch.einsum('ijklm,njolp->inomp', [IVP, grad_output])
                 
                 return (None, gx, None, None, None)
             
@@ -1602,6 +1602,8 @@ class Scanner():
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
             self.signal = torch.matmul(self.AF,self.signal) * self.adc_mask.view([self.T,1,1,1])
+            
+        torch.cuda.empty_cache()
             
     def do_dummy_scans(self,spins,event_time,compact_grad_tensor=True,nrep=0):
         spins.set_initial_magnetization()
