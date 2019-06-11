@@ -942,13 +942,8 @@ class Scanner():
                         self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins.M[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
                         self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins.M[:,0,0,2]),[0]).flatten().detach().cpu()
                         
-                        self.set_relaxation_tensor(spins,total_delay)
-                        self.set_freeprecession_tensor(spins,total_delay)
-                        self.set_B0inhomogeneity_tensor(spins,total_delay)
-                        
                         spins.M = RelaxClass.apply(self.R, spins.M,total_delay,t,self,spins)
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
-                        spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                         
                         # do gradient precession (use adjoint as free kumulator)
                         if compact_grad_tensor:
@@ -985,6 +980,23 @@ class Scanner():
                             
                             intraSpins = torch.matmul(IVP, intraSpins)
                             
+                            S = torch.zeros((1,self.NCol,self.NVox,3,3), dtype=torch.float32)
+                            S = self.setdevice(S)
+                            
+                            B0_inhomo = spins.B0inhomo.view([self.NVox]) * 2*np.pi
+                            delay_ramp = delay * self.setdevice(torch.from_numpy(np.arange(self.NCol))).view([self.NCol,1]) * B0_inhomo.view([1, self.NVox])
+                            
+                            B0_nspins_cos = torch.cos(delay_ramp)
+                            B0_nspins_sin = torch.sin(delay_ramp)
+                             
+                            S[0,:,:,0,0] = B0_nspins_cos
+                            S[0,:,:,0,1] = -B0_nspins_sin
+                            S[0,:,:,1,0] = B0_nspins_sin
+                            S[0,:,:,1,1] = B0_nspins_cos
+                            S[0,:,:,2,2] = 1
+                             
+                            intraSpins = torch.matmul(S,intraSpins)
+
                             signal = torch.matmul(FWD,torch.sum(intraSpins,0,keepdim=True))
                             signal = torch.sum(signal,[2])
                             
@@ -1010,7 +1022,8 @@ class Scanner():
                         self.IVP[:,0,0,1,1] = IVP_nspins_cos                
                         
                         # do intravoxel precession
-                        spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)                            
+                        spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
+                        spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                             
                         FWD = torch.matmul(REW, FWD)
                         spins.M = torch.matmul(FWD,spins.M)                            
@@ -1205,8 +1218,7 @@ class Scanner():
                 B0_grad_cos = torch.cos(B0_grad)
                 B0_grad_sin = torch.sin(B0_grad)          
                
-                G = scanner.setdevice(torch.zeros((scanner.NVox,3,3), dtype=torch.float32))
-                G[:,2,2] = 1
+                G = scanner.setdevice(torch.zeros((scanner.NVox,2,2), dtype=torch.float32))
                 G[:,0,0] = B0_grad_cos
                 G[:,0,1] = -B0_grad_sin
                 G[:,1,0] = B0_grad_sin
@@ -1226,15 +1238,14 @@ class Scanner():
                 B0_grad_cos = torch.cos(B0_grad)
                 B0_grad_sin = torch.sin(B0_grad)          
                
-                G = scanner.setdevice(torch.zeros((scanner.NVox,3,3), dtype=torch.float32))
-                G[:,2,2] = 1
+                G = scanner.setdevice(torch.zeros((scanner.NVox,2,2), dtype=torch.float32))
                 G[:,0,0] = B0_grad_cos
                 G[:,0,1] = -B0_grad_sin
                 G[:,1,0] = B0_grad_sin
                 G[:,1,1] = B0_grad_cos
                 
-                ctx.scanner.lastM = torch.matmul(G.permute([0,2,1]),ctx.scanner.lastM)
-                gx = torch.matmul(G.permute([0,2,1]),grad_output)
+                ctx.scanner.lastM[:,:,:,:2,:] = torch.matmul(G.permute([0,2,1]),ctx.scanner.lastM[:,:,:,:2,:])
+                gx = torch.matmul(G.permute([0,2,1]),grad_output[:,:,:,:2,:])
                 
                 return (None, gx, None)
             
@@ -1361,8 +1372,7 @@ class Scanner():
                 B0_grad_adj_cos = torch.cos(B0_grad)
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
-                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
-                G_adj[:,:,2,2] = 1
+                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,2,2), dtype=torch.float32))
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1388,8 +1398,7 @@ class Scanner():
                 B0_grad_adj_cos = torch.cos(B0_grad)
                 B0_grad_adj_sin = torch.sin(B0_grad)       
                 
-                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,3,3), dtype=torch.float32))
-                G_adj[:,:,2,2] = 1
+                G_adj = scanner.setdevice(torch.zeros((nmb_a,scanner.NVox,2,2), dtype=torch.float32))
                 G_adj[:,:,0,0] = B0_grad_adj_cos
                 G_adj[:,:,0,1] = B0_grad_adj_sin
                 G_adj[:,:,1,0] = -B0_grad_adj_sin
@@ -1399,8 +1408,8 @@ class Scanner():
                 FWD = G_adj[1,:,:,:].permute([0,2,1])
                 FWD = torch.matmul(REW, FWD)
                 
-                ctx.scanner.lastM = torch.matmul(FWD.permute([0,2,1]),ctx.scanner.lastM)
-                gx = torch.matmul(FWD.permute([0,2,1]),grad_output)
+                ctx.scanner.lastM[:,:,:,:2,:] = torch.matmul(FWD.permute([0,2,1]),ctx.scanner.lastM[:,:,:,:2,:])
+                gx = torch.matmul(FWD.permute([0,2,1]),grad_output[:,:,:,:2,:])
                 
                 return (None, gx, None)  
             
@@ -1517,7 +1526,7 @@ class Scanner():
                     spins.M = DephaseClass.apply(self.P,spins.M,self)
                     spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                     
-                    spins.M = AuxGradMul.apply(self.grads[t,r,:],spins.M,self)
+                    spins.M[:,:,:,:2,:] = AuxGradMul.apply(self.grads[t,r,:],spins.M[:,:,:,:2,:],self)
 
                     self.set_grad_intravoxel_precess_tensor(t,r)
                     spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
@@ -1577,7 +1586,7 @@ class Scanner():
                         
                         # do intravoxel precession
                         spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)                            
-                        spins.M = AuxReadoutGradMul.apply(self.kspace_loc[[start_t,t+1],r,:],spins.M,self)
+                        spins.M[:,:,:,:2,:] = AuxReadoutGradMul.apply(self.kspace_loc[[start_t,t+1],r,:],spins.M[:,:,:,:2,:],self)
                         
                         # reset readout position tracking vars
                         start_t = t + 1
