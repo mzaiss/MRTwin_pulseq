@@ -9,6 +9,7 @@ import os, sys
 import scipy
 import math
 from torch.optim.optimizer import Optimizer
+import socket
 
 from sys import platform
 import time
@@ -618,7 +619,11 @@ class OPT_helper():
         
     def get_base_path(self, experiment_id, today_datestr):
         if platform == 'linux':
-            basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+            hostname = socket.gethostname()
+            if hostname == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron':
+                basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+            else:                                                     # cluster
+                basepath = 'out'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
 
