@@ -266,6 +266,9 @@ class Scanner():
         self.F[:,:,:,1,1] += 1
         self.F[:,:,:,2,2] += 1
         
+        # WARNING TODO, not future proof
+        self.F = self.F[:(self.T - self.NCol)//2,:,:,:,:]
+        
     # use Rodriguez' rotation formula to compute rotation around arbitrary axis
     # flips are now (T,NRep,3) -- axis angle representation
     # angle = norm of the rotation vector    
@@ -1518,7 +1521,8 @@ class Scanner():
                     self.ROI_signal[t,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
                     self.ROI_signal[t,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                     
                     
-                    spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
+                    if t < self.F.shape[0]:
+                        spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                     
                     self.set_relaxation_tensor(spins,delay)
                     self.set_freeprecession_tensor(spins,delay)
@@ -2323,7 +2327,8 @@ class FlipClass(torch.autograd.Function):
         
         ctx.scanner.lastM = torch.matmul(ctx.f.permute([0,2,1]),ctx.scanner.lastM)
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
-        gf = torch.sum(gf,[0,2])
+        #gf = torch.sum(gf,[0,2])
+        gf = torch.sum(gf,[0,1]).reshape(ctx.f.shape)
         
         return (gf, gx, None) 
   
