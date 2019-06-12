@@ -1353,9 +1353,8 @@ class Scanner():
                 
                 #gx = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)
                 #gx = torch.sum(gx,1, keepdim=True)
-                
-                gx = torch.matmul(ctx.scanner.SB0sig.permute([0,1,2,4,3]),grad_output)
-                gx = torch.einsum('ijklm,njolp->inomp', [IVP, gx])
+                #gx = torch.matmul(ctx.scanner.SB0sig.permute([0,1,2,4,3]),grad_output)
+                gx = torch.einsum('ijkmr,sjolm,njolp->inorp', [IVP,ctx.scanner.SB0sig,grad_output])
                 
                 
                 return (None, gx, None, None, None)
