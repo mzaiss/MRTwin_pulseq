@@ -964,7 +964,7 @@ class Scanner():
                                 
                             FWD = torch.matmul(REW, FWD)
                             
-                            intraSpins = spins.M
+                            #intraSpins = spins.M
                             
                             kum_grad_intravoxel = torch.cumsum(self.grad_moms_for_intravoxel_precession[start_t:start_t+half_read*2,r,:],0)
                             intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
@@ -982,7 +982,7 @@ class Scanner():
                             IVP[:,:,0,1,0] = IVP_nspins_sin
                             IVP[:,:,0,1,1] = IVP_nspins_cos
                             
-                            intraSpins = torch.matmul(IVP, intraSpins)
+                            #intraSpins = torch.matmul(IVP, intraSpins)
                             
                             S = torch.zeros((1,self.NCol,self.NVox,3,3), dtype=torch.float32)
                             S = self.setdevice(S)
@@ -999,9 +999,11 @@ class Scanner():
                             S[0,:,:,1,1] = B0_nspins_cos
                             S[0,:,:,2,2] = 1
                              
-                            intraSpins = torch.matmul(S,intraSpins)
+                            #intraSpins = torch.matmul(S,intraSpins)
+                            
+                            intraSpins = torch.einsum("ijklm,njomp,irops->nrols",[IVP,S,spins.M])
+                            signal = torch.matmul(FWD,intraSpins)
 
-                            signal = torch.matmul(FWD,torch.sum(intraSpins,0,keepdim=True))
                             signal = torch.sum(signal,[2])
                             
                             self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
@@ -1184,7 +1186,6 @@ class Scanner():
                             #intraSpins = torch.matmul(S,intraSpins)
                             
                             intraSpins = torch.einsum("ijklm,njomp,irops->nrols",[IVP,S,spins_cut])
-                            
                             signal = torch.matmul(FWD,intraSpins)
                             signal = torch.sum(signal,[2])
                             
