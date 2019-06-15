@@ -844,13 +844,16 @@ class OPT_helper():
         fn_lastparam = "temp_lastparam.npy"   
         
         if os.path.exists(os.path.join(os.path.join(basepath, fn_jobcontrol))):
-            self.param_reco_history = list(np.load(os.path.join(os.path.join(basepath, fn_param_reco_history))))
-            self.scanner_opt_params = np.load(os.path.join(os.path.join(basepath, fn_lastparam)))
-            
             with open(os.path.join(os.path.join(basepath, fn_jobcontrol)),"r") as f:
                 job_lines = f.readlines()
                 
             current_iteration = int(job_lines[1])
+            if current_iteration > 0:
+                self.param_reco_history = list(np.load(os.path.join(os.path.join(basepath, fn_param_reco_history)),allow_pickle=True))
+                self.scanner_opt_params = np.load(os.path.join(os.path.join(basepath, fn_lastparam)),allow_pickle=True)                
+            else:
+                current_iteration = 0
+                
         else:
             current_iteration = 0
             
@@ -868,7 +871,7 @@ class OPT_helper():
         fn_lastparam = "temp_lastparam.npy"        
         
         if isfinished:
-            job_lines = ['0\n',str(current_iteration+1)]
+            job_lines = ['2\n',str(current_iteration+1)]
             
             os.remove(os.path.join(os.path.join(basepath, fn_param_reco_history)))
             os.remove(os.path.join(os.path.join(basepath, fn_lastparam)))
@@ -884,10 +887,10 @@ class OPT_helper():
             np.save(os.path.join(os.path.join(basepath, fn_param_reco_history)), param_reco_history)
             np.save(os.path.join(os.path.join(basepath, fn_lastparam)), tosave_opt_params)
             
-            job_lines = ['1\n', str(current_iteration+1)]
+            job_lines = ['0\n', str(current_iteration+1)]
             
         with open(os.path.join(os.path.join(basepath, fn_jobcontrol)),"w") as f:
-            f.writelines(job_lines)            
+            f.writelines(job_lines)
         
         
         
