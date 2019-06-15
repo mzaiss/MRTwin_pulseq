@@ -918,7 +918,8 @@ class Scanner():
                     self.ROI_signal[t,r,1:4] =  torch.sum(spins.M[:,0,0,:],[0]).flatten().detach().cpu()  # hard coded pixel id 0
                     self.ROI_signal[t,r,4] =  torch.sum(abs(spins.M[:,0,0,2]),[0]).flatten().detach().cpu()  # hard coded pixel id 0                        
                     
-                    spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
+                    if t < self.F.shape[0]:
+                         spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                     
                     self.set_relaxation_tensor(spins,delay)
                     self.set_freeprecession_tensor(spins,delay)
@@ -1059,7 +1060,7 @@ class Scanner():
             self.signal = torch.matmul(self.AF,self.signal)            
             
     # run throw all repetition/actions and yield signal
-    def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True):
+    def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True,kill_transverse=False):
         self.init_signal()
         if do_dummy_scans == False:
             spins.set_initial_magnetization()
@@ -1068,7 +1069,7 @@ class Scanner():
         half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
         
         PD0_mask = spins.PD0_mask.flatten()
-        spins_cut = spins.M[:,:,PD0_mask,:,:].clone()
+        spins_cut = spins.M[:,:,PD0_mask,:,:].clone()        
         
         # scanner forward process loop
         for r in range(self.NRep):                         # for all repetitions
@@ -1079,10 +1080,10 @@ class Scanner():
                 self.set_grad_op(r)
                 self.set_grad_adj_op(r)
                 
-                G_cut = self.G[:,PD0_mask,:,:]        
-                G_adj_cut = self.G_adj[:,PD0_mask,:,:]                
+                G_cut = self.G[:,PD0_mask,:,:]
+                G_adj_cut = self.G_adj[:,PD0_mask,:,:]
             else:        
-                G_cut = self.G[:,:,PD0_mask,:,:]        
+                G_cut = self.G[:,:,PD0_mask,:,:]
                 G_adj_cut = self.G_adj[:,:,PD0_mask,:,:]
             
             for t in range(self.T):                            # for all actions
@@ -1095,7 +1096,11 @@ class Scanner():
                     self.ROI_signal[t,r,1:4] =  torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu()  # hard coded pixel id 0
                     self.ROI_signal[t,r,4] =  torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()  # hard coded pixel id 0                        
                     
-                    spins_cut = FlipClass.apply(self.F[t,r,:,:,:],spins_cut,self)
+                    if t < self.F.shape[0]:
+                        if self.F.shape[2] > 1:
+                              spins_cut = FlipClass.apply(self.F[t,r,PD0_mask,:,:],spins_cut,self)
+                        else:
+                              spins_cut = FlipClass.apply(self.F[t,r,:,:,:],spins_cut,self)
                     
                     self.set_relaxation_tensor(spins,delay)
                     self.set_freeprecession_tensor(spins,delay)
@@ -1122,13 +1127,8 @@ class Scanner():
                         self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
                         self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()
                         
-                        self.set_relaxation_tensor(spins,total_delay)
-                        self.set_freeprecession_tensor(spins,total_delay)
-                        self.set_B0inhomogeneity_tensor(spins,total_delay)
-                        
                         spins_cut = RelaxSparseClass.apply(self.R[:,PD0_mask,:,:], spins_cut,total_delay,t,self,spins,PD0_mask)
                         spins_cut = DephaseClass.apply(self.P,spins_cut,self)
-                        spins_cut = B0InhomoClass.apply(self.SB0[:,:,PD0_mask,:,:],spins_cut,self)
                         
                         # do gradient precession (use adjoint as free kumulator)
                         if compact_grad_tensor:
@@ -1136,6 +1136,64 @@ class Scanner():
                         else:
                             REW = G_adj_cut[start_t,r,:,:,:]
                         
+                        # read signal
+                        if t == (self.T - half_read*2)//2 + half_read:  # read signal
+                            if compact_grad_tensor:
+                                FWD = G_adj_cut[start_t:start_t+half_read*2,:,:,:].permute([0,1,3,2])
+                            else:
+                                FWD = G_adj_cut[start_t:start_t+half_read*2,r,:,:,:].permute([0,1,3,2])
+                                
+                            FWD = torch.matmul(REW, FWD)
+                            
+                            intraSpins = spins_cut
+                            
+                            kum_grad_intravoxel = torch.cumsum(self.grad_moms_for_intravoxel_precession[start_t:start_t+half_read*2,r,:],0)
+                            intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
+                            intra_b0 = torch.sum(intra_b0,2)
+                            
+                            IVP_nspins_cos = torch.cos(intra_b0)
+                            IVP_nspins_sin = torch.sin(intra_b0)                            
+                            
+                            IVP = torch.zeros((self.NSpins,self.NCol,1,3,3), dtype=torch.float32)
+                            IVP = self.setdevice(IVP)
+                            IVP[:,:,0,2,2] = 1
+                            
+                            IVP[:,:,0,0,0] = IVP_nspins_cos
+                            IVP[:,:,0,0,1] = -IVP_nspins_sin
+                            IVP[:,:,0,1,0] = IVP_nspins_sin
+                            IVP[:,:,0,1,1] = IVP_nspins_cos
+                            
+                            intraSpins = torch.matmul(IVP, intraSpins)
+                            
+                            B0_inhomo = spins.B0inhomo.view([self.NVox]) * 2*np.pi
+                            B0_inhomo = B0_inhomo[PD0_mask]
+                            delay_ramp = delay * self.setdevice(torch.from_numpy(np.arange(self.NCol))).view([self.NCol,1]) * B0_inhomo.view([1, B0_inhomo.shape[0]])
+                            
+                            B0_nspins_cos = torch.cos(delay_ramp)
+                            B0_nspins_sin = torch.sin(delay_ramp)
+                            
+                            S = torch.zeros((1,self.NCol,B0_inhomo.shape[0],3,3), dtype=torch.float32)
+                            S = self.setdevice(S)                            
+                             
+                            S[0,:,:,0,0] = B0_nspins_cos
+                            S[0,:,:,0,1] = -B0_nspins_sin
+                            S[0,:,:,1,0] = B0_nspins_sin
+                            S[0,:,:,1,1] = B0_nspins_cos
+                            S[0,:,:,2,2] = 1
+                            
+                            intraSpins = torch.matmul(S,intraSpins)
+
+                            signal = torch.matmul(FWD,torch.sum(intraSpins,0,keepdim=True))
+                            signal = torch.sum(signal,[2])
+                            
+                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
+                            
+                        # do gradient precession (use adjoint as free kumulator)
+                        if compact_grad_tensor:
+                            FWD = G_adj_cut[t+1,:,:,:].permute([0,2,1])
+                        else:
+                            FWD = G_adj_cut[t+1,r,:,:,:].permute([0,2,1])
+                            
                         # set grad intravoxel precession tensor
                         kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
                         intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
@@ -1151,27 +1209,8 @@ class Scanner():
                         
                         # do intravoxel precession
                         spins_cut = GradIntravoxelPrecessClass.apply(self.IVP,spins_cut,self)
+                        spins_cut = B0InhomoClass.apply(self.SB0[:,:,PD0_mask,:,:],spins_cut,self)
                         
-                        # read signal
-                        if t == (self.T - half_read*2)//2 + half_read:  # read signal
-                            if compact_grad_tensor:
-                                FWD = G_adj_cut[start_t:start_t+half_read*2,:,:,:].permute([0,1,3,2])
-                            else:
-                                FWD = G_adj_cut[start_t:start_t+half_read*2,r,:,:,:].permute([0,1,3,2])
-                                
-                            FWD = torch.matmul(REW, FWD)
-                            
-                            signal = torch.matmul(FWD,torch.sum(spins_cut,0,keepdim=True))
-                            signal = torch.sum(signal,[2])
-                            
-                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
-                            
-                        # do gradient precession (use adjoint as free kumulator)
-                        if compact_grad_tensor:
-                            FWD = G_adj_cut[t+1,:,:,:].permute([0,2,1])
-                        else:
-                            FWD = G_adj_cut[t+1,r,:,:,:].permute([0,2,1])
-                            
                         FWD = torch.matmul(REW, FWD)
                         spins_cut = torch.matmul(FWD,spins_cut)                            
                         
@@ -1180,6 +1219,9 @@ class Scanner():
                         total_delay = delay
                     else:                                       # keep accumulating
                         total_delay += delay
+                        
+            if kill_transverse:
+                spins_cut[:,0,:,:2,0] = 0
                     
         # kill numerically unstable parts of M vector for backprop
         self.tmask = torch.zeros((self.NVox))
@@ -1198,8 +1240,108 @@ class Scanner():
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
-            self.signal = torch.matmul(self.AF,self.signal)
+            self.signal = torch.matmul(self.AF,self.signal)            
             
+#            <tttttttttttttttttttttttttttttttttttttt
+#          
+#            
+#            for t in range(self.T):                            # for all actions
+#                delay = torch.abs(event_time[t,r]) + 1e-6
+#                
+#                if self.adc_mask[t] == 0:                         # regular pass
+#                    self.read_signal(t,r,spins)
+#                    
+#                    self.ROI_signal[t,r,0] =   delay
+#                    self.ROI_signal[t,r,1:4] =  torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu()  # hard coded pixel id 0
+#                    self.ROI_signal[t,r,4] =  torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()  # hard coded pixel id 0                        
+#                    
+#                    spins_cut = FlipClass.apply(self.F[t,r,:,:,:],spins_cut,self)
+#                    
+#                    self.set_relaxation_tensor(spins,delay)
+#                    self.set_freeprecession_tensor(spins,delay)
+#                    self.set_B0inhomogeneity_tensor(spins,delay)
+#                    
+#                    spins_cut = RelaxSparseClass.apply(self.R[:,PD0_mask,:,:],spins_cut,delay,t,self,spins,PD0_mask)
+#                    spins_cut = DephaseClass.apply(self.P,spins_cut,self)
+#                    spins_cut = B0InhomoClass.apply(self.SB0[:,:,PD0_mask,:,:],spins_cut,self)
+#                    
+#                    if compact_grad_tensor:
+#                        spins_cut = GradPrecessClass.apply(G_cut[t,:,:,:],spins_cut,self)
+#                    else:
+#                        spins_cut = GradPrecessClass.apply(G_cut[t,r,:,:,:],spins_cut,self)
+#                    
+#                    self.set_grad_intravoxel_precess_tensor(t,r)
+#                    spins_cut = GradIntravoxelPrecessClass.apply(self.IVP,spins_cut,self)
+#                else:
+#                    if self.adc_mask[t-1] == 0:        # first sample in readout
+#                        total_delay = delay
+#                        start_t = t
+#                        
+#                    elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
+#                        self.ROI_signal[start_t:t+1,r,0] = total_delay
+#                        self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
+#                        self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()
+#                        
+#                        self.set_relaxation_tensor(spins,total_delay)
+#                        self.set_freeprecession_tensor(spins,total_delay)
+#                        self.set_B0inhomogeneity_tensor(spins,total_delay)
+#                        
+#                        spins_cut = RelaxSparseClass.apply(self.R[:,PD0_mask,:,:], spins_cut,total_delay,t,self,spins,PD0_mask)
+#                        spins_cut = DephaseClass.apply(self.P,spins_cut,self)
+#                        spins_cut = B0InhomoClass.apply(self.SB0[:,:,PD0_mask,:,:],spins_cut,self)
+#                        
+#                        # do gradient precession (use adjoint as free kumulator)
+#                        if compact_grad_tensor:
+#                            REW = G_adj_cut[start_t,:,:,:]
+#                        else:
+#                            REW = G_adj_cut[start_t,r,:,:,:]
+#                        
+#                        # set grad intravoxel precession tensor
+#                        kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
+#                        intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
+#                        intra_b0 = torch.sum(intra_b0,1)
+#                        
+#                        IVP_nspins_cos = torch.cos(intra_b0)
+#                        IVP_nspins_sin = torch.sin(intra_b0)
+#                         
+#                        self.IVP[:,0,0,0,0] = IVP_nspins_cos
+#                        self.IVP[:,0,0,0,1] = -IVP_nspins_sin
+#                        self.IVP[:,0,0,1,0] = IVP_nspins_sin
+#                        self.IVP[:,0,0,1,1] = IVP_nspins_cos                
+#                        
+#                        # do intravoxel precession
+#                        spins_cut = GradIntravoxelPrecessClass.apply(self.IVP,spins_cut,self)
+#                        
+#                        # read signal
+#                        if t == (self.T - half_read*2)//2 + half_read:  # read signal
+#                            if compact_grad_tensor:
+#                                FWD = G_adj_cut[start_t:start_t+half_read*2,:,:,:].permute([0,1,3,2])
+#                            else:
+#                                FWD = G_adj_cut[start_t:start_t+half_read*2,r,:,:,:].permute([0,1,3,2])
+#                                
+#                            FWD = torch.matmul(REW, FWD)
+#                            
+#                            signal = torch.matmul(FWD,torch.sum(spins_cut,0,keepdim=True))
+#                            signal = torch.sum(signal,[2])
+#                            
+#                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
+#                            
+#                        # do gradient precession (use adjoint as free kumulator)
+#                        if compact_grad_tensor:
+#                            FWD = G_adj_cut[t+1,:,:,:].permute([0,2,1])
+#                        else:
+#                            FWD = G_adj_cut[t+1,r,:,:,:].permute([0,2,1])
+#                            
+#                        FWD = torch.matmul(REW, FWD)
+#                        spins_cut = torch.matmul(FWD,spins_cut)                            
+#                        
+#                        # reset readout position tracking vars
+#                        start_t = t + 1
+#                        total_delay = delay
+#                    else:                                       # keep accumulating
+#                        total_delay += delay
+                    
+
     def forward_fast_supermem(self,spins,event_time):
         self.init_signal()
         spins.set_initial_magnetization()
