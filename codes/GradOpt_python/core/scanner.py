@@ -267,7 +267,10 @@ class Scanner():
         self.F[:,:,:,2,2] += 1
         
         # WARNING TODO, not future proof
-        self.F = self.F[:(self.T - self.NCol)//2,:,:,:,:]
+        if self.sz[0] > 64:
+            theta = theta[:(self.T - self.NCol)//2,:,:,:,:]
+            Fglob = Fglob[:(self.T - self.NCol)//2,:,:,:,:]
+            F2 = F2[:(self.T - self.NCol)//2,:,:,:,:]
         
     # use Rodriguez' rotation formula to compute rotation around arbitrary axis
     # flips are now (T,NRep,3) -- axis angle representation
