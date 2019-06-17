@@ -2555,6 +2555,8 @@ class Scanner():
                 raw_file = os.path.join(basepath_seq, fn_twix)
                 ncoils = 2
                 
+                time.sleep(0.2)
+                
                 raw = np.loadtxt(raw_file)
                 
                 dp_twix = os.path.dirname(fnpath)
