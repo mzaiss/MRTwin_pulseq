@@ -16,6 +16,7 @@ else
 end
 
 % methodstr='generalized_adjoint';
+%methodstr='nufft';
 methodstr='adjoint';
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
@@ -54,14 +55,13 @@ end
 loss=array*0;
 SARloss=array*0;
 for ii=array
-jj=scanner_dict.iter_idx(ii)+1;
-% loss_image = (squeeze(scanner_dict.reco_images(ii,:,:,:)) - scanner_dict_tgt.reco);
-sos_sim = abs(squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,2)));
-loss_image = squeeze(sos_sim - sos_tgt_sim);   % only magnitude optscanner_dict.iter_idximization
-loss(ii) = sum(loss_image(:).^2)/(sz(1)*sz(2));
-loss(ii) = 100*sqrt(loss(ii)) / sqrt(sum(sos_tgt_sim(:).^2)/(sz(1)*sz(2)));
-SARloss(ii) = sum(reshape((squeeze(scanner_dict.all_flips(jj,:,:,1).^2)),1,[]))./SAR_tgt_sim*100;
+    CC=scanner_dict.(['target_sim_reco_' methodstr]);
+loss_image = squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,:)) - scanner_dict.(['target_sim_reco_' methodstr]);   % only magnitude optscanner_dict.iter_idximization
+loss(ii) = sum(loss_image(:).^2);
+loss(ii) = 100*sqrt(loss(ii)) / sqrt( sum(CC(:).^2));
+SARloss(ii) = sum(reshape((squeeze(scanner_dict.all_flips(ii,:,:,1).^2)),1,[]))./SAR_tgt_sim*100;
 end
+loss=scanner_dict.all_errors;
 
 
 if single>0
@@ -74,14 +74,12 @@ ax=gca; CLIM=ax.CLim;
 subplot(3,4,5), imagesc(phase_tgt_sim,[-pi pi]), title(' phase tgt '), axis('image'); %colorbar;
 ax=gca; PCLIM=ax.CLim;
 
-if real_exists
+if real_exists 
     subplot(3,4,4), imagesc(sos_tgt_real); title('sos, tgt'), axis('image'); %colorbar;
     ax=gca; CLIM_real=ax.CLim;
     subplot(3,4,8), imagesc(phase_tgt_real), title(' phase tgt '), axis('image'); %colorbar;
     ax=gca;
 end
-
-
 
 array = 1:1:niter; % accelerate plot
 frames=cell(numel(array));
@@ -104,8 +102,8 @@ subplot(3,4,2), h2=imagesc(sos_sim,CLIM); title(sprintf(' sos sim, iter %d, SAR 
 subplot(3,4,6), h6=imagesc(phase_sim,PCLIM); title(' phase coil(1) '), axis('image'); %colorbar;
 
 if real_exists
-    subplot(3,4,3), h3=imagesc(sos_real,CLIM_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
-    %subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+     subplot(3,4,3), h3=imagesc(sos_real,CLIM_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+     %subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
     subplot(3,4,7), h7=imagesc(phase_real,PCLIM); title(' phase coil(1) '), axis('image'); %colorbar;
     if kplot
     subplot(3,4,1), h1=imagesc(squeeze(abs(scanner_dict.all_sim_kspace(ii,:,:,1)))); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
@@ -159,9 +157,9 @@ subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,1,:,1))),'r','Di
 subplot(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(2,:,1)),'b.','DisplayName','flips tgt'); % a 2D plot
 subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,2,:,1))),'b','DisplayName','flips');hold off;  xlabel('rep'); ylabel('flip angle [°]');
 % subplot(3,3,7), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
-ylim= max([5, round( loss(ii)/(10^max([floor(log10(loss(ii))),0])))*(10^max([floor(log10(loss(ii))),0])*2)]);
-subplot(3,4,12), yyaxis left; plot(loss); hold on;  plot(ii,loss(ii),'b.'); plot(loss*0+min(loss(3:end)),'b:');hold off; axis([ii-50 ii+50 -10e-12 ylim]);ylabel('[%] error');
-yyaxis right; plot(SARloss); hold on; plot(ii,SARloss(ii),'r.'); hold off; ylabel('[%] SAR'); grid on; 
+ylim= max([5, round( loss(jj)/(10^max([floor(log10(loss(jj))),0])))*(10^max([floor(log10(loss(jj))),0])*2)]);
+subplot(3,4,12), yyaxis left; plot(loss); hold on;  plot(jj,loss(jj),'b.'); plot(loss*0+min(loss(3:end)),'b:');hold off; axis([jj-50 jj+50 -10e-12 ylim]);ylabel('[%] error');
+yyaxis right; plot(SARloss); hold on; plot(jj,SAR_sim,'r.'); hold off; ylabel('[%] SAR'); grid on; 
 
 
 % create gif (out.gif)
@@ -169,6 +167,11 @@ yyaxis right; plot(SARloss); hold on; plot(ii,SARloss(ii),'r.'); hold off; ylabe
     if (single==0)
         frames{ii} = getframe(1);
     end
+    
+    %if jj>=56
+    %    keyboard
+    %end
+        
 end
 set(0, 'DefaultLineLineWidth', 0.5);
 

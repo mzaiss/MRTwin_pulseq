@@ -187,7 +187,7 @@ event_time[0,:] =  2e-3
 #event_time[1,:] =  0.4*1e-3
 event_time[1,:] =  0.5*1e-3   # for 96
 event_time[-2,:] = 2*1e-3
-event_time[-1,:] = 2.9*1e-3
+event_time[-1,:] = 2.9*1e-3 
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])
