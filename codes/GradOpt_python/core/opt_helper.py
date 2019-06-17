@@ -283,7 +283,7 @@ class OPT_helper():
             
         
     # main training function
-    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False, query_kwargs = None):
+    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False):
         
         for i in range(len(self.scanner_opt_params)):
             if i in self.opt_param_idx:
@@ -403,9 +403,6 @@ class OPT_helper():
                 
                 self.param_reco_history.append(saved_state)                   
 
-                
-        
-    
     def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, do_vis_image=False):
         
         raise ValueError("train_model_with_restarts: out of sync, update and fix")
@@ -834,6 +831,67 @@ class OPT_helper():
         scanner_dict['target'] = self.target
         
         scipy.io.savemat(os.path.join(basepath,"all_iter.mat"), scanner_dict)
-                                   
+        
+    def query_cluster_job(self,query_kwargs):
+        basepath = 'out'
+        experiment_id, today_datestr, sequence_class = query_kwargs
 
+        basepath = os.path.join(basepath, "seq" + today_datestr)
+        basepath = os.path.join(basepath, experiment_id)
+        
+        fn_jobcontrol = "jobcontrol.txt"     
+        fn_param_reco_history = "temp_param_reco_history.npy"
+        fn_lastparam = "temp_lastparam.npy"   
+        
+        if os.path.exists(os.path.join(os.path.join(basepath, fn_jobcontrol))):
+            with open(os.path.join(os.path.join(basepath, fn_jobcontrol)),"r") as f:
+                job_lines = f.readlines()
+                
+            current_iteration = int(job_lines[1])
+            if current_iteration > 0:
+                self.param_reco_history = list(np.load(os.path.join(os.path.join(basepath, fn_param_reco_history)),allow_pickle=True))
+                self.scanner_opt_params = np.load(os.path.join(os.path.join(basepath, fn_lastparam)),allow_pickle=True)                
+            else:
+                current_iteration = 0
+                
+        else:
+            current_iteration = 0
+            
+        return current_iteration
+                                   
+    def update_cluster_job(self,query_kwargs,current_iteration,isfinished):
+        basepath = 'out'
+        experiment_id, today_datestr, sequence_class = query_kwargs
+
+        basepath = os.path.join(basepath, "seq" + today_datestr)
+        basepath = os.path.join(basepath, experiment_id)
+        
+        fn_jobcontrol = "jobcontrol.txt"     
+        fn_param_reco_history = "temp_param_reco_history.npy"
+        fn_lastparam = "temp_lastparam.npy"        
+        
+        if isfinished:
+            job_lines = ['2\n',str(current_iteration+1)]
+            
+            os.remove(os.path.join(os.path.join(basepath, fn_param_reco_history)))
+            os.remove(os.path.join(os.path.join(basepath, fn_lastparam)))
+        else:
+            param_reco_history = self.param_reco_history
+            tosave_opt_params = self.scanner_opt_params
+            
+            try:
+                os.makedirs(basepath)
+            except:
+                pass
+            
+            np.save(os.path.join(os.path.join(basepath, fn_param_reco_history)), param_reco_history)
+            np.save(os.path.join(os.path.join(basepath, fn_lastparam)), tosave_opt_params)
+            
+            job_lines = ['0\n', str(current_iteration+1)]
+            
+        with open(os.path.join(os.path.join(basepath, fn_jobcontrol)),"w") as f:
+            f.writelines(job_lines)
+        
+        
+        
     

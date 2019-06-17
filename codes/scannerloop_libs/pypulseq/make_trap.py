@@ -77,6 +77,10 @@ def make_trapezoid(kwargs):
             # if not we calculate a trapezoid
             rise_time=ceil(sqrt(abs(area_result)/max_slew)/system.grad_raster_time)*system.grad_raster_time
             amplitude=area_result/rise_time
+            
+            if abs(rise_time) < 1e-12:
+                raise ValueError("rise_time = 0")
+            
             tEff=rise_time
             if abs(amplitude)>max_grad:
                 tEff=ceil((abs(area_result)/max_grad)/system.grad_raster_time)*system.grad_raster_time
