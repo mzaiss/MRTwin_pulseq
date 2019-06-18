@@ -41,7 +41,7 @@ double_precision = False
 use_supermem = True
 do_scanner_query = False
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 if sys.platform != 'linux':
@@ -93,7 +93,7 @@ def stop():
 sz = np.array([8,8])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 26**2                                # number of spin sims in each voxel
+NSpins = 22**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
@@ -137,7 +137,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 # begin sequence definition
 # allow for relaxation and spoiling in the first two and last two events (after last readout event)
@@ -270,12 +270,12 @@ def init_variables():
     grad_moms_mask[-2,:,:] = 1
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
-#    
-#    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
-#    grad_moms[1,:,1] = -grad_moms[1,:,1]*0 + setdevice(torch.rand(grad_moms[1,:,1].shape)-0.5)
-#    
-#    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
-#    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+#     
+    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
+    grad_moms[1,:,1] = -grad_moms[1,:,1]*0 + setdevice(torch.rand(grad_moms[1,:,1].shape)-0.5)
+    
+    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
+    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
         
     return [adc_mask, flips, event_time, grad_moms]
     
@@ -295,11 +295,13 @@ def phi_FRP_model(opt_params,aux_params):
          
     # forward/adjoint pass
     #scanner.forward_fast_supermem(spins, event_time)
-    scanner.forward_fast(spins, event_time)
     #scanner.forward_mem(spins, event_time)
+    scanner.forward_fast(spins, event_time)
+    #scanner.discard_out_of_kspace_sig()
+    
     scanner.adjoint()
 
-    lbd = 5000*0.3*sz[0]         # switch on of SAR cost
+    lbd = 0*5000*0.3*sz[0]         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -314,13 +316,13 @@ def phi_FRP_model(opt_params,aux_params):
     k = k * mask
     loss_kspace = torch.sum(k**2) / np.prod(sz)
     
-#    ffwd = scanner.G_adj[2:-2,:,:,:2,:2].permute([0,1,2,4,3]).permute([0,1,3,2,4]).contiguous().view([NRep*(sz[1]+0)*2,NVox*2])
-#    back = scanner.G_adj[2:-2,:,:,:2,:2].permute([0,1,2,4,3]).permute([0,1,3,2,4]).contiguous().view([NRep*(sz[1]+0)*2,NVox*2]).permute([1,0])
-#    TT = torch.matmul(back,ffwd) / NVox    
-#    lbd_ortho = 1e4
-#    loss_ortho = torch.sum((TT-setdevice(torch.eye(TT.shape[0])))**2) / (NVox)    
+    ffwd = scanner.G_adj[2:-2,:,:,:2,:2].permute([0,1,2,4,3]).permute([0,1,3,2,4]).contiguous().view([NRep*(sz[1]+0)*2,NVox*2])
+    back = scanner.G_adj[2:-2,:,:,:2,:2].permute([0,1,2,4,3]).permute([0,1,3,2,4]).contiguous().view([NRep*(sz[1]+0)*2,NVox*2]).permute([1,0])
+    TT = torch.matmul(back,ffwd) / NVox    
+    lbd_ortho = 1e4
+    loss_ortho = torch.sum((TT-setdevice(torch.eye(TT.shape[0])))**2) / (NVox)    
     
-    loss = loss_image #+ lbd*loss_sar + lbd_kspace*loss_kspace  #+ lbd_ortho*loss_ortho
+    loss = loss_image + lbd*loss_sar + lbd_kspace*loss_kspace + lbd_ortho*loss_ortho
     
     print("loss_image: {} loss_sar {} loss_kspace {}".format(loss_image, lbd*loss_sar, lbd_kspace*loss_kspace))
     
@@ -346,14 +348,192 @@ opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
-lr_inc=np.array([0.1, 0.05, 0.05, 0.05, 0.01, 0.01, 0.01, 0.05,0.01])
+stop_thresh = 10
 
-for i in range(9):
-    opt.custom_learning_rate = [0.01,0.05,0.1,lr_inc[i]]
-    print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=500, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=500, do_vis_image=False, save_intermediary_results=False, stop_thresh=stop_thresh) # save_intermediary_results=1 if you want to plot them later
     
+###################################
+
+for sss in range(20):
+    
+    lRep = NRep
+    lT = T
+    
+    sz = np.array([sz[0]+2,sz[1]+2])
+    NRep = sz[1]
+    T = sz[0] + 4
+    NVox = sz[0]*sz[1]
+    
+    spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
+    cutoff = 1e-12
+    real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+    real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
+    for i in range(5):
+        t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
+        if i == 0:
+            t[t < 0] = 0
+        elif i == 1 or i == 2:
+            t[t < cutoff] = cutoff
+            
+        real_phantom_resized[:,:,i] = t
+    real_phantom_resized[:,:,1] *= 1 # Tweak T1
+    real_phantom_resized[:,:,2] *= 1 # Tweak T2
+    real_phantom_resized[:,:,3] *= 1 # Tweak dB0
+    spins.set_system(real_phantom_resized)
+    
+    R2 = 30.0
+    omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5    # cutoff might bee needed for opt.
+    omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+    omega*=0.9  # cutoff large freqs
+    omega = R2 * np.tan ( np.pi  * omega)
+    if NSpins==1:
+        omega[:,:]=0
+    spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
+    spins.omega = setdevice(spins.omega)
+    
+    scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+    adc_mask = torch.from_numpy(np.ones((T,1))).float()
+    adc_mask[:2]  = 0
+    adc_mask[-2:] = 0
+    scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
+    
+    B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
+    B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
+    scanner.B1plus = setdevice(B1plus)  
+    
+    # RF events: flips and phases
+    flips = torch.zeros((T,NRep,2), dtype=torch.float32)
+    flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+    #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
+    
+    # randomize RF phases
+    flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
+    flips = setdevice(flips)
+    
+    scanner.init_flip_tensor_holder()
+    
+    scanner.B1plus = setdevice(B1plus)    
+    scanner.set_flip_tensor_withB1plus(flips)
+    
+    rfsign = (torch.sign(flips[0,:,0]) < 0).float()
+    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+    
+    event_time = torch.from_numpy(0.1*1e-4*np.ones((scanner.T,scanner.NRep))).float()
+    event_time[0,:] =  2e-3
+    event_time[1,:] =  0.5*1e-3   # for 96
+    event_time[-2,:] = 2*1e-3
+    event_time[-1,:] = 2.9*1e-3 + 1
+    event_time = setdevice(event_time)
+    
+    TR=torch.sum(event_time[:,1])
+    TE=torch.sum(event_time[:11,1])
+    
+    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
+    grad_moms[1,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
+    grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
+    grad_moms[2:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
+    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*2      # GRE/FID specific, SPOILER
+    grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, SPOILER
+    grad_moms = setdevice(grad_moms)
+    
+    scanner.init_gradient_tensor_holder()
+    scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+        
+    # forward/adjoint pass
+    scanner.forward_fast(spins, event_time)
+    scanner.adjoint()
+    
+    # try to fit this
+    target = scanner.reco.clone()
+    targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
+    ###################################
+    
+    adc_mask = targetSeq.adc_mask.clone()
+    
+    flips = targetSeq.flips.clone()
+    flips[:] = 0
+    flips = setdevice(flips)
+    flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
+    flip_mask[1:,:,:] = 0
+    flip_mask = setdevice(flip_mask)
+    flips.zero_grad_mask = flip_mask
+    
+    flips[0,:lRep,:] = opt.scanner_opt_params[1][0,:,:]
+    
+    import torch.nn.functional as TNF
+    import torch.autograd as TA
+    
+#    for i in range(2):
+#        flips[0,:,i] = TNF.upsample(TA.Variable(opt.scanner_opt_params[1][0,:,i].view([1,1,lRep,1])), size=(NRep, 1), mode='bilinear').squeeze()
+    
+    event_time = targetSeq.event_time.clone()
+    event_time[-1,:] -= 1
+    event_time = setdevice(event_time)
+    event_time_mask = torch.ones((scanner.T, scanner.NRep)).float()        
+    event_time_mask[2:-2,:] = 0
+    event_time_mask = setdevice(event_time_mask)
+    event_time.zero_grad_mask = event_time_mask
+    
+    grad_moms = targetSeq.grad_moms.clone()
+    #grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
+    #grad_moms[1,:,1] = -grad_moms[1,:,1]*0
+    #grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
+    #grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+    
+#    for i in range(2):
+#        grad_moms[1,:,i] = TNF.upsample(TA.Variable(opt.scanner_opt_params[3][1,:,i].view([1,1,lRep,1])), size=(NRep, 1), mode='bilinear').squeeze()
+#        grad_moms[-2,:,i] = TNF.upsample(TA.Variable(opt.scanner_opt_params[3][-2,:,i].view([1,1,lRep,1])), size=(NRep, 1), mode='bilinear').squeeze()
+    
+    
+    grad_moms = setdevice(grad_moms)
+    grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()        
+    grad_moms_mask[1,:,:] = 1
+    grad_moms_mask[-2,:,:] = 1
+    grad_moms_mask = setdevice(grad_moms_mask)
+    grad_moms.zero_grad_mask = grad_moms_mask
+    
+    grad_moms[:2,:lRep,:] = opt.scanner_opt_params[3][:2,:,:]
+    grad_moms[-2:,:lRep,:] = opt.scanner_opt_params[3][-2:,:,:]
+    
+    grad_moms[:2,-2:,:] = opt.scanner_opt_params[3][:2,-1,:].unsqueeze(1)
+    grad_moms[-2:,-2:,:] = opt.scanner_opt_params[3][-2:,-1,:].unsqueeze(1)
+    
+    #grad_moms[2:-2,:lRep,:] = opt.scanner_opt_params[3][2,:,:].unsqueeze(0)
+    
+        
+    ###################
+    opt = core.opt_helper.OPT_helper(scanner,spins,None,1)
+    opt.set_target(tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],2]))
+    opt.target_seq_holder=targetSeq
+    opt.experiment_description = experiment_description
+    
+    opt.optimzer_type = 'Adam'
+    opt.opti_mode = 'seq'
+    # 
+    opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
+    opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
+    
+    opt.set_handles(init_variables, phi_FRP_model)
+    opt.scanner_opt_params = opt.init_variables()
+    
+    opt.scanner_opt_params[0] = adc_mask.detach()
+    
+    opt.scanner_opt_params[1] = flips.detach()
+    opt.scanner_opt_params[1].zero_grad_mask = flip_mask
+    
+    opt.scanner_opt_params[2] = event_time.detach()
+    opt.scanner_opt_params[2].zero_grad_mask = event_time_mask
+    
+    opt.scanner_opt_params[3] = grad_moms.detach()
+    opt.scanner_opt_params[3].zero_grad_mask = grad_moms_mask
+    
+    opt.train_model(training_iter=500, do_vis_image=False, save_intermediary_results=False, stop_thresh=stop_thresh) # save_intermediary_results=1 if you want to plot them later
+
+
+opt.train_model(training_iter=500, do_vis_image=True, save_intermediary_results=False, stop_thresh=stop_thresh) # save_intermediary_results=1 if you want to plot them later
+fdghfdgfd
+    
+#opt.train_model(training_iter=10000, do_vis_image=False, save_interm    
 # %% # save optimized parameter history
 
 opt.export_to_matlab(experiment_id, today_datestr)
