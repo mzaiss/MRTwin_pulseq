@@ -1754,7 +1754,27 @@ class Scanner():
                 ctx.scanner.lastM[:,:,:,:2,:] = torch.matmul(G.permute([0,2,1]),ctx.scanner.lastM[:,:,:,:2,:])
                 gx = torch.matmul(G.permute([0,2,1]),grad_output[:,:,:,:2,:])
                 
-                return (None, gx, None)
+                gft = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+                gft = torch.sum(gft,[0,1])
+                
+                #B0_grad_cos_g = -torch.sin(gf[:,0,0])
+                #B0_grad_sin_g = torch.cos(gf[:,1,0])
+                
+                GG = scanner.setdevice(torch.zeros((scanner.NVox,2,2), dtype=torch.float32))
+                GG[:,0,0] = -B0_grad_sin
+                GG[:,0,1] = -B0_grad_cos
+                GG[:,1,0] = B0_grad_cos
+                GG[:,1,1] = -B0_grad_sin     
+                
+                GG = gft[:,:,:2]*GG
+                
+                #gff = -torch.sin(gft[:,0,0]) - torch.cos(gft[:,0,1]) + torch.cos(gft[:,1,0] - torch.sin(gft[:,1,1]))
+                gf = scanner.setdevice(torch.zeros((2,), dtype=torch.float32))
+                
+                gf[0] = torch.sum(torch.sum(GG,[1,2]) * scanner.rampX.squeeze())
+                gf[1] = torch.sum(torch.sum(GG,[1,2])  * scanner.rampY.squeeze())
+                
+                return (gf, gx, None)
             
         class AuxGetSignalGradMul(torch.autograd.Function):
             @staticmethod
@@ -1788,7 +1808,6 @@ class Scanner():
                 
                 # Inter-voxel grad precession
                 #presignal = torch.sum(intraSpins,0,keepdim=True)
-                
                 #presignal = torch.einsum('ijklm,inomp->jolp', [IVP, intraSpins]).unsqueeze(0)
                 #presignal = torch.matmul(scanner.SB0sig,presignal)
                 
@@ -1866,7 +1885,7 @@ class Scanner():
                 #gx = torch.matmul(ctx.scanner.SB0sig.permute([0,1,2,4,3]),grad_output)
                 
                 tmp = torch.einsum('sjolr,ijolp->sjorp', [scanner.SB0sig, grad_output])
-                gx = torch.einsum('ijkml,sjomp->jolp', [IVP, tmp]).unsqueeze(0)
+                gx = torch.einsum('ijkml,sjomp->isolp', [IVP, tmp])
                 
                 #gx = torch.einsum('ijkmr,sjolm,njolp->inorp', [IVP,ctx.scanner.SB0sig,grad_output])
                 
@@ -2015,7 +2034,7 @@ class Scanner():
                     
                     ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
                     
-                return (gf, gx, None, None, None, None, None)              
+                return (gf, gx, None, None, None, None, None)                
             
         # scanner forward process loop
         for r in range(self.NRep):                         # for all repetitions
@@ -2039,8 +2058,8 @@ class Scanner():
                     self.set_freeprecession_tensor(spins,delay)
                     self.set_B0inhomogeneity_tensor(spins,delay)
                     
-                    spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,delay,t,r,self,spins)
-                    #spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                    #spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,delay,t,r,self,spins)
+                    spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
                     spins.M = DephaseClass.apply(self.P,spins.M,self)
                     spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                     
@@ -2079,8 +2098,8 @@ class Scanner():
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
                         
-                        spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,total_delay,t,r,self,spins)
-                        #spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
+                        #spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,total_delay,t,r,self,spins)
+                        spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
                         
                         
