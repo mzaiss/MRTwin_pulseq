@@ -34,9 +34,9 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = False
+recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
-do_real_meas = False
+do_real_meas = True
 
 # NRMSE error function
 def e(gt,x):
@@ -99,7 +99,7 @@ alliter_array = alliter_array.item()
 sz = alliter_array['sz']
 NRep = sz[1]
 T = sz[0] + 4
-NSpins = 27**2
+NSpins = 16**2
 NCoils = alliter_array['all_signals'].shape[1]
 noise_std = 0*1e0                               # additive Gaussian noise std
 NVox = sz[0]*sz[1]
@@ -121,7 +121,7 @@ input_array_target = np.load(os.path.join(fullpath_seq, "target_arr.npy"), allow
 jobtype = "target"    
 input_array_target = input_array_target.item()
 
-scanner.set_adc_mask(torch.from_numpy(input_array_target['adc_mask']))
+scanner.set_adc_mask(setdevice(torch.from_numpy(input_array_target['adc_mask'])))
 scanner.B1 = setdevice(torch.from_numpy(input_array_target['B1']))
 scanner.signal = setdevice(torch.from_numpy(input_array_target['signal']))
 scanner.reco = setdevice(torch.from_numpy(input_array_target['reco']).reshape([NVox,2]))
@@ -193,9 +193,9 @@ if (recreate_pulseq_files and do_real_meas) or recreate_pulseq_files_for_sim:
     elif sequence_class.lower() == "epi":
         pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)        
 
-if do_real_meas:
-    scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
-    scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
+#if do_real_meas:
+#    scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
+#    scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
 
 real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
 target_real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
@@ -234,7 +234,18 @@ if do_real_meas:
 else:
     error_threshold_percent = 0.3
     
-nonboring_iter = np.array([itt.size-1])
+nonboring_iter = []
+lasterror = 1e10
+for c_iter in range(itt.size):
+    if -(itt[c_iter] - lasterror) > error_threshold_percent:
+        lasterror = itt[c_iter]
+        nonboring_iter.append(c_iter)
+        
+
+nonboring_iter = np.array(nonboring_iter)
+nonboring_iter = nonboring_iter[-2:]
+#nonboring_iter = np.array([nonboring_iter[-1:]])
+    
 nmb_iter = nonboring_iter.size
 
 all_sim_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
@@ -252,151 +263,162 @@ all_real_reco_nufft = np.zeros([nmb_iter,sz[0],sz[1],2])
 
 lin_iter_counter = 0
 
-for c_iter in nonboring_iter:
-    print("Processing the iteration {}/{}  {}/{}".format(c_iter, nmb_total_iter, lin_iter_counter, nmb_iter))
-    
-    scanner.set_adc_mask(torch.from_numpy(alliter_array['all_adc_masks'][c_iter].astype(np.float32)))
-    scanner.signal = setdevice(torch.from_numpy(alliter_array['all_signals'][c_iter])).unsqueeze(4)
-    scanner.reco = setdevice(torch.from_numpy(alliter_array['reco_images'][c_iter]).reshape([NVox,2]))
-    scanner.kspace_loc = setdevice(torch.from_numpy(alliter_array['all_kloc'][c_iter]))
-    
-    flips = setdevice(torch.from_numpy(alliter_array['flips'][c_iter]))
-    event_time = setdevice(torch.from_numpy(alliter_array['event_times'][c_iter]))
-    grad_moms = setdevice(torch.from_numpy(alliter_array['grad_moms'][c_iter]))
-    
-    scanner.init_flip_tensor_holder()
-    scanner.set_flipXY_tensor(flips)
-    
-    # rotate ADC according to excitation phase
-    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
-    
-    TR=torch.sum(event_time[:,1])
-    TE=torch.sum(event_time[:11,1])
-    
-    scanner.init_gradient_tensor_holder()
-    scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
-    
-    # set spins
-    spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
-    cutoff = 1e-12
-    real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-    real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-    for i in range(5):
-        t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
-        if i == 0:
-            t[t < 0] = 0
-        elif i == 1 or i == 2:
-            t[t < cutoff] = cutoff
-            
-        real_phantom_resized[:,:,i] = t
-    
-    real_phantom_resized[:,:,1] *= 1 # Tweak T1
-    real_phantom_resized[:,:,2] *= 1 # Tweak T2
-    real_phantom_resized[:,:,3] *= 1 # Tweak dB0
-    
-    spins.set_system(real_phantom_resized)    
-    
-    ###############################################################################
-    ######### SIMULATION
-    
-    # simulation adjoint
-    
-    scanner.adjoint()
-    sim_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    all_sim_reco_adjoint[lin_iter_counter] = sim_reco_adjoint
-    
-    # simulation generalized adjoint
-    if use_gen_adjoint:
-        scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
-        sim_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-        all_sim_reco_generalized_adjoint[lin_iter_counter] = sim_reco_generalized_adjoint
-    
-    # simulation IFFT
-    scanner.forward_fast_supermem(spins,event_time)
-    scanner.adjoint()
-    sim_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    all_sim_reco_ifft[lin_iter_counter] = sim_reco_ifft
-    
-    # simulation NUFFT
-    scanner.do_nufft_reco()
-    sim_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    all_sim_reco_nufft[lin_iter_counter] = sim_reco_nufft
-    
-    coil_idx = 0
-    adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
-    sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
-    sim_kspace = tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2])
-    all_sim_kspace[lin_iter_counter] = sim_kspace
-    
-    # send to scanner
-    iterfile = "iter" + str(c_iter).zfill(6)
-    
-    if (recreate_pulseq_files and do_real_meas) or recreate_pulseq_files_for_sim:
-	    fn_pulseq = "iter" + str(c_iter).zfill(6) + ".seq"
-	    iflips = alliter_array['flips'][c_iter]
-	    ivent = alliter_array['event_times'][c_iter]
-	    gmo = alliter_array['grad_moms'][c_iter]
+#for c_iter in nonboring_iter:
+c_iter = nonboring_iter[-1]
+print("Processing the iteration {}/{}  {}/{}".format(c_iter, nmb_total_iter, lin_iter_counter, nmb_iter))
 
-#	    seq_params = iflips, ivent, gmo
-#	    
-#	    today_datestr = date_str
-#	    basepath_out = os.path.join(basepath, "seq" + today_datestr)
-#	    basepath_out = os.path.join(basepath_out, experiment_id)
-	    
-#	    if sequence_class.lower() == "gre":
-#            pulseq_write_GRE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
-#	    elif sequence_class.lower() == "rare":
-#            pulseq_write_RARE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
-#	    elif sequence_class.lower() == "bssfp":
-#            pulseq_write_BSSFP(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
-#	    elif sequence_class.lower() == "epi":
-#            pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
-            
-    if do_real_meas:
-        scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
-        scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
-    
-    real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
-    real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
-    all_real_kspace[lin_iter_counter] = real_kspace
-    
-    # real adjoint
-    scanner.adjoint()
-    real_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    all_real_reco_adjoint[lin_iter_counter] = real_reco_adjoint
-    
-    # real generalized adjoint
-    if use_gen_adjoint:
-        scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
-        real_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-        all_real_reco_generalized_adjoint[lin_iter_counter] = real_reco_generalized_adjoint
-    
-    # real IFFT
-    scanner.do_ifft_reco()
-    real_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    all_real_reco_ifft[lin_iter_counter] = real_reco_ifft
-    
-    # real NUFFT
-    scanner.do_nufft_reco()
-    real_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    all_real_reco_nufft[lin_iter_counter] = real_reco_nufft
-    
-    lin_iter_counter += 1
-    
-    if do_real_meas:
-        scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
-        scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
-        scipy.misc.toimage(phaseimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
-        scipy.misc.toimage(phaseimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint_phase.jpg"))
-        scipy.misc.toimage((1e-8+magimg(sim_kspace))).save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
-        scipy.misc.toimage((1e-8+magimg(real_kspace))).save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
+scanner.set_adc_mask(setdevice(torch.from_numpy(alliter_array['all_adc_masks'][c_iter].astype(np.float32))))
+scanner.signal = setdevice(torch.from_numpy(alliter_array['all_signals'][c_iter])).unsqueeze(4)
+scanner.reco = setdevice(torch.from_numpy(alliter_array['reco_images'][c_iter]).reshape([NVox,2]))
+scanner.kspace_loc = setdevice(torch.from_numpy(alliter_array['all_kloc'][c_iter]))
+
+flips = setdevice(torch.from_numpy(alliter_array['flips'][c_iter]))
+event_time = setdevice(torch.from_numpy(alliter_array['event_times'][c_iter]))
+grad_moms = setdevice(torch.from_numpy(alliter_array['grad_moms'][c_iter]))
+
+scanner.init_flip_tensor_holder()
+
+# rotate ADC according to excitation phase
+scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
+
+TR=torch.sum(event_time[:,1])
+TE=torch.sum(event_time[:11,1])
+
+scanner.init_gradient_tensor_holder()
+scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+
+# set spins
+spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
+cutoff = 1e-12
+real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
+for i in range(5):
+    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
+    if i == 0:
+        t[t < 0] = 0
+    elif i == 1 or i == 2:
+        t[t < cutoff] = cutoff
         
-        status_lines = []
-        status_lines.append("experiment id: " + experiment_id + "\n")
-        status_lines.append("processing iteration {} out of {} \n".format(lin_iter_counter, nmb_iter))
+    real_phantom_resized[:,:,i] = t
 
-        with open(os.path.join(dp_control, "status_related", "status_lines.txt"),"w") as f:
-            f.writelines(status_lines)
+real_phantom_resized[:,:,1] *= 1 # Tweak T1
+real_phantom_resized[:,:,2] *= 1 # Tweak T2
+real_phantom_resized[:,:,3] *= 1 # Tweak dB0
+
+spins.set_system(real_phantom_resized)    
+
+#    event_time[-1,:] += 1
+
+#    B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
+#    B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
+#    #B1plus = torch.sqrt(B1plus)
+#    scanner.B1plus = setdevice(B1plus)    
+#    scanner.set_flip_tensor_withB1plus(flips)
+
+###############################################################################
+######### SIMULATION
+
+# simulation adjoint
+
+scanner.adjoint()
+sim_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+all_sim_reco_adjoint[lin_iter_counter] = sim_reco_adjoint
+
+# simulation generalized adjoint
+if use_gen_adjoint:
+    scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
+    sim_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_sim_reco_generalized_adjoint[lin_iter_counter] = sim_reco_generalized_adjoint
+
+# simulation IFFT
+#scanner.forward_fast_supermem(spins,event_time)
+scanner.adjoint()
+sim_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+all_sim_reco_ifft[lin_iter_counter] = sim_reco_ifft
+
+# simulation NUFFT
+scanner.do_nufft_reco()
+sim_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+all_sim_reco_nufft[lin_iter_counter] = sim_reco_nufft
+
+coil_idx = 0
+adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
+sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
+sim_kspace = tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2])
+all_sim_kspace[lin_iter_counter] = sim_kspace
+
+# send to scanner
+iterfile = "iter" + str(c_iter).zfill(6)
+
+if (recreate_pulseq_files and do_real_meas) or recreate_pulseq_files_for_sim:
+    fn_pulseq = "iter" + str(c_iter).zfill(6) + ".seq"
+    iflips = alliter_array['flips'][c_iter]
+    ivent = alliter_array['event_times'][c_iter]
+    gmo = alliter_array['grad_moms'][c_iter]
+    
+    iflips *= 4
+    #ivent[-1,:] += 1.0
+    
+    seq_params = iflips, ivent, gmo
+    
+    today_datestr = date_str
+    basepath_out = os.path.join(basepath, "seq" + today_datestr)
+    basepath_out = os.path.join(basepath_out, experiment_id)
+    
+    if sequence_class.lower() == "gre":
+        pulseq_write_GRE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+    elif sequence_class.lower() == "rare":
+        pulseq_write_RARE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+    elif sequence_class.lower() == "bssfp":
+        pulseq_write_BSSFP(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+    elif sequence_class.lower() == "epi":
+        pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+        
+if do_real_meas:
+    scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+    scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+
+real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
+real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
+all_real_kspace[lin_iter_counter] = real_kspace
+
+# real adjoint
+scanner.adjoint()
+real_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+all_real_reco_adjoint[lin_iter_counter] = real_reco_adjoint
+
+# real generalized adjoint
+if use_gen_adjoint:
+    scanner.generalized_adjoint(alpha=adj_alpha, nmb_iter=adj_iter)
+    real_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    all_real_reco_generalized_adjoint[lin_iter_counter] = real_reco_generalized_adjoint
+
+# real IFFT
+scanner.do_ifft_reco()
+real_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+all_real_reco_ifft[lin_iter_counter] = real_reco_ifft
+
+# real NUFFT
+scanner.do_nufft_reco()
+real_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+all_real_reco_nufft[lin_iter_counter] = real_reco_nufft
+
+lin_iter_counter += 1
+
+if do_real_meas:
+    scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
+    scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
+    scipy.misc.toimage(phaseimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
+    scipy.misc.toimage(phaseimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint_phase.jpg"))
+    scipy.misc.toimage((1e-8+magimg(sim_kspace))).save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
+    scipy.misc.toimage((1e-8+magimg(real_kspace))).save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
+    
+    status_lines = []
+    status_lines.append("experiment id: " + experiment_id + "\n")
+    status_lines.append("processing iteration {} out of {} \n".format(lin_iter_counter, nmb_iter))
+
+    with open(os.path.join(dp_control, "status_related", "status_lines.txt"),"w") as f:
+        f.writelines(status_lines)
         
     
 draw_iter = 0
@@ -431,13 +453,12 @@ plt.title("real kspace pwr")
 plt.ion()
 plt.show()
 
-hgfhgf
-
 # Visualize measured images
-
 plt.subplot(221)
-plt.imshow(magimg(all_real_reco_adjoint[draw_iter]), interpolation='none')
+fig = plt.gcf()
+ax = plt.imshow(magimg(all_real_reco_adjoint[draw_iter]), interpolation='none')
 plt.title("real ADJOINT")
+fig.colorbar(ax)
 plt.subplot(222)
 plt.imshow(magimg(all_real_reco_generalized_adjoint[draw_iter]), interpolation='none')
 plt.title("real GENERALIZED ADJOINT") 
