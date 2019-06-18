@@ -83,7 +83,7 @@ end
 
 array = 1:1:niter; % accelerate plot
 frames=cell(numel(array));
-kplot=1;
+kplot=0;
 for ii=array
     
 jj=scanner_dict.iter_idx(ii)+1; % index for parameters

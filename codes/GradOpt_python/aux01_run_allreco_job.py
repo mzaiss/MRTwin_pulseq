@@ -34,9 +34,9 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = True
+recreate_pulseq_files = False
 recreate_pulseq_files_for_sim = False
-do_real_meas = True
+do_real_meas = False
 
 # NRMSE error function
 def e(gt,x):
@@ -114,10 +114,10 @@ experiment_list = []
 #experiment_list.append(["190604", "e25_opt_pitcher48_allparam_t2st_selective_multishape"])
 
 #experiment_list.append(["190604", "e25_opt_pitcher48_allparam_t2st"])
-experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar1x"])
-experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar2x"])
-experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar5x"])
-experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar50x"])
+#experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar1x"])
+#experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar2x"])
+#experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar5x"])
+#experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar50x"])
 
 #experiment_list.append(["190604", "e25_opt_pitcher96_onlyflips"])
 #experiment_list.append(["190603", "e25_opt_pitcher48_onlysflips"])
@@ -129,6 +129,8 @@ experiment_list.append(["190607", "e25_opt_pitcher64_allparamm_sar50x"])
 #
 #experiment_list.append(["190604", "e25_opt_pitcher96_onlyflips_sl"])
 #experiment_list.append(["190603", "e25_opt_pitcher48_onlysflips_sl"])
+
+experiment_list.append(["190613", "e25_opt_pitcher64_allparamm_sar2x_b1plus_shortTE_noortho"])
 
 
 for exp_current in experiment_list:
@@ -284,9 +286,9 @@ for exp_current in experiment_list:
     itt = alliter_array['all_errors']
 
     if do_real_meas:
-        error_threshold_percent = 0.3    
+        error_threshold_percent = 1.0
     else:
-        error_threshold_percent = 0.3
+        error_threshold_percent = 1.0
         
     nonboring_iter = []
     lasterror = 1e10
