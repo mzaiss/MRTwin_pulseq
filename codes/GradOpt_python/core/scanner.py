@@ -257,6 +257,12 @@ class Scanner():
         theta = input_flips[:,:,0]
         theta = theta.unsqueeze(2).unsqueeze(2).unsqueeze(2)
         
+        # WARNING TODO, not future proof
+        if self.sz[0] > 64:
+            theta = theta[:(self.T - self.NCol)//2,:,:,:,:]
+            Fglob = Fglob[:(self.T - self.NCol)//2,:,:,:,:]
+            F2 = F2[:(self.T - self.NCol)//2,:,:,:,:]        
+        
         theta = theta * self.B1plus.view([1,1,self.NVox,1,1])
         
         F = torch.sin(theta)*Fglob + (1 - torch.cos(theta))*F2
@@ -266,11 +272,7 @@ class Scanner():
         self.F[:,:,:,1,1] += 1
         self.F[:,:,:,2,2] += 1
         
-        # WARNING TODO, not future proof
-        if self.sz[0] > 64:
-            theta = theta[:(self.T - self.NCol)//2,:,:,:,:]
-            Fglob = Fglob[:(self.T - self.NCol)//2,:,:,:,:]
-            F2 = F2[:(self.T - self.NCol)//2,:,:,:,:]
+
         
     # use Rodriguez' rotation formula to compute rotation around arbitrary axis
     # flips are now (T,NRep,3) -- axis angle representation
@@ -1333,11 +1335,13 @@ class Scanner():
                 
                 # Inter-voxel grad precession
                 #presignal = torch.sum(intraSpins,0,keepdim=True)
-                
                 #presignal = torch.einsum('ijklm,inomp->jolp', [IVP, intraSpins]).unsqueeze(0)
                 #presignal = torch.matmul(scanner.SB0sig,presignal)
                 
-                presignal = torch.einsum('sjorl,ijklm,inomp->jorp', [scanner.SB0sig, IVP, intraSpins]).unsqueeze(0)
+                tmp = torch.einsum('ijklm,inomp->jolp', [IVP, intraSpins]).unsqueeze(0)
+                presignal = torch.einsum('sjorl,ijolp->sjorp', [scanner.SB0sig, tmp])
+                
+                #presignal = torch.einsum('sjorl,ijklm,inomp->jorp', [scanner.SB0sig, IVP, intraSpins]).unsqueeze(0)
                 
                 B0X = torch.unsqueeze(torch.unsqueeze(f[:,0],1),1) * scanner.rampX
                 B0Y = torch.unsqueeze(torch.unsqueeze(f[:,1],1),1) * scanner.rampY
@@ -1406,7 +1410,11 @@ class Scanner():
                 #gx = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)
                 #gx = torch.sum(gx,1, keepdim=True)
                 #gx = torch.matmul(ctx.scanner.SB0sig.permute([0,1,2,4,3]),grad_output)
-                gx = torch.einsum('ijkmr,sjolm,njolp->inorp', [IVP,ctx.scanner.SB0sig,grad_output])
+                
+                tmp = torch.einsum('sjolr,ijolp->sjorp', [scanner.SB0sig, grad_output])
+                gx = torch.einsum('ijkml,sjomp->jolp', [IVP, tmp]).unsqueeze(0)
+                
+                #gx = torch.einsum('ijkmr,sjolm,njolp->inorp', [IVP,ctx.scanner.SB0sig,grad_output])
                 
                 
                 return (None, gx, None, None, None)
@@ -1624,25 +1632,12 @@ class Scanner():
                         
                         # read signal
                         if t == (self.T - half_read*2)//2 + half_read:  # read signal
-                            if False:
-                                REW = self.G_adj[start_t,:,:,:]
-                                FWD = self.G_adj[start_t:start_t+half_read*2,:,:,:].permute([0,1,3,2])
-                                FWD = torch.matmul(REW, FWD)
-                                signal = torch.matmul(FWD,torch.sum(spins.M,0,keepdim=True))
-                            
                             signal = AuxGetSignalGradMul.apply(self.kspace_loc[start_t:start_t+half_read*2,r,:],spins.M[:,:,:,:2,:],self,start_t,start_t+half_read*2)
                                 
                             signal = torch.sum(signal,[2])
                             signal *= self.adc_mask[start_t:start_t+half_read*2].view([1,signal.shape[1],1,1])
                             
                             self.signal[0,start_t:start_t+half_read*2,r,:2,0] = signal.squeeze() / self.NSpins 
-                            
-                        # do gradient precession (use adjoint as free kumulator)
-                        if False:
-                            REW = self.G_adj[start_t,:,:,:]
-                            FWD = self.G_adj[t+1,:,:,:].permute([0,2,1])
-                            FWD = torch.matmul(REW, FWD)
-                            spins.M = torch.matmul(FWD,spins.M)
                             
                         # set grad intravoxel precession tensor
                         kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
@@ -1778,7 +1773,10 @@ class Scanner():
                 #presignal = torch.einsum('ijklm,inomp->jolp', [IVP, intraSpins]).unsqueeze(0)
                 #presignal = torch.matmul(scanner.SB0sig,presignal)
                 
-                presignal = torch.einsum('sjorl,ijklm,inomp->jorp', [scanner.SB0sig, IVP, intraSpins]).unsqueeze(0)
+                tmp = torch.einsum('ijklm,inomp->jolp', [IVP, intraSpins]).unsqueeze(0)
+                presignal = torch.einsum('sjorl,ijolp->sjorp', [scanner.SB0sig, tmp])
+                
+                #presignal = torch.einsum('sjorl,ijklm,inomp->jorp', [scanner.SB0sig, IVP, intraSpins]).unsqueeze(0)
                 
                 B0X = torch.unsqueeze(torch.unsqueeze(f[:,0],1),1) * scanner.rampX
                 B0Y = torch.unsqueeze(torch.unsqueeze(f[:,1],1),1) * scanner.rampY
@@ -1847,7 +1845,11 @@ class Scanner():
                 #gx = torch.matmul(IVP.permute([0,1,2,4,3]), grad_output)
                 #gx = torch.sum(gx,1, keepdim=True)
                 #gx = torch.matmul(ctx.scanner.SB0sig.permute([0,1,2,4,3]),grad_output)
-                gx = torch.einsum('ijkmr,sjolm,njolp->inorp', [IVP,ctx.scanner.SB0sig,grad_output])
+                
+                tmp = torch.einsum('sjolr,ijolp->sjorp', [scanner.SB0sig, grad_output])
+                gx = torch.einsum('ijkml,sjomp->jolp', [IVP, tmp]).unsqueeze(0)
+                
+                #gx = torch.einsum('ijkmr,sjolm,njolp->inorp', [IVP,ctx.scanner.SB0sig,grad_output])
                 
                 
                 return (None, gx, None, None, None)
