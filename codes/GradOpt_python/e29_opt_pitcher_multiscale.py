@@ -35,7 +35,7 @@ from importlib import reload
 reload(core.scanner)
 
 
-print('e25_opt_pitcher_multiscaleinit_test')
+print('e25_opt_pitcher_multiscaleinit_test_mz')
 
 double_precision = False
 use_supermem = True
@@ -90,10 +90,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([8,8])                                           # image size
+sz = np.array([6,6])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 26**2                                # number of spin sims in each voxel
+NSpins = 20**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
@@ -200,7 +200,7 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
     
 # forward/adjoint pass
 #scanner.forward_fast_supermem(spins, event_time)
-scanner.forward_fast(spins, event_time)
+scanner.forward(spins, event_time)
 #scanner.forward_mem(spins, event_time)
 scanner.adjoint()
 
@@ -271,11 +271,11 @@ def init_variables():
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
 #    
-#    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
-#    grad_moms[1,:,1] = -grad_moms[1,:,1]*0 + setdevice(torch.rand(grad_moms[1,:,1].shape)-0.5)
-#    
-#    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
-#    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+    grad_moms[1,:,0] = grad_moms[1,:,0]*0  -1    # remove rewinder gradients
+    grad_moms[1,:,1] = -grad_moms[1,:,1]*0 + setdevice(0.1*(torch.rand(grad_moms[1,:,1].shape)-0.5))
+    
+    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
+    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
         
     return [adc_mask, flips, event_time, grad_moms]
     
@@ -295,7 +295,7 @@ def phi_FRP_model(opt_params,aux_params):
          
     # forward/adjoint pass
     #scanner.forward_fast_supermem(spins, event_time)
-    scanner.forward_fast(spins, event_time)
+    scanner.forward(spins, event_time)
     #scanner.forward_mem(spins, event_time)
     scanner.adjoint()
 
@@ -352,7 +352,7 @@ for i in range(9):
     opt.custom_learning_rate = [0.01,0.05,0.1,lr_inc[i]]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
     opt.train_model(training_iter=500, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
     
 # %% # save optimized parameter history
 
