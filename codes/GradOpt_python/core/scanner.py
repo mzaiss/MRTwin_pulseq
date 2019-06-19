@@ -659,7 +659,7 @@ class Scanner():
                 self.set_freeprecession_tensor(spins,delay)
                 self.set_B0inhomogeneity_tensor(spins,delay)
                 
-                spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                spins.M = RelaxRAMClass.apply(self.R,spins.M,delay,t,self,spins)
                 spins.M = DephaseClass.apply(self.P,spins.M,self)
                 spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                 
@@ -2916,6 +2916,33 @@ class RelaxClass(torch.autograd.Function):
             ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.spins.MZ0[:,0,:]
             
             ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
+            
+        return (gf, gx, None, None, None, None)  
+    
+class RelaxRAMClass(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, f, x, delay, t, scanner, spins):
+        ctx.f = f.clone()
+        ctx.delay = delay
+        ctx.scanner = scanner
+        ctx.spins = spins
+        ctx.t = t
+        
+        ctx.M = x.clone().cpu()
+                    
+        out = torch.matmul(f,x)
+        out[:,:,:,2,0] += (1 - f[:,:,2,2]).view([1,1,scanner.NVox]) * spins.MZ0
+            
+        return out
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        gx = torch.matmul(ctx.f.permute([0,1,3,2]),grad_output)
+      
+        gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+        gf = torch.sum(gf,[0])
+        
+        ctx.scanner.lastM = ctx.scanner.setdevice(ctx.M)
             
         return (gf, gx, None, None, None, None)  
     
