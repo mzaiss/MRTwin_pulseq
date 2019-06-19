@@ -1258,6 +1258,9 @@ class Scanner():
         
         half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
         
+        PD0_mask = spins.PD0_mask.flatten()
+        PD0_mask[:] = 1
+        
         class AuxGradMul(torch.autograd.Function):
             @staticmethod
             def forward(ctx, f, x, scanner):
@@ -1301,7 +1304,38 @@ class Scanner():
                 ctx.scanner.lastM[:,:,:,:2,:] = torch.matmul(G.permute([0,2,1]),ctx.scanner.lastM[:,:,:,:2,:])
                 gx = torch.matmul(G.permute([0,2,1]),grad_output[:,:,:,:2,:])
                 
-                return (None, gx, None)
+                gft = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+                gft = torch.sum(gft,[0,1])
+                
+                #B0_grad_cos_g = -torch.sin(gf[:,0,0])
+                #B0_grad_sin_g = torch.cos(gf[:,1,0])
+                
+                GG = scanner.setdevice(torch.zeros((scanner.NVox,2,2), dtype=torch.float32))
+                GG[:,0,0] = -B0_grad_sin
+                GG[:,0,1] = -B0_grad_cos
+                GG[:,1,0] = B0_grad_cos
+                GG[:,1,1] = -B0_grad_sin  
+                
+                GG = gft[:,:,:2]*GG
+                
+                gf = scanner.setdevice(torch.zeros((2,), dtype=torch.float32))
+                
+                gf[0] = torch.sum(torch.sum(GG,[1,2]) * scanner.rampX.squeeze())
+                gf[1] = torch.sum(torch.sum(GG,[1,2])  * scanner.rampY.squeeze())
+                
+                
+#                gft[:,0,0] *= -B0_grad_sin
+#                gft[:,0,1] *= -B0_grad_cos
+#                gft[:,1,0] *= B0_grad_cos
+#                gft[:,1,1] *= -B0_grad_sin
+#                
+#                gft = torch.sum(gft,[1,2])
+#                gf = scanner.setdevice(torch.zeros((2,), dtype=torch.float32))
+#                
+#                gf[0] = torch.sum(gft * scanner.rampX.squeeze())
+#                gf[1] = torch.sum(gft * scanner.rampY.squeeze())                
+                
+                return (gf, gx, None)
             
         class AuxGetSignalGradMul(torch.autograd.Function):
             @staticmethod
@@ -1412,7 +1446,8 @@ class Scanner():
                 #gx = torch.matmul(ctx.scanner.SB0sig.permute([0,1,2,4,3]),grad_output)
                 
                 tmp = torch.einsum('sjolr,ijolp->sjorp', [scanner.SB0sig, grad_output])
-                gx = torch.einsum('ijkml,sjomp->jolp', [IVP, tmp]).unsqueeze(0)
+                gx = torch.einsum('ijkml,sjomp->isolp', [IVP, tmp])
+                
                 
                 #gx = torch.einsum('ijkmr,sjolm,njolp->inorp', [IVP,ctx.scanner.SB0sig,grad_output])
                 
@@ -1529,8 +1564,9 @@ class Scanner():
                 ctx.r = r
                 ctx.thresh = 1e-2
                 
-                if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
+                #if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
                 #if ctx.delay > ctx.thresh or ctx.t == 0:
+                if ctx.delay > ctx.thresh or ctx.t == 0:
                     ctx.M = x.clone().cpu()
                     
                 out = torch.matmul(f,x)
@@ -1545,8 +1581,9 @@ class Scanner():
                 gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
                 gf = torch.sum(gf,[0])
                 
-                if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
-                #if ctx.delay > ctx.thresh or ctx.t == 0:
+                #if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
+                #if ctx.delay > ctx.thresh:
+                if ctx.delay > ctx.thresh or ctx.t == 0:
                     ctx.scanner.lastM = ctx.scanner.setdevice(ctx.M)
                 else:
                     d1 = ctx.f[0,:,0,0]
@@ -1561,8 +1598,8 @@ class Scanner():
                     
                     ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
                     
-                return (gf, gx, None, None, None, None, None)              
-            
+                return (gf, gx, None, None, None, None, None)           
+        
         # scanner forward process loop
         for r in range(self.NRep):                         # for all repetitions
             total_delay = 0
@@ -1573,25 +1610,22 @@ class Scanner():
                 
                 if self.adc_mask[t] == 0:                         # regular pass
                     self.read_signal(t,r,spins)
-                    
-                    self.ROI_signal[t,r,0] =   delay
-                    self.ROI_signal[t,r,1:4] =  torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu()  # hard coded center pixel
-                    self.ROI_signal[t,r,4] =  torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()  # hard coded center pixel                     
-                    
                     if t < self.F.shape[0]:
-                        spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
+                         spins.M = FlipClass.apply(self.F[t,r,:,:,:],spins.M,self)
                     
                     self.set_relaxation_tensor(spins,delay)
                     self.set_freeprecession_tensor(spins,delay)
                     self.set_B0inhomogeneity_tensor(spins,delay)
                     
+                    #broken
                     spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,delay,t,r,self,spins)
                     #spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                    
                     spins.M = DephaseClass.apply(self.P,spins.M,self)
                     spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                     
                     spins.M[:,:,:,:2,:] = AuxGradMul.apply(self.grads[t,r,:],spins.M[:,:,:,:2,:],self)
-
+                    
                     self.set_grad_intravoxel_precess_tensor(t,r)
                     spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
                 else:
@@ -1614,21 +1648,17 @@ class Scanner():
                         S[0,:,:,1,0] = B0_nspins_sin
                         S[0,:,:,1,1] = B0_nspins_cos
                         
-                        self.SB0sig = S
+                        self.SB0sig = S                        
                         
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
-                        self.ROI_signal[start_t:t+1,r,0] = delay
-                        self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu().unsqueeze(0)
-                        self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()
                         
                         self.set_relaxation_tensor(spins,total_delay)
                         self.set_freeprecession_tensor(spins,total_delay)
-                        self.set_B0inhomogeneity_tensor(spins,total_delay)
+                        self.set_B0inhomogeneity_tensor(spins,total_delay)                        
                         
-                        spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,total_delay,t,r,self,spins)
-                        #spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
+                        #spins.M = RelaxClass.apply(self.R, spins.M,total_delay,t,self,spins)
+                        spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,delay,t,r,self,spins)
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
-                        
                         
                         # read signal
                         if t == (self.T - half_read*2)//2 + half_read:  # read signal
@@ -1663,8 +1693,7 @@ class Scanner():
                         total_delay = delay
                     else:                                       # keep accumulating
                         total_delay += delay
-
-                    
+                        
         # kill numerically unstable parts of M vector for backprop
         self.tmask = torch.zeros((self.NVox))
         self.tmask = self.setdevice(self.tmask).byte()
@@ -1681,7 +1710,7 @@ class Scanner():
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
-            self.signal = torch.matmul(self.AF,self.signal) * self.adc_mask.view([self.T,1,1,1])
+            self.signal = torch.matmul(self.AF,self.signal) * self.adc_mask.view([self.T,1,1,1])    
             
         torch.cuda.empty_cache()
         
@@ -1735,7 +1764,27 @@ class Scanner():
                 ctx.scanner.lastM[:,:,:,:2,:] = torch.matmul(G.permute([0,2,1]),ctx.scanner.lastM[:,:,:,:2,:])
                 gx = torch.matmul(G.permute([0,2,1]),grad_output[:,:,:,:2,:])
                 
-                return (None, gx, None)
+                gft = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
+                gft = torch.sum(gft,[0,1])
+                
+                #B0_grad_cos_g = -torch.sin(gf[:,0,0])
+                #B0_grad_sin_g = torch.cos(gf[:,1,0])
+                
+                GG = scanner.setdevice(torch.zeros((scanner.NVox,2,2), dtype=torch.float32))
+                GG[:,0,0] = -B0_grad_sin
+                GG[:,0,1] = -B0_grad_cos
+                GG[:,1,0] = B0_grad_cos
+                GG[:,1,1] = -B0_grad_sin     
+                
+                GG = gft[:,:,:2]*GG
+                
+                #gff = -torch.sin(gft[:,0,0]) - torch.cos(gft[:,0,1]) + torch.cos(gft[:,1,0] - torch.sin(gft[:,1,1]))
+                gf = scanner.setdevice(torch.zeros((2,), dtype=torch.float32))
+                
+                gf[0] = torch.sum(torch.sum(GG,[1,2]) * scanner.rampX.squeeze())
+                gf[1] = torch.sum(torch.sum(GG,[1,2])  * scanner.rampY.squeeze())
+                
+                return (gf, gx, None)
             
         class AuxGetSignalGradMul(torch.autograd.Function):
             @staticmethod
@@ -1769,7 +1818,6 @@ class Scanner():
                 
                 # Inter-voxel grad precession
                 #presignal = torch.sum(intraSpins,0,keepdim=True)
-                
                 #presignal = torch.einsum('ijklm,inomp->jolp', [IVP, intraSpins]).unsqueeze(0)
                 #presignal = torch.matmul(scanner.SB0sig,presignal)
                 
@@ -1847,7 +1895,7 @@ class Scanner():
                 #gx = torch.matmul(ctx.scanner.SB0sig.permute([0,1,2,4,3]),grad_output)
                 
                 tmp = torch.einsum('sjolr,ijolp->sjorp', [scanner.SB0sig, grad_output])
-                gx = torch.einsum('ijkml,sjomp->jolp', [IVP, tmp]).unsqueeze(0)
+                gx = torch.einsum('ijkml,sjomp->isolp', [IVP, tmp])
                 
                 #gx = torch.einsum('ijkmr,sjolm,njolp->inorp', [IVP,ctx.scanner.SB0sig,grad_output])
                 
@@ -1996,7 +2044,7 @@ class Scanner():
                     
                     ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
                     
-                return (gf, gx, None, None, None, None, None)              
+                return (gf, gx, None, None, None, None, None)                
             
         # scanner forward process loop
         for r in range(self.NRep):                         # for all repetitions
@@ -2020,8 +2068,8 @@ class Scanner():
                     self.set_freeprecession_tensor(spins,delay)
                     self.set_B0inhomogeneity_tensor(spins,delay)
                     
-                    spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,delay,t,r,self,spins)
-                    #spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                    #spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,delay,t,r,self,spins)
+                    spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
                     spins.M = DephaseClass.apply(self.P,spins.M,self)
                     spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                     
@@ -2060,8 +2108,8 @@ class Scanner():
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
                         
-                        spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,total_delay,t,r,self,spins)
-                        #spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
+                        #spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,total_delay,t,r,self,spins)
+                        spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
                         
                         
