@@ -283,7 +283,7 @@ class OPT_helper():
             
         
     # main training function
-    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False):
+    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False, query_kwargs=None):
         
         for i in range(len(self.scanner_opt_params)):
             if i in self.opt_param_idx:
@@ -309,9 +309,6 @@ class OPT_helper():
             print(colored("\033[93m iter %d, recon error = %f \033[0m%%" % (inner_iter,self.last_error), 'green'))
             
             self.print_status(do_vis_image,self.last_reco)
-
-            #self.new_batch()
-            self.optimizer.step(self.weak_closure)
             
             if query_scanner:
                 experiment_id, today_datestr, sequence_class = query_kwargs
@@ -369,8 +366,8 @@ class OPT_helper():
                 plt.show()
                 
                 meas_error = e(meas_target.ravel(),meas_reco.ravel())    
-                print(colored("\033[93m iter %d, REAL MEAS error = %f \033[0m%%" % (inner_iter,meas_error), 'green'))
-                
+                print(colored("\033[93m iter %d, REAL MEAS error = %f \033[0m%%" % (inner_iter,meas_error), 'green'))            
+            
             # save entire history of optimized params/reco images
             if save_intermediary_results:
                 tosave_opt_params = self.scanner_opt_params
@@ -401,8 +398,15 @@ class OPT_helper():
                     saved_state['meas_signal'] = tonumpy(meas_sig)
                     saved_state['meas_adj_reco'] = meas_reco
                 
-                self.param_reco_history.append(saved_state)                   
+                self.param_reco_history.append(saved_state)      
+                
+                
 
+            #self.new_batch()
+            self.optimizer.step(self.weak_closure)
+            
+
+                
     def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, do_vis_image=False):
         
         raise ValueError("train_model_with_restarts: out of sync, update and fix")
