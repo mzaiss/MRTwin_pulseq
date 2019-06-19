@@ -2976,7 +2976,7 @@ class RelaxSparseClass(torch.autograd.Function):
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[0])
         
-        ctx.scanner.lastM = ctx.M
+        ctx.scanner.lastM = ctx.scanner.setdevice(ctx.M)
         
 #        if ctx.delay > ctx.thresh or ctx.t == 0:
 #            ctx.scanner.lastM = ctx.M
