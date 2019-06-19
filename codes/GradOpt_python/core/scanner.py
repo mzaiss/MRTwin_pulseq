@@ -951,7 +951,7 @@ class Scanner():
                         self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins.M[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
                         self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins.M[:,0,0,2]),[0]).flatten().detach().cpu()
                         
-                        spins.M = RelaxClass.apply(self.R, spins.M,total_delay,t,self,spins)
+                        spins.M = RelaxRAMClass.apply(self.R, spins.M,total_delay,t,self,spins)
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
                         
                         # do gradient precession (use adjoint as free kumulator)
@@ -1005,8 +1005,10 @@ class Scanner():
                             S[0,:,:,2,2] = 1
                              
                             #intraSpins = torch.matmul(S,intraSpins)
+                            tmp = torch.einsum('ijklm,inomp->jolp', [IVP, spins.M]).unsqueeze(0)
+                            intraSpins = torch.einsum('sjorl,ijolp->sjorp', [S, tmp])
                             
-                            intraSpins = torch.einsum("ijklm,njomp,irops->nrols",[IVP,S,spins.M])
+                            #intraSpins = torch.einsum("ijklm,njomp,irops->nrols",[IVP,S,spins.M])
                             signal = torch.matmul(FWD,intraSpins)
 
                             signal = torch.sum(signal,[2])
@@ -1190,7 +1192,10 @@ class Scanner():
                             
                             #intraSpins = torch.matmul(S,intraSpins)
                             
-                            intraSpins = torch.einsum("ijklm,njomp,irops->nrols",[IVP,S,spins_cut])
+                            tmp = torch.einsum('ijklm,inomp->jolp', [IVP, spins_cut]).unsqueeze(0)
+                            intraSpins = torch.einsum('sjorl,ijolp->sjorp', [S, tmp])                            
+                            
+                            #intraSpins = torch.einsum("ijklm,njomp,irops->nrols",[IVP,S,spins_cut])
                             signal = torch.matmul(FWD,intraSpins)
                             signal = torch.sum(signal,[2])
                             
