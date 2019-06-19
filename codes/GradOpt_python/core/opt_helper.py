@@ -881,6 +881,7 @@ class OPT_helper():
             
             try:
                 os.makedirs(basepath)
+                os.makedirs(os.path.join(basepath,"data"))
             except:
                 pass
             
