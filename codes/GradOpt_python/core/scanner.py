@@ -930,7 +930,7 @@ class Scanner():
                     self.set_freeprecession_tensor(spins,delay)
                     self.set_B0inhomogeneity_tensor(spins,delay)
                     
-                    spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                    spins.M = RelaxRAMClass.apply(self.R,spins.M,delay,t,self,spins)
                     spins.M = DephaseClass.apply(self.P,spins.M,self)
                     spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                     
@@ -1566,7 +1566,7 @@ class Scanner():
                 
                 #if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
                 #if ctx.delay > ctx.thresh or ctx.t == 0:
-                if ctx.delay > ctx.thresh or ctx.t == 0:
+                if ctx.delay > ctx.thresh or ctx.t == 0 or True:
                     ctx.M = x.clone().cpu()
                     
                 out = torch.matmul(f,x)
@@ -1583,7 +1583,7 @@ class Scanner():
                 
                 #if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
                 #if ctx.delay > ctx.thresh:
-                if ctx.delay > ctx.thresh or ctx.t == 0:
+                if ctx.delay > ctx.thresh or ctx.t == 0 or True:
                     ctx.scanner.lastM = ctx.scanner.setdevice(ctx.M)
                 else:
                     d1 = ctx.f[0,:,0,0]
