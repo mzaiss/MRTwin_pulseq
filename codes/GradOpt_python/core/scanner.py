@@ -2012,8 +2012,9 @@ class Scanner():
                 ctx.r = r
                 ctx.thresh = 1e-2
                 
-                if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
+                #if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
                 #if ctx.delay > ctx.thresh or ctx.t == 0:
+                if True:
                     ctx.M = x.clone().cpu()
                     
                 out = torch.matmul(f,x)
@@ -2028,8 +2029,9 @@ class Scanner():
                 gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
                 gf = torch.sum(gf,[0])
                 
-                if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
+                #if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
                 #if ctx.delay > ctx.thresh or ctx.t == 0:
+                if True:
                     ctx.scanner.lastM = ctx.scanner.setdevice(ctx.M)
                 else:
                     d1 = ctx.f[0,:,0,0]
@@ -2068,8 +2070,8 @@ class Scanner():
                     self.set_freeprecession_tensor(spins,delay)
                     self.set_B0inhomogeneity_tensor(spins,delay)
                     
-                    #spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,delay,t,r,self,spins)
-                    spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
+                    spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,delay,t,r,self,spins)
+                    #spins.M = RelaxClass.apply(self.R,spins.M,delay,t,self,spins)
                     spins.M = DephaseClass.apply(self.P,spins.M,self)
                     spins.M = B0InhomoClass.apply(self.SB0,spins.M,self)
                     
@@ -2108,8 +2110,8 @@ class Scanner():
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
                         
-                        #spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,total_delay,t,r,self,spins)
-                        spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
+                        spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,total_delay,t,r,self,spins)
+                        #spins.M = RelaxClass.apply(self.R,spins.M,total_delay,t,self,spins)
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
                         
                         
@@ -2957,8 +2959,10 @@ class RelaxSparseClass(torch.autograd.Function):
         ctx.thresh = 1e-2
         ctx.mask = mask
         
-        if ctx.delay > ctx.thresh or ctx.t == 0:
-            ctx.M = x.clone()
+#        if ctx.delay > ctx.thresh or ctx.t == 0:
+#            ctx.M = x.clone()
+        
+        ctx.M = x.clone().cpu()
             
         out = torch.matmul(f,x)
         out[:,:,:,2,0] += (1 - f[:,:,2,2]).view([1,1,x.shape[2]]) * spins.MZ0[:,:,mask]
@@ -2972,20 +2976,22 @@ class RelaxSparseClass(torch.autograd.Function):
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
         gf = torch.sum(gf,[0])
         
-        if ctx.delay > ctx.thresh or ctx.t == 0:
-            ctx.scanner.lastM = ctx.M
-        else:
-            d1 = ctx.f[0,:,0,0]
-            id1 = 1/d1
-            
-            d3 = ctx.f[0,:,2,2]
-            id3 = 1/d3
-            id3 = id3.view([1,grad_output.shape[2]])
-            
-            ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,grad_output.shape[2],1])
-            ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.spins.MZ0[:,0,ctx.mask]
-            
-            ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
+        ctx.scanner.lastM = ctx.M
+        
+#        if ctx.delay > ctx.thresh or ctx.t == 0:
+#            ctx.scanner.lastM = ctx.M
+#        else:
+#            d1 = ctx.f[0,:,0,0]
+#            id1 = 1/d1
+#            
+#            d3 = ctx.f[0,:,2,2]
+#            id3 = 1/d3
+#            id3 = id3.view([1,grad_output.shape[2]])
+#            
+#            ctx.scanner.lastM[:,0,:,:2,0] *= id1.view([1,grad_output.shape[2],1])
+#            ctx.scanner.lastM[:,0,:,2,0] = ctx.scanner.lastM[:,0,:,2,0]*id3 + (1-id3)*ctx.spins.MZ0[:,0,ctx.mask]
+#            
+#            ctx.scanner.lastM[:,:,ctx.scanner.tmask,:] = 0
             
         return (gf, gx, None, None, None, None, None)
   
