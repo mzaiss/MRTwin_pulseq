@@ -886,7 +886,6 @@ class Scanner():
         if self.AF is not None:
             self.signal = torch.matmul(self.AF,self.signal)
             
-    # run throw all repetition/actions and yield signal
     def forward_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True,kill_transverse=False):
         self.init_signal()
         if do_dummy_scans == False:
@@ -911,7 +910,7 @@ class Scanner():
                 G_adj_cut = self.G_adj[:,PD0_mask,:,:]
             else:        
                 G_cut = self.G[:,:,PD0_mask,:,:]
-                G_adj_cut = self.G_adj[:,:,PD0_mask,:,:]
+                G_adj_cut = self.G_adj[:,:,PD0_mask,:,:]            
             
             for t in range(self.T):                            # for all actions
                 delay = torch.abs(event_time[t,r]) + 1e-6
@@ -946,19 +945,37 @@ class Scanner():
                         total_delay = delay
                         start_t = t
                         
+                        # set B0 inhomo precession tensor
+                        S = torch.zeros((1,self.NCol,self.NVox,2,2), dtype=torch.float32)
+                        S = self.setdevice(S)
+                        
+                        B0_inhomo = spins.B0inhomo.view([self.NVox]) * 2*np.pi
+                        delay_ramp = delay * self.setdevice(torch.from_numpy(np.arange(self.NCol))).view([self.NCol,1]) * B0_inhomo.view([1, self.NVox])
+                        
+                        B0_nspins_cos = torch.cos(delay_ramp)
+                        B0_nspins_sin = torch.sin(delay_ramp)
+                         
+                        S[0,:,:,0,0] = B0_nspins_cos
+                        S[0,:,:,0,1] = -B0_nspins_sin
+                        S[0,:,:,1,0] = B0_nspins_sin
+                        S[0,:,:,1,1] = B0_nspins_cos
+                        
+                        self.SB0sig = S                        
+                        
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
-                        self.ROI_signal[start_t:t+1,r,0] = total_delay
-                        self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins.M[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
-                        self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins.M[:,0,0,2]),[0]).flatten().detach().cpu()
+                        
+                        self.set_relaxation_tensor(spins,total_delay)
+                        self.set_freeprecession_tensor(spins,total_delay)
+                        self.set_B0inhomogeneity_tensor(spins,total_delay)                        
                         
                         spins.M = RelaxRAMClass.apply(self.R, spins.M,total_delay,t,self,spins)
-                        spins.M = DephaseClass.apply(self.P,spins.M,self)
+                        spins.M = DephaseClass.apply(self.P,spins.M,self)                        
                         
                         # do gradient precession (use adjoint as free kumulator)
                         if compact_grad_tensor:
                             REW = G_adj_cut[start_t,:,:,:]
                         else:
-                            REW = G_adj_cut[start_t,r,:,:,:]
+                            REW = G_adj_cut[start_t,r,:,:,:]                        
                         
                         # read signal
                         if t == (self.T - half_read*2)//2 + half_read:  # read signal
@@ -1066,10 +1083,15 @@ class Scanner():
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
-            self.signal = torch.matmul(self.AF,self.signal)            
+            self.signal = torch.matmul(self.AF,self.signal)               
             
     # run throw all repetition/actions and yield signal
     def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True,kill_transverse=False):
+
+        class ExecutionControl(Exception): pass
+        raise ExecutionControl('forward_fast: broken! use forward_fast_supermem instead')
+        
+        
         self.init_signal()
         if do_dummy_scans == False:
             spins.set_initial_magnetization()
@@ -1135,6 +1157,10 @@ class Scanner():
 #                        self.ROI_signal[start_t:t+1,r,0] = total_delay
 #                        self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
 #                        self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()
+                        
+                        self.set_relaxation_tensor(spins,total_delay)
+                        self.set_freeprecession_tensor(spins,total_delay)
+                        self.set_B0inhomogeneity_tensor(spins,total_delay)                          
                         
                         spins_cut = RelaxSparseClass.apply(self.R[:,PD0_mask,:,:], spins_cut,total_delay,t,self,spins,PD0_mask)
                         spins_cut = DephaseClass.apply(self.P,spins_cut,self)
