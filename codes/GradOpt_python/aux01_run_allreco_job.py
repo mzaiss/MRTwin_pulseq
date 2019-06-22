@@ -34,9 +34,12 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = False
+recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
-do_real_meas = False
+do_real_meas = True
+test_iter_number = False
+
+max_nmb_iter = 70
 
 # NRMSE error function
 def e(gt,x):
@@ -130,7 +133,23 @@ experiment_list = []
 #experiment_list.append(["190604", "e25_opt_pitcher96_onlyflips_sl"])
 #experiment_list.append(["190603", "e25_opt_pitcher48_onlysflips_sl"])
 
-experiment_list.append(["190613", "e25_opt_pitcher64_allparamm_sar2x_b1plus_shortTE_noortho"])
+#experiment_list.append(["190618", "e25_opt_pitcher96_allparamm_sar5000x_adcrot"])
+#experiment_list.append(["19061", "e25_opt_pitcher64_allparamm_sar5000x_adcrot"])
+#experiment_list.append(["190618", "e25_opt_pitcher48_supervised_allparam_fwdsmemfix_noortho"])
+#experiment_list.append(["190618", "e25_opt_pitcher48_supervised_allparam_smoothblock_fwdsmemfix_noortho"])
+#experiment_list.append(["190618", "e25_opt_pitcher48_supervised_onlygrad_fwdsmemfix_noortho"])
+#experiment_list.append(["190618", "e25_opt_pitcher48_supervised_onlygrad_smoothblock_fwdsmemfix_noortho"])
+
+
+experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_smoothblock_noortho_convergencefix"])
+experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_noortho_convergencefix"])
+experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_smoothblock_noortho_convergencefix"])
+experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_noortho_convergencefix"])
+experiment_list.append(["190620", "e25_opt_pitcher64_lowspin_onlygrad_noortho"])
+experiment_list.append(["190620", "e25_opt_pitcher64_lowspin_allparam_noortho"])
+experiment_list.append(["190618", "e25_opt_pitcher96_onlygrad_adcrot"])
+experiment_list.append(["190618", "e25_opt_pitcher96_allparamm_sar5000x_adcrot"])
+experiment_list.append(["190619", "e25_opt_pitcher96_allparamm_sar5000x_adcrot"])
 
 
 for exp_current in experiment_list:
@@ -143,6 +162,7 @@ for exp_current in experiment_list:
         adj_iter = exp_current[3][1]
     else:
         use_gen_adjoint = False
+        error_threshold_percent = 1.0
     
     fullpath_seq = os.path.join(basepath, "seq" + date_str, experiment_id)
     
@@ -249,7 +269,7 @@ for exp_current in experiment_list:
         elif sequence_class.lower() == "epi":
             pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)        
     
-    if do_real_meas:
+    if do_real_meas and test_iter_number == False:
         scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
         scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
     
@@ -284,24 +304,26 @@ for exp_current in experiment_list:
     
     # autoiter metric
     itt = alliter_array['all_errors']
-
-    if do_real_meas:
-        error_threshold_percent = 1.0
-    else:
-        error_threshold_percent = 1.0
-        
-    nonboring_iter = []
+    
+    non_increasing_error_iter = []
     lasterror = 1e10
     for c_iter in range(itt.size):
-        if -(itt[c_iter] - lasterror) > error_threshold_percent:
+        if -(itt[c_iter] - lasterror) > 1:
+            non_increasing_error_iter.append(c_iter)
             lasterror = itt[c_iter]
-            nonboring_iter.append(c_iter)
             
+    non_increasing_error_iter = np.array(non_increasing_error_iter)
+    nmb_iter = non_increasing_error_iter.size
+    if nmb_iter > max_nmb_iter:
+        non_increasing_error_iter = non_increasing_error_iter[(np.floor(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
+
+    #non_increasing_error_iter = np.concatenate((non_increasing_error_iter[:5],non_increasing_error_iter[-5:]))
     
-    nonboring_iter = np.array(nonboring_iter)
-    #nonboring_iter = np.concatenate((nonboring_iter[:5],nonboring_iter[-5:]))
+    nmb_iter = non_increasing_error_iter.size
     
-    nmb_iter = nonboring_iter.size
+    if test_iter_number:
+        print("exp = {} iteration number = {}".format(exp_current, nmb_iter))
+        stop()
     
     all_sim_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
     all_sim_reco_generalized_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
@@ -318,13 +340,13 @@ for exp_current in experiment_list:
     
     lin_iter_counter = 0
     
-    for c_iter in nonboring_iter:
+    for c_iter in non_increasing_error_iter:
         print("Processing the iteration {}/{}  {}/{}".format(c_iter, nmb_total_iter, lin_iter_counter, nmb_iter))
         
         scanner.set_adc_mask(torch.from_numpy(alliter_array['all_adc_masks'][c_iter]))
-        scanner.signal = setdevice(torch.from_numpy(alliter_array['all_signals'][c_iter])).unsqueeze(4)
-        scanner.reco = setdevice(torch.from_numpy(alliter_array['reco_images'][c_iter]).reshape([NVox,2]))
-        scanner.kspace_loc = setdevice(torch.from_numpy(alliter_array['all_kloc'][c_iter]))
+        scanner.signal = setdevice(torch.from_numpy(alliter_array['all_signals'][c_iter+1])).unsqueeze(4)
+        scanner.reco = setdevice(torch.from_numpy(alliter_array['reco_images'][c_iter+1]).reshape([NVox,2]))
+        scanner.kspace_loc = setdevice(torch.from_numpy(alliter_array['all_kloc'][c_iter+1]))
         
         flips = setdevice(torch.from_numpy(alliter_array['flips'][c_iter]))
         event_time = setdevice(torch.from_numpy(alliter_array['event_times'][c_iter]))
@@ -494,7 +516,7 @@ for exp_current in experiment_list:
     allreco_dict['target'] = alliter_array['target']
     allreco_dict['sequence_class'] = alliter_array['sequence_class']
     allreco_dict['B1'] = alliter_array['B1']
-    allreco_dict['iter_idx'] = nonboring_iter
+    allreco_dict['iter_idx'] = non_increasing_error_iter
     
     savepath = os.path.join(basepath, "results", "seq" + date_str, experiment_id)
     try:
@@ -513,7 +535,7 @@ for exp_current in experiment_list:
 stop()
     
     
-draw_iter = 90
+draw_iter = 1
 
 # Visualize simulated images
 
