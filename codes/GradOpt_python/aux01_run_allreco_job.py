@@ -141,8 +141,8 @@ experiment_list = []
 #experiment_list.append(["190618", "e25_opt_pitcher48_supervised_onlygrad_smoothblock_fwdsmemfix_noortho"])
 
 
-experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_smoothblock_noortho_convergencefix"])
-experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_noortho_convergencefix"])
+#experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_smoothblock_noortho_convergencefix"])
+#experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_noortho_convergencefix"])
 experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_smoothblock_noortho_convergencefix"])
 experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_noortho_convergencefix"])
 experiment_list.append(["190620", "e25_opt_pitcher64_lowspin_onlygrad_noortho"])
@@ -318,7 +318,6 @@ for exp_current in experiment_list:
         non_increasing_error_iter = non_increasing_error_iter[(np.floor(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
 
     #non_increasing_error_iter = np.concatenate((non_increasing_error_iter[:5],non_increasing_error_iter[-5:]))
-    
     nmb_iter = non_increasing_error_iter.size
     
     if test_iter_number:
@@ -398,24 +397,29 @@ for exp_current in experiment_list:
         iterfile = "iter" + str(c_iter).zfill(6)
         
         if (recreate_pulseq_files and do_real_meas) or recreate_pulseq_files_for_sim:
-    	    fn_pulseq = "iter" + str(c_iter).zfill(6) + ".seq"
-    	    iflips = alliter_array['flips'][c_iter]
-    	    ivent = alliter_array['event_times'][c_iter]
-    	    gmo = alliter_array['grad_moms'][c_iter]
-    
-    	    seq_params = iflips, ivent, gmo
-    	    
-    	    today_datestr = date_str
-    	    basepath_out = os.path.join(basepath, "seq" + today_datestr)
-    	    basepath_out = os.path.join(basepath_out, experiment_id)
-    	    
-    	    if sequence_class.lower() == "gre":
+            fn_pulseq = "iter" + str(c_iter).zfill(6) + ".seq"
+            iflips = alliter_array['flips'][c_iter]
+            ivent = alliter_array['event_times'][c_iter]
+            gmo = alliter_array['grad_moms'][c_iter]
+            
+            # detect zero flip iteration
+            if np.sum(np.abs(iflips)) < 1e-8:
+                lin_iter_counter += 1
+                continue
+            
+            seq_params = iflips, ivent, gmo
+            
+            today_datestr = date_str
+            basepath_out = os.path.join(basepath, "seq" + today_datestr)
+            basepath_out = os.path.join(basepath_out, experiment_id)
+            
+            if sequence_class.lower() == "gre":
                 pulseq_write_GRE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
-    	    elif sequence_class.lower() == "rare":
+            elif sequence_class.lower() == "rare":
                 pulseq_write_RARE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
-    	    elif sequence_class.lower() == "bssfp":
+            elif sequence_class.lower() == "bssfp":
                 pulseq_write_BSSFP(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
-    	    elif sequence_class.lower() == "epi":
+            elif sequence_class.lower() == "epi":
                 pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
                 
         if do_real_meas:
