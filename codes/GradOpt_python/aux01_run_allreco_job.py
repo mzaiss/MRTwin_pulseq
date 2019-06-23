@@ -22,6 +22,7 @@ from sys import platform
 import scipy.misc
 
 from PIL import Image
+import imageio                                # pip install imageio
 
 import warnings
 with warnings.catch_warnings():
@@ -143,13 +144,12 @@ experiment_list = []
 
 #experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_smoothblock_noortho_convergencefix"])
 #experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_noortho_convergencefix"])
-experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_smoothblock_noortho_convergencefix"])
+#experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_smoothblock_noortho_convergencefix"])
 experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_noortho_convergencefix"])
-experiment_list.append(["190620", "e25_opt_pitcher64_lowspin_onlygrad_noortho"])
-experiment_list.append(["190620", "e25_opt_pitcher64_lowspin_allparam_noortho"])
-experiment_list.append(["190618", "e25_opt_pitcher96_onlygrad_adcrot"])
-experiment_list.append(["190618", "e25_opt_pitcher96_allparamm_sar5000x_adcrot"])
-experiment_list.append(["190619", "e25_opt_pitcher96_allparamm_sar5000x_adcrot"])
+#experiment_list.append(["190620", "e25_opt_pitcher64_lowspin_onlygrad_noortho"])
+#experiment_list.append(["190620", "e25_opt_pitcher64_lowspin_allparam_noortho"])
+#experiment_list.append(["190618", "e25_opt_pitcher96_onlygrad_adcrot"])
+#experiment_list.append(["190618", "e25_opt_pitcher96_allparamm_sar5000x_adcrot"])
 
 
 for exp_current in experiment_list:
@@ -162,7 +162,6 @@ for exp_current in experiment_list:
         adj_iter = exp_current[3][1]
     else:
         use_gen_adjoint = False
-        error_threshold_percent = 1.0
     
     fullpath_seq = os.path.join(basepath, "seq" + date_str, experiment_id)
     
@@ -308,15 +307,15 @@ for exp_current in experiment_list:
     non_increasing_error_iter = []
     lasterror = 1e10
     for c_iter in range(itt.size):
-        if -(itt[c_iter] - lasterror) > 1:
+        if -(itt[c_iter] - lasterror) > 0.1:
             non_increasing_error_iter.append(c_iter)
             lasterror = itt[c_iter]
             
     non_increasing_error_iter = np.array(non_increasing_error_iter)
     nmb_iter = non_increasing_error_iter.size
     if nmb_iter > max_nmb_iter:
-        non_increasing_error_iter = non_increasing_error_iter[(np.floor(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
-
+        non_increasing_error_iter = non_increasing_error_iter[(np.ceil(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
+        
     #non_increasing_error_iter = np.concatenate((non_increasing_error_iter[:5],non_increasing_error_iter[-5:]))
     nmb_iter = non_increasing_error_iter.size
     
@@ -454,6 +453,8 @@ for exp_current in experiment_list:
         lin_iter_counter += 1
         
         if do_real_meas:
+            scipy.misc.toimage(magimg(target_sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_sim_reco_adjoint.jpg"))
+            scipy.misc.toimage(magimg(target_real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_real_reco_adjoint.jpg"))
             scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
             scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
             scipy.misc.toimage(phaseimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
@@ -461,10 +462,32 @@ for exp_current in experiment_list:
             scipy.misc.toimage((1e-8+magimg(sim_kspace))).save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
             scipy.misc.toimage((1e-8+magimg(real_kspace))).save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
             
+            # make some gifs            
+            gif_array = []
+            for i in range(all_sim_reco_adjoint.shape[0]):
+                frame = magimg(all_sim_reco_adjoint[i,:,:,:])
+                frame *= 255.0/np.max(frame)
+                gif_array.append(frame.astype(np.uint8))  
+            imageio.mimsave(os.path.join(dp_control, "status_related", "sim_reco_adjoint.gif"), gif_array)
+            
+            gif_array = []
+            for i in range(all_real_reco_adjoint.shape[0]):
+                frame = magimg(all_real_reco_adjoint[i,:,:,:])
+                frame *= 255.0/np.max(frame)
+                gif_array.append(frame.astype(np.uint8))  
+            imageio.mimsave(os.path.join(dp_control, "status_related", "real_reco_adjoint.gif"), gif_array)
+            
             status_lines = []
             status_lines.append("experiment id: " + experiment_id + "\n")
             status_lines.append("processing iteration {} out of {} \n".format(lin_iter_counter, nmb_iter))
-
+            
+            sim_error = e(magimg(target_sim_reco_adjoint), magimg(sim_reco_adjoint))
+            meas_error = e(magimg(target_real_reco_adjoint), magimg(real_reco_adjoint))
+            
+            # compute error wrt target
+            status_lines.append("error = "+str(np.round(sim_error))+"%\n")
+            status_lines.append("error = "+str(np.round(meas_error))+"%\n")
+            
             with open(os.path.join(dp_control, "status_related", "status_lines.txt"),"w") as f:
                 f.writelines(status_lines)
         

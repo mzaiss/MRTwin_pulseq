@@ -1341,18 +1341,6 @@ class Scanner():
                 gf[0] = torch.sum(torch.sum(GG,[1,2]) * scanner.rampX.squeeze())
                 gf[1] = torch.sum(torch.sum(GG,[1,2])  * scanner.rampY.squeeze())
                 
-                
-#                gft[:,0,0] *= -B0_grad_sin
-#                gft[:,0,1] *= -B0_grad_cos
-#                gft[:,1,0] *= B0_grad_cos
-#                gft[:,1,1] *= -B0_grad_sin
-#                
-#                gft = torch.sum(gft,[1,2])
-#                gf = scanner.setdevice(torch.zeros((2,), dtype=torch.float32))
-#                
-#                gf[0] = torch.sum(gft * scanner.rampX.squeeze())
-#                gf[1] = torch.sum(gft * scanner.rampY.squeeze())                
-                
                 return (gf, gx, None)
             
         class AuxGetSignalGradMul(torch.autograd.Function):
@@ -1675,7 +1663,7 @@ class Scanner():
                         self.set_B0inhomogeneity_tensor(spins,total_delay)                        
                         
                         #spins.M = RelaxClass.apply(self.R, spins.M,total_delay,t,self,spins)
-                        spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,delay,t,r,self,spins)
+                        spins.M = RelaxSupermemRAMClass.apply(self.R,spins.M,total_delay,t,r,self,spins)
                         spins.M = DephaseClass.apply(self.P,spins.M,self)
                         
                         # read signal
@@ -2120,10 +2108,6 @@ class Scanner():
                         self.SB0sig = S
                         
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
-                        self.ROI_signal[start_t:t+1,r,0] = delay
-                        self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins.M[:,0,self.ROI_def,:],[0]).flatten().detach().cpu().unsqueeze(0)
-                        self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins.M[:,0,self.ROI_def,2]),[0]).flatten().detach().cpu()
-                        
                         self.set_relaxation_tensor(spins,total_delay)
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
@@ -2775,7 +2759,7 @@ class Scanner_fast(Scanner):
         super().forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
         
     def forward_sparse_fast_supermem(self,spins,event_time,do_dummy_scans=False):
-        super().forward_sparse_fast_supermem(spins,event_time,do_dummy_scans,compact_grad_tensor=False)        
+        super().forward_sparse_fast_supermem(spins,event_time)
         
     def do_dummy_scans(self,spins,event_time,nrep=0):
         super().do_dummy_scans(spins,event_time,compact_grad_tensor=False,nrep=nrep)
