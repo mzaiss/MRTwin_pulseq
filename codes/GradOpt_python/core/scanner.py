@@ -1088,10 +1088,6 @@ class Scanner():
     # run throw all repetition/actions and yield signal
     def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True,kill_transverse=False):
 
-        class ExecutionControl(Exception): pass
-        raise ExecutionControl('forward_fast: broken! use forward_fast_supermem instead')
-        
-        
         self.init_signal()
         if do_dummy_scans == False:
             spins.set_initial_magnetization()
@@ -1122,11 +1118,6 @@ class Scanner():
                 
                 if self.adc_mask[t] == 0:                         # regular pass
                     self.read_signal(t,r,spins)
-                    
-#                    self.ROI_signal[t,r,0] =   delay
-#                    self.ROI_signal[t,r,1:4] =  torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu()  # hard coded pixel id 0
-#                    self.ROI_signal[t,r,4] =  torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()  # hard coded pixel id 0                        
-                    
                     if t < self.F.shape[0]:
                         if self.F.shape[2] > 1:
                               spins_cut = FlipClass.apply(self.F[t,r,PD0_mask,:,:],spins_cut,self)
@@ -1154,10 +1145,6 @@ class Scanner():
                         start_t = t
                         
                     elif t == (self.T - half_read*2)//2 + half_read or self.adc_mask[t+1] == 0:
-#                        self.ROI_signal[start_t:t+1,r,0] = total_delay
-#                        self.ROI_signal[start_t:t+1,r,1:4] = torch.sum(spins_cut[:,0,0,:],[0]).flatten().detach().cpu().unsqueeze(0)
-#                        self.ROI_signal[start_t:t+1,r,4] = torch.sum(abs(spins_cut[:,0,0,2]),[0]).flatten().detach().cpu()
-                        
                         self.set_relaxation_tensor(spins,total_delay)
                         self.set_freeprecession_tensor(spins,total_delay)
                         self.set_B0inhomogeneity_tensor(spins,total_delay)                          
