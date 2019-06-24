@@ -122,3 +122,45 @@ class RecoConvNet_residual(nn.Module):
         
         return x
         
+
+class VoxelwiseNet(nn.Module):   
+    # nmb_conv_neurons_list (list) - number of elements in the list - number of layers, each element of the list - number of conv neurons
+    # kernel_size -- convolution kernel size
+    
+    def __init__(self,sz,nmb_hidden_neurons,use_gpu=True,gpu_device=0):
+        super(VoxelwiseNet, self).__init__()
+        
+        self.sz = sz
+        self.layer_spec = nmb_hidden_neurons
+        self.dense_layers = []
+        
+        paramlist = []                                # paramlist for optimizer
+        
+        for l_idx in range(len(self.layer_spec)-1):
+            # set convolution layers
+            dense_layer = nn.Linear(self.layer_spec[l_idx], self.layer_spec[l_idx+1])
+            self.dense_layers.append(dense_layer)
+            
+            if use_gpu:
+                dense_layer = dense_layer.cuda(gpu_device)
+                
+            paramlist.append(dense_layer.weight)
+
+        self.paramlist = nn.ParameterList(paramlist)
+            
+    # define forward pass graph
+    def forward(self, x):
+        batch_size = x.shape[1]
+        
+        x = x.permute([1,0,2])
+        x = x.reshape([batch_size,self.layer_spec[0]])
+
+        for l_idx in range(len(self.layer_spec)-1):
+            x = self.dense_layers[l_idx](x)
+            
+            if l_idx < len(self.layer_spec) - 2:
+                x = torch.relu(x)
+                
+        x = x.view([batch_size,self.layer_spec[-1]])
+        
+        return x
