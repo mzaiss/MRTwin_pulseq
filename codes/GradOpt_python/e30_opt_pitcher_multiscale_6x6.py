@@ -200,7 +200,7 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
     
 # forward/adjoint pass
 #scanner.forward_fast_supermem(spins, event_time)
-scanner.forward(spins, event_time)
+scanner.forward_fast_supermem(spins, event_time)
 #scanner.forward_mem(spins, event_time)
 scanner.adjoint()
 
@@ -272,7 +272,7 @@ def init_variables():
     grad_moms.zero_grad_mask = grad_moms_mask
 #    
     grad_moms[1,:,0] = grad_moms[1,:,0]*0  -1    # remove rewinder gradients
-    grad_moms[1,:,1] = -grad_moms[1,:,1]*0 + setdevice(0.1*(torch.rand(grad_moms[1,:,1].shape)-0.5))
+    grad_moms[1,:,1] = -grad_moms[1,:,1]*0 + 0*setdevice(1.0*(torch.rand(grad_moms[1,:,1].shape)-0.5))
     
     grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
     grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
@@ -295,7 +295,7 @@ def phi_FRP_model(opt_params,aux_params):
          
     # forward/adjoint pass
     #scanner.forward_fast_supermem(spins, event_time)
-    scanner.forward(spins, event_time)
+    scanner.forward_fast_supermem(spins, event_time)
     #scanner.forward_mem(spins, event_time)
     scanner.adjoint()
 
