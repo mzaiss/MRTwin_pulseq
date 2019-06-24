@@ -159,7 +159,7 @@ class VoxelwiseNet(nn.Module):
             x = self.dense_layers[l_idx](x)
             
             if l_idx < len(self.layer_spec) - 2:
-                x = torch.relu(x)
+                x = torch.tanh(x)
                 
         x = x.view([batch_size,self.layer_spec[-1]])
         
