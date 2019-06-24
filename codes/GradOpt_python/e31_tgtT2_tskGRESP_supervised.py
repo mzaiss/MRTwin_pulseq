@@ -296,7 +296,9 @@ def phi_FRP_model(opt_params,aux_params):
     
     target_image = target_db[samp_idx,:,:].reshape([sz[0],sz[1]])
     
-    loss_image = (cnn_output - target_image)
+    non_zero_voxel_mask = setdevice(torch.from_numpy(spin_db_input[samp_idx,:,:,0] > 0))
+    
+    loss_image = (cnn_output - target_image) * non_zero_voxel_mask
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
     
     loss = loss_image
