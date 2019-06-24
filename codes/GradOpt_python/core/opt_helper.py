@@ -476,14 +476,16 @@ class OPT_helper():
             plt.title('target')
             plt.ion()
             
-            ax1=plt.subplot(256)
-            ax=plt.imshow(tonumpy(PD0_mask)*phaseimg(self.target), interpolation='none')
-            plt.clim(-np.pi,np.pi) 
-            #plt.clim(0,1)
-            fig = plt.gcf()
-            fig.colorbar(ax)
-            plt.title('target phase')
-            plt.ion()
+            # show phase only for complex-valued targets
+            if len(self.target.shape) > 2 and self.target.shape[2] > 1:
+                ax1=plt.subplot(256)
+                ax=plt.imshow(tonumpy(PD0_mask)*phaseimg(self.target), interpolation='none')
+                plt.clim(-np.pi,np.pi) 
+                #plt.clim(0,1)
+                fig = plt.gcf()
+                fig.colorbar(ax)
+                plt.title('target phase')
+                plt.ion()
             
             plt.subplot(252, sharex=ax1, sharey=ax1)
             ax=plt.imshow(magimg(recoimg), interpolation='none')
