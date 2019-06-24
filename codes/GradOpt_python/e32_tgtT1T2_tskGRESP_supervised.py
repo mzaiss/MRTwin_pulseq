@@ -233,11 +233,11 @@ target = setdevice(torch.from_numpy(real_phantom_resized[:,:,2]).float())
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
 
 # Prepare target db: iterate over all samples in the DB
-target_db = setdevice(torch.zeros((nmb_samples,NVox,1)).float())
+target_db = setdevice(torch.zeros((nmb_samples,NVox,2)).float())
     
 for i in range(nmb_samples):
-    tgt = torch.from_numpy(spin_db_input[i,:,:,2:3].reshape([NVox,1]))
-    target_db[i,:,:] = tgt.reshape([sz[0],sz[1],1]).flip([0,1]).permute([1,0,2]).reshape([NVox,1])
+    tgt = torch.from_numpy(spin_db_input[i,:,:,1:3].reshape([NVox,2]))
+    target_db[i,:,:] = tgt.reshape([sz[0],sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([NVox,2])
 
 # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -292,9 +292,9 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_sparse_fast_supermem(spins, event_time)
     reco_all_rep = scanner.adjoint_separable()
     
-    cnn_output = CNN(reco_all_rep).reshape([sz[0],sz[1]])
+    cnn_output = CNN(reco_all_rep).reshape([sz[0],sz[1],2])
     
-    target_image = target_db[samp_idx,:,:].reshape([sz[0],sz[1]])
+    target_image = target_db[samp_idx,:,:].reshape([sz[0],sz[1],2])
     
     loss_image = (cnn_output - target_image)
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -305,31 +305,48 @@ def phi_FRP_model(opt_params,aux_params):
     
     phi = loss
   
-    ereco = tonumpy(cnn_output).reshape([sz[0],sz[1]])
+    ereco = tonumpy(cnn_output).reshape([sz[0],sz[1],2])
     error = e(tonumpy(target_image).ravel(),ereco.ravel())     
     
     if True:
+        tgt_show = tonumpy(target_image).reshape([sz[0],sz[1],2])
+        reco_show = tonumpy(cnn_output)
+        
         # print results
-        ax1=plt.subplot(121)
-        ax=plt.imshow(tonumpy(target_image), interpolation='none')
+        ax1=plt.subplot(221)
+        ax=plt.imshow(tgt_show[:,:,0], interpolation='none')
         fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('target')
+        fig.colorbar(ax)
+        plt.title('target T1')
         plt.ion()
         
-        plt.subplot(122, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(tonumpy(cnn_output), interpolation='none')
+        plt.subplot(222, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(reco_show[:,:,0], interpolation='none')
         fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('reco')
+        fig.colorbar(ax)
+        plt.title('reco t1')
         plt.ion()
         
-        plt.show()
+        ax1=plt.subplot(223)
+        ax=plt.imshow(tgt_show[:,:,1], interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)
+        plt.title('target T2')
+        plt.ion()
+        
+        plt.subplot(224, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(reco_show[:,:,1], interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)
+        plt.title('reco t2')
+        plt.ion()
+        
+        plt.show()    
     
     return (phi,cnn_output, error)
         
 # %% # OPTIMIZATION land
-nmb_hidden_neurons_list = [2*NRep,32,32,1]
+nmb_hidden_neurons_list = [2*NRep,32,32,2]
 CNN = core.nnreco.VoxelwiseNet(spins.sz, nmb_hidden_neurons_list,use_gpu=use_gpu,gpu_device=gpu_dev)
 
 opt = core.opt_helper.OPT_helper(scanner,spins,CNN,1)
