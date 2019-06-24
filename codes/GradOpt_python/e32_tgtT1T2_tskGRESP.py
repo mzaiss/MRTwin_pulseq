@@ -299,7 +299,7 @@ def phi_FRP_model(opt_params,aux_params):
         plt.ion()
         
         plt.subplot(224, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(reco_show[:,:,0], interpolation='none')
+        ax=plt.imshow(reco_show[:,:,1], interpolation='none')
         fig = plt.gcf()
         fig.colorbar(ax)
         plt.title('reco t2')
