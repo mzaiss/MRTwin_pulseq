@@ -884,7 +884,6 @@ class OPT_helper():
             tosave_opt_params = self.scanner_opt_params
             
             try:
-                os.makedirs(basepath)
                 os.makedirs(os.path.join(basepath,"data"))
             except:
                 pass
