@@ -40,7 +40,7 @@ use_supermem = True
 do_scanner_query = False
 
 use_gpu = 1
-gpu_dev = 0
+gpu_dev = 1
 
 if sys.platform != 'linux':
     use_gpu = 0
@@ -88,11 +88,11 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 extraRep = 1
 NRep = extraRep*sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 16**2                                # number of spin sims in each voxel
+NSpins = 26**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
@@ -271,6 +271,41 @@ def phi_FRP_model(opt_params,aux_params):
   
     ereco = tonumpy(cnn_output).reshape([sz[0],sz[1],2])
     error = e(tonumpy(targetSeq.target_image).ravel(),ereco.ravel())     
+    
+    if True:
+        tgt_show = tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],2])
+        reco_show = tonumpy(cnn_output)
+        
+        # print results
+        ax1=plt.subplot(221)
+        ax=plt.imshow(tgt_show[:,:,0], interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)
+        plt.title('target T1')
+        plt.ion()
+        
+        plt.subplot(222, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(reco_show[:,:,0], interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)
+        plt.title('reco t1')
+        plt.ion()
+        
+        ax1=plt.subplot(223)
+        ax=plt.imshow(tgt_show[:,:,1], interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)
+        plt.title('target T2')
+        plt.ion()
+        
+        plt.subplot(224, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(reco_show[:,:,0], interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)
+        plt.title('reco t2')
+        plt.ion()
+        
+        plt.show()    
     
     return (phi,scanner.reco, error)
         

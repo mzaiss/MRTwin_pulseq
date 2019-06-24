@@ -88,11 +88,11 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
-extraRep = 2
+sz = np.array([32,32])                                           # image size
+extraRep = 1
 NRep = extraRep*sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 16**2                                # number of spin sims in each voxel
+NSpins = 26**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
@@ -275,6 +275,24 @@ def phi_FRP_model(opt_params,aux_params):
   
     ereco = tonumpy(cnn_output).reshape([sz[0],sz[1]])
     error = e(tonumpy(targetSeq.target_image).ravel(),ereco.ravel())     
+    
+    if True:
+        # print results
+        ax1=plt.subplot(121)
+        ax=plt.imshow(tonumpy(targetSeq.target_image), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('target')
+        plt.ion()
+        
+        plt.subplot(122, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(tonumpy(cnn_output), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('reco')
+        plt.ion()
+        
+        plt.show()
     
     return (phi,scanner.reco, error)
         
