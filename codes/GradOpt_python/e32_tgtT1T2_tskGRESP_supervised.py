@@ -119,7 +119,7 @@ real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 spins.set_system(real_phantom_resized)
 
-csz = 6
+csz = 24
 nmb_samples = 32
 spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
 
@@ -174,7 +174,7 @@ flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degr
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
-flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
+#flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
 
 flips = setdevice(flips)
 
@@ -289,7 +289,8 @@ def phi_FRP_model(opt_params,aux_params):
     samp_idx = np.random.choice(nmb_samples,1)[0]
 
     spins.set_system(spin_db_input[samp_idx,:,:,:])
-    scanner.forward_sparse_fast_supermem(spins, event_time)
+    #scanner.forward_sparse_fast_supermem(spins, event_time)
+    scanner.forward_fast_supermem(spins, event_time)
     reco_all_rep = scanner.adjoint_separable()
     
     cnn_output = CNN(reco_all_rep).reshape([sz[0],sz[1],2])
@@ -297,6 +298,7 @@ def phi_FRP_model(opt_params,aux_params):
     target_image = target_db[samp_idx,:,:].reshape([sz[0],sz[1],2])
     
     non_zero_voxel_mask = setdevice(torch.from_numpy(spin_db_input[samp_idx,:,:,0] > 0)).unsqueeze(2)
+    non_zero_voxel_mask[:] = 1
     
     loss_image = (cnn_output - target_image) * non_zero_voxel_mask
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -310,7 +312,7 @@ def phi_FRP_model(opt_params,aux_params):
     ereco = tonumpy(cnn_output).reshape([sz[0],sz[1],2])
     error = e(tonumpy(target_image).ravel(),ereco.ravel())     
     
-    if True:
+    if False:
         tgt_show = tonumpy(target_image).reshape([sz[0],sz[1],2])
         reco_show = tonumpy(cnn_output)
         
@@ -359,13 +361,17 @@ opt.experiment_description = experiment_description
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seqnn'
 # 
-opt.set_opt_param_idx([1]) # ADC, RF, time, grad
+opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
 opt.custom_learning_rate = [0.01,0.05,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
-opt.train_model(training_iter=350, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+lr_inc=np.array([0.1, 0.1, 0.05, 0.05, 0.01, 0.01, 0.005, 0.001,0.001])
+
+for i in range(len(lr_inc)):
+    opt.custom_learning_rate = [0.01,lr_inc[i],0.1,lr_inc[i]]
+    opt.train_model(training_iter=150, do_vis_image=False, save_intermediary_results=True)
  
 # %% # save optimized parameter history
 
