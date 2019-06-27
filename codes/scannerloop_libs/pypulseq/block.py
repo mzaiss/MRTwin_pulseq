@@ -73,6 +73,7 @@ def add_block(self, block_index, *args):
             duration = max(duration, len(g[0]) * self.grad_raster_time)
         elif event.type == 'trap':
             channel_num = ['x', 'y', 'z'].index(event.channel)
+            #print("amplitude: "+str(event.amplitude))
             data = np.array([event.amplitude, event.rise_time, event.flat_time, event.fall_time, event.delay])
             index, found = self.grad_library.find(data)
             if not found:

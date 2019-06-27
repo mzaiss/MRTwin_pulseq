@@ -127,7 +127,7 @@ plt.show()
 print('use_gpu = ' +str(use_gpu)) 
 
 #begin nspins with R*
-R2 = 0.0
+R2 = 30.0
 omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5    # cutoff might bee needed for opt.
 #omega = np.random.rand(NSpins,NVox) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
@@ -356,10 +356,12 @@ print('<seq> Optimization starts now, use_gpu = ' +str(use_gpu))
 lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.5, 0.2, 0.1, 0.1])
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
 
+query_kwargs = experiment_id, today_datestr, sequence_class
+
 for i in range(7):
     opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=200, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+    opt.train_model(training_iter=200, do_vis_image=False, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
 opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 

@@ -154,11 +154,11 @@ class VoxelwiseNet(nn.Module):
         
         x = x.permute([1,0,2])
         x = x.reshape([batch_size,self.layer_spec[0]])
-
+        
         for l_idx in range(len(self.layer_spec)-1):
             x = self.dense_layers[l_idx](x)
             
-            if l_idx < len(self.layer_spec) - 2:
+            if l_idx < len(self.layer_spec) - 3:
                 x = torch.tanh(x)
                 
         x = x.view([batch_size,self.layer_spec[-1]])
