@@ -95,10 +95,12 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         idx_T = np.arange(2, grad_moms_numpy.shape[0] - 2) # T(2)
         dur = np.sum(event_time_numpy[idx_T,rep])
         
-        kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,0],0), "flat_time": dur}
+        gx_gradmom = np.sum(grad_moms_numpy[idx_T,rep,0],0)
+        kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": gx_gradmom, "flat_time": dur}
         gx = make_trapezoid(kwargs_for_gx)    
         
-        kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,1],0), "flat_time": dur}
+        gy_gradmom = np.sum(grad_moms_numpy[idx_T,rep,1],0)
+        kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": gy_gradmom, "flat_time": dur}
         gy = make_trapezoid(kwargs_for_gy)
         
         kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": (gx.rise_time - event_time_numpy[idx_T[0],rep]/2), "phase_offset": rf.phase_offset}
@@ -110,9 +112,19 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         
         kwargs_for_gypre = {"channel": 'y', "system": system, "area": gradmom_rewinder[1]-gy.amplitude*gy.rise_time/2, "duration": eventtime_rewinder}
         gy_pre = make_trapezoid(kwargs_for_gypre)
-    
-        seq.add_block(gx_pre, gy_pre)
-        seq.add_block(gx,gy,adc)
+        
+        # dont play zero grads (cant even do FID otherwise)
+        if np.abs(gradmom_rewinder[0]) > 0 or np.abs(gradmom_rewinder[1]) > 0:
+            seq.add_block(gx_pre, gy_pre)
+        
+        seq.add_block(make_delay(1e-3))
+        
+        # dont play zero grads (cant even do FID otherwise)
+        if np.abs(gx_gradmom) > 0 or np.abs(gy_gradmom) > 0:
+            seq.add_block(gx,gy,adc)
+        else:
+            seq.add_block(adc)
+        
         
         ###############################
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
@@ -124,7 +136,9 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gy_post = make_trapezoid(kwargs_for_gypost)  
         
-        seq.add_block(gx_post, gy_post)
+        # dont play zero grads (cant even do FID otherwise)
+        if np.abs(grad_moms_numpy[idx_T,rep,0]) > 0 or np.abs(grad_moms_numpy[idx_T,rep,1]) > 0:
+            seq.add_block(gx_post, gy_post)
         
         ###############################
         ###     last extra event  T(end)
