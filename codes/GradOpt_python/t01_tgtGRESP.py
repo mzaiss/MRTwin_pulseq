@@ -77,7 +77,7 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([32,32])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 16**2                                # number of spin sims in each voxel
@@ -144,7 +144,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 adc_mask = torch.from_numpy(np.ones((T,1))).float()
 adc_mask[:2]  = 0
 adc_mask[-2:] = 0
@@ -161,7 +161,11 @@ flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
 flips = setdevice(flips)
 
 scanner.init_flip_tensor_holder()
-scanner.set_flipXY_tensor(flips)
+B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
+B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
+B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
+scanner.B1plus = setdevice(B1plus)    
+scanner.set_flip_tensor_withB1plus(flips)
 
 # rotate ADC according to excitation phase
 scanner.set_ADC_rot_tensor(-flips[0,:,1] + -np.pi/2) #GRE/FID specific
@@ -243,7 +247,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
         
                     
-    stop()
+    #stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -298,10 +302,11 @@ def phi_FRP_model(opt_params,aux_params):
     adc_mask,flips,event_time,grad_moms = reparameterize(opt_params)
 
     scanner.init_flip_tensor_holder()
-    scanner.set_flipXY_tensor(flips)    
+    scanner.set_flip_tensor_withB1plus(flips) 
     # rotate ADC according to excitation phase
-    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
-          
+#    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
+    scanner.set_ADC_rot_tensor(-flips[0,:,1] + -np.pi/2) #GRE/FID specific     
+    
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # GRE/FID specific, maybe adjust for higher echoes
          
@@ -345,7 +350,7 @@ opt.experiment_description = experiment_description
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
+opt.set_opt_param_idx([1]) # ADC, RF, time, grad
 opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
@@ -359,7 +364,7 @@ lr_inc=np.array([0.1, 0.2, 0.5, 0.7, 0.5, 0.2, 0.1, 0.1])
 query_kwargs = experiment_id, today_datestr, sequence_class
 
 for i in range(7):
-    opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
+    opt.custom_learning_rate = [0.01,0.01,0.1,lr_inc[i]]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
     opt.train_model(training_iter=200, do_vis_image=False, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
 opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
