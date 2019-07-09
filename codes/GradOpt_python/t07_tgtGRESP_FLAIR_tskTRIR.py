@@ -287,16 +287,17 @@ def init_variables():
     flips = setdevice(flips)
     
     flip_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()     
-    flip_mask[0,:,:] = 1
+    flip_mask[:,0,:] = 0
+    flip_mask[1:,:,:] = 0
     flip_mask = setdevice(flip_mask)
     flips.zero_grad_mask = flip_mask
       
     event_time = targetSeq.event_time.clone()
-    #event_time[-1,:] = 1e-6
+    event_time[-1,:] = 1e-6
     event_time = setdevice(event_time)
     
     event_time_mask = torch.zeros((scanner.T, scanner.NRep)).float()        
-    #event_time_mask[-1,:] = 1
+    event_time_mask[-1,:] = 1
     event_time_mask = setdevice(event_time_mask)
     event_time.zero_grad_mask = event_time_mask
         
@@ -326,7 +327,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_fast(spins, event_time)
     scanner.adjoint()
 
-    lbd = 1*0.3*sz[0]         # switch on of SAR cost
+    lbd = 50*0.3*sz[0]         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
     loss_sar = torch.sum(flips[:,:,0]**2)/NRep
@@ -361,8 +362,8 @@ opt.learning_rate = 1e-2
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([1]) # ADC, RF, time, grad
-opt.custom_learning_rate = [1e-2,5*1e-4,1e-2,1e-2]
+opt.set_opt_param_idx([2]) # ADC, RF, time, grad
+opt.custom_learning_rate = [1e-2,1e-2,1e-2,1e-2]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
