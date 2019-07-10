@@ -35,8 +35,10 @@ class RecoConvNet_basic(nn.Module):
                 conv_layer = conv_layer.cuda(gpu_device)
                 bnlayer = bnlayer.cuda(gpu_device)
             
-            paramlist.append(conv_layer.weight)
-            paramlist.append(bnlayer.weight)
+            for par in conv_layer.parameters():
+                paramlist.append(par)            
+            for par in bnlayer.parameters():
+                paramlist.append(par)   
 
         self.paramlist = nn.ParameterList(paramlist)
             
@@ -94,8 +96,10 @@ class RecoConvNet_residual(nn.Module):
                 conv_layer = conv_layer.cuda(gpu_device)
                 bnlayer = bnlayer.cuda(gpu_device)
             
-            paramlist.append(conv_layer.weight)
-            paramlist.append(bnlayer.weight)
+            for par in conv_layer.parameters():
+                paramlist.append(par)            
+            for par in bnlayer.parameters():
+                paramlist.append(par)            
 
         self.paramlist = nn.ParameterList(paramlist)
             
@@ -138,29 +142,23 @@ class VoxelwiseNet(nn.Module):
         
         for l_idx in range(len(self.layer_spec)-1):
             # set convolution layers
-            dense_layer = nn.Linear(self.layer_spec[l_idx], self.layer_spec[l_idx+1])
+            dense_layer = nn.Linear(self.layer_spec[l_idx], self.layer_spec[l_idx+1], bias=True)
             self.dense_layers.append(dense_layer)
             
             if use_gpu:
                 dense_layer = dense_layer.cuda(gpu_device)
-                
-            paramlist.append(dense_layer.weight)
+             
+            for par in dense_layer.parameters():
+                paramlist.append(par)
 
         self.paramlist = nn.ParameterList(paramlist)
             
     # define forward pass graph
     def forward(self, x):
-        batch_size = x.shape[1]
-        
-        x = x.permute([1,0,2])
-        x = x.reshape([batch_size,self.layer_spec[0]])
-        
         for l_idx in range(len(self.layer_spec)-1):
             x = self.dense_layers[l_idx](x)
             
-            if l_idx < len(self.layer_spec) - 3:
+            if l_idx < len(self.layer_spec) - 2:
                 x = torch.tanh(x)
                 
-        x = x.view([batch_size,self.layer_spec[-1]])
-        
         return x

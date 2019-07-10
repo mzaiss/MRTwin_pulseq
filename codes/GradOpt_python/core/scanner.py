@@ -70,6 +70,7 @@ class Scanner():
         self.collect_presignal = False
         
         # phase cycling
+        # array is obsolete: deprecate in future, this dummy is for backward compat
         self.phase_cycler = np.array([0,117,351,342,90,315,297,36,252,225,315,162,126,207,45,0,72,261,207,270,90,27,81,252,180,225,27,306,342,135,45,72,216,117,135,270,162,171,297,180,180,297,171,162,270,135,117,216,72,45,135,
                                       342,306,27,225,180,252,81,27,90,270,207,261,72,0,45,207,126,162,315,225,252,36,297,315,90,342,351,117,0,0,117,351,342,90,315,297,36,252,225,315,162,126,207,45,0,72,261,207,270,90,27,81,252,
                                       180,225,27,306,342,135,45,72,216,117,135,270,162,171,297,180,180,297,171,162,270,135,117,216])
@@ -153,6 +154,8 @@ class Scanner():
         off = 1 / dim
         if dim == torch.floor(dim):
             xv, yv = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
+            xv = xv + (torch.randn(xv.shape))*off
+            yv = yv + (torch.randn(yv.shape))*off
             intravoxel_dephasing_ramp = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
         else:
             class ExecutionControl(Exception): pass
@@ -164,15 +167,21 @@ class Scanner():
         permvec = np.random.choice(self.NSpins,self.NSpins,replace=False)
         intravoxel_dephasing_ramp = intravoxel_dephasing_ramp[permvec,:]
         #intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
-            
-        #intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
-        intravoxel_dephasing_ramp /= torch.from_numpy(self.sz-1).float().unsqueeze(0)
+        #intravoxel_dephasing_ramp /= torch.from_numpy(self.sz-1).float().unsqueeze(0)
+        intravoxel_dephasing_ramp /= torch.from_numpy(self.sz).float().unsqueeze(0)
             
         self.intravoxel_dephasing_ramp = self.setdevice(intravoxel_dephasing_ramp)    
         
     # function is obsolete: deprecate in future, this dummy is for backward compat
     def get_ramps(self):
         pass
+    
+    
+    def get_phase_cycler(self, n, dphi):
+        out = np.cumsum(np.arange(n) * dphi)
+        out = np.mod(out, 360)
+        
+        return out    
         
     def init_coil_sensitivities(self):
         # handle complex mul as matrix mul
@@ -379,10 +388,13 @@ class Scanner():
         # intravoxel precession
         IVP = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
         IVP = self.setdevice(IVP)
-        
         IVP[:,0,0,2,2] = 1
-        
         self.IVP = IVP        
+        
+#        IVP = torch.zeros((self.NSpins,1,self.NVox,3,3), dtype=torch.float32)
+#        IVP = self.setdevice(IVP)
+#        IVP[:,0,:,2,2] = 1
+#        self.IVP = IVP          
         
     def set_grad_op(self,r):
           
@@ -473,6 +485,7 @@ class Scanner():
     def grad_precess(self,t,spins):
         spins.M = torch.matmul(self.G[t,:,:,:],spins.M)
         
+    #def set_grad_intravoxel_precess_tensor_allvox_samedistr(self,t,r):
     def set_grad_intravoxel_precess_tensor(self,t,r):
         intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0) * self.intravoxel_dephasing_ramp
         intra_b0 = torch.sum(intra_b0,1)
@@ -484,6 +497,18 @@ class Scanner():
         self.IVP[:,0,0,0,1] = -IVP_nspins_sin
         self.IVP[:,0,0,1,0] = IVP_nspins_sin
         self.IVP[:,0,0,1,1] = IVP_nspins_cos
+        
+#    def set_grad_intravoxel_precess_tensor(self,t,r):
+#        intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0).unsqueeze(0) * self.intravoxel_dephasing_ramp
+#        intra_b0 = torch.sum(intra_b0,2)
+#        
+#        IVP_nspins_cos = torch.cos(intra_b0)
+#        IVP_nspins_sin = torch.sin(intra_b0)
+#        
+#        self.IVP[:,0,:,0,0] = IVP_nspins_cos
+#        self.IVP[:,0,:,0,1] = -IVP_nspins_sin
+#        self.IVP[:,0,:,1,0] = IVP_nspins_sin
+#        self.IVP[:,0,:,1,1] = IVP_nspins_cos
    
         
     # intravoxel gradient-driven precession
@@ -670,6 +695,9 @@ class Scanner():
 
                 self.set_grad_intravoxel_precess_tensor(t,r)
                 spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
+                
+            #if r == 0:
+            #    spins.M[:,0,:,:2,0] = 0                
                 
 #            spins.M[:,0,:,:2,0] = 0
 #            spins.set_initial_magnetization()
@@ -2041,7 +2069,6 @@ class Scanner():
                         self.set_B0inhomogeneity_tensor(spins,total_delay)
                         
                         spins_cut = RelaxSupermemRAMClass.apply(self.R[:,PD0_mask,:,:],spins_cut,total_delay,t,r,self,spins)
-                        #spins_cut = RelaxClass.apply(self.R,spins_cut,total_delay,t,self,spins)
                         spins_cut = DephaseClass.apply(self.P,spins_cut,self)
                         
                         
@@ -2559,8 +2586,6 @@ class Scanner():
                 
                 time.sleep(0.5)
                 
-       
-
 # Fast, but memory inefficient version (also for now does not support parallel imagigng)
 class Scanner_fast(Scanner):
     

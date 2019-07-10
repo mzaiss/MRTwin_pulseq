@@ -237,13 +237,23 @@ class OPT_helper():
         
     # evaluate loss and partial derivatives over parameters
     def weak_closure(self):
-        self.optimizer.zero_grad()
-        loss,last_reco,last_error = self.phi_FRP_model(self.scanner_opt_params, None)
-        self.last_reco = last_reco
-        self.last_error = last_error
-        loss.backward()
+        kumloss = 0
+        bsz = 1
         
-        return loss 
+        self.optimizer.zero_grad()
+        
+        if hasattr(self, 'batch_size'):
+            bsz = self.batch_size
+            
+        for i in range(bsz):
+            loss,last_reco,last_error = self.phi_FRP_model(self.scanner_opt_params, None)
+            self.last_reco = last_reco
+            self.last_error = last_error
+            loss.backward()
+            
+            kumloss += loss
+        
+        return kumloss 
             
     def init_optimizer(self):
         WEIGHT_DECAY = 1e-8
@@ -400,11 +410,68 @@ class OPT_helper():
                 
                 self.param_reco_history.append(saved_state)      
                 
-                
-
             #self.new_batch()
             self.optimizer.step(self.weak_closure)
             
+    def train_model_supervised(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False):
+        
+        for i in range(len(self.scanner_opt_params)):
+            if i in self.opt_param_idx:
+                self.scanner_opt_params[i].requires_grad = True
+            else:
+                self.scanner_opt_params[i].requires_grad = False
+        
+        self.init_optimizer()
+        
+        # continue optimization if optimizer state is saved
+        if self.best_optimizer_state is not None:
+            checkpoint = torch.load("results/optimizer_state.tmp")
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+            
+            print('Loading saved optimizer state....')
+            
+        # main optimization loop
+        for inner_iter in range(training_iter):
+            
+            # evaluate initial image state before doing optimizer step
+            if inner_iter == 0:
+                _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None, do_test_onphantom=True)
+            print(colored("\033[93m iter %d, recon error = %f \033[0m%%" % (inner_iter,self.last_error), 'green'))
+            
+            self.optimizer.step(self.weak_closure)            
+            
+            # save entire history of optimized params/reco images
+            if save_intermediary_results and np.mod(inner_iter,10) == 0 and inner_iter > 0:
+                _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None, do_test_onphantom=True)
+                self.print_status(do_vis_image,self.last_reco)
+                print(colored("\033[93m phantom eval: iter %d, recon error = %f \033[0m%%" % (inner_iter,self.last_error), 'red'))
+                
+                tosave_opt_params = self.scanner_opt_params
+                
+                # i.e. non-cartesian trajectiries, any custom reparameterization
+                if self.reparameterize is not None:
+                    tosave_opt_params = self.reparameterize(tosave_opt_params)
+                
+                saved_state = dict()
+                saved_state['adc_mask'] = tonumpy(tosave_opt_params[0])
+                saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
+                saved_state['event_times'] = tonumpy(tosave_opt_params[2])
+                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['kloc'] = tonumpy(self.scanner.kspace_loc.clone())
+                saved_state['learn_rates'] = self.custom_learning_rate
+                
+                legs=['x','y','z']
+                for i in range(3):
+                    M_roi = tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep])
+                    saved_state['ROI_def %d, %s'  % (self.scanner.ROI_def,legs[i])]  = M_roi
+
+                saved_state['reco_image'] = tonumpy(self.last_reco.clone())
+                saved_state['signal'] = tonumpy(self.scanner.signal)
+                saved_state['error'] = self.last_error
+                
+                self.param_reco_history.append(saved_state)      
+                
 
                 
     def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, do_vis_image=False):
