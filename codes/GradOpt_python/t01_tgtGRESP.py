@@ -77,10 +77,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 16**2                                # number of spin sims in each voxel
+NSpins = 8**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -168,14 +168,16 @@ scanner.B1plus = setdevice(B1plus)
 scanner.set_flip_tensor_withB1plus(flips)
 
 # rotate ADC according to excitation phase
-scanner.set_ADC_rot_tensor(-flips[0,:,1] + -np.pi/2) #GRE/FID specific
+rfsign = ((flips[0,:,0]) < 0).float()
+scanner.set_ADC_rot_tensor(-flips[0,:,1] + 0*np.pi/2 + np.pi*rfsign) #GRE/FID specific
+
 
 # event timing vector 
-event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[0,:] =  2e-3
-event_time[1,:] =  2e-3
+event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time[0,:] =  2e-3  + 6e-3 
+event_time[1,:] =  0.5*1e-3   # for 96
 event_time[-2,:] = 2*1e-3
-event_time[-1,:] = 12.6*1e-3
+event_time[-1,:] = 0
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])
@@ -247,7 +249,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
         
                     
-    #stop()
+    stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    

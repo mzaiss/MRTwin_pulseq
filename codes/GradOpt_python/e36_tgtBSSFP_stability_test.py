@@ -25,8 +25,8 @@ import core.scanner
 import core.opt_helper
 import core.target_seq_holder
 
-use_gpu = 1
-gpu_dev = 1
+use_gpu = 0
+gpu_dev = 0
 do_scanner_query = False
 
 # NRMSE error function
@@ -44,6 +44,10 @@ def magimg(x):
 def magimg_torch(x):
   return torch.sqrt(torch.sum(torch.abs(x)**2,1))
 
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
+
+
 # device setter
 def setdevice(x):
     if use_gpu:
@@ -57,12 +61,12 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([42,42])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 8**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-
+import time; today_datestr = time.strftime('%y%m%d')
 noise_std = 0*1e0                               # additive Gaussian noise std
 
 NVox = sz[0]*sz[1]
@@ -88,7 +92,9 @@ for i in range(5):
 
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] *= 1 # Tweak dB0
+real_phantom_resized[:,:,3] *= 1  # Tweak dB0
+
+#real_phantom_resized[2*sz[0]//3:,:,3] *= 0.5 # Tweak dB0
  
 spins.set_system(real_phantom_resized)
 # end initialize scanned object
@@ -109,7 +115,7 @@ plt.show()
 print('use_gpu = ' +str(use_gpu)) 
 
 #begin nspins with R*
-R2 = 0.0
+R2 = 30.0
 omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5    # cutoff might bee needed for opt.
 #omega = np.random.rand(NSpins,NVox) - 0.5
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
@@ -140,7 +146,7 @@ flips[0,:,0] = 45*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 deg
 
 # randomize RF phases
 #flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
-flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*180,180),360)*np.pi/180)  # 180 phace cycling for bSSFP
+flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*10,10),360)*np.pi/180)  # 180 phace cycling for bSSFP
 flips[0,0,0] = flips[0,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
 
 
@@ -150,7 +156,7 @@ scanner.init_flip_tensor_holder()
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
 B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
-B1plus[:] = 1
+#B1plus[:] = 1
 scanner.B1plus = setdevice(B1plus)    
 scanner.set_flip_tensor_withB1plus(flips)
 
@@ -159,16 +165,16 @@ rfsign = ((flips[0,:,0]) < 0).float()
 scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
-event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[0,:] = 0.5e-3
+event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time[0,:] =  2e-3     #-0.4*1e-3
 event_time[1,:] = 0.3*1e-3
 event_time[-2,:] = 0.3*1e-3
-event_time[-1,:] = 0.5*1e-3
+event_time[-1,:] = 2*1e-3  #+0.4*1e-3
 #event_time[-1,:] = 1.2           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
 event_time = setdevice(event_time)
 
-TR=torch.sum(event_time[:,1])
-TE=torch.sum(event_time[:int(sz[0]/2+2),1])
+TR=torch.sum(event_time[:,1])*1000
+TE=torch.sum(event_time[:int(sz[0]/2+2),1])*1000
 
 TE_180  = torch.sum(event_time[:int(sz[0]/2+2),1]) # time after 180 til center k-space
 TE_180_2= torch.sum(event_time[int(sz[0]/2+2):,1]) # time after center k-space til next 180
@@ -234,13 +240,14 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     #targetSeq.export_to_matlab(experiment_id)
     
     if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,sequence_class)
-        scanner.send_job_to_real_system(experiment_id)
+        targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+        scanner.send_job_to_real_system(experiment_id,today_datestr)
+        
 
         import time
         time.sleep(1)
 
-        scanner.get_signal_from_real_system(experiment_id)
+        scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
         plt.subplot(131)
         scanner.adjoint()
@@ -253,8 +260,30 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.subplot(133)
         plt.imshow(magimg(tonumpy(target).reshape([sz[0],sz[1],2])), interpolation='none')
         plt.title("simulation ADJOINT")    
+        plt.show()
+        
+        plt.subplot(131)
+        scanner.adjoint()
+        plt.imshow(phaseimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))*180/np.pi, interpolation='none')
+        plt.title("real ADJOINT")
+        plt.clim(-180,180)
+        plt.subplot(132)
+        scanner.do_ifft_reco()
+        plt.imshow(phaseimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))*180/np.pi, interpolation='none')
+        plt.title("real IFFT")  
+        plt.clim(-180,180)
+        plt.subplot(133)
+        plt.imshow(phaseimg(tonumpy(target).reshape([sz[0],sz[1],2]))*180/np.pi, interpolation='none')
+
+        plt.title("simulation ADJOINT")   
+        plt.clim(-180,180)
+        plt.show()
+               
+    simphase=phaseimg(tonumpy(target).reshape([sz[0],sz[1],2]))/np.pi
+    plt.hist(simphase.ravel(),bins=100)
+    plt.show()
                     
-    #stop()
+    stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    

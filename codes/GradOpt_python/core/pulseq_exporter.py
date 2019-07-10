@@ -277,6 +277,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     MAXSLEW = 140
     FOV = 0.220
     
+    
     deltak = 1.0 / FOV
     grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
     
@@ -286,7 +287,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     
     seq.add_block(make_delay(2.0))
     
-    nonsel = 0
+    nonsel = 1
     
     for rep in range(NRep):
         
@@ -321,7 +322,8 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
                 RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
                 
         
-        seq.add_block(make_delay(0.002-RFdur))
+#        seq.add_block(make_delay(0.002-RFdur))
+        seq.add_block(make_delay(event_time_numpy[idx_T,rep]-RFdur))
         
         ###############################
         ###              secoond action

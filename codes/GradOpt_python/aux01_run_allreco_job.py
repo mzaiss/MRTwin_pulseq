@@ -145,11 +145,14 @@ experiment_list = []
 #experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_smoothblock_noortho_convergencefix"])
 #experiment_list.append(["190619", "e25_opt_pitcher48_supervised_onlygrad_noortho_convergencefix"])
 #experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_smoothblock_noortho_convergencefix"])
-experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_noortho_convergencefix"])
+#experiment_list.append(["190619", "e25_opt_pitcher48_supervised_allparam_noortho_convergencefix"])
 #experiment_list.append(["190620", "e25_opt_pitcher64_lowspin_onlygrad_noortho"])
 #experiment_list.append(["190620", "e25_opt_pitcher64_lowspin_allparam_noortho"])
 #experiment_list.append(["190618", "e25_opt_pitcher96_onlygrad_adcrot"])
 #experiment_list.append(["190618", "e25_opt_pitcher96_allparamm_sar5000x_adcrot"])
+#experiment_list.append(["190708", "e26_tgtGRESP_tskGRESP_bigX"])
+experiment_list.append(["190702", "e25_opt_pitcher64_allparam_allcost"])
+
 
 
 for exp_current in experiment_list:
