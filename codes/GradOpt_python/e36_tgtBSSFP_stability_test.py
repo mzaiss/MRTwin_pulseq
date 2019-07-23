@@ -25,9 +25,9 @@ import core.scanner
 import core.opt_helper
 import core.target_seq_holder
 
-use_gpu = 0
-gpu_dev = 0
-do_scanner_query = False
+use_gpu = 1
+gpu_dev = 2
+do_scanner_query = True
 
 # NRMSE error function
 def e(gt,x):
@@ -94,6 +94,11 @@ real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1  # Tweak dB0
 
+current_b0map = np.load("../../data/current_b0map.npy")
+real_phantom_resized[:,:,3] = current_b0map
+
+b0mask = np.abs(real_phantom_resized[:,:,3])  < 10
+
 #real_phantom_resized[2*sz[0]//3:,:,3] *= 0.5 # Tweak dB0
  
 spins.set_system(real_phantom_resized)
@@ -146,7 +151,8 @@ flips[0,:,0] = 45*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 deg
 
 # randomize RF phases
 #flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
-flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*10,10),360)*np.pi/180)  # 180 phace cycling for bSSFP
+#flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*180),180)*np.pi/180)
+flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*20,20),360)*np.pi/180)  # 180 phace cycling for bSSFP
 flips[0,0,0] = flips[0,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
 
 
@@ -166,10 +172,10 @@ scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID spec
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[0,:] =  2e-3     #-0.4*1e-3
+event_time[0,:] =  2e-3     + 0.5*1e-3*0
 event_time[1,:] = 0.3*1e-3
 event_time[-2,:] = 0.3*1e-3
-event_time[-1,:] = 2*1e-3  #+0.4*1e-3
+event_time[-1,:] = 2*1e-3 + 0.3 - 0.5*1e-3*0  #+0.4*1e-3
 #event_time[-1,:] = 1.2           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
 event_time = setdevice(event_time)
 
@@ -202,8 +208,6 @@ grad_moms*=1
 #        grad_moms[1,i*2,1] = i
 #grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 
-
-
 grad_moms = setdevice(grad_moms)
 
 # end sequence 
@@ -221,6 +225,8 @@ scanner.adjoint()
 
 # try to fit this
 target = scanner.reco.clone()
+
+#hfghfgh
    
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
@@ -229,24 +235,20 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     targetSeq.print_status(True, reco=None)
     
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
-    for i in range(3):
-        plt.subplot(1, 3, i+1)
-        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T)*scanner.NRep]) )
-        plt.title("ROI_def %d" % scanner.ROI_def)
-        fig = plt.gcf()
-        fig.set_size_inches(16, 3)
+#    for i in range(3):
+#        plt.subplot(1, 3, i+1)
+#        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T)*scanner.NRep]) )
+#        plt.title("ROI_def %d" % scanner.ROI_def)
+#        fig = plt.gcf()
+#        fig.set_size_inches(16, 3)
     plt.show()
     
     #targetSeq.export_to_matlab(experiment_id)
     
     if do_scanner_query:
-        targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+        targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class, plot_seq=False)
         scanner.send_job_to_real_system(experiment_id,today_datestr)
         
-
-        import time
-        time.sleep(1)
-
         scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
         plt.subplot(131)
@@ -264,7 +266,8 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         
         plt.subplot(131)
         scanner.adjoint()
-        plt.imshow(phaseimg(tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2]))*180/np.pi, interpolation='none')
+        measreco = tonumpy(scanner.reco.detach())
+        plt.imshow(phaseimg(measreco.reshape([sz[0],sz[1],2]))*180/np.pi, interpolation='none')
         plt.title("real ADJOINT")
         plt.clim(-180,180)
         plt.subplot(132)
@@ -281,9 +284,26 @@ if True: # check sanity: is target what you expect and is sequence what you expe
                
     simphase=phaseimg(tonumpy(target).reshape([sz[0],sz[1],2]))/np.pi
     plt.hist(simphase.ravel(),bins=100)
+    plt.title("sim phase hist")
     plt.show()
+    
+    measphase=phaseimg(measreco.reshape([sz[0],sz[1],2]))/np.pi
+    plt.hist(measphase.ravel(),bins=100)
+    plt.title("meas phase hist")
+    plt.show()    
                     
     stop()
+    
+for i in range(3):
+    cline=scanner.signal[0,2:-2,1+i,:2,0]
+    #plt.plot(tonumpy(cline[:,0]))
+    plt.plot(tonumpy(cline[:,1]))
+    #plt.plot(np.sqrt(tonumpy(cline[:,0])**2+tonumpy(cline[:,1])**2))
+    plt.ion()
+    plt.show()
+#plt.plot(tonumpy(cline[:,0]))
+
+#plt.plot(np.angle(tonumpy(cline[:,0])+1j*tonumpy(cline[:,1])))
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    

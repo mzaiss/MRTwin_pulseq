@@ -10,7 +10,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'p03_tgtGRESP_tskFLASH_FA_G_24'
+experiment_id = 'p04_tgtGRESP_tskFLASH_FA_G_24_lowsar'
 sequence_class = "GRE"
 experiment_description = """
 opt pitcher try different fwd procs
@@ -39,7 +39,7 @@ double_precision = False
 do_scanner_query = False
 
 use_gpu = 1
-gpu_dev = 0
+gpu_dev = 3
 
 if sys.platform != 'linux':
     use_gpu = 0
@@ -291,7 +291,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_fast(spins, event_time)
     scanner.adjoint()
 
-    lbd_sar = 0*sz[0]**2         # switch on of SAR cost
+    lbd_sar = 0.2*sz[0]**2         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)

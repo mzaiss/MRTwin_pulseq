@@ -38,8 +38,8 @@ print(experiment_id)
 double_precision = False
 do_scanner_query = False
 
-use_gpu = 0
-gpu_dev = 0
+use_gpu = 1
+gpu_dev = 1
 
 if sys.platform != 'linux':
     use_gpu = 0
@@ -291,7 +291,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_fast(spins, event_time)
     scanner.adjoint()
 
-    lbd_sar = 1*sz[0]**2         # switch on of SAR cost
+    lbd_sar = sz[0]**2         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -355,60 +355,9 @@ opt.train_model(training_iter=1000, do_vis_image=False, save_intermediary_result
 
 #RF
 print("step 1 RF")
-opt.custom_learning_rate = [0.1,0.1,0.1,1e-12] # ADC, RF, time, grad
-opt.train_model(training_iter=1, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#grad
-print("step 2 GRAD")
-opt.custom_learning_rate = [0.1,1e-12,0.1,0.1] # ADC, RF, time, grad
-opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#grad
-print("step 3 GRAD")
-opt.custom_learning_rate = [0.1,1e-12,0.1,0.2] # ADC, RF, time, grad
-opt.train_model(training_iter=10, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#grad
-print("step 4 GRAD")
-opt.custom_learning_rate = [0.1,1e-12,0.1,0.1] # ADC, RF, time, grad
-opt.train_model(training_iter=10, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#grad
-print("step 5 GRAD")
-opt.custom_learning_rate = [0.1,1e-12,0.1,0.1] # ADC, RF, time, grad
-opt.train_model(training_iter=50, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#grad
-print("step 6 GRAD")
-opt.custom_learning_rate = [0.1,1e-12,0.1,0.1] # ADC, RF, time, grad
-opt.train_model(training_iter=100, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#RF
-print("step 7 RF")
 opt.custom_learning_rate = [0.1,0.01,0.1,1e-12] # ADC, RF, time, grad
-opt.train_model(training_iter=15, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#grad
-print("step 8 GRAD")
-opt.custom_learning_rate = [0.1,1e-12,0.1,0.1] # ADC, RF, time, grad
-opt.train_model(training_iter=50, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#grad
-print("step 9 GRAD")
-opt.custom_learning_rate = [0.1,1e-12,0.1,0.1] # ADC, RF, time, grad
-opt.train_model(training_iter=50, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#RF + grad
-print("step 10 RF + GRAD")
-opt.custom_learning_rate = [0.1,0.01,0.1,0.01] # ADC, RF, time, grad
-opt.train_model(training_iter=200, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#RF + grad
-print("step 11 RF + GRAD")
-opt.custom_learning_rate = [0.1,0.01,0.1,0.01] # ADC, RF, time, grad
-opt.train_model(training_iter=100, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#RF + grad
-print("step 12 RF + GRAD")
-opt.custom_learning_rate = [0.1,0.01,0.1,0.03] # ADC, RF, time, grad
-opt.train_model(training_iter=100, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#grad
-print("step 13 GRAD")
-opt.custom_learning_rate = [0.1,1e-12,0.1,0.02] # ADC, RF, time, grad
-opt.train_model(training_iter=50, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
-#RF + grad
-print("step 14 RF + GRAD")
-opt.custom_learning_rate = [0.1,0.01,0.1,0.05] # ADC, RF, time, grad
 opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+#grad
 
     
 # %% # save optimized parameter history
