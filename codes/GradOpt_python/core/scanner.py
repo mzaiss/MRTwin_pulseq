@@ -179,7 +179,7 @@ class Scanner():
     
     def get_phase_cycler(self, n, dphi):
         out = np.cumsum(np.arange(n) * dphi)
-        out = np.mod(out, 360)
+        out = torch.from_numpy(np.mod(out, 360).astype(np.float32))
         
         return out    
         

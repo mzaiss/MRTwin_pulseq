@@ -583,12 +583,15 @@ class OPT_helper():
                 FA=todisplay_opt_params[1]
                 phi=todisplay_opt_params[1][:,:,1]
             plt.subplot(253)
-            ax=plt.imshow(tonumpy(FA.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
+            fig = plt.gcf()
+#            ax=plt.imshow(tonumpy(FA.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral')
+#            fig.colorbar(ax)
+#            plt.clim(-180,270)
+            FA=todisplay_opt_params[1][0,:,0]
+            ax=plt.plot(tonumpy(FA*180/np.pi))
             plt.ion()
             plt.title('FA [\N{DEGREE SIGN}]')
-            plt.clim(-180,270)
-            fig = plt.gcf()
-            fig.colorbar(ax)
+
             fig.set_size_inches(18, 3)
             
             plt.subplot(258)
