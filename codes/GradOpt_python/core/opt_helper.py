@@ -472,51 +472,49 @@ class OPT_helper():
                 
                 self.param_reco_history.append(saved_state)      
                 
-
-                
-    def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, do_vis_image=False):
-        
-        raise ValueError("train_model_with_restarts: out of sync, update and fix")
+    # main training function
+    def train_model_with_restarts(self, nmb_rnd_restart=15, training_iter=10, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False, query_kwargs=None):
         
         # init gradients and flip events
-        nmb_outer_iter = nmb_rnd_restart
-        nmb_inner_iter = training_iter
-        
         best_error = 1000
         
-        for outer_iter in range(nmb_outer_iter):
-            #print('restarting... %i%% ready' %(100*outer_iter/float(nmb_outer_iter)))
+        for outer_iter in range(nmb_rnd_restart):
             print('restarting the model training... ')
 
             self.scanner_opt_params = self.init_variables()
             self.init_optimizer()
            
-            for inner_iter in range(nmb_inner_iter):
-                self.new_batch()
+            for i in range(len(self.scanner_opt_params)):
+                if i in self.opt_param_idx:
+                    self.scanner_opt_params[i].requires_grad = True
+                else:
+                    self.scanner_opt_params[i].requires_grad = False
+            
+            # main optimization loop
+            for inner_iter in range(training_iter):
+                
+                # evaluate initial image state before doing optimizer step
+                if inner_iter == 0:
+                    _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None)
+                print(colored("\033[93m iter %d, recon error = %f \033[0m%%" % (inner_iter,self.last_error), 'green'))
+                
+                self.print_status(do_vis_image,self.last_reco)
+                
+                #self.new_batch()
                 self.optimizer.step(self.weak_closure)
                 
-                _,reco,error = self.phi_FRP_model(self.scanner_opt_params, None)
-                
-                if error < best_error:
-                    print("recon error = %f" %error)
-                    best_error = error
-                    
-                    state = {'optimizer': self.optimizer.state_dict()}
-                    torch.save(state, "results/optimizer_state.tmp")
-                    self.best_optimizer_state = 'saved'
+                if self.last_error < best_error:
+                    print("recon error = %f" %self.last_error)
+                    best_error = self.last_error
                     
                     best_vars = []
                     for par in self.scanner_opt_params:
-                        best_vars.append(par.detach().clone())
-                    
-
-                    self.print_status(do_vis_image,reco)
-                        
+                        best_vars.append(par.detach().clone())            
+            
         for pidx in range(len(self.scanner_opt_params)):
             self.scanner_opt_params[pidx] = best_vars[pidx]
-            self.scanner_opt_params[pidx].requires_grad = True        # needed?
+            self.scanner_opt_params[pidx].requires_grad = True        # needed?              
                 
-            
     def set_target(self,target):
         self.target = target
             
