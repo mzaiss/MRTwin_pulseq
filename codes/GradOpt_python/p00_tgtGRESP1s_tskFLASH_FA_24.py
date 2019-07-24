@@ -38,7 +38,7 @@ print(experiment_id)
 double_precision = False
 do_scanner_query = False
 
-use_gpu = 0
+use_gpu = 1
 gpu_dev = 0
 
 if sys.platform != 'linux':
