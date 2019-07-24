@@ -2006,7 +2006,7 @@ class Scanner():
                 gx = torch.matmul(ctx.f.permute([0,1,3,2]),grad_output)
               
                 gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
-                gf[:,:,:,2,2] -= ctx.spins.MZ0 * grad_output[:,:,:,2,0]
+                gf[:,:,:,2,2] -= ctx.spins.MZ0[:,:,PD0_mask] * grad_output[:,:,:,2,0]
                 gf = torch.sum(gf,[0])
                 
                 #if ctx.delay > ctx.thresh or (np.mod(ctx.r,16) == 0 and ctx.t == 0):
