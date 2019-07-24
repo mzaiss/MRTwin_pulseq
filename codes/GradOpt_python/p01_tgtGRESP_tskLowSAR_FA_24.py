@@ -291,7 +291,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_fast(spins, event_time)
     scanner.adjoint()
 
-    lbd_sar = sz[0]**2         # switch on of SAR cost
+    lbd_sar = 10*sz[0]**2         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -350,7 +350,7 @@ lr_inc=np.array([0.1, 0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05,0.01])
 #RF
 print("step 0 RF")
 opt.custom_learning_rate = [0.1,0.01,0.1,1e-12] # ADC, RF, time, grad
-opt.train_model(training_iter=1000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=100, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 
 #RF
