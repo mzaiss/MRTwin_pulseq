@@ -10,7 +10,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'p02_tgtGRESP_tskFLASH_G_24'
+experiment_id = 'p05_tgtGRESP1s_tskFLASH_ET_48'
 sequence_class = "GRE"
 experiment_description = """
 opt pitcher try different fwd procs
@@ -39,7 +39,7 @@ double_precision = False
 do_scanner_query = False
 
 use_gpu = 1
-gpu_dev = 2
+gpu_dev = 1
 
 if sys.platform != 'linux':
     use_gpu = 0
@@ -87,7 +87,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([24,24])                                           # image size
+sz = np.array([48,48])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 25**2                                # number of spin sims in each voxel
@@ -150,7 +150,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[0,:,0] = 10*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
@@ -167,7 +167,7 @@ scanner.set_flip_tensor_withB1plus(flips)
 rfsign = (flips[0,:,0] < 0).float()
 scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
-relax_time = 0.0
+relax_time = 1
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,:] =  2e-3
@@ -248,15 +248,13 @@ def init_variables():
     flips.zero_grad_mask = flip_mask
       
     event_time = targetSeq.event_time.clone()
-    event_time[-1,:] -=  relax_time           # remove the 1s of relaxation
     event_time = setdevice(event_time)
     
     event_time_mask = torch.ones((scanner.T, scanner.NRep)).float()        
-    event_time_mask[2:-2,:] = 0
+    event_time_mask[:-1,:] = 0
     event_time_mask = setdevice(event_time_mask)
     event_time.zero_grad_mask = event_time_mask
         
-
     grad_moms = targetSeq.grad_moms.clone()
     
     grad_moms_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()        
@@ -265,11 +263,11 @@ def init_variables():
     grad_moms_mask = setdevice(grad_moms_mask)
     grad_moms.zero_grad_mask = grad_moms_mask
    
-    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
-    grad_moms[1,:,1] = -grad_moms[1,:,1]*0 + setdevice(torch.rand(grad_moms[1,:,1].shape)-0.5)
-    
-    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
-    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
+#    grad_moms[1,:,0] = grad_moms[1,:,0]*0    # remove rewinder gradients
+#    grad_moms[1,:,1] = -grad_moms[1,:,1]*0 + setdevice(torch.rand(grad_moms[1,:,1].shape)-0.5)
+#    
+#    grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
+#    grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
         
     return [adc_mask, flips, event_time, grad_moms]
     
@@ -282,7 +280,6 @@ def phi_FRP_model(opt_params,aux_params):
     # rotate ADC according to excitation phase
     rfsign = (flips[0,:,0] < 0).float()
     scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
-
           
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # GRE/FID specific, maybe adjust for higher echoes
@@ -291,29 +288,15 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_fast(spins, event_time)
     scanner.adjoint()
 
-    lbd_sar = 0*sz[0]**2         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
-    #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
-    loss_sar = torch.sum(flips[:,:,0]**2)/NRep
     
-    lbd_kspace = 1e1
-    k = torch.cumsum(grad_moms, 0)
-    k = k*torch.roll(scanner.adc_mask, -1).view([T,1,1])
-    k = k.flatten()
-    mask = setdevice((torch.abs(k) > sz[0]/2).float())
-    k = k * mask
-    loss_kspace = torch.sum(k**2) / np.prod(sz)
+    lbd_time = 1e4
+    loss_time = torch.sum(event_time[-1,:]**2)/NRep
     
-#    ffwd = scanner.G_adj[2:-2,:,:,:2,:2].permute([0,1,2,4,3]).permute([0,1,3,2,4]).contiguous().view([NRep*(sz[1]+0)*2,NVox*2])
-#    back = scanner.G_adj[2:-2,:,:,:2,:2].permute([0,1,2,4,3]).permute([0,1,3,2,4]).contiguous().view([NRep*(sz[1]+0)*2,NVox*2]).permute([1,0])
-#    TT = torch.matmul(back,ffwd) / NVox    
-#    lbd_ortho = 1e4
-#    loss_ortho = torch.sum((TT-setdevice(torch.eye(TT.shape[0])))**2) / (NVox)    
+    loss = loss_image + lbd_time*loss_time #+ lbd_kspace*loss_kspace
     
-    loss = loss_image + lbd_sar*loss_sar + lbd_kspace*loss_kspace
-    
-    print("loss_image: {} loss_sar {} loss_kpspace {}".format(loss_image, lbd_sar*loss_sar, lbd_kspace*loss_kspace))
+    print("loss_image: {} loss_time {}".format(loss_image, lbd_time*loss_time))
     
     phi = loss
   
@@ -331,19 +314,34 @@ opt.experiment_description = experiment_description
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([3]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
+opt.set_opt_param_idx([1,2]) # ADC, RF, time, grad
+opt.custom_learning_rate = [0.01,1e-2,1e-2,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
 lr_inc=np.array([0.1, 0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05,0.01])
 
-for i in range(9):
-    opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
-    print('<seq> Optimization ' + str(i+1) + ' starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=150, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+#for i in range(9):
+#    opt.custom_learning_rate = [0.01,0.1,0.1,lr_inc[i]]
+#    print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
+#    opt.train_model(training_iter=150, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+#opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+
+
+#RF
+print("step 0 ET")
+opt.custom_learning_rate = [0.1,1e-12,0.1,1e-12] # ADC, RF, time, grad
+opt.train_model(training_iter=200, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+
+
+#RF
+print("step 1 RF + ET")
+opt.custom_learning_rate = [0.1,1e-2,1e-2,1e-12] # ADC, RF, time, grad
 opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+#grad
+
+
 
 
     
