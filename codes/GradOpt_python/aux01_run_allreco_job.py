@@ -151,7 +151,7 @@ experiment_list = []
 #experiment_list.append(["190618", "e25_opt_pitcher96_onlygrad_adcrot"])
 #experiment_list.append(["190618", "e25_opt_pitcher96_allparamm_sar5000x_adcrot"])
 #experiment_list.append(["190708", "e26_tgtGRESP_tskGRESP_bigX"])
-experiment_list.append(["190702", "e25_opt_pitcher64_allparam_allcost"])
+experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_24_lowsar"])
 
 
 

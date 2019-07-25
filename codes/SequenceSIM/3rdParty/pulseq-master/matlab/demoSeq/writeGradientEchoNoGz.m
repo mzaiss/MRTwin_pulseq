@@ -1,9 +1,9 @@
 seq=mr.Sequence();              % Create a new sequence object
-fov=200e-3; Nx=16; Ny=16;     % Define FOV and resolution
+fov=220e-3; Nx=42; Ny=42;     % Define FOV and resolution
 alpha=5;                       % flip angle
-sliceThickness=3e-3;            % slice
-TE=[7.38]*1e-3;                % give a vector here to have multiple TEs (e.g. for field mapping)
-TR=100e-3;                       % only a single value for now
+sliceThickness=200e-3;            % slice
+TE=[3.2]*1e-3;                % give a vector here to have multiple TEs (e.g. for field mapping)
+TR=6.5e-3;                       % only a single value for now
 
 % more in-depth parameters
 rfSpoilingInc=117;              % RF spoiling increment
