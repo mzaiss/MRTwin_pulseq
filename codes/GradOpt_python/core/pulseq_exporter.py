@@ -183,22 +183,34 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         ###############################
         ###              first action
         idx_T = 0
+        RFdur = 0
         if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
             use = "excitation"
             
-            # alternatively slice selective:
-            RFdur = 1*1e-3
-            kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
-            rf_ex = make_block_pulse(kwargs_for_block, 1)
-            
-            seq.add_block(rf_ex)     
-            
+            if nonsel:
+                RFdur = 1*1e-3
+                kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+                rf_ex = make_block_pulse(kwargs_for_block, 1)
+                
+                seq.add_block(rf_ex)     
+            else:
+                # alternatively slice selective:
+                use = "excitation"
+                slice_thickness = 5e-3
+                
+                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+                rf_ex, gz, gzr= make_sinc_pulse(kwargs_for_sinc, 3)
+                seq.add_block(rf_ex, gz)
+                gzr.amplitude=gzr.amplitude
+                seq.add_block(gzr)
+                RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
+                
             kwargs_for_gxPre90 = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0], "duration": event_time_numpy[idx_T,rep]-RFdur}
             gxPre90 = make_trapezoid(kwargs_for_gxPre90) 
             
-            seq.add_block(gxPre90)
-        else:
-            seq.add_block(make_delay(event_time_numpy[idx_T,rep]))
+            seq.add_block(gxPre90)                   
+
+        seq.add_block(make_delay(event_time_numpy[idx_T,rep] - RFdur))
             
         ###############################
         ###              secoond action
@@ -210,12 +222,19 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
           RFdur = 1*1e-3
           
-          kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
-          rf = make_block_pulse(kwargs_for_block, 1)
-          seq.add_block(rf)         
-          
-        #seq.add_block(make_delay(event_time_numpy[idx_T,rep]-RFdur)) # this ensures that the RF block is 2 ms as it must be defined in python, also dies when negative
-    
+          if nonsel:
+              kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+              rf_ref = make_block_pulse(kwargs_for_block, 1)
+              seq.add_block(rf_ref)         
+          else:
+              slice_thickness = 5e-3
+            
+              kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+              rf_ref, gz_ref,gzr = make_sinc_pulse(kwargs_for_sinc, 3)
+              seq.add_block(rf_ref, gz_ref)
+              RFdur = gz_ref.rise_time + gz_ref.flat_time + gz_ref.fall_time 
+              
+
         # calculated here, update in next event
         gradmom_rewinder = np.squeeze(grad_moms_numpy[idx_T,rep,:])
         eventtime_rewinder = np.squeeze(event_time_numpy[idx_T,rep]-RFdur)
@@ -239,7 +258,10 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         kwargs_for_gypre = {"channel": 'y', "system": system, "area": gradmom_rewinder[1], "duration": eventtime_rewinder}
         gy_pre = make_trapezoid(kwargs_for_gypre)
     
-        seq.add_block(gx_pre, gy_pre)
+        if nonsel:
+            seq.add_block(gx_pre, gy_pre)
+        else:
+            seq.add_block(gx_pre, gy_pre,gzr)       
         seq.add_block(gx,adc)    
         
         ###############################
