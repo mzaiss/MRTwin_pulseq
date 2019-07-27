@@ -37,10 +37,10 @@ print(experiment_id)
 
 double_precision = False
 use_supermem = True
-do_scanner_query = False
+do_scanner_query = True
 
-use_gpu = 1
-gpu_dev = 1
+use_gpu = 0
+gpu_dev = 0
 
 if sys.platform != 'linux':
     use_gpu = 0
@@ -123,7 +123,7 @@ for i in range(4):
     real_phantom_resized[:,:,i] = t
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] *= 0 # Tweak dB0
+real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 
 if False:
     real_phantom_resized[:,:,0] = 1
@@ -215,7 +215,7 @@ event_time[1,first_meas] =  0.5*1e-3   # for 96
 event_time[-2,first_meas] = 2*1e-3
 event_time[-1,first_meas] = 2.9*1e-3
 
-event_time[-1,measRepStep-1] = 2.9*1e-3 + 1
+event_time[-1,measRepStep-1] = 2.9*1e-3 + 1*0
 
 # second measurement
 event_time[0,second_meas] =  2e-3
@@ -223,7 +223,7 @@ event_time[1,second_meas] =  0.5*1e-3   # for 96
 event_time[-2,second_meas] = 2*1e-3
 event_time[-1,second_meas] = 2.9*1e-3
 
-event_time[-1,2*measRepStep-1] = 2.9*1e-3 + 1
+event_time[-1,2*measRepStep-1] = 2.9*1e-3 + 1*0
 
 # third measurement
 event_time[0,third_meas] =  2e-3
@@ -278,9 +278,7 @@ scanner.forward_sparse_fast(spins, event_time)
 #scanner.forward_mem(spins, event_time)
 #scanner.forward(spins, event_time)
 #scanner.init_signal()
-#scanner.signal[:,:,0,:,:] = 0
-
-scanner.signal[0,:5,:,:,:] = 0
+#scanner.signal[0,:5,:,:,:] = 0
 
 reco_sep = scanner.adjoint_separable()
 
@@ -343,8 +341,31 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.ion()        
         
         fig.set_size_inches(18, 7)
-        
         plt.show()
+        
+        ax1=plt.subplot(131)
+        ax=plt.imshow(phaseimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('first scan phase')
+        plt.ion()
+        
+        plt.subplot(132, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(phaseimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('second scan phase')
+        plt.ion()   
+        
+        ax1=plt.subplot(133)
+        ax=plt.imshow(phaseimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('third scan phase')
+        plt.ion()            
+        
+        fig.set_size_inches(18, 7)
+        plt.show()        
         
 if True:
     if do_scanner_query:
@@ -398,12 +419,40 @@ if True:
         ax=plt.imshow(magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
         fig = plt.gcf()
         fig.colorbar(ax)        
-        plt.title('meas: first scan')
+        plt.title('meas: third scan')
         plt.ion()    
+        
+        plt.show()
+        
+        ax1=plt.subplot(131)
+        ax=plt.imshow(phaseimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('meas: first scan phase')
+        plt.ion()
+        
+        plt.subplot(132, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(phaseimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('meas: second scan phase')
+        plt.ion()   
+        
+        ax1=plt.subplot(133)
+        ax=plt.imshow(phaseimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('meas: third scan phase')
+        plt.ion()            
+        
+        fig.set_size_inches(18, 7)
+        plt.show()          
         
         fig.set_size_inches(18, 7)
         
         plt.show()      
+        
+stop()
         
 # generated training pairs
 nmb_samples = 128

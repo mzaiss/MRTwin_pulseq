@@ -449,6 +449,16 @@ class Scanner():
                     kloc += temp[t,r,:]
                     k[t,r,:] = kloc
                     
+        if sequence_class.lower() == "se":
+            refocusing_pulse_action_idx = 1
+            for r in range(self.NRep):
+                kloc = 0
+                for t in range(self.T):
+                    if refocusing_pulse_action_idx+1 == t:     # +1 because of right gradmom shift (see above )
+                        kloc = -kloc
+                    kloc += temp[t,r,:]
+                    k[t,r,:] = kloc
+                    
         if sequence_class.lower() == "epi":
             kloc = 0
             for r in range(self.NRep):

@@ -174,7 +174,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     
     seq.add_block(make_delay(2.0))
     
-    nonsel = 1
+    nonsel = 0
     if nonsel==1:
         slice_thickness = 200*1e-3
     
@@ -208,9 +208,9 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
             kwargs_for_gxPre90 = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0], "duration": event_time_numpy[idx_T,rep]-RFdur}
             gxPre90 = make_trapezoid(kwargs_for_gxPre90) 
             
-            seq.add_block(gxPre90)                   
-
-        seq.add_block(make_delay(event_time_numpy[idx_T,rep] - RFdur))
+            seq.add_block(gxPre90)
+        else:
+            seq.add_block(make_delay(event_time_numpy[idx_T,rep]))
             
         ###############################
         ###              secoond action

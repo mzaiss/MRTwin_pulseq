@@ -39,6 +39,7 @@ recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
 do_real_meas = True
 test_iter_number = False
+use_custom_iter_sel_scheme = False
 
 max_nmb_iter = 70
 
@@ -151,7 +152,20 @@ experiment_list = []
 #experiment_list.append(["190618", "e25_opt_pitcher96_onlygrad_adcrot"])
 #experiment_list.append(["190618", "e25_opt_pitcher96_allparamm_sar5000x_adcrot"])
 #experiment_list.append(["190708", "e26_tgtGRESP_tskGRESP_bigX"])
-experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_24_lowsar"])
+#experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_24_lowsar"])
+#experiment_list.append(["190724", "p06_tgtGRESP_tskFLASH_FA_G_ET_24_lowsar"])
+#experiment_list.append(["190724", "p05_tgtGRESP1s_tskFLASH_ET_24"])
+#experiment_list.append(["190724", "p05_tgtGRESP1s_tskFLASH_ET_48"])
+#experiment_list.append(["190724", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar"])
+#experiment_list.append(["190724", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar"])
+#experiment_list.append(["190724", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_48_lowsar"])
+#experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_48_lowsar"])
+experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_24_lowsar_supervised"])
+experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised"])
+experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
+
+
+
 
 
 
@@ -319,6 +333,10 @@ for exp_current in experiment_list:
     if nmb_iter > max_nmb_iter:
         non_increasing_error_iter = non_increasing_error_iter[(np.ceil(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
         
+    if use_custom_iter_sel_scheme:
+        non_increasing_error_iter = np.arange(0,500,10)
+
+        
     #non_increasing_error_iter = np.concatenate((non_increasing_error_iter[:5],non_increasing_error_iter[-5:]))
     nmb_iter = non_increasing_error_iter.size
     
@@ -403,6 +421,9 @@ for exp_current in experiment_list:
             iflips = alliter_array['flips'][c_iter]
             ivent = alliter_array['event_times'][c_iter]
             gmo = alliter_array['grad_moms'][c_iter]
+            
+#            enforce positivity on event times
+            ivent = np.abs(ivent)
             
             # detect zero flip iteration
             if np.sum(np.abs(iflips)) < 1e-8:
