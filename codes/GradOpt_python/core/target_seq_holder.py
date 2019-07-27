@@ -262,6 +262,8 @@ class TargetSequenceHolder():
             pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "rare":
             pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
+        elif sequence_class.lower() == "se":
+            pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "bssfp":
             pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "epi":
