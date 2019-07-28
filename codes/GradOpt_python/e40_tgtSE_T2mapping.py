@@ -5,10 +5,10 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't03_tgtRARE_tskRARE_32_linear'
+experiment_id = 'e40_tgtSE_T2mapping'
 sequence_class = "SE"
 experiment_description = """
-RARE, cpmg
+SE ME, spin echo multi echo
 """
 
 import os, sys
@@ -33,7 +33,7 @@ if sys.platform != 'linux':
     gpu_dev = 0
     
 do_scanner_query = False
-
+double_precision = False
 # NRMSE error function
 def e(gt,x):
     return 100*np.linalg.norm((gt-x).ravel())/np.linalg.norm(gt.ravel())
@@ -49,8 +49,15 @@ def magimg(x):
 def magimg_torch(x):
   return torch.sqrt(torch.sum(torch.abs(x)**2,1))
 
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
+
 # device setter
 def setdevice(x):
+    if double_precision:
+        x = x.double()
+    else:
+        x = x.float()
     if use_gpu:
         x = x.cuda(gpu_dev)    
     return x
@@ -63,7 +70,8 @@ def stop():
 
 # define setup
 sz = np.array([32,32])                                           # image size
-NRep = sz[1]                                          # number of repetitions
+extraRep = 3
+NRep = extraRep*sz[1]                                 # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 16**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -76,8 +84,7 @@ NVox = sz[0]*sz[1]
 ## Init spin system ::: #####################################
 
 # initialize scanned object
-spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
-
+spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 cutoff = 1e-12
 
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
@@ -131,7 +138,10 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+
+# begin sequence definition
+# allow for relaxation and spoiling in the first two and last two events (after last readout event)
 adc_mask = torch.from_numpy(np.ones((T,1))).float()
 adc_mask[:2]  = 0
 adc_mask[-2:] = 0
@@ -142,6 +152,13 @@ flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[0,:,0] = 90*np.pi/180  # RARE specific, RARE preparation part 1 : 90 degree excitation 
 flips[0,:,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase
 flips[1,:,0] = 180*np.pi/180  # RARE specific, RARE preparation part 2 : 180 degree excitation 
+
+# randomize RF phases
+measRepStep = NRep//extraRep
+
+# flips[0,1:measRepStep+1,1] = 0
+# flips[0,1+measRepStep:1+2*measRepStep,1] = 0
+# flips[0,1+2*measRepStep:1+3*measRepStep,1] = 0
 
 flips = setdevice(flips)
 
@@ -168,42 +185,69 @@ event_time[-1,:] = 0.01*1e-3 + 5*1e-1
 event_time[1,:] = 2*1e-3    + dTE/2
 event_time[0,:] = (sz[0]/2)*0.05*1e-4+ (2*1e-3) + dTE/2
 #event_time[1:,0,0] = 0.2*1e-3
-event_time[-2,:] = 1.98*1e-3 
+event_time[-2,:] = 1.98*1e-3 +0.3
 
 event_time = setdevice(event_time)
 
 TE2_90   = torch.sum(event_time[0,0])  # time after 90 until 180
 TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1]) # time after 180 til center k-space
 TE2_180_2= torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1] # time after center k-space til next 180
+measRepStep = NRep//extraRep
+first_meas = np.arange(0,measRepStep)
+second_meas = np.arange(measRepStep,2*measRepStep)
+third_meas = np.arange(2*measRepStep,3*measRepStep)
 
+dTE= np.array([0,0.3,0.6]) # dTE in s
+# first measurement
+event_time[1,first_meas] = 2*1e-3    + dTE[0]/2
+event_time[0,first_meas] = (sz[0]/2)*0.05*1e-4+ (2*1e-3) + dTE[0]/2
+
+event_time[-1,measRepStep-1] = event_time[-1,measRepStep-1] + 0.5   # add some relaxation between scans
+
+# second measurement
+event_time[1,second_meas] = 2*1e-3    + dTE[1]/2
+event_time[0,second_meas] = (sz[0]/2)*0.05*1e-4+ (2*1e-3) + dTE[1]/2
+event_time[-1,2*measRepStep-1] = event_time[-1,2*measRepStep-1] + 0.5   # add some relaxation between scans
+
+# third measurement
+event_time[1,third_meas] = 2*1e-3    + dTE[2]/2
+event_time[0,third_meas] = (sz[0]/2)*0.05*1e-4+ (2*1e-3) + dTE[2]/2
+
+event_time = setdevice(event_time)
+
+TR=torch.sum(event_time[:,1])
+TE=torch.sum(event_time[:11,1])
 
 # gradient-driver precession
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
-# xgradmom
-grad_moms[2:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # read
-grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))        # yblip
-grad_moms[-2,:,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))      # backblip
-grad_moms[0,:,0] = torch.ones((1,1))*sz[0]/2+ torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
 
-grad_moms[1,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
-grad_moms[-2,:,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+# first measurement
+grad_moms[0,first_meas,0] = torch.ones((1,1))*sz[0]/2+ torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[1,first_meas,0] = torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[1,first_meas,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(measRepStep))        # yblip
+grad_moms[2:-2,first_meas,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,measRepStep]) # read
+grad_moms[-2,first_meas,0] = torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[-2,first_meas,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(measRepStep))      # backblip
 
-# reverse linear reordering
-#grad_moms[1,:,1] = -grad_moms[1,:,1]
-#grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 
-#grad_moms[[1,-2],:,1] = torch.roll(grad_moms[[1,-2],:,1],0,dims=[1])
+# second measurement
+grad_moms[0,second_meas,0] = torch.ones((1,1))*sz[0]/2+ torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[1,second_meas,0] = torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[1,second_meas,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(measRepStep))        # yblip
+grad_moms[2:-2,second_meas,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,measRepStep]) # read
+grad_moms[-2,second_meas,0] = torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[-2,second_meas,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(measRepStep))      # backblip
 
-#     centric ordering
-#grad_moms[1,:,1] = 0
-#for i in range(1,int(sz[1]/2)+1):
-#    grad_moms[1,i*2-1,1] = (-i)
-#    if i < sz[1]/2:
-#        grad_moms[1,i*2,1] = i
-#grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
 
+# third measurement
+grad_moms[0,third_meas,0] = torch.ones((1,1))*sz[0]/2+ torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[1,third_meas,0] = torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[1,third_meas,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(measRepStep))        # yblip
+grad_moms[2:-2,third_meas,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,measRepStep]) # read
+grad_moms[-2,third_meas,0] = torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
+grad_moms[-2,third_meas,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(measRepStep))      # backblip
 
 grad_moms = setdevice(grad_moms)
 
@@ -214,13 +258,19 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 #############################################################################
 ## Forward process ::: ######################################################
     
+#scanner.init_signal()
+scanner.forward_fast(spins, event_time,kill_transverse=True)
+reco_sep = scanner.adjoint_separable()
 
-# forward/adjoint pass
-if 1:
-    scanner.forward_fast(spins, event_time)
-else:
-    scanner.init_signal()
-scanner.adjoint()
+first_scan = reco_sep[first_meas,:,:].sum(0)
+second_scan = reco_sep[second_meas,:,:].sum(0)
+third_scan = reco_sep[third_meas,:,:].sum(0)
+
+first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
+second_scan_kspace = tonumpy(scanner.signal[0,2:-2,second_meas,:2,0])
+
+first_scan_kspace_mag = magimg(first_scan_kspace)
+second_scan_kspace_mag = magimg(second_scan_kspace)
 
 # try to fit this
 # scanner.reco = scanner.do_ifft_reco()
@@ -230,30 +280,154 @@ target = scanner.reco.clone()
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
 if True: # check sanity: is target what you expect and is sequence what you expect
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
-    for i in range(3):
-        plt.subplot(1, 3, i+1)
-        plt.plot(tonumpy(scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(scanner.T)*scanner.NRep]) )
-        plt.title("ROI_def %d" % scanner.ROI_def)
-        fig = plt.gcf()
-        fig.set_size_inches(16, 3)
-    plt.show()
 
-    scanner.do_SAR_test(flips, event_time)    
-    targetSeq.export_to_matlab(experiment_id, today_datestr)
-    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+
+    if True:
+        # print results
+        ax1=plt.subplot(231)
+        ax=plt.imshow(magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('first scan')
+        plt.ion()
+        
+        plt.subplot(232, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('second scan')
+        plt.ion()
+        
+        # print results
+        ax1=plt.subplot(234)
+        ax=plt.imshow(first_scan_kspace_mag, interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('first scan kspace')
+        plt.ion()
+        
+        plt.subplot(235, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(second_scan_kspace_mag, interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('second scan kspace')
+        plt.ion()    
+        
+        # print results
+        ax1=plt.subplot(233)
+        ax=plt.imshow(magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('third scan')
+        plt.ion()        
+        
+        fig.set_size_inches(18, 7)
+        
+        plt.show()
+        
+if False:
+    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=False)
     
     if do_scanner_query:
         scanner.send_job_to_real_system(experiment_id,today_datestr)
         scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
-        scanner.adjoint()
+        reco_sep = scanner.adjoint_separable()
         
-        targetSeq.meas_sig = scanner.signal.clone()
-        targetSeq.meas_reco = scanner.reco.clone()
+        first_scan = reco_sep[first_meas,:,:].sum(0)
+        second_scan = reco_sep[second_meas,:,:].sum(0)
+        third_scan = reco_sep[third_meas,:,:].sum(0)
         
-    targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)  
-                    
-    stop()
+        first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
+        second_scan_kspace = tonumpy(scanner.signal[0,2:-2,second_meas,:2,0])
+
+        first_scan_kspace_mag = magimg(first_scan_kspace)
+        second_scan_kspace_mag = magimg(second_scan_kspace)
+        
+        ax1=plt.subplot(231)
+        ax=plt.imshow(phaseimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('meas: first scan')
+        plt.ion()
+        
+        plt.subplot(232, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(phaseimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('meas: second scan')
+        plt.ion()
+        
+        plt.subplot(233, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(phaseimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('meas: third scan')
+        plt.ion()   
+        
+        fig.set_size_inches(12, 7)
+        
+        plt.show()  
+        
+mag_echo1 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
+magmask = mag_echo1 > np.mean(mag_echo1.ravel())/5
+        
+mag_echo1 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
+mag_echo2 = magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2]))
+mag_echo3 = magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2]))
+
+mag_echo21 = (mag_echo1/mag_echo2)*magmask
+mag_echo31 = (mag_echo1/mag_echo3)*magmask
+
+dTE21 = torch.sum(event_time[:sz[0]+2,second_meas[0]]) - torch.sum(event_time[:sz[0]+2,first_meas[0]]) 
+dTE31 = torch.sum(event_time[:sz[0]+2,third_meas[0]]) - torch.sum(event_time[:sz[0]+2,first_meas[0]]) 
+
+T2map1= tonumpy(dTE21)/np.log(mag_echo21)
+T2map2= tonumpy(dTE31)/np.log(mag_echo31)
+T2map1 = T2map1*magmask
+T2map2 = T2map2*magmask
+
+T2map1 = T2map1.transpose([1,0])
+T2map1 = T2map1[::-1,::-1]
+T2map2 = T2map2.transpose([1,0])
+T2map2 = T2map2[::-1,::-1]
+
+plt.subplot(141)
+ax1=plt.imshow(real_phantom_resized[:,:,2], interpolation='none')
+fig = plt.gcf()
+fig.colorbar(ax1)  
+plt.title("t2 map real")
+plt.ion() 
+
+plt.subplot(142)
+ax=plt.imshow(T2map1)
+fig = plt.gcf()
+fig.colorbar(ax1)  
+plt.title("T2 map echo 1")
+plt.ion() 
+
+plt.subplot(143)
+ax=plt.imshow(T2map2)
+fig = plt.gcf()
+fig.colorbar(ax1)  
+plt.title("T2 map echo 2")
+plt.ion() 
+
+plt.subplot(144)
+ax=plt.imshow((T2map1+T2map2)/2)
+fig = plt.gcf()
+fig.colorbar(ax1)  
+plt.title("T2 map avgd")
+plt.ion() 
+
+fig.set_size_inches(18, 7)
+
+
+plt.show()  
+
+#np.save("../../data/current_T2map.npy",T2map1)
+
+
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
