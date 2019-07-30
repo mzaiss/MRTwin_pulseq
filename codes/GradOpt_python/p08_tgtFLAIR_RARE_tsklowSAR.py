@@ -5,7 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 'p08_tgtFLAIR_RARE_tsklowSAR'
+experiment_id = 'p08_tgtFLAIR_RARE_tsklowSAR_scaler'
 sequence_class = "RARE"
 experiment_description = """
 RARE, cpmg
@@ -26,7 +26,7 @@ import core.opt_helper
 import core.target_seq_holder
 
 use_gpu = 1
-gpu_dev = 0
+gpu_dev = 2
 
 if sys.platform != 'linux':
     use_gpu = 0
@@ -230,7 +230,7 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 
 # forward/adjoint pass
 scanner.forward_fast(spins, event_time)
-scanner.adjoint()
+#scanner.adjoint()
 
 # try to fit this
 # scanner.reco = scanner.do_ifft_reco()
@@ -239,6 +239,8 @@ reco_sep = scanner.adjoint_separable()
 first_scan = reco_sep[first_meas,:,:].sum(0)
 first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
 first_scan_kspace_mag = magimg(first_scan_kspace)
+
+scanner.reco = first_scan
 
 # try to fit this
 # scanner.reco = scanner.do_ifft_reco()
@@ -282,6 +284,7 @@ def init_variables():
     flips = setdevice(flips)
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
+    #flip_mask[0,:,:] = 0
     flip_mask[2:,:,:] = 0
     flip_mask = setdevice(flip_mask)
     flips.zero_grad_mask = flip_mask
@@ -312,7 +315,9 @@ def init_variables():
     #grad_moms[-2,:,0] = torch.ones(1)*sz[0]*0      # remove spoiler gradients
     #grad_moms[-2,:,1] = -grad_moms[1,:,1]*0      # GRE/FID specific, SPOILER
         
-    return [adc_mask, flips, event_time, grad_moms]
+    scale_param = setdevice(torch.ones(2).float())
+        
+    return [adc_mask, flips, event_time, grad_moms, scale_param]
     
 def reparameterize(opt_params):
 
@@ -320,7 +325,7 @@ def reparameterize(opt_params):
 
 def phi_FRP_model(opt_params,aux_params):
     
-    adc_mask,flips,event_time,grad_moms = reparameterize(opt_params)
+    adc_mask,flips,event_time,grad_moms,scale_param = reparameterize(opt_params)
 
     scanner.init_flip_tensor_holder()
     scanner.set_flip_tensor_withB1plus(flips)
@@ -332,10 +337,12 @@ def phi_FRP_model(opt_params,aux_params):
          
     # forward/adjoint pass
     scanner.forward_fast(spins, event_time)
-    scanner.adjoint()
+    reco_sep = scanner.adjoint_separable()
+    scanner.reco = reco_sep[first_meas,:,:].sum(0)
 
     lbd = 0.4*1e1         # switch on of SAR cost
-    loss_image = (scanner.reco - targetSeq.target_image)
+    #loss_image = (scanner.reco - targetSeq.target_image)
+    loss_image = (scale_param.view([1,2])*scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
     loss_sar = torch.sum(flips[:,:,0]**2)
@@ -351,16 +358,16 @@ def phi_FRP_model(opt_params,aux_params):
     
     loss = loss_image + lbd*loss_sar + lbd_kspace*loss_kspace
     
-    print("loss_image: {} loss_sar {} loss_kspace {}".format(loss_image, lbd*loss_sar, lbd_kspace*loss_kspace))
+    print("loss_image: {} loss_sar {} loss_kspace {} scale_param {}".format(loss_image, lbd*loss_sar, lbd_kspace*loss_kspace, scale_param))
     
     phi = loss
   
-    ereco = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+    ereco = tonumpy((scale_param.view([1,2])*scanner.reco).detach()).reshape([sz[0],sz[1],2])
     error = e(tonumpy(targetSeq.target_image).ravel(),ereco.ravel())     
     
     #plt.imshow(magimg(ereco))
     
-    return (phi,scanner.reco, error)
+    return (phi,scale_param.view([1,2])*scanner.reco, error)
         
 # %% # OPTIMIZATION land
 
@@ -372,8 +379,8 @@ opt.experiment_description = experiment_description
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([1]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.01,0.1,0.1]
+opt.set_opt_param_idx([1,4]) # ADC, RF, time, grad
+opt.custom_learning_rate = [0.01,0.01,0.1,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
