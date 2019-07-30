@@ -174,7 +174,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     
     seq.add_block(make_delay(2.0))
     
-    nonsel = 1
+    nonsel = 0
     if nonsel==1:
         slice_thickness = 200*1e-3
     
@@ -237,7 +237,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
 
         # calculated here, update in next event
         gradmom_rewinder = np.squeeze(grad_moms_numpy[idx_T,rep,:])
-        eventtime_rewinder = 1*1e-3 
+        eventtime_rewinder = 0.5*1e-3 
         delay_after_rev=np.squeeze(event_time_numpy[idx_T,rep]-RFdur-eventtime_rewinder)
         
         ###############################
