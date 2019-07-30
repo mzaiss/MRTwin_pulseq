@@ -269,7 +269,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(18, 7)
         
         plt.show()
-    stop()
+    #stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -323,7 +323,7 @@ def phi_FRP_model(opt_params,aux_params):
     adc_mask,flips,event_time,grad_moms = reparameterize(opt_params)
 
     scanner.init_flip_tensor_holder()
-    scanner.set_flipXY_tensor(flips)    
+    scanner.set_flip_tensor_withB1plus(flips)
     # rotate ADC according to excitation phase
     scanner.set_ADC_rot_tensor(-flips[0,:,1]*0)  # GRE/FID specific, this must be the excitation pulse
           

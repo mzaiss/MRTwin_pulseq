@@ -210,6 +210,9 @@ class Scanner():
         
     def set_flipXY_tensor(self,input_flips):
         
+        class ExecutionControl(Exception): pass
+        raise ExecutionControl('set_flipXY_tensor method is deprecated! use set_flip_tensor_withB1plus instead')
+        
         vx = torch.cos(input_flips[:,:,1])
         vy = torch.sin(input_flips[:,:,1])
         
