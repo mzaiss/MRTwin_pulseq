@@ -80,7 +80,7 @@ spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
 
 cutoff = 1e-12
 
-real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 
@@ -295,7 +295,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
                 
     
-#    stop()
+    stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    

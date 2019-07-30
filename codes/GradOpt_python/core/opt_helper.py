@@ -588,8 +588,10 @@ class OPT_helper():
 #            ax=plt.imshow(tonumpy(FA.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral')
 #            fig.colorbar(ax)
 #            plt.clim(-180,270)
-            FA=todisplay_opt_params[1][0,:,0]
-            ax=plt.plot(tonumpy(FA*180/np.pi))
+            FAex=todisplay_opt_params[1][0,:,0]
+            ax=plt.plot(tonumpy(FAex*180/np.pi))
+            FArev=todisplay_opt_params[1][1,:,0]
+            ax=plt.plot(tonumpy(FArev*180/np.pi))
             plt.ion()
             plt.title('FA [\N{DEGREE SIGN}]')
 
