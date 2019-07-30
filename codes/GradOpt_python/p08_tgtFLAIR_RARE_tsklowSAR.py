@@ -5,7 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't03_tgtRARE_tskRARE_32_linear'
+experiment_id = 'p08_tgtFLAIR_RARE_tsklowSAR'
 sequence_class = "RARE"
 experiment_description = """
 RARE, cpmg
@@ -339,8 +339,6 @@ def phi_FRP_model(opt_params,aux_params):
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
     loss_sar = torch.sum(flips[:,:,0]**2)
-    print(scanner.reco.shape)
-    print(targetSeq.target_image.shape)
 
     lbd_kspace = 0.3*1e1
     loss_kspace=0.0
