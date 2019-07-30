@@ -215,7 +215,7 @@ event_time = torch.from_numpy(0.1*1e-4*np.ones((scanner.T,scanner.NRep))).float(
 event_time[0,0] =  2e-3
 event_time[1,0] =  0.5*1e-3
 event_time[-2,0] = 2*1e-3
-event_time[-1,0] = 2.9*1e-3 + 0.5
+event_time[-1,0] = 2.9*1e-3 + 0.02
 
 measRepStep = NRep//extraRep
 first_meas = np.arange(1,measRepStep+1)
@@ -229,7 +229,7 @@ event_time[1,first_meas] =  5.5*1e-3   # for 96
 event_time[-2,first_meas] = 2*1e-3
 event_time[-1,first_meas] = 2.9*1e-3
 
-event_time[-1,measRepStep] = 2.9*1e-3 + 0.5
+event_time[-1,measRepStep] = 2.9*1e-3 + 0.2
 
 # second measurement
 event_time[0,second_meas] =  2e-3
@@ -385,64 +385,63 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         
         plt.show()
         
-if False:
-    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
+targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
+
+if do_scanner_query:
+    scanner.send_job_to_real_system(experiment_id,today_datestr)
+    scanner.get_signal_from_real_system(experiment_id,today_datestr)
     
-    if do_scanner_query:
-        scanner.send_job_to_real_system(experiment_id,today_datestr)
-        scanner.get_signal_from_real_system(experiment_id,today_datestr)
-        
-        reco_sep = scanner.adjoint_separable()
-        
-        first_scan = reco_sep[first_meas,:,:].sum(0)
-        second_scan = reco_sep[second_meas,:,:].sum(0)
-        third_scan = reco_sep[third_meas,:,:].sum(0)
-        
-        first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
-        second_scan_kspace = tonumpy(scanner.signal[0,2:-2,second_meas,:2,0])
-        
-        first_scan_kspace_mag = magimg(first_scan_kspace)
-        second_scan_kspace_mag = magimg(second_scan_kspace)
-        
-        ax1=plt.subplot(231)
-        ax=plt.imshow(magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: first scan')
-        plt.ion()
-        
-        plt.subplot(232, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: second scan')
-        plt.ion()
-        
-        # print results
-        ax1=plt.subplot(234)
-        ax=plt.imshow(first_scan_kspace_mag, interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: first scan kspace')
-        plt.ion()
-        
-        plt.subplot(235, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(second_scan_kspace_mag, interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: second scan kspace')
-        plt.ion()
-        
-        ax1=plt.subplot(233)
-        ax=plt.imshow(magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: first scan')
-        plt.ion()    
-        
-        fig.set_size_inches(18, 7)
-        
-        plt.show()        
+    reco_sep = scanner.adjoint_separable()
+    
+    first_scan = reco_sep[first_meas,:,:].sum(0)
+    second_scan = reco_sep[second_meas,:,:].sum(0)
+    third_scan = reco_sep[third_meas,:,:].sum(0)
+    
+    first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
+    second_scan_kspace = tonumpy(scanner.signal[0,2:-2,second_meas,:2,0])
+    
+    first_scan_kspace_mag = magimg(first_scan_kspace)
+    second_scan_kspace_mag = magimg(second_scan_kspace)
+    
+    ax1=plt.subplot(231)
+    ax=plt.imshow(magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: first scan')
+    plt.ion()
+    
+    plt.subplot(232, sharex=ax1, sharey=ax1)
+    ax=plt.imshow(magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: second scan')
+    plt.ion()
+    
+    # print results
+    ax1=plt.subplot(234)
+    ax=plt.imshow(first_scan_kspace_mag, interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: first scan kspace')
+    plt.ion()
+    
+    plt.subplot(235, sharex=ax1, sharey=ax1)
+    ax=plt.imshow(second_scan_kspace_mag, interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: second scan kspace')
+    plt.ion()
+    
+    ax1=plt.subplot(233)
+    ax=plt.imshow(magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: first scan')
+    plt.ion()    
+    
+    fig.set_size_inches(18, 7)
+    
+    plt.show()        
                         
     #stop()
     
@@ -452,7 +451,7 @@ if False:
     
     # do real meas
 
-    stop()
+
     
 # target = T21
 target = setdevice(torch.from_numpy(real_phantom_resized[:,:,1]).float())
@@ -498,14 +497,14 @@ mag_echo1 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
 mag_echo2 = magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2]))
 mag_echo3 = magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2]))
 
-mag_echo13 = (1-mag_echo1/mag_echo3)
-mag_echo23 = (1-mag_echo2/mag_echo3)
+mag_echo13 = (1-mag_echo1/(mag_echo3+1e-6))
+mag_echo23 = (1-mag_echo2/(mag_echo3+1e-6))
 
 dTI13 = event_time[-1,0]  
 dTI23 = event_time[-1,:measRepStep+1].sum() 
 
-T1map1= -tonumpy(dTI13)/np.log(mag_echo13)
-T1map2= -tonumpy(dTI23)/np.log(mag_echo23)
+T1map1= -tonumpy(dTI13)/np.log(mag_echo13 + 1e-6)
+T1map2= -tonumpy(dTI23)/np.log(mag_echo23 + 1e-6)
 T1map1 = T1map1*magmask
 T1map2 = T1map2*magmask
 

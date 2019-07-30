@@ -37,7 +37,7 @@ print(experiment_id)
 
 double_precision = False
 use_supermem = True
-do_scanner_query = False
+do_scanner_query = True
 
 use_gpu = 1
 gpu_dev = 3
@@ -95,7 +95,7 @@ sz = np.array([32,32])                                           # image size
 extraRep = 3
 NRep = extraRep*sz[1] + 1                                   # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 26**2                                # number of spin sims in each voxel
+NSpins = 4**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
@@ -183,7 +183,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,0,0] = 1e-4*np.pi/180 
+flips[0,0,0] = 5*np.pi/180 
 #flips[0,0,1] = 90*np.pi/180 
 
 flips[0,1:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
@@ -227,7 +227,7 @@ third_meas = np.arange(1+2*measRepStep,3*measRepStep+1)
 
 # first measurement
 event_time[0,first_meas] =  2e-3
-event_time[1,first_meas] =  0.5*1e-3*42/sz[0]   # for 96
+event_time[1,first_meas] =  0.5*1e-3   # for 96
 event_time[-2,first_meas] = 2*1e-3
 event_time[-1,first_meas] = 2.9*1e-3
 
@@ -235,7 +235,7 @@ event_time[-1,measRepStep] = 2.9*1e-3 + 0.5
 
 # second measurement
 event_time[0,second_meas] =  2e-3
-event_time[1,second_meas] =  0.75*1e-3*42/sz[0]   # for 96
+event_time[1,second_meas] =  0.75*1e-3   # for 96
 event_time[-2,second_meas] = 2*1e-3
 event_time[-1,second_meas] = 2.9*1e-3
 
@@ -243,7 +243,7 @@ event_time[-1,2*measRepStep] = 2.9*1e-3 + 0.5
 
 # third measurement
 event_time[0,third_meas] =  2e-3
-event_time[1,third_meas] =  0.75*1e-3*42/sz[0]   # for 96
+event_time[1,third_meas] =  0.75*1e-3   # for 96
 event_time[-2,third_meas] = 2*1e-3
 event_time[-1,third_meas] = 2.9*1e-3
 
@@ -385,49 +385,48 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         
         plt.show()
         
-if True:
-    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=False)
+targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=False)
+
+if do_scanner_query:
+    scanner.send_job_to_real_system(experiment_id,today_datestr)
+    scanner.get_signal_from_real_system(experiment_id,today_datestr)
     
-    if do_scanner_query:
-        scanner.send_job_to_real_system(experiment_id,today_datestr)
-        scanner.get_signal_from_real_system(experiment_id,today_datestr)
-        
-        reco_sep = scanner.adjoint_separable()
-        
-        first_scan = reco_sep[first_meas,:,:].sum(0)
-        second_scan = reco_sep[second_meas,:,:].sum(0)
-        third_scan = reco_sep[third_meas,:,:].sum(0)
-        
-        first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
-        second_scan_kspace = tonumpy(scanner.signal[0,2:-2,second_meas,:2,0])
-        
-        first_scan_kspace_mag = magimg(first_scan_kspace)
-        second_scan_kspace_mag = magimg(second_scan_kspace)
-        
-        ax1=plt.subplot(231)
-        ax=plt.imshow(phaseimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: first scan')
-        plt.ion()
-        
-        plt.subplot(232, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(phaseimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: second scan')
-        plt.ion()
-        
-        plt.subplot(233, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(phaseimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: third scan')
-        plt.ion()   
-        
-        fig.set_size_inches(12, 7)
-        
-        plt.show()  
+    reco_sep = scanner.adjoint_separable()
+    
+    first_scan = reco_sep[first_meas,:,:].sum(0)
+    second_scan = reco_sep[second_meas,:,:].sum(0)
+    third_scan = reco_sep[third_meas,:,:].sum(0)
+    
+    first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
+    second_scan_kspace = tonumpy(scanner.signal[0,2:-2,second_meas,:2,0])
+    
+    first_scan_kspace_mag = magimg(first_scan_kspace)
+    second_scan_kspace_mag = magimg(second_scan_kspace)
+    
+    ax1=plt.subplot(231)
+    ax=plt.imshow(phaseimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: first scan')
+    plt.ion()
+    
+    plt.subplot(232, sharex=ax1, sharey=ax1)
+    ax=plt.imshow(phaseimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: second scan')
+    plt.ion()
+    
+    plt.subplot(233, sharex=ax1, sharey=ax1)
+    ax=plt.imshow(phaseimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: third scan')
+    plt.ion()   
+    
+    fig.set_size_inches(12, 7)
+    
+    plt.show()  
         
 mag_echo1 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
 magmask = mag_echo1 > np.mean(mag_echo1.ravel())/3     
