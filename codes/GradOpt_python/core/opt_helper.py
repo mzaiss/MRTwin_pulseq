@@ -10,6 +10,7 @@ import scipy
 import math
 from torch.optim.optimizer import Optimizer
 import socket
+import nevergrad
 
 from sys import platform
 import time
@@ -318,7 +319,7 @@ class OPT_helper():
                 _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None)
             print(colored("\033[93m iter %d, recon error = %f \033[0m%%" % (inner_iter,self.last_error), 'green'))
             
-            self.print_status(do_vis_image,self.last_reco)
+            self.print_status(do_vis_image,self.last_reco, plot_ROI=False)
             
             if query_scanner:
                 experiment_id, today_datestr, sequence_class = query_kwargs
@@ -391,7 +392,6 @@ class OPT_helper():
                 saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
                 saved_state['event_times'] = tonumpy(tosave_opt_params[2])
                 saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
-                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
                 saved_state['kloc'] = tonumpy(self.scanner.kspace_loc.clone())
                 saved_state['learn_rates'] = self.custom_learning_rate
                 
@@ -410,8 +410,11 @@ class OPT_helper():
                 
                 self.param_reco_history.append(saved_state)      
                 
-            #self.new_batch()
-            self.optimizer.step(self.weak_closure)
+            if self.opti_mode == 'nevergrad':
+                # work in progress....
+                raise ValueError("nevergrad never implemented")
+            else:
+                self.optimizer.step(self.weak_closure)
             
     def train_model_supervised(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False):
         
@@ -518,7 +521,7 @@ class OPT_helper():
     def set_target(self,target):
         self.target = target
             
-    def print_status(self, do_vis_image=False, reco=None):
+    def print_status(self, do_vis_image=False, reco=None, plot_ROI=False):
         if do_vis_image:
             sz=self.spins.sz
             
@@ -639,20 +642,20 @@ class OPT_helper():
             plt.show()
             plt.pause(0.02)
             
-            
-            legs=['x','y','z']
-            for i in range(3):
-                plt.subplot(1, 3, i+1)
-                plt.plot(tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep]) )
-                if (i==0) and (self.target_seq_holder is not None):
-                    plt.plot(tonumpy(self.target_seq_holder.ROI_signal[:,:,1]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep]) ) 
-                if (i==2):
-                    plt.plot(tonumpy(self.scanner.ROI_signal[:,:,4]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep]),'--') 
-                plt.title("ROI_def %d, %s" % (self.scanner.ROI_def,legs[i]))
-                fig = plt.gcf()
-                fig.set_size_inches(16, 3)
-            plt.show()
-            plt.pause(0.02)
+            if plot_ROI:
+                legs=['x','y','z']
+                for i in range(3):
+                    plt.subplot(1, 3, i+1)
+                    plt.plot(tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep]) )
+                    if (i==0) and (self.target_seq_holder is not None):
+                        plt.plot(tonumpy(self.target_seq_holder.ROI_signal[:,:,1]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep]) ) 
+                    if (i==2):
+                        plt.plot(tonumpy(self.scanner.ROI_signal[:,:,4]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep]),'--') 
+                    plt.title("ROI_def %d, %s" % (self.scanner.ROI_def,legs[i]))
+                    fig = plt.gcf()
+                    fig.set_size_inches(16, 3)
+                plt.show()
+                plt.pause(0.02)
             
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id, today_datestr):
