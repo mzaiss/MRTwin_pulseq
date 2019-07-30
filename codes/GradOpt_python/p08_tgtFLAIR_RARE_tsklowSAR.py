@@ -338,11 +338,11 @@ def phi_FRP_model(opt_params,aux_params):
     # forward/adjoint pass
     scanner.forward_fast(spins, event_time)
     reco_sep = scanner.adjoint_separable()
-    scanner.reco = reco_sep[first_meas,:,:].sum(0)
+    scanner.reco = scale_param.view([1,2])*reco_sep[first_meas,:,:].sum(0)
 
     lbd = 0.4*1e1         # switch on of SAR cost
     #loss_image = (scanner.reco - targetSeq.target_image)
-    loss_image = (scale_param.view([1,2])*scanner.reco - targetSeq.target_image)
+    loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
     loss_sar = torch.sum(flips[:,:,0]**2)
@@ -362,12 +362,12 @@ def phi_FRP_model(opt_params,aux_params):
     
     phi = loss
   
-    ereco = tonumpy((scale_param.view([1,2])*scanner.reco).detach()).reshape([sz[0],sz[1],2])
+    ereco = tonumpy((scanner.reco).detach()).reshape([sz[0],sz[1],2])
     error = e(tonumpy(targetSeq.target_image).ravel(),ereco.ravel())     
     
     #plt.imshow(magimg(ereco))
     
-    return (phi,scale_param.view([1,2])*scanner.reco, error)
+    return (phi,scanner.reco, error)
         
 # %% # OPTIMIZATION land
 
