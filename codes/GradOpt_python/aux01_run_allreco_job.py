@@ -35,9 +35,9 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = True
+recreate_pulseq_files = False
 recreate_pulseq_files_for_sim = False
-do_real_meas = True
+do_real_meas = False
 test_iter_number = False
 use_custom_iter_sel_scheme = False
 
@@ -160,10 +160,9 @@ experiment_list = []
 #experiment_list.append(["190724", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar"])
 #experiment_list.append(["190724", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_48_lowsar"])
 #experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_48_lowsar"])
-experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_24_lowsar_supervised"])
-experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised"])
-experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
-
+#experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised"])
+#experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
+experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR_allFA"])
 
 
 
@@ -189,7 +188,7 @@ for exp_current in experiment_list:
     
     # define setup
     sz = alliter_array['sz']
-    NRep = sz[1]
+    NRep = alliter_array['NRep']
     T = sz[0] + 4
     NSpins = 2**2
     NCoils = alliter_array['all_signals'].shape[1]
@@ -224,8 +223,12 @@ for exp_current in experiment_list:
     event_time = setdevice(torch.from_numpy(input_array_target['event_times']))
     grad_moms = setdevice(torch.from_numpy(input_array_target['grad_moms']))
     
+    B1plus = torch.ones((NCoils,1,NVox,1,1), dtype=torch.float32)
+    #B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([NCoils, NVox]))
+    scanner.B1plus = setdevice(B1plus)     
+    
     scanner.init_flip_tensor_holder()
-    scanner.set_flipXY_tensor(flips)
+    scanner.set_flip_tensor_withB1plus(flips)
     
     # rotate ADC according to excitation phase
     scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
