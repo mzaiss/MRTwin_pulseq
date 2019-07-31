@@ -590,6 +590,8 @@ class OPT_helper():
 #            plt.clim(-180,270)
             FA=todisplay_opt_params[1][0,:,0]
             ax=plt.plot(tonumpy(FA*180/np.pi))
+            FA_act1=todisplay_opt_params[1][1,:,0]
+            plt.plot(tonumpy(FA_act1*180/np.pi))
             plt.ion()
             plt.title('FA [\N{DEGREE SIGN}]')
 
