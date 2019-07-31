@@ -32,7 +32,7 @@ if sys.platform != 'linux':
     use_gpu = 0
     gpu_dev = 0
     
-do_scanner_query = False
+do_scanner_query = True
 
 # NRMSE error function
 def e(gt,x):
@@ -62,10 +62,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([64,64])                                           # image size
+sz = np.array([60,60])                                           # image size
 NRep = sz[1]  + 1                                       # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 4**2                                # number of spin sims in each voxel
+NSpins = 2**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 import time; today_datestr = time.strftime('%y%m%d')
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -80,7 +80,7 @@ spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
 
 cutoff = 1e-12
 
-real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 
@@ -167,28 +167,29 @@ scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 
 # event timing vector 
 
-event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float()
+event_time = torch.from_numpy(0.02*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 
 # first repetition
 event_time[0,0] =  2e-3
-event_time[1,0] =  0.5*1e-3
+event_time[1,0] =  1.5*1e-3
 event_time[-2,0] = 2*1e-3
-event_time[-1,0] = 3.0*1e-3 + 3  # Thats the FLAIR IR time 
+event_time[-1,0] = 3.0*1e-3 + 3.0  # Thats the FLAIR IR time 
 
 
-TEd= 0.5*1e-3 # increase to reduce SAR
+TEd= 0.3*1e-3 # increase to reduce SAR
+
 event_time[0,2:] = 0.2*1e-3     # for TE2_180_2   delay only
 event_time[-1,first_meas] = 0.8*1e-3     # for TE2_180_2   delay only
-event_time[1,first_meas] =  1.7*1e-3 +TEd      # for TE2_180     180 + prewinder   
-event_time[0,1] = torch.sum(event_time[1:int(sz[0]/2+2),1])     # for TE2_90      90 +  rewinder
+event_time[1,first_meas] =  1.7*1e-3 +TEd      # for TE2_180     RF 180 + prewinder   .
+event_time[0,1] = torch.sum(event_time[1:int(sz[0]/2+2),1])     # for TE2_90      RF 90 +  rewinder
 #event_time[1:,0,0] = 0.2*1e-3
-event_time[-2,first_meas] = 0.7*1e-3 +TEd                        # spoiler
+event_time[-2,first_meas] = TEd   + 0.7*1e-3                    # postwinder
 event_time = setdevice(event_time)
 
 TE2_90   = torch.sum(event_time[0,1])*1000  # time after 90 until 180
 TE2_180  = torch.sum(event_time[1:int(sz[0]/2+2),1])*1000 # time after 180 til center k-space
-TE2_180_2= (torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,1])*1000 # time after center k-space til next 180
-TACQ = torch.sum(event_time)*1000
+TE2_180_2= (torch.sum(event_time[int(sz[0]/2+2):,1])+event_time[0,2])*1000 # time after center k-space til next 180
+TACQ = torch.sum(event_time[:,1:])*1000
 
 # gradient-driver precession
 # Cartesian encoding
@@ -210,12 +211,12 @@ grad_moms[-2,first_meas,0] =  torch.ones((1,1))*sz[0]  # RARE: rewinder after 90
 #grad_moms[[1,-2],:,1] = torch.roll(grad_moms[[1,-2],:,1],0,dims=[1])
 
 #     centric ordering
-#grad_moms[1,:,1] = 0
+#grad_moms[1,first_meas,1] = 0
 #for i in range(1,int(sz[1]/2)+1):
-#    grad_moms[1,i*2-1,1] = (-i)
+#    grad_moms[1,1+i*2-1,1] = (-i)
 #    if i < sz[1]/2:
-#        grad_moms[1,i*2,1] = i
-#grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
+#        grad_moms[1,1+i*2,1] = i
+#grad_moms[-2,first_meas,1] = -grad_moms[1,first_meas,1]     # backblip
 
 
 grad_moms = setdevice(grad_moms)
@@ -230,6 +231,7 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 
 # forward/adjoint pass
 scanner.forward_fast(spins, event_time)
+
 #scanner.adjoint()
 
 # try to fit this
@@ -271,7 +273,29 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.set_size_inches(18, 7)
         
         plt.show()
-    #stop()
+        
+if True: # check sanity: is target what you expect and is sequence what you expect
+    #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
+
+    scanner.do_SAR_test(flips, event_time)    
+    targetSeq.export_to_matlab(experiment_id, today_datestr)
+    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+    
+    if do_scanner_query:
+        scanner.send_job_to_real_system(experiment_id,today_datestr)
+        scanner.get_signal_from_real_system(experiment_id,today_datestr)
+        
+        reco_sep = scanner.adjoint_separable()
+        scanner.reco = reco_sep[first_meas,:,:].sum(0)
+#        scanner.reco = reco_sep[:,:,:].sum(0)
+                
+        targetSeq.meas_sig = scanner.signal.clone()
+        targetSeq.meas_reco = scanner.reco.clone()
+        
+    targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
+                
+    
+    stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -283,9 +307,9 @@ def init_variables():
 #    flips[0,:,:]=flips[0,:,:]
     flips = setdevice(flips)
     
-    flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
+    flip_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()     
     #flip_mask[0,:,:] = 0
-    flip_mask[2:,:,:] = 0
+    flip_mask[1,:,:] = 1
     flip_mask = setdevice(flip_mask)
     flips.zero_grad_mask = flip_mask
       

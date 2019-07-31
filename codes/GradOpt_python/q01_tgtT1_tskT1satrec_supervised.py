@@ -37,7 +37,7 @@ print(experiment_id)
 
 double_precision = False
 use_supermem = False
-do_scanner_query = False
+do_scanner_query = True
 
 use_gpu = 1
 gpu_dev = 3
@@ -88,11 +88,11 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([24,24])                                           # image size
+sz = np.array([32,32])                                           # image size
 extraRep = 3
 NRep = extraRep*sz[1] + 1                                   # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 26**2                                # number of spin sims in each voxel
+NSpins = 4**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
@@ -118,38 +118,6 @@ real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 spins.set_system(real_phantom_resized)
-
-csz = 12
-nmb_samples = 1
-spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
-
-for i in range(nmb_samples):
-    rvx = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
-    rvy = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
-    
-    b0 = (np.random.rand() - 0.5) * 30                            # -60..60 Hz
-    
-    for j in range(rvx,rvx+csz):
-        for k in range(rvy,rvy+csz):
-            pd = 0.5 + np.random.rand()
-            t2 = 0.3 + np.random.rand()
-            t1 = t2 + np.random.rand()
-              
-            spin_db_input[i,j,k,0] = pd
-            spin_db_input[i,j,k,1] = t1
-            spin_db_input[i,j,k,2] = t2
-            spin_db_input[i,j,k,3] = b0
-            
-spin_db_input[0,:,:,:] = real_phantom_resized
-            
-tmp = spin_db_input[:,:,:,1:3]
-tmp[tmp < cutoff] = cutoff
-spin_db_input[:,:,:,1:3] = tmp
-
-#sigma = 0.8
-#for i in range(nmb_samples):
-#    for j in range(3):
-#        spin_db_input[i,:,:,j] = scipy.ndimage.filters.gaussian_filter(spin_db_input[i,:,:,j], sigma)
 
 # end initialize scanned object
 print('use_gpu = ' +str(use_gpu)) 
@@ -209,13 +177,15 @@ scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID spec
 
 
 # event timing vector 
-event_time = torch.from_numpy(0.1*1e-4*np.ones((scanner.T,scanner.NRep))).float()
+event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 
+
+TI = np.array([1,2,10])
 # first repetition
 event_time[0,0] =  2e-3
 event_time[1,0] =  0.5*1e-3
 event_time[-2,0] = 2*1e-3
-event_time[-1,0] = 2.9*1e-3 + 0.5
+event_time[-1,0] = 2.9*1e-3 + TI[0]
 
 measRepStep = NRep//extraRep
 first_meas = np.arange(1,measRepStep+1)
@@ -229,7 +199,7 @@ event_time[1,first_meas] =  5.5*1e-3   # for 96
 event_time[-2,first_meas] = 2*1e-3
 event_time[-1,first_meas] = 2.9*1e-3
 
-event_time[-1,measRepStep] = 2.9*1e-3 + 0.5
+event_time[-1,measRepStep] = 2.9*1e-3 + TI[1]
 
 # second measurement
 event_time[0,second_meas] =  2e-3
@@ -238,7 +208,7 @@ event_time[1,second_meas] =  5.5*1e-3   # for 96
 event_time[-2,second_meas] = 2*1e-3
 event_time[-1,second_meas] = 2.9*1e-3
 
-event_time[-1,2*measRepStep] = 2.9*1e-3 + 3.0
+event_time[-1,2*measRepStep] = 2.9*1e-3 + TI[2]
 
 # third measurement
 event_time[0,third_meas] =  2e-3
@@ -385,64 +355,63 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         
         plt.show()
         
-if False:
-    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
+targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
+
+if do_scanner_query:
+    scanner.send_job_to_real_system(experiment_id,today_datestr)
+    scanner.get_signal_from_real_system(experiment_id,today_datestr)
     
-    if do_scanner_query:
-        scanner.send_job_to_real_system(experiment_id,today_datestr)
-        scanner.get_signal_from_real_system(experiment_id,today_datestr)
-        
-        reco_sep = scanner.adjoint_separable()
-        
-        first_scan = reco_sep[first_meas,:,:].sum(0)
-        second_scan = reco_sep[second_meas,:,:].sum(0)
-        third_scan = reco_sep[third_meas,:,:].sum(0)
-        
-        first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
-        second_scan_kspace = tonumpy(scanner.signal[0,2:-2,second_meas,:2,0])
-        
-        first_scan_kspace_mag = magimg(first_scan_kspace)
-        second_scan_kspace_mag = magimg(second_scan_kspace)
-        
-        ax1=plt.subplot(231)
-        ax=plt.imshow(magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: first scan')
-        plt.ion()
-        
-        plt.subplot(232, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: second scan')
-        plt.ion()
-        
-        # print results
-        ax1=plt.subplot(234)
-        ax=plt.imshow(first_scan_kspace_mag, interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: first scan kspace')
-        plt.ion()
-        
-        plt.subplot(235, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(second_scan_kspace_mag, interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: second scan kspace')
-        plt.ion()
-        
-        ax1=plt.subplot(233)
-        ax=plt.imshow(magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax)        
-        plt.title('meas: first scan')
-        plt.ion()    
-        
-        fig.set_size_inches(18, 7)
-        
-        plt.show()        
+    reco_sep = scanner.adjoint_separable()
+    
+    first_scan = reco_sep[first_meas,:,:].sum(0)
+    second_scan = reco_sep[second_meas,:,:].sum(0)
+    third_scan = reco_sep[third_meas,:,:].sum(0)
+    
+    first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
+    second_scan_kspace = tonumpy(scanner.signal[0,2:-2,second_meas,:2,0])
+    
+    first_scan_kspace_mag = magimg(first_scan_kspace)
+    second_scan_kspace_mag = magimg(second_scan_kspace)
+    
+    ax1=plt.subplot(231)
+    ax=plt.imshow(magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: first scan')
+    plt.ion()
+    
+    plt.subplot(232, sharex=ax1, sharey=ax1)
+    ax=plt.imshow(magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: second scan')
+    plt.ion()
+    
+    # print results
+    ax1=plt.subplot(234)
+    ax=plt.imshow(first_scan_kspace_mag, interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: first scan kspace')
+    plt.ion()
+    
+    plt.subplot(235, sharex=ax1, sharey=ax1)
+    ax=plt.imshow(second_scan_kspace_mag, interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: second scan kspace')
+    plt.ion()
+    
+    ax1=plt.subplot(233)
+    ax=plt.imshow(magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('meas: first scan')
+    plt.ion()    
+    
+    fig.set_size_inches(18, 7)
+    
+    plt.show()        
                         
     #stop()
     
@@ -452,60 +421,25 @@ if False:
     
     # do real meas
 
-    stop()
-    
-# target = T21
-target = setdevice(torch.from_numpy(real_phantom_resized[:,:,1]).float())
-targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
-
-# Prepare target db: iterate over all samples in the DB
-target_db = setdevice(torch.zeros((nmb_samples,NVox,1)).float())
-    
-for i in range(nmb_samples):
-    tgt = torch.from_numpy(spin_db_input[i,:,:,1:2].reshape([NVox,1]))
-    target_db[i,:,:] = tgt.reshape([sz[0],sz[1],1]).flip([0,1]).permute([1,0,2]).reshape([NVox,1])
-    
-    
-scanner.init_flip_tensor_holder()
-scanner.set_flip_tensor_withB1plus(flips)
-
-# rotate ADC according to excitation phase
-rfsign = (torch.sign(flips[0,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
-
-scanner.init_gradient_tensor_holder()          
-scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # GRE/FID specific, maybe adjust for higher echoes
-
-samp_idx = np.random.choice(nmb_samples,1)[0]
-
-spins.set_system(spin_db_input[samp_idx,:,:,:])
-scanner.forward_fast(spins, event_time)
-reco_sep = scanner.adjoint_separable()
-
-first_scan = reco_sep[first_meas,:,:].sum(0)
-second_scan = reco_sep[second_meas,:,:].sum(0)    
-third_scan = reco_sep[third_meas,:,:].sum(0)    
-reco_all_rep_premeas = torch.stack((first_scan,second_scan,third_scan),0)    
-
 # %% ###     quantification ######################################################
 #############################################################################    
 
 mag_echo3 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
-magmask = mag_echo3 > np.mean(mag_echo3.ravel())/100
+magmask = mag_echo3 > np.mean(mag_echo3.ravel())/3.3
 magmask=magmask.astype(float)
 plt.imshow(magmask)
 mag_echo1 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
 mag_echo2 = magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2]))
 mag_echo3 = magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2]))
 
-mag_echo13 = (1-mag_echo1/mag_echo3)
-mag_echo23 = (1-mag_echo2/mag_echo3)
+mag_echo13 = np.abs((1-mag_echo1/(mag_echo3+1e-12)))
+mag_echo23 = np.abs(1-mag_echo2/(mag_echo3+1e-12))
 
 dTI13 = event_time[-1,0]  
 dTI23 = event_time[-1,:measRepStep+1].sum() 
 
-T1map1= -tonumpy(dTI13)/np.log(mag_echo13)
-T1map2= -tonumpy(dTI23)/np.log(mag_echo23)
+T1map1= -tonumpy(dTI13)/np.log(mag_echo13 + 1e-12)
+T1map2= -tonumpy(dTI23)/np.log(mag_echo23 + 1e-12)
 T1map1 = T1map1*magmask
 T1map2 = T1map2*magmask
 
@@ -530,7 +464,7 @@ plt.ion()
 
 plt.subplot(143)
 ax=plt.imshow(T1map2)
-plt.clim(0,np.max(np.abs(real_phantom_resized[:,:,2])))
+plt.clim(0,np.max(np.abs(real_phantom_resized[:,:,1])))
 plt.title("T1 map TI 2")
 plt.ion() 
 

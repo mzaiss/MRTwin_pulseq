@@ -160,10 +160,20 @@ experiment_list = []
 #experiment_list.append(["190724", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar"])
 #experiment_list.append(["190724", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_48_lowsar"])
 #experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_48_lowsar"])
+#experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_24_lowsar_supervised"])
 #experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised"])
 #experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
-experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR_allFA"])
 
+
+experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_24_extendedLRprot"])
+experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_32_extendedLRprot"])
+experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_48_extendedLRprot"])
+experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_64_extendedLRprot"])
+experiment_list.append(["190728", "p06_tgtGRESP_tskFLASH_FA_G_ET_24_lowsar_supervised2px"])
+experiment_list.append(["190728", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px"])
+experiment_list.append(["190728", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised2px"])
+experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR"])
+experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR_optonlyRefFA"])
 
 
 
