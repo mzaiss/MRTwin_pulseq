@@ -69,7 +69,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([20,20])                                           # image size
 extraRep = 3
 NRep = extraRep*sz[1]                                 # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
@@ -182,7 +182,7 @@ event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float
 #event_time[0,:] = 2*1e-3   
 #event_time[0,1:] = 0.01*1e-3    + dTE/2
 event_time[-1,:] = 0.01*1e-3
-event_time[-2,:] = 1.98*1e-3 + 0.2
+event_time[-2,:] = 1.98*1e-3 + 0.5
 
 event_time = setdevice(event_time)
 
@@ -194,7 +194,7 @@ first_meas = np.arange(0,measRepStep)
 second_meas = np.arange(measRepStep,2*measRepStep)
 third_meas = np.arange(2*measRepStep,3*measRepStep)
 
-dTE= np.array([0,0.3,0.6])  # dTE in s
+dTE= np.array([0,0.3,1.5])  # dTE in s
 RFd = 2*1e-3
 # first measurement
 event_time[1,first_meas] = 2*1e-3    + dTE[0]/2

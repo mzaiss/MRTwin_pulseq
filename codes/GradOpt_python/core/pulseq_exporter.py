@@ -172,7 +172,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)   
     
-    seq.add_block(make_delay(2.0))
+    seq.add_block(make_delay(3.0))
     
     nonsel = 0
     if nonsel==1:

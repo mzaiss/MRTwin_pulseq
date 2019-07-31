@@ -35,11 +35,11 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = False
+recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
-do_real_meas = False
+do_real_meas = True
 test_iter_number = False
-use_custom_iter_sel_scheme = False
+use_custom_iter_sel_scheme = True
 
 max_nmb_iter = 70
 
@@ -160,20 +160,10 @@ experiment_list = []
 #experiment_list.append(["190724", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar"])
 #experiment_list.append(["190724", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_48_lowsar"])
 #experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_48_lowsar"])
-#experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_24_lowsar_supervised"])
 #experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised"])
 #experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
+experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR_allFA"])
 
-
-experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_24_extendedLRprot"])
-experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_32_extendedLRprot"])
-experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_48_extendedLRprot"])
-experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_64_extendedLRprot"])
-experiment_list.append(["190728", "p06_tgtGRESP_tskFLASH_FA_G_ET_24_lowsar_supervised2px"])
-experiment_list.append(["190728", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px"])
-experiment_list.append(["190728", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised2px"])
-experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR"])
-experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR_optonlyRefFA"])
 
 
 
@@ -262,18 +252,18 @@ for exp_current in experiment_list:
         scanner.adjoint()
     target_sim_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
-    # simulation IFFT
-    scanner.do_ifft_reco()
-    target_sim_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    
-    # simulation NUFFT
-    scanner.do_nufft_reco()
-    target_sim_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+#    # simulation IFFT
+#    scanner.do_ifft_reco()
+#    target_sim_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+#    
+#    # simulation NUFFT
+#    scanner.do_nufft_reco()
+#    target_sim_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
     coil_idx = 0
     adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
     sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
-    target_sim_kspace = tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2])
+    target_sim_kspace = tonumpy(sim_kspace[:,1:,:].detach()).reshape([sz[0],sz[1],2])
     
     ######### REAL
     # send to scanner
@@ -302,7 +292,7 @@ for exp_current in experiment_list:
         scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
         scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
     
-    real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
+    real_kspace = scanner.signal[coil_idx,adc_idx,1:,:2,0]
     target_real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
     
     # real adjoint
@@ -316,13 +306,13 @@ for exp_current in experiment_list:
         scanner.adjoint()
     target_real_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
     
-    # real IFFT
-    scanner.do_ifft_reco()
-    target_real_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-    
-    # real NUFFT
-    scanner.do_nufft_reco()
-    target_real_reco_nufft = tonumpy(scanner.reco.detach().reshape([sz[0],sz[1],2]))  
+#    # real IFFT
+#    scanner.do_ifft_reco()
+#    target_real_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+#    
+#    # real NUFFT
+#    scanner.do_nufft_reco()
+#    target_real_reco_nufft = tonumpy(scanner.reco.detach().reshape([sz[0],sz[1],2]))  
 
     ###########################################################################    
     ###########################################################################
@@ -347,7 +337,7 @@ for exp_current in experiment_list:
         non_increasing_error_iter = non_increasing_error_iter[(np.ceil(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
         
     if use_custom_iter_sel_scheme:
-        non_increasing_error_iter = np.arange(0,500,10)
+        non_increasing_error_iter = np.arange(0,819,10)
 
         
     #non_increasing_error_iter = np.concatenate((non_increasing_error_iter[:5],non_increasing_error_iter[-5:]))
@@ -385,7 +375,7 @@ for exp_current in experiment_list:
         grad_moms = setdevice(torch.from_numpy(alliter_array['grad_moms'][c_iter]))
         
         scanner.init_flip_tensor_holder()
-        scanner.set_flipXY_tensor(flips)
+        scanner.set_flip_tensor_withB1plus(flips)
         
         # rotate ADC according to excitation phase
         scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
@@ -410,19 +400,19 @@ for exp_current in experiment_list:
             sim_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
             all_sim_reco_generalized_adjoint[lin_iter_counter] = sim_reco_generalized_adjoint
         
-        # simulation IFFT
-        scanner.do_ifft_reco()
-        sim_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-        all_sim_reco_ifft[lin_iter_counter] = sim_reco_ifft
-        
-        # simulation NUFFT
-        scanner.do_nufft_reco()
-        sim_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-        all_sim_reco_nufft[lin_iter_counter] = sim_reco_nufft
+#        # simulation IFFT
+#        scanner.do_ifft_reco()
+#        sim_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+#        all_sim_reco_ifft[lin_iter_counter] = sim_reco_ifft
+#        
+#        # simulation NUFFT
+#        scanner.do_nufft_reco()
+#        sim_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+#        all_sim_reco_nufft[lin_iter_counter] = sim_reco_nufft
         
         coil_idx = 0
         adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
-        sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
+        sim_kspace = scanner.signal[coil_idx,adc_idx,1:,:2,0]
         sim_kspace = tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2])
         all_sim_kspace[lin_iter_counter] = sim_kspace
         
@@ -462,7 +452,7 @@ for exp_current in experiment_list:
             scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
             scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
         
-        real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
+        real_kspace = scanner.signal[coil_idx,adc_idx,1:,:2,0]
         real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
         all_real_kspace[lin_iter_counter] = real_kspace
         
@@ -477,15 +467,15 @@ for exp_current in experiment_list:
             real_reco_generalized_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
             all_real_reco_generalized_adjoint[lin_iter_counter] = real_reco_generalized_adjoint
         
-        # real IFFT
-        scanner.do_ifft_reco()
-        real_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-        all_real_reco_ifft[lin_iter_counter] = real_reco_ifft
-        
-        # real NUFFT
-        scanner.do_nufft_reco()
-        real_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
-        all_real_reco_nufft[lin_iter_counter] = real_reco_nufft
+#        # real IFFT
+#        scanner.do_ifft_reco()
+#        real_reco_ifft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+#        all_real_reco_ifft[lin_iter_counter] = real_reco_ifft
+#        
+#        # real NUFFT
+#        scanner.do_nufft_reco()
+#        real_reco_nufft = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+#        all_real_reco_nufft[lin_iter_counter] = real_reco_nufft
         
         lin_iter_counter += 1
         
@@ -533,16 +523,16 @@ for exp_current in experiment_list:
     # target
     allreco_dict['target_sim_reco_adjoint'] = target_sim_reco_adjoint
     allreco_dict['target_sim_reco_generalized_adjoint'] = target_sim_reco_generalized_adjoint
-    allreco_dict['target_sim_reco_ifft'] = target_sim_reco_ifft
-    allreco_dict['target_sim_reco_nufft'] = target_sim_reco_nufft
+    #allreco_dict['target_sim_reco_ifft'] = target_sim_reco_ifft
+    #allreco_dict['target_sim_reco_nufft'] = target_sim_reco_nufft
     allreco_dict['target_sim_kspace'] = target_sim_kspace
     
     if do_real_meas:
         allreco_dict['target_real_kspace'] = target_real_kspace
         allreco_dict['target_real_reco_adjoint'] = target_real_reco_adjoint
         allreco_dict['target_real_reco_generalized_adjoint'] = target_real_reco_generalized_adjoint
-        allreco_dict['target_real_reco_ifft'] = target_real_reco_ifft
-        allreco_dict['target_real_reco_nufft'] = target_real_reco_nufft     
+        #allreco_dict['target_real_reco_ifft'] = target_real_reco_ifft
+        #allreco_dict['target_real_reco_nufft'] = target_real_reco_nufft     
     
     # iterations
     allreco_dict['all_sim_reco_adjoint'] = all_sim_reco_adjoint

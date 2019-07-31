@@ -183,7 +183,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,0,0] = 5*np.pi/180 
+flips[0,0,0] = 0.1*np.pi/180 
 #flips[0,0,1] = 90*np.pi/180 
 
 flips[0,1:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
