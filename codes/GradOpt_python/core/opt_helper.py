@@ -211,6 +211,7 @@ class OPT_helper():
         
         self.last_reco = None
         self.last_error = None        
+        self.last_loss = None
         
         self.param_reco_history = []
         
@@ -250,6 +251,7 @@ class OPT_helper():
             loss,last_reco,last_error = self.phi_FRP_model(self.scanner_opt_params, None)
             self.last_reco = last_reco
             self.last_error = last_error
+            self.last_loss = loss.item()
             loss.backward()
             
             kumloss += loss
@@ -294,7 +296,7 @@ class OPT_helper():
             
         
     # main training function
-    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False, query_kwargs=None):
+    def train_model(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False, query_scanner=False, query_kwargs=None, adaptive_stopping=False):
         
         for i in range(len(self.scanner_opt_params)):
             if i in self.opt_param_idx:
@@ -310,6 +312,14 @@ class OPT_helper():
             self.optimizer.load_state_dict(checkpoint['optimizer'])
             
             print('Loading saved optimizer state....')
+            
+        if adaptive_stopping == True:
+            training_iter = 99999999
+            lowest_min = 2**32
+            
+            error_history_total = []
+            error_history_running = []
+            max_history = 30
             
         # main optimization loop
         for inner_iter in range(training_iter):
@@ -415,6 +425,23 @@ class OPT_helper():
                 raise ValueError("nevergrad never implemented")
             else:
                 self.optimizer.step(self.weak_closure)
+
+            print('current loss is {}'.format(self.last_loss))                
+            if len(error_history_running) < max_history:
+                error_history_running.append(self.last_loss)
+            else:
+                error_history_total.append(error_history_running[0])
+                error_history_running = error_history_running[1:]
+                error_history_running.append(self.last_loss)
+                minval_running = np.min(error_history_running)
+                minval_total = np.min(error_history_total)
+                
+                print("minval_running {} minval_total {}".format(minval_running, minval_total))
+                
+                if (minval_total - minval_running)/ minval_total < 1e-1:
+                    print("stopping criterion reached, restarting...")
+                    break
+                    
             
     def train_model_supervised(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False):
         
@@ -459,7 +486,6 @@ class OPT_helper():
                 saved_state['adc_mask'] = tonumpy(tosave_opt_params[0])
                 saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
                 saved_state['event_times'] = tonumpy(tosave_opt_params[2])
-                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
                 saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
                 saved_state['kloc'] = tonumpy(self.scanner.kspace_loc.clone())
                 saved_state['learn_rates'] = self.custom_learning_rate
@@ -588,10 +614,12 @@ class OPT_helper():
 #            ax=plt.imshow(tonumpy(FA.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral')
 #            fig.colorbar(ax)
 #            plt.clim(-180,270)
+
             FAex=todisplay_opt_params[1][0,:,0]
             ax=plt.plot(tonumpy(FAex*180/np.pi))
             FArev=todisplay_opt_params[1][1,:,0]
             ax=plt.plot(tonumpy(FArev*180/np.pi))
+
             plt.ion()
             plt.title('FA [\N{DEGREE SIGN}]')
 
