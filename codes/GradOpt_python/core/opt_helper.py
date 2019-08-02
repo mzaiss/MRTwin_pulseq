@@ -426,21 +426,22 @@ class OPT_helper():
             else:
                 self.optimizer.step(self.weak_closure)
 
-            print('current loss is {}'.format(self.last_loss))                
-            if len(error_history_running) < max_history:
-                error_history_running.append(self.last_loss)
-            else:
-                error_history_total.append(error_history_running[0])
-                error_history_running = error_history_running[1:]
-                error_history_running.append(self.last_loss)
-                minval_running = np.min(error_history_running)
-                minval_total = np.min(error_history_total)
-                
-                print("minval_running {} minval_total {}".format(minval_running, minval_total))
-                
-                if (minval_total - minval_running)/ minval_total < 1e-1:
-                    print("stopping criterion reached, restarting...")
-                    break
+            if adaptive_stopping == True:   
+                print('current loss is {}'.format(self.last_loss))                
+                if len(error_history_running) < max_history:
+                    error_history_running.append(self.last_loss)
+                else:
+                    error_history_total.append(error_history_running[0])
+                    error_history_running = error_history_running[1:]
+                    error_history_running.append(self.last_loss)
+                    minval_running = np.min(error_history_running)
+                    minval_total = np.min(error_history_total)
+                    
+                    print("minval_running {} minval_total {}".format(minval_running, minval_total))
+                    
+                    if (minval_total - minval_running)/ minval_total < 1e-1:
+                        print("stopping criterion reached, restarting...")
+                        break
                     
             
     def train_model_supervised(self, training_iter = 100, show_par=False, do_vis_image=False, save_intermediary_results=False):
