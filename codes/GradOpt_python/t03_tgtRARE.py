@@ -32,7 +32,7 @@ if sys.platform != 'linux':
     use_gpu = 0
     gpu_dev = 0
     
-do_scanner_query = False
+do_scanner_query = True
 
 # NRMSE error function
 def e(gt,x):
@@ -62,10 +62,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([48,48])                                           # image size
+sz = np.array([128,128])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 16**2                                # number of spin sims in each voxel
+NSpins = 2**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 import time; today_datestr = time.strftime('%y%m%d')
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -160,7 +160,7 @@ scanner.set_flip_tensor_withB1plus(flips)
 scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 
 # event timing vector 
-TEd= 0.5*1e-3 # increase to reduce SAR
+TEd= 1.1*1e-3 # increase to reduce SAR
 event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,1:] = 0.2*1e-3     # for TE2_180_2   delay only
 event_time[-1,:] = 0.8*1e-3     # for TE2_180_2   delay only
@@ -214,7 +214,8 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
     
 
 # forward/adjoint pass
-scanner.forward_fast_supermem(spins, event_time)
+#scanner.forward_fast_supermem(spins, event_time)
+scanner.init_signal()
 scanner.adjoint()
 
 # try to fit this

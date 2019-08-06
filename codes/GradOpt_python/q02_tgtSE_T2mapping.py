@@ -194,7 +194,7 @@ first_meas = np.arange(0,measRepStep)
 second_meas = np.arange(measRepStep,2*measRepStep)
 third_meas = np.arange(2*measRepStep,3*measRepStep)
 
-dTE= np.array([0,0.3,1.5])  # dTE in s
+dTE= np.array([0.01,0.3,0.5])  # dTE in s
 RFd = 2*1e-3
 # first measurement
 event_time[1,first_meas] = 2*1e-3    + dTE[0]/2
@@ -227,7 +227,7 @@ grad_moms[1,first_meas,0] = torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 d
 grad_moms[1,first_meas,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(measRepStep))        # yblip
 grad_moms[2:-2,first_meas,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,measRepStep]) # read
 grad_moms[-2,first_meas,0] = torch.ones((1,1))*sz[0]  # RARE: rewinder after 90 degree half length, half gradmom
-grad_moms[-2,first_meas,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(measRepStep))      # backblip
+grad_moms[-2,first_meas,1] = -torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(measRepStep))     # backblip
 
 
 # second measurement
@@ -333,7 +333,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.show()
         
 if True:
-    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=False)
+    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
     
     if do_scanner_query:
         scanner.send_job_to_real_system(experiment_id,today_datestr)
