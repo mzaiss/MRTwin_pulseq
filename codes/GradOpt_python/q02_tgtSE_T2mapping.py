@@ -69,7 +69,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([20,20])                                           # image size
+sz = np.array([16,16])                                           # image size
 extraRep = 3
 NRep = extraRep*sz[1]                                 # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
@@ -256,8 +256,8 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
 #############################################################################
 ## Forward process ::: ######################################################
     
-#scanner.init_signal()
-scanner.forward_fast(spins, event_time,kill_transverse=True)
+scanner.init_signal()
+#scanner.forward_fast(spins, event_time,kill_transverse=True)
 reco_sep = scanner.adjoint_separable()
 
 first_scan = reco_sep[first_meas,:,:].sum(0)
