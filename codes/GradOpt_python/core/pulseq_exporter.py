@@ -264,7 +264,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         if nonsel:
             seq.add_block(gx_pre, gy_pre)
         else:
-            seq.add_block(gx_pre, gy_pre,gzr)   
+            seq.add_block(gx_pre, gy_pre)   
             
 #        if delay_after_rev < 0:
 #            import pdb; pdb.set_trace()
