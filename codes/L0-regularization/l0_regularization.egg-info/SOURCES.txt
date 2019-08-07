@@ -1,0 +1,12 @@
+README.md
+setup.py
+l0_regularization/__init__.py
+l0_regularization/l0_dense.py
+l0_regularization/l0_layer.py
+l0_regularization/l0_utils.py
+l0_regularization/tb_graph_jupyter.py
+l0_regularization/utils.py
+l0_regularization.egg-info/PKG-INFO
+l0_regularization.egg-info/SOURCES.txt
+l0_regularization.egg-info/dependency_links.txt
+l0_regularization.egg-info/top_level.txt
