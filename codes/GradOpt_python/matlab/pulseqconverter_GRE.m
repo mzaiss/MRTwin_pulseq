@@ -180,6 +180,9 @@ figure(88); plot(ktraj(1,:),ktraj(2,:),'c',...
 axis('equal'); % enforce aspect ratio for the correct trajectory display
 legend({'k-pulseq','ADC-pulseq'});
 
+figure(333); plot3(ktraj(1,:),ktraj(2,:),ktraj(3,:),'c',...
+    ktraj_adc(1,:),ktraj_adc(2,:),ktraj_adc(3,:),'go'); hold on;  % a 3D plot
+
 % from SIM
 grad_moms = squeeze(scanner_dict.grad_moms);
 grad_moms =cat(1,zeros(1,NRep,2),grad_moms);
