@@ -32,7 +32,7 @@ if sys.platform != 'linux':
     use_gpu = 0
     gpu_dev = 0
     
-do_scanner_query = True
+do_scanner_query = False
 
 # NRMSE error function
 def e(gt,x):
@@ -163,11 +163,12 @@ scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 TEd= 1.1*1e-3 # increase to reduce SAR
 event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,1:] = 0.2*1e-3     # for TE2_180_2   delay only
-event_time[-1,:] = 0.8*1e-3     # for TE2_180_2   delay only
+
 event_time[1,:] =  1.7*1e-3 +TEd      # for TE2_180     180 + prewinder   
 event_time[0,0] = torch.sum(event_time[1:int(sz[0]/2+2),1])     # for TE2_90      90 +  rewinder
 #event_time[1:,0,0] = 0.2*1e-3
-event_time[-2,:] = 0.7*1e-3 +TEd                        # spoiler
+event_time[-2,:] = 0.7*1e-3                         # spoiler
+event_time[-1,:] = 0.8*1e-3    +TEd # for TE2_180_2   delay only
 event_time = setdevice(event_time)
 
 TE2_90   = torch.sum(event_time[0,0])*1000  # time after 90 until 180
@@ -214,8 +215,8 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=T
     
 
 # forward/adjoint pass
-#scanner.forward_fast_supermem(spins, event_time)
-scanner.init_signal()
+scanner.forward_fast_supermem(spins, event_time)
+#scanner.init_signal()
 scanner.adjoint()
 
 # try to fit this
