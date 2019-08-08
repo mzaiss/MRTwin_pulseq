@@ -151,20 +151,24 @@ flips[2,:,0] = 45*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 deg
 flips[2,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*180,180),360)*np.pi/180)  # 180 phace cycling for bSSFP
 #flips[2,0,0] = flips[2,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
 
-flips[0,0,0] = flips[2,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
-flips[0,0,1] = (flips[2,1,1]-flips[2,0,1])  # bssfp specific, alpha/2 prep, to avoid many dummies
+#flips[0,0,0] = flips[2,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
+#flips[0,0,1] = (flips[2,1,1]-flips[2,0,1])  # bssfp specific, alpha/2 prep, to avoid many dummies
 #
 
 TR = 6.32*1e-3
 FA = flips[2,0,0]
 theta = flips[0,0,1]
-TSL = 0.05
-v1= 299 
+TSL = 0.07
+v1= 299*0.245 *1
+dw=73.1 *1
 FASL = 2*np.pi*v1*TSL 
 
-flips[1,0,0] = 2*FASL   # w1 SL
-flips[1,0,1] = 270*np.pi/180  # phase SL
-flips[1,0,2] = 2*73.1   # freqOffset in Hz
+flips[1,0,0] = FASL   # w1 SL
+flips[1,0,1] = 180*np.pi/180  # phase SL
+flips[1,0,2] = dw   # freqOffset in Hz
+
+thetaSL= np.arctan(v1/flips[1,0,2])*180/np.pi
+
 
 
 flips = setdevice(flips)
