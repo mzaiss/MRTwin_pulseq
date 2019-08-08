@@ -13,6 +13,7 @@ from shutil import copyfile
 from core.pulseq_exporter import pulseq_write_GRE
 from core.pulseq_exporter import pulseq_write_RARE
 from core.pulseq_exporter import pulseq_write_BSSFP
+from core.pulseq_exporter import pulseq_write_slBSSFP
 from core.pulseq_exporter import pulseq_write_EPI
 # target images / sequence parameters holder
 # torch to numpy
@@ -266,6 +267,8 @@ class TargetSequenceHolder():
             pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "bssfp":
             pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
+        elif sequence_class.lower() == "slbssfp":
+            pulseq_write_slBSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "epi":
             pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         

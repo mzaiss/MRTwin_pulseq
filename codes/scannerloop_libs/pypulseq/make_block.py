@@ -47,7 +47,7 @@ def make_block_pulse(kwargs, nargout=1):
             raise ValueError('Either bandwidth or duration must be defined')
 
     BW = 1 / (4 * duration)
-    N = round(duration / 1e-6)
+    N = int(round(duration / 1e-6))
     t = [x * system.rf_raster_time for x in range(N)]
     signal = flip_angle / (2 * np.pi) / duration * np.ones(len(t))
 
