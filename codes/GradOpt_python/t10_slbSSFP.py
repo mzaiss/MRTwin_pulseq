@@ -5,10 +5,10 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't04_tgtBSSFP_tsk_BSSFP_32_alpha_2_prep'
-sequence_class = "BSSFP"
+experiment_id = 't10_slbSSFP'
+sequence_class = "slBSSFP"
 experiment_description = """
-bSSFP with alpha/2 prep
+bSSFP with SL prep
 """
 
 import os, sys
@@ -63,8 +63,8 @@ def stop():
 # define setup
 sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
-T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 4**2                                # number of spin sims in each voxel
+T = sz[0] + 6                                        # number of events F/R/P
+NSpins = 2**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 import time; today_datestr = time.strftime('%y%m%d')
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -138,17 +138,35 @@ spins.omega = setdevice(spins.omega)
 ## Init scanner system ::: #####################################
 scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev)
 adc_mask = torch.from_numpy(np.ones((T,1))).float()
-adc_mask[:2]  = 0
+adc_mask[:4]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
-flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-#flips[0,:,2] = 123   # freqOffset in Hz
+flips = torch.zeros((T,NRep,3), dtype=torch.float32)
 
-flips[0,:,0] = 45*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-flips[0,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*180,180),360)*np.pi/180)  # 180 phace cycling for bSSFP
-flips[0,0,0] = flips[0,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
+
+
+flips[2,:,0] = 45*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[2,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*180,180),360)*np.pi/180)  # 180 phace cycling for bSSFP
+#flips[2,0,0] = flips[2,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
+
+flips[0,0,0] = flips[2,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
+flips[0,0,1] = (flips[2,1,1]-flips[2,0,1])  # bssfp specific, alpha/2 prep, to avoid many dummies
+#
+
+TR = 6.32*1e-3
+FA = flips[2,0,0]
+theta = flips[0,0,1]
+TSL = 0.05
+v1= 299 
+FASL = 2*np.pi*v1*TSL 
+
+flips[1,0,0] = 2*FASL   # w1 SL
+flips[1,0,1] = 270*np.pi/180  # phase SL
+flips[1,0,2] = 2*73.1   # freqOffset in Hz
+
+
 flips = setdevice(flips)
 scanner.init_flip_tensor_holder()
 #real_phantom_resized[2*sz[0]//3:,:,3] *= 0.5 # Tweak dB0
@@ -161,15 +179,17 @@ scanner.B1plus = setdevice(B1plus)
 scanner.set_flip_tensor_withB1plus(flips)
 
 # rotate ADC according to excitation phase
-rfsign = ((flips[0,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+rfsign = ((flips[2,:,0]) < 0).float()
+scanner.set_ADC_rot_tensor(-flips[2,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[0,:] =  1e-3     
-event_time[1,:] = 0.3*1e-3
+event_time[0,0] =  1e-3    
+event_time[1,0] =  TSL 
+event_time[2,:] =  1e-3     
+event_time[3,:] = 0.3*1e-3
 event_time[-2,:] = 0.3*1e-3
-event_time[-1,:] = 0*2*1e-3   #+0.4*1e-3
+event_time[-1,:] = 1*2*1e-3   #+0.4*1e-3
 #event_time[-1,:] = 1.2           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
 event_time = setdevice(event_time)
 
@@ -187,20 +207,20 @@ TE_180_2_centerpulse = torch.sum(event_time[int(sz[0]/2+2):,1]) + event_time[0,0
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
-grad_moms[1,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
-grad_moms[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
-grad_moms[2:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
-grad_moms[-2,:,0] = grad_moms[1,:,0]     # bssfp specific, xrewinder
-grad_moms[-2,:,1] = -grad_moms[1,:,1]      # bssfp specific, yblip rewinder
+grad_moms[3,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
+grad_moms[3,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
+grad_moms[4:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
+grad_moms[-2,:,0] = grad_moms[3,:,0]     # bssfp specific, xrewinder
+grad_moms[-2,:,1] = -grad_moms[3,:,1]      # bssfp specific, yblip rewinder
 
 grad_moms*=1
 #     centric ordering
-#grad_moms[1,:,1] = 0
+#grad_moms[3,:,1] = 0
 #for i in range(1,int(sz[1]/2)+1):
-#    grad_moms[1,i*2-1,1] = (-i)
+#    grad_moms[3,i*2-1,1] = (-i)
 #    if i < sz[1]/2:
-#        grad_moms[1,i*2,1] = i
-#grad_moms[-2,:,1] = -grad_moms[1,:,1]     # backblip
+#        grad_moms[3,i*2,1] = i
+#grad_moms[-2,:,1] = -grad_moms[3,:,1]     # backblip
 
 grad_moms = setdevice(grad_moms)
 
@@ -275,17 +295,17 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.title("simulation ADJOINT")   
         plt.clim(-180,180)
         plt.show()
-               
-    simphase=phaseimg(tonumpy(target).reshape([sz[0],sz[1],2]))/np.pi
-    plt.hist(simphase.ravel(),bins=100)
-    plt.title("sim phase hist")
-    plt.show()
-    
-    measphase=phaseimg(measreco.reshape([sz[0],sz[1],2]))/np.pi
-    plt.hist(measphase.ravel(),bins=100)
-    plt.title("meas phase hist")
-    plt.show()    
-                    
+#               
+#    simphase=phaseimg(tonumpy(target).reshape([sz[0],sz[1],2]))/np.pi
+#    plt.hist(simphase.ravel(),bins=100)
+#    plt.title("sim phase hist")
+#    plt.show()
+#    
+#    measphase=phaseimg(measreco.reshape([sz[0],sz[1],2]))/np.pi
+#    plt.hist(measphase.ravel(),bins=100)
+#    plt.title("meas phase hist")
+#    plt.show()    
+#                    
     stop()
     
 for i in range(3):

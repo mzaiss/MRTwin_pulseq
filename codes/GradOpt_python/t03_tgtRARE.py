@@ -32,7 +32,7 @@ if sys.platform != 'linux':
     use_gpu = 0
     gpu_dev = 0
     
-do_scanner_query = False
+do_scanner_query = True
 
 # NRMSE error function
 def e(gt,x):
