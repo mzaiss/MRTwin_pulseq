@@ -35,7 +35,7 @@ def add_block(self, block_index, *args):
             # data = np.array([[mag_shape.num_samples]])
             # data = np.append(data, mag_shape.data, axis=1)
             data = np.hstack((mag_shape.num_samples, np.ravel(mag_shape.data))).reshape((1, -1))
-            mag_id, found = self.shape_library.find(data, forcenewkey=True)
+            mag_id, found = self.shape_library.find(data, forcenewkey=False)
 #            mag_id, found = self.shape_library.find(data)
             if not found:
                 self.shape_library.insert(mag_id, data, None)
