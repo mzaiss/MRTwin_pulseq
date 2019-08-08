@@ -37,7 +37,7 @@ print('32x float forwardfast oS')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = True
+do_scanner_query = False
 
 use_gpu = 1
 gpu_dev = 0
@@ -77,10 +77,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([32,32])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 8**2                                # number of spin sims in each voxel
+NSpins = 25**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -156,7 +156,7 @@ flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degr
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
-flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
+flips[0,:,1] = scanner.get_phase_cycler(NRep,117)*np.pi/180
 
 flips = setdevice(flips)
 
@@ -213,8 +213,8 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
     
 # forward/adjoint pass
 #scanner.forward_fast_supermem(spins, event_time)
-scanner.forward_fast(spins, event_time)
-#scanner.init_signal()
+#scanner.forward_fast(spins, event_time)
+scanner.init_signal()
 scanner.adjoint()
 
 # try to fit this

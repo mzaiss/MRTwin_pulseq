@@ -176,7 +176,7 @@ event_time[-2,0] = 2*1e-3
 event_time[-1,0] = 3.0*1e-3 + 3.0  # Thats the FLAIR IR time 
 
 
-TEd= 0.3*1e-3 # increase to reduce SAR
+TEd= 1.0*1e-3 # increase to reduce SAR
 
 event_time[0,2:] = 0.2*1e-3     # for TE2_180_2   delay only
 event_time[-1,first_meas] = 0.8*1e-3     # for TE2_180_2   delay only
