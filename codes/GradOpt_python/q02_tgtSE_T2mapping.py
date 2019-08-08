@@ -69,7 +69,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 extraRep = 3
 NRep = extraRep*sz[1]                                 # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
