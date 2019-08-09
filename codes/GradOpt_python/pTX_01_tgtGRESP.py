@@ -73,7 +73,7 @@ def stop():
 sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = 2*sz[0] + 6                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 300**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -139,8 +139,16 @@ spins.omega = setdevice(spins.omega)
 ## Init scanner system ::: #####################################
 scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 adc_mask = torch.from_numpy(np.ones((T,1))).float()
-adc_mask[:4]  = 0
-adc_mask[-2:] = 0
+adc_mask[:(4)]  = 0
+adc_mask[-(2):] = 0
+# ignore 1st echo (STE)
+adc_mask[:(4+sz[0]-2)]  = 0
+# ignore 2nd echo (FID)
+#adc_mask[-(2+sz[0]):] = 0
+
+# duration for ADC events (equivalent receive bandwidth)
+RBW = 0.02;
+
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
@@ -149,15 +157,15 @@ flips[3,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degr
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
-flips[3,:,1] = scanner.get_phase_cycler(NRep,117)*np.pi/180
+#flips[3,:,1] = scanner.get_phase_cycler(NRep,117)*np.pi/180
 # dream
-alpha = 25.0
-flips[0,0,0] =  alpha/2*np.pi/180   # first pulse
+alpha = 70.0
+flips[0,0,0] =  alpha*np.pi/180   # first pulse
 flips[0,0,1] =  0*np.pi/180
 
-flips[1,0,0] =  0*np.pi/180         # gm event
+flips[1,0,0] =  0*np.pi/180         # gm event (steam dephaser grad)
 
-flips[2,0,0] =  alpha/2*np.pi/180  # second pulse
+flips[2,0,0] =  alpha*np.pi/180  # second pulse
 flips[2,0,1] =  0*np.pi/180
 flips = setdevice(flips)
 
@@ -174,18 +182,18 @@ scanner.set_ADC_rot_tensor(-flips[3,:,1] + 0*np.pi/2 + np.pi*rfsign) #GRE/FID sp
 
 
 # event timing vector 
-event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time = torch.from_numpy(RBW*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 #event_time[0,:] =  2e-3  + 6e-3 
-event_time[3,:] =  2.5*1e-3    + 6e-3  # for 96
-event_time[-2,:] = 2*1e-3
-event_time[-1,:] = 0
+event_time[3,:] =  0.5*1e-3    #+ 6e-3  # for 96 # GRE read prewinder
+event_time[-2,:] = 0.5*1e-3    # gradient spoiler after read
+event_time[-1,:] = 0.03*1e-3    # TRfill
 # dream
-TE_STE = 0.08*1e-3*sz[0]/2
-TE_FID = 0.08*1e-3*sz[0]
+TE_STE = 1.03*1e-3#*sz[0]
+TE_FID = 2.03*1e-3#*sz[0]
 TS = TE_STE + TE_FID
-event_time[0,0] =  0*1e-3    # dream pulse 1
-event_time[1,0] =  TS        # dream gm event
-event_time[2,0] =  0*1e-3    # dream pulse 2
+event_time[0,0] =  0.4*1e-3    # dream pulse 1
+event_time[1,0] =  TS-(0.4*1e-3)    # dream gm event
+event_time[2,0] =  2*1e-3    # dream pulse 2 & STEAM spoiler gradient -> long
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])
@@ -195,19 +203,30 @@ TE=torch.sum(event_time[:11,1])
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
 
+# read gradient moment
+gread = 1.0 * (2*sz[0]);
+# read gradient magnitude
+Gread= 1.0/(RBW*1e-3)
 
-Gread= 1.0/(0.08*1e-3)
+# STEAM dephaser
+gm2 = -1*(TE_FID-TE_STE)*Gread*1.0
+gm2 = -1.0*sz[0]
+# spoiler after STEAM preparation
+gspoil = 3.5 * gread # factor 3.5 from pe3Dream
 
-gm2 = (TE_FID-TE_STE)*Gread
 
 grad_moms[0,0,:] =  0.0       # first pulse
 grad_moms[1,0,0] = gm2   # gm2 event steam dephaser
-grad_moms[2,0,0] =  2.0*sz[0]      # second pulse
 
-grad_moms[3,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
+
+
+grad_moms[2,0,0] =  gspoil      # after second STEAM pulse: spoiler
+grad_moms[2,0,1] =  gspoil      # after second STEAM pulse: spoiler
+
+grad_moms[3,:,0] = -1.5 * sz[0]         # GRE/FID specific, rewinder in second event block
 #grad_moms[3,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
-grad_moms[4:-2,:,0] = 0.5*torch.ones(int(2*sz[0])).view(int(2*sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
-grad_moms[-2,:,0] = torch.ones(1)*sz[0]*2  # GRE/FID specific, SPOILER
+grad_moms[4:-2,:,0] = torch.ones(int(2*sz[0])).view(int(2*sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
+grad_moms[-2,:,0] = torch.ones(1)*sz[0]*4.0  # GRE/FID specific, SPOILER
 #grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, yblip rewinder
 grad_moms = setdevice(grad_moms)
 
