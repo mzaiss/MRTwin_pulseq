@@ -235,7 +235,7 @@ event_time[-1,measRepStep] = 2.9*1e-3 + 0.5
 
 # second measurement
 event_time[0,second_meas] =  2e-3
-event_time[1,second_meas] =  0.75*1e-3   # for 96
+event_time[1,second_meas] =  1.5*1e-3   # for 96
 event_time[-2,second_meas] = 2*1e-3
 event_time[-1,second_meas] = 2.9*1e-3
 
@@ -243,7 +243,7 @@ event_time[-1,2*measRepStep] = 2.9*1e-3 + 0.5
 
 # third measurement
 event_time[0,third_meas] =  2e-3
-event_time[1,third_meas] =  0.75*1e-3   # for 96
+event_time[1,third_meas] =  1.5*1e-3   # for 96
 event_time[-2,third_meas] = 2*1e-3
 event_time[-1,third_meas] = 2.9*1e-3
 

@@ -261,11 +261,8 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         kwargs_for_gypre = {"channel": 'y', "system": system, "area": gradmom_rewinder[1], "duration": eventtime_rewinder}
         gy_pre = make_trapezoid(kwargs_for_gypre)
     
-        if nonsel:
-            seq.add_block(gx_pre, gy_pre)
-        else:
-            seq.add_block(gx_pre, gy_pre,gzr)   
-            
+        seq.add_block(gx_pre, gy_pre)
+                    
 #        if delay_after_rev < 0:
 #            import pdb; pdb.set_trace()
         seq.add_block(make_delay(delay_after_rev))   

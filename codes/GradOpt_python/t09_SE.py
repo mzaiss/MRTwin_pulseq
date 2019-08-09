@@ -32,7 +32,7 @@ if sys.platform != 'linux':
     use_gpu = 0
     gpu_dev = 0
     
-do_scanner_query = False
+do_scanner_query = True
 double_precision = False
 # NRMSE error function
 def e(gt,x):
@@ -197,8 +197,6 @@ RFd = 2*1e-3
 # first measurement
 event_time[1,first_meas] = 2*1e-3    + dTE[0]/2
 event_time[0,first_meas] = (sz[0]/2)*0.05*1e-4+ RFd + dTE[0]/2
-
-event_time[-1,measRepStep-1] = event_time[-1,measRepStep-1] + 0.3   # add some relaxation between scans
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])

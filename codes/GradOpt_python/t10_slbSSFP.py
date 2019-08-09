@@ -151,24 +151,26 @@ flips[2,:,0] = 45*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 deg
 flips[2,:,1] = torch.tensor(np.mod(np.arange(0,int(sz[0])*180,180),360)*np.pi/180)  # 180 phace cycling for bSSFP
 #flips[2,0,0] = flips[2,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
 
-#flips[0,0,0] = flips[2,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
-#flips[0,0,1] = (flips[2,1,1]-flips[2,0,1])  # bssfp specific, alpha/2 prep, to avoid many dummies
 #
 
 TR = 6.32*1e-3
 FA = flips[2,0,0]
 theta = flips[0,0,1]
-TSL = 0.07
-v1= 299*0.245 *1
-dw=73.1 *1
+TSL = 0.1
+v1= 30.28*4
+dw=73.1 *4
 FASL = 2*np.pi*v1*TSL 
+accphase = dw*TSL*2*np.pi
 
 flips[1,0,0] = FASL   # w1 SL
-flips[1,0,1] = 180*np.pi/180  # phase SL
+flips[1,0,1] = -90*np.pi/180 - accphase  # phase SL
 flips[1,0,2] = dw   # freqOffset in Hz
 
 thetaSL= np.arctan(v1/flips[1,0,2])*180/np.pi
-
+#
+#accphase=0
+flips[0,0,0] = flips[2,0,0]/2  # bssfp specific, alpha/2 prep, to avoid many dummies
+flips[0,0,1] = (flips[2,1,1]-flips[2,0,1]) -accphase # bssfp specific, alpha/2 prep, to avoid many dummies
 
 
 flips = setdevice(flips)
@@ -190,9 +192,9 @@ scanner.set_ADC_rot_tensor(-flips[2,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID spec
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,0] =  1e-3    
 event_time[1,0] =  TSL 
-event_time[2,:] =  1e-3     
-event_time[3,:] = 0.3*1e-3
-event_time[-2,:] = 0.3*1e-3
+event_time[2,:] =  2*1e-3     
+event_time[3,:] = 0.6*1e-3
+event_time[-2,:] = 0.6*1e-3
 event_time[-1,:] = 1*2*1e-3   #+0.4*1e-3
 #event_time[-1,:] = 1.2           # GRE/FID specific, GRE relaxation time: choose large for fully relaxed  >=1, choose small for FLASH e.g 10ms
 event_time = setdevice(event_time)
@@ -219,12 +221,12 @@ grad_moms[-2,:,1] = -grad_moms[3,:,1]      # bssfp specific, yblip rewinder
 
 grad_moms*=1
 #     centric ordering
-#grad_moms[3,:,1] = 0
-#for i in range(1,int(sz[1]/2)+1):
-#    grad_moms[3,i*2-1,1] = (-i)
-#    if i < sz[1]/2:
-#        grad_moms[3,i*2,1] = i
-#grad_moms[-2,:,1] = -grad_moms[3,:,1]     # backblip
+grad_moms[3,:,1] = 0
+for i in range(1,int(sz[1]/2)+1):
+    grad_moms[3,i*2-1,1] = (-i)
+    if i < sz[1]/2:
+        grad_moms[3,i*2,1] = i
+grad_moms[-2,:,1] = -grad_moms[3,:,1]     # backblip
 
 grad_moms = setdevice(grad_moms)
 
@@ -237,9 +239,11 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
     
 #scanner.do_dummy_scans(spins,event_time,nrep=0)   # do dummies
 # forward/adjoint pass
-scanner.forward_fast(spins, event_time,do_dummy_scans=False)
+#scanner.forward_fast(spins, event_time,do_dummy_scans=False)
 #scanner.forward_mem(spins, event_time,do_dummy_scans=False)
-scanner.adjoint()
+#scanner.adjoint()
+scanner.init_signal()
+scanner.do_ifft_reco()
 
 # try to fit this
 target = scanner.reco.clone()
@@ -299,6 +303,16 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         plt.title("simulation ADJOINT")   
         plt.clim(-180,180)
         plt.show()
+        
+        scan_kspace = tonumpy(scanner.signal[0,3:-2,:,:2,0])
+        scan_kspace_mag = magimg(scan_kspace)
+
+        # print results
+        ax=plt.imshow(scan_kspace_mag, interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('first scan kspace')
+        plt.ion()        
 #               
 #    simphase=phaseimg(tonumpy(target).reshape([sz[0],sz[1],2]))/np.pi
 #    plt.hist(simphase.ravel(),bins=100)
