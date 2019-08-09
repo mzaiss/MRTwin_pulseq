@@ -329,7 +329,8 @@ class OPT_helper():
                 _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None)
             print(colored("\033[93m iter %d, recon error = %f \033[0m%%" % (inner_iter,self.last_error), 'green'))
             
-            self.print_status(do_vis_image,self.last_reco, plot_ROI=False)
+            if np.mod(inner_iter,10)==0:                
+                self.print_status(do_vis_image,self.last_reco, plot_ROI=False)
             
             if query_scanner:
                 experiment_id, today_datestr, sequence_class = query_kwargs
@@ -427,13 +428,13 @@ class OPT_helper():
                 self.optimizer.step(self.weak_closure)
 
             if adaptive_stopping == True:   
-                print('current loss is {}'.format(self.last_loss))                
+                print('current loss is {}'.format(self.last_error))                
                 if len(error_history_running) < max_history:
-                    error_history_running.append(self.last_loss)
+                    error_history_running.append(self.last_error)
                 else:
                     error_history_total.append(error_history_running[0])
                     error_history_running = error_history_running[1:]
-                    error_history_running.append(self.last_loss)
+                    error_history_running.append(self.last_error)
                     minval_running = np.min(error_history_running)
                     minval_total = np.min(error_history_total)
                     
