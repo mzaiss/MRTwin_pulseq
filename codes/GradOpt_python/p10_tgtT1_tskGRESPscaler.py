@@ -355,13 +355,13 @@ opt.custom_learning_rate = [0.01,0.01,0.1,0.1,0.05]
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
-lr_inc=np.array([0.1, 0.2, 0.5, 0.5, 0.2, 0.1, 0.1, 0.1, 0.05,0.01])
+lr_inc=np.array([0.1, 0.2, 0.5, 0.5, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05,0.01])
 
-for i in range(9):
+for i in range(12):
     opt.custom_learning_rate[3] = lr_inc[i]
     print('<seq> Optimization ' + str(i+1) + ' starts now. lr=' +str(lr_inc[i]))
     opt.train_model(training_iter=2000, do_vis_image=True, save_intermediary_results=True, adaptive_stopping=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 if False:
     #RF

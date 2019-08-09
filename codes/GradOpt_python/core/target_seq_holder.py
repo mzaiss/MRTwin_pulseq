@@ -11,6 +11,7 @@ import time
 from shutil import copyfile
 
 from core.pulseq_exporter import pulseq_write_GRE
+from core.pulseq_exporter import pulseq_write_GRE_DREAM
 from core.pulseq_exporter import pulseq_write_RARE
 from core.pulseq_exporter import pulseq_write_BSSFP
 from core.pulseq_exporter import pulseq_write_slBSSFP
@@ -261,6 +262,8 @@ class TargetSequenceHolder():
         
         if sequence_class.lower() == "gre":
             pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
+        elif sequence_class.lower() == "gre_dream":
+            pulseq_write_GRE_DREAM(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "rare":
             pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "se":

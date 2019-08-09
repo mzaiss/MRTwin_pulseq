@@ -6,7 +6,7 @@ Created on Tue Jan 29 14:38:26 2019
 """
 
 experiment_id = 'pTX_01'
-sequence_class = "GRE"
+sequence_class = "GRE_DREAM"
 experiment_description = """
 
 """
@@ -30,7 +30,7 @@ reload(core.scanner)
 
 double_precision = False
 use_supermem = False
-do_scanner_query = False
+do_scanner_query = True
 
 use_gpu = 0
 gpu_dev = 0
@@ -70,10 +70,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([24,24])                                           # image size
+sz = np.array([12,12])                                           # image size
 NRep = sz[1]                                          # number of repetitions
-T = 2*sz[0] + 6                                        # number of events F/R/P
-NSpins = 300**2                                # number of spin sims in each voxel
+T = 2*sz[0] + 4 + 3                                        # number of events F/R/P
+NSpins = 100**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -87,6 +87,8 @@ NVox = sz[0]*sz[1]
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 cutoff = 1e-12
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
     t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
@@ -139,15 +141,14 @@ spins.omega = setdevice(spins.omega)
 ## Init scanner system ::: #####################################
 scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 adc_mask = torch.from_numpy(np.ones((T,1))).float()
-adc_mask[:(4)]  = 0
+adc_mask[:(5)]  = 0
 adc_mask[-(2):] = 0
 # ignore 1st echo (STE)
-adc_mask[:(4+sz[0]-2)]  = 0
+#adc_mask[:(4+sz[0]-2)]  = 0
 # ignore 2nd echo (FID)
 #adc_mask[-(2+sz[0]):] = 0
 
-# duration for ADC events (equivalent receive bandwidth)
-RBW = 0.02;
+
 
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
@@ -159,10 +160,9 @@ flips[3,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degr
 # randomize RF phases
 #flips[3,:,1] = scanner.get_phase_cycler(NRep,117)*np.pi/180
 # dream
-alpha = 70.0
+alpha = 40.0
 flips[0,0,0] =  alpha*np.pi/180   # first pulse
 flips[0,0,1] =  0*np.pi/180
-
 flips[1,0,0] =  0*np.pi/180         # gm event (steam dephaser grad)
 
 flips[2,0,0] =  alpha*np.pi/180  # second pulse
@@ -182,10 +182,13 @@ scanner.set_ADC_rot_tensor(-flips[3,:,1] + 0*np.pi/2 + np.pi*rfsign) #GRE/FID sp
 
 
 # event timing vector 
+# duration for ADC events (equivalent receive bandwidth)
+RBW = 0.08;
 event_time = torch.from_numpy(RBW*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-#event_time[0,:] =  2e-3  + 6e-3 
-event_time[3,:] =  0.5*1e-3    #+ 6e-3  # for 96 # GRE read prewinder
-event_time[-2,:] = 0.5*1e-3    # gradient spoiler after read
+event_time[:3,1:]  = 0
+event_time[3,:]    =  1*1e-3    #+ 6e-3  # for 96 # GRE read prewinder
+event_time[4,:]    =  0.5*1e-3    #+ 6e-3  # for 96 # GRE read prewinder
+event_time[-2,:] = 1.2*1e-3    # gradient spoiler after read
 event_time[-1,:] = 0.03*1e-3    # TRfill
 # dream
 TE_STE = 1.03*1e-3#*sz[0]
@@ -223,21 +226,21 @@ grad_moms[1,0,0] = gm2   # gm2 event steam dephaser
 grad_moms[2,0,0] =  gspoil      # after second STEAM pulse: spoiler
 grad_moms[2,0,1] =  gspoil      # after second STEAM pulse: spoiler
 
-grad_moms[3,:,0] = -1.5 * sz[0]         # GRE/FID specific, rewinder in second event block
+grad_moms[4,:,0] = -1.2 * sz[0]         # GRE/FID specific, rewinder in second event block
 #grad_moms[3,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
-grad_moms[4:-2,:,0] = torch.ones(int(2*sz[0])).view(int(2*sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
+grad_moms[5:-2,:,0] = torch.ones(int(2*sz[0])).view(int(2*sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
 grad_moms[-2,:,0] = torch.ones(1)*sz[0]*4.0  # GRE/FID specific, SPOILER
 #grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, yblip rewinder
 grad_moms = setdevice(grad_moms)
 
 #     centric ordering
 if True:
-    grad_moms[3,:,1] = 0
+    grad_moms[4,:,1] = 0
     for i in range(1,int(sz[1]/2)+1):
-        grad_moms[3,i*2-1,1] = (-i)
+        grad_moms[4,i*2-1,1] = (-i)
         if i < sz[1]/2:
-            grad_moms[3,i*2,1] = i
-    grad_moms[-2,:,1] = -grad_moms[3,:,1]     # backblip
+            grad_moms[4,i*2,1] = i
+    grad_moms[-2,:,1] = -grad_moms[4,:,1]     # backblip
 
 # end sequence 
 
@@ -249,11 +252,23 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
     
 # forward/adjoint pass
 #scanner.forward_fast_supermem(spins, event_time)
-scanner.forward_fast(spins, event_time)
+scanner.forward_fast(spins, event_time, kill_transverse=True)
 #scanner.forward_mem(spins, event_time)
 #scanner.init_signal()
-scanner.adjoint()
 
+# first echo
+all_signal = scanner.signal.clone()
+scanner.signal[0,5+sz[0]:-2,:,:,:] = 0
+scanner.adjoint()
+img_first_echo = scanner.reco.clone()
+
+# second echo
+scanner.signal = all_signal.clone()
+scanner.signal[0,5:sz[0]+5:,:,:,:] = 0
+scanner.adjoint()
+img_second_echo = scanner.reco.clone()
+
+both_scan_kspace = magimg(tonumpy(all_signal[0,5:-2,:,:2,0]))
 # try to fit this
 # scanner.reco = scanner.do_ifft_reco()
 target = scanner.reco.clone()
@@ -272,18 +287,75 @@ if True: # check sanity: is target what you expect and is sequence what you expe
 
     scanner.do_SAR_test(flips, event_time)    
     targetSeq.export_to_matlab(experiment_id, today_datestr)
-#    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
+
+if True:
+    # print results
+    ax1=plt.subplot(231)
+    ax=plt.imshow(magimg(tonumpy(img_first_echo).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('first scan')
+    plt.ion()
     
+    plt.subplot(232, sharex=ax1, sharey=ax1)
+    ax=plt.imshow(magimg(tonumpy(img_second_echo).reshape([sz[0],sz[1],2])), interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('second scan')
+    plt.ion()
+    plt.show()
+    
+    ax=plt.imshow(both_scan_kspace, interpolation='none')
+    fig = plt.gcf()
+    fig.colorbar(ax)        
+    plt.title('both scan kspace')
+    plt.ion()
+    plt.show()
+
+        
     if do_scanner_query:
         scanner.send_job_to_real_system(experiment_id,today_datestr)
         scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
+        # first echo
+        all_signal = scanner.signal.clone()
+        scanner.signal[0,5+sz[0]:-2,:,:,:] = 0
+        scanner.adjoint()
+        img_first_echo = scanner.reco.clone()
+        
+        # second echo
+        scanner.signal = all_signal.clone()
+        scanner.signal[0,5:sz[0]+5:,:,:,:] = 0
+        scanner.adjoint()
+        img_second_echo = scanner.reco.clone()
+        
+        both_scan_kspace = magimg(tonumpy(all_signal[0,5:-2,:,:2,0]))
+        
         scanner.adjoint()
         
-        targetSeq.meas_sig = scanner.signal.clone()
-        targetSeq.meas_reco = scanner.reco.clone()
+        ax1=plt.subplot(231)
+        ax=plt.imshow(magimg(tonumpy(img_first_echo).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('meas first scan')
+        plt.ion()
         
-    targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
+        plt.subplot(232, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(magimg(tonumpy(img_second_echo).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('meas second scan')
+        plt.ion()
+        plt.show()
+        
+        ax=plt.imshow(both_scan_kspace, interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('both scan kspace')
+        plt.ion()
+        
+    targetSeq.print_status(False, reco=None, do_scanner_query=do_scanner_query)
         
                     
     stop()
