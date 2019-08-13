@@ -37,7 +37,7 @@ print('32x float forwardfast oS')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = False
+do_scanner_query = True
 
 use_gpu = 1
 gpu_dev = 0
