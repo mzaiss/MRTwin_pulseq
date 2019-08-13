@@ -35,9 +35,9 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = False
+recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
-do_real_meas = False
+do_real_meas = True
 test_iter_number = False
 use_custom_iter_sel_scheme = False
 
@@ -165,15 +165,16 @@ experiment_list = []
 #experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
 
 
-experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_24_extendedLRprot"])
-experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_32_extendedLRprot"])
-experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_48_extendedLRprot"])
-experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_64_extendedLRprot"])
-experiment_list.append(["190728", "p06_tgtGRESP_tskFLASH_FA_G_ET_24_lowsar_supervised2px"])
-experiment_list.append(["190728", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px"])
-experiment_list.append(["190728", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised2px"])
-experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR"])
-experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR_optonlyRefFA"])
+#experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_24_extendedLRprot"])
+#experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_32_extendedLRprot"])
+#experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_48_extendedLRprot"])
+#experiment_list.append(["190728", "p03_tgtGRESP_tskFLASH_FA_G_64_extendedLRprot"])
+#experiment_list.append(["190728", "p06_tgtGRESP_tskFLASH_FA_G_ET_24_lowsar_supervised2px"])
+#experiment_list.append(["190728", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px"])
+#experiment_list.append(["190728", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised2px"])
+#experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR"])
+experiment_list.append(["190805", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px_adaptive_globlock"])
+experiment_list.append(["190805", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px_adaptive_frelax"])
 
 
 
@@ -385,7 +386,7 @@ for exp_current in experiment_list:
         grad_moms = setdevice(torch.from_numpy(alliter_array['grad_moms'][c_iter]))
         
         scanner.init_flip_tensor_holder()
-        scanner.set_flipXY_tensor(flips)
+        scanner.set_flip_tensor_withB1plus(flips)
         
         # rotate ADC according to excitation phase
         scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
