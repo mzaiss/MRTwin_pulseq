@@ -64,9 +64,7 @@ end
 loss=scanner_dict.all_errors;
 
 
-if single>0
-    array = single; % only a single fram to display
-end
+
 
 %iter 1 and tgt
 subplot(3,4,1), imagesc(sos_tgt_sim); title('sos, tgt'), axis('image'); %colorbar;
@@ -82,6 +80,11 @@ if real_exists
 end
 
 array = 1:1:niter; % accelerate plot
+
+if single>0
+    array = single; % only a single frame to display
+end
+
 frames=cell(numel(array));
 kplot=0;
 for ii=array
@@ -174,17 +177,18 @@ yyaxis right; plot(SARloss); hold on; plot(jj,SAR_sim,'r.'); hold off; ylabel('[
 end
 set(0, 'DefaultLineLineWidth', 0.5);
 
-for ii=array
-      im = frame2im(frames{ii});
-        gifname=sprintf('%s/%s/a_sim_%s_%s.gif',seq_dir,experiment_id,experiment_id,methodstr);
-        [imind,cm] = rgb2ind(im,32);
-        if ii == 1
-            imwrite(imind,cm,gifname,'gif', 'Loopcount',inf);
-        elseif ii==array(end)
-            imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',7);
-        else
-            imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.1);
-        end
+if (single==0)
+    for ii=array
+          im = frame2im(frames{ii});
+            gifname=sprintf('%s/%s/a_sim_%s_%s.gif',seq_dir,experiment_id,experiment_id,methodstr);
+            [imind,cm] = rgb2ind(im,32);
+            if ii == 1
+                imwrite(imind,cm,gifname,'gif', 'Loopcount',inf);
+            elseif ii==array(end)
+                imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',7);
+            else
+                imwrite(imind,cm,gifname,'gif','WriteMode','append','DelayTime',0.1);
+            end
+    end
 end
-
 saveas(gcf,sprintf('%s/%s/lastSIM.fig',seq_dir,experiment_id));
