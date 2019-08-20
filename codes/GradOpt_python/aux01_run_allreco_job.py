@@ -173,8 +173,7 @@ experiment_list = []
 #experiment_list.append(["190728", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px"])
 #experiment_list.append(["190728", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised2px"])
 #experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR"])
-#experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR_optonlyRefFA"])
-#experiment_list.append(["190805", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px_adaptive_globlock"])
+
 experiment_list.append(["190805", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px_adaptive_frelax"])
 
 
