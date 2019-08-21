@@ -94,6 +94,7 @@ jj=scanner_dict.iter_idx(ii)+1; % index for parameters
 sos_sim = abs(squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,2)));
 phase_sim = angle(squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,2)));
 SAR_sim = sum(reshape((squeeze(scanner_dict.all_flips(jj,:,:,1).^2)),1,[]))./SAR_tgt_sim;
+TA_sim =  sum(reshape((abs(squeeze(scanner_dict.all_event_times(jj,:,:)))),1,[]));
 
 if real_exists
 sos_real = abs(squeeze(scanner_dict.(['all_real_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_real_reco_' methodstr])(ii,:,:,2)));
@@ -121,7 +122,7 @@ set(gcf, 'Outerposition',[137         296        1281         767]) % extralarge
 % set(gcf, 'Outerposition',[451   346   598   398]) % small
 end
 
-set(h2,'CDATA',sos_sim); subplot(3,4,2), title(sprintf(' sos sim, iter %d, SAR %.2f',scanner_dict.iter_idx(ii),SAR_sim)),
+set(h2,'CDATA',sos_sim); subplot(3,4,2), title(sprintf(' sos sim, iter %d, SAR %.2f,\n TA %.2f, meanTR %.2f',scanner_dict.iter_idx(ii),SAR_sim,TA_sim,TA_sim/sz(1))),
 set(h6,'CDATA',phase_sim);
 if real_exists
 set(h3,'CDATA',sos_real); subplot(3,4,3), title(sprintf(' sos real, iter %d, SAR %.2f',scanner_dict.iter_idx(ii),SAR_sim)),
@@ -170,9 +171,9 @@ yyaxis right; plot(SARloss); hold on; plot(jj,SAR_sim,'r.'); hold off; ylabel('[
         frames{ii} = getframe(1);
     end
     
-    %if jj>=56
-    %    keyboard
-    %end
+    if jj>=10000
+       keyboard
+    end
         
 end
 set(0, 'DefaultLineLineWidth', 0.5);

@@ -39,7 +39,7 @@ recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
 do_real_meas = True
 test_iter_number = False
-use_custom_iter_sel_scheme = False
+use_custom_iter_sel_scheme = True
 
 max_nmb_iter = 70
 
@@ -174,7 +174,14 @@ experiment_list = []
 #experiment_list.append(["190728", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised2px"])
 #experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR"])
 
-experiment_list.append(["190805", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px_adaptive_frelax"])
+#experiment_list.append(["190805", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised2px_adaptive_frelax"])
+
+#experiment_list.append(["190821", "t03_tgtRARE_tskRARE_96_inittotarget"])
+#experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFAScaler"])
+experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_phantom_highpass_scaler"])
+experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass_scaler"])
+experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass"])
+experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom"])
 
 
 
@@ -294,6 +301,8 @@ for exp_current in experiment_list:
             pulseq_write_GRE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
         elif sequence_class.lower() == "rare":
             pulseq_write_RARE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+        elif sequence_class.lower() == "se":
+            pulseq_write_RARE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)            
         elif sequence_class.lower() == "bssfp":
             pulseq_write_BSSFP(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
         elif sequence_class.lower() == "epi":
@@ -348,8 +357,9 @@ for exp_current in experiment_list:
         non_increasing_error_iter = non_increasing_error_iter[(np.ceil(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
         
     if use_custom_iter_sel_scheme:
-        non_increasing_error_iter = np.arange(0,500,10)
-
+        non_increasing_error_iter = np.arange(0,itt.size,itt.size//70)
+        
+    #non_increasing_error_iter = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,25,46,67,100,150,200,250,300,400,500,800])
         
     #non_increasing_error_iter = np.concatenate((non_increasing_error_iter[:5],non_increasing_error_iter[-5:]))
     nmb_iter = non_increasing_error_iter.size
@@ -373,7 +383,7 @@ for exp_current in experiment_list:
     
     lin_iter_counter = 0
     
-    for c_iter in non_increasing_error_iter:
+    for c_iter in non_increasing_error_iter[43:]:
         print("Processing the iteration {}/{}  {}/{}".format(c_iter, nmb_total_iter, lin_iter_counter, nmb_iter))
         
         scanner.set_adc_mask(torch.from_numpy(alliter_array['all_adc_masks'][c_iter]))
@@ -454,6 +464,8 @@ for exp_current in experiment_list:
                 pulseq_write_GRE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
             elif sequence_class.lower() == "rare":
                 pulseq_write_RARE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
+            elif sequence_class.lower() == "se":
+                pulseq_write_RARE(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)                
             elif sequence_class.lower() == "bssfp":
                 pulseq_write_BSSFP(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)
             elif sequence_class.lower() == "epi":

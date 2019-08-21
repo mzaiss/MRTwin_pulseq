@@ -77,10 +77,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([32,32])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 5**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std

@@ -250,6 +250,13 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         fig.colorbar(ax)        
         plt.title('first scan')
         plt.ion()
+        
+        ax1=plt.subplot(232)
+        ax=plt.imshow(phaseimg(tonumpy(first_scan).reshape([sz[0],sz[1],2])), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('meas: phase first scan')
+        plt.ion()        
                
         # print results
         ax1=plt.subplot(234)
@@ -283,6 +290,8 @@ if True:
         fig.colorbar(ax)        
         plt.title('meas: first scan')
         plt.ion()
+
+
         
         
         # print results
