@@ -10,7 +10,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'p07_tgtGRESP_tskFLASH_FA_G_NNscaler_48_lowsar'
+experiment_id = 'p10_tgt_nonMR'
 sequence_class = "GRE"
 experiment_description = """
 opt pitcher try different fwd procs
@@ -87,7 +87,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([16,16])                                           # image size
+sz = np.array([48,48])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 2**2                                # number of spin sims in each voxel
@@ -206,8 +206,10 @@ scanner.adjoint()
 # try to fit this
 target = scanner.reco.clone()
 
-target[:,0]=torch.tensor(np.reshape(real_phantom_resized[::-1,::-1,0].transpose(),[256]))
-target[:,1]=torch.tensor(np.reshape(real_phantom_resized[:,:,0],[256])*0.0)
+target[:,0]=torch.tensor(np.reshape(real_phantom_resized[::-1,::-1,0].transpose(),[np.prod(sz)]))
+target[:,1]=torch.tensor(np.reshape(real_phantom_resized[:,:,0],[np.prod(sz)])*0.0)
+
+target[:,0] = setdevice(target[:,0] > 25*1e-2)
 
 
 #   
@@ -351,7 +353,7 @@ opt.experiment_description = experiment_description
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([3,4]) # ADC, RF, time, grad, scalar
+opt.set_opt_param_idx([1,3,4]) # ADC, RF, time, grad, scalar
 opt.custom_learning_rate = [0.01,0.01,0.1,0.1,0.05]
 
 opt.set_handles(init_variables, phi_FRP_model)
@@ -362,7 +364,7 @@ lr_inc=np.array([0.1, 0.2, 0.5, 0.5, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05,
 for i in range(12):
     opt.custom_learning_rate[3] = lr_inc[i]
     print('<seq> Optimization ' + str(i+1) + ' starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=2000, do_vis_image=True, save_intermediary_results=True, adaptive_stopping=True) # save_intermediary_results=1 if you want to plot them later
+    opt.train_model(training_iter=100, do_vis_image=True, save_intermediary_results=True, adaptive_stopping=False) # save_intermediary_results=1 if you want to plot them later
 opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 if False:
