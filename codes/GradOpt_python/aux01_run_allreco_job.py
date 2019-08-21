@@ -383,7 +383,7 @@ for exp_current in experiment_list:
     
     lin_iter_counter = 0
     
-    for c_iter in non_increasing_error_iter[43:]:
+    for c_iter in non_increasing_error_iter:
         print("Processing the iteration {}/{}  {}/{}".format(c_iter, nmb_total_iter, lin_iter_counter, nmb_iter))
         
         scanner.set_adc_mask(torch.from_numpy(alliter_array['all_adc_masks'][c_iter]))
