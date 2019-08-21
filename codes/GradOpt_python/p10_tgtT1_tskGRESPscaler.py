@@ -208,6 +208,8 @@ target = scanner.reco.clone()
 
 target[:,0]=torch.tensor(np.reshape(real_phantom_resized[::-1,::-1,0].transpose(),[256]))
 target[:,1]=torch.tensor(np.reshape(real_phantom_resized[:,:,0],[256])*0.0)
+
+
 #   
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
@@ -349,7 +351,7 @@ opt.experiment_description = experiment_description
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([3,4]) # ADC, RF, time, grad
+opt.set_opt_param_idx([3,4]) # ADC, RF, time, grad, scalar
 opt.custom_learning_rate = [0.01,0.01,0.1,0.1,0.05]
 
 opt.set_handles(init_variables, phi_FRP_model)
