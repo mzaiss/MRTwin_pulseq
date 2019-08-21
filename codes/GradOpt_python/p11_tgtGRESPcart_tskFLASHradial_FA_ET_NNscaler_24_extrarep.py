@@ -10,7 +10,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'p10_tgtGRESPcartSteadyState_tskFLASHradial_FA_ET_48'
+experiment_id = 'p11_tgtGRESPcart_tskFLASHradial_FA_ET_NNscaler_24_extrarep'
 sequence_class = "GRE"
 experiment_description = """
 opt pitcher try different fwd procs
@@ -87,10 +87,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([48,48])                                           # image size
+sz = np.array([24,24])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 30**2                                # number of spin sims in each voxel
+NSpins = 25**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
@@ -167,7 +167,7 @@ scanner.set_flip_tensor_withB1plus(flips)
 rfsign = (flips[0,:,0] < 0).float()
 scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
-relax_time = 1.0
+relax_time = 0.0
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,:] =  2e-3
@@ -229,9 +229,9 @@ scanner.forward_fast(spins, event_time)
 for i in range(10):
     scanner.forward_fast(spins, event_time,do_dummy_scans=True)
     
-scanner.signal *= 1/1000.0
-    
-scanner.generalized_adjoint(alpha=1.5*1e-5,nmb_iter=55)
+genalpha = 7.5*1e-5
+        
+scanner.generalized_adjoint(alpha=genalpha,nmb_iter=55)
 
 # try to fit this
 target = scanner.reco.clone()
@@ -267,7 +267,7 @@ def init_variables():
     #adc_mask.requires_grad = True     
     
     flips = targetSeq.flips.clone()
-    flips[0,:,:]=flips[0,:,:]*0
+#    flips[0,:,:]=flips[0,:,:]
     flips = setdevice(flips)
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
@@ -319,7 +319,7 @@ def phi_FRP_model(opt_params,aux_params):
          
     # forward/adjoint pass
     scanner.forward_fast_supermem(spins, event_time)
-    scanner.generalized_adjoint(alpha=0.8*1e-5,nmb_iter=55)
+    scanner.generalized_adjoint(alpha=genalpha,nmb_iter=55)
 
     lbd_sar = 0*sz[0]**2         # switch on of SAR cost
     loss_image = (scale_param*scanner.reco - targetSeq.target_image)
@@ -334,7 +334,7 @@ def phi_FRP_model(opt_params,aux_params):
     
     loss_sar = torch.sum(flips[:,:,0]**2)/NRep
     
-    lbd_kspace = 1e1
+    lbd_kspace = 0
     k = torch.cumsum(grad_moms, 0)
     k = k*torch.roll(scanner.adc_mask, -1).view([T,1,1])
     k = k.flatten()
@@ -342,7 +342,7 @@ def phi_FRP_model(opt_params,aux_params):
     k = k * mask
     loss_kspace = torch.sum(k**2) / np.prod(sz)
     
-    lbd_time = 1
+    lbd_time = 0
     loss_time = torch.sum(event_time[-1,:]**2)/NRep    
     
 #    ffwd = scanner.G_adj[2:-2,:,:,:2,:2].permute([0,1,2,4,3]).permute([0,1,3,2,4]).contiguous().view([NRep*(sz[1]+0)*2,NVox*2])
@@ -372,7 +372,7 @@ opt.experiment_description = experiment_description
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
-opt.set_opt_param_idx([1,3]) # ADC, RF, time, grad
+opt.set_opt_param_idx([1]) # ADC, RF, time, grad
 opt.custom_learning_rate = [0.01,0.01,0.1,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
