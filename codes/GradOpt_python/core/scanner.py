@@ -2354,8 +2354,11 @@ class Scanner():
         s = self.signal[:,:,rep,:,:]
          
         # for now we ignore parallel imaging options here (do naive sum sig over coil)
-        s = torch.sum(s, 0)                                                  
-        r = torch.matmul(self.G_adj.permute([1,0,2,3]), s)
+        s = torch.sum(s, 0)        
+
+        nrm = np.sqrt(np.prod(self.sz))
+                                          
+        r = torch.matmul(self.G_adj.permute([1,0,2,3]), s)  / nrm
         self.reco = self.reco + torch.sum(r[:,:,:2,0],1)
         
     def adjoint(self):
@@ -2421,10 +2424,12 @@ class Scanner():
                 
                 return (None, gx, None)
         
+        nrm = np.sqrt(np.prod(self.sz))
+        
         for rep in range(self.NRep):
             s = self.signal[:,:,rep,:,:]
             s = torch.sum(s, 0)                                                  
-            r = AuxGradMul.apply(self.kspace_loc[:,rep,:],s,self)
+            r = AuxGradMul.apply(self.kspace_loc[:,rep,:],s,self) / nrm
             
             self.reco = self.reco + torch.sum(r[:,:,:2,0],1)            
             
@@ -2442,6 +2447,7 @@ class Scanner():
         
     def adjoint_separable(self):
         self.init_reco()
+        nrm = np.sqrt(np.prod(self.sz))
         
         r = self.setdevice(torch.zeros((self.NRep,self.NVox,2)).float())
         for rep in range(self.NRep):
@@ -2449,6 +2455,7 @@ class Scanner():
             r[rep,:,:] = self.do_grad_adj_reco_separable(rep)
             
         r = r.reshape([self.NRep,self.sz[0],self.sz[1],2]).flip([1,2]).permute([0,2,1,3]).reshape([self.NRep,self.NVox,2])
+        r /=  nrm
         
         self.reco = torch.sum(r,0)
         return r 
@@ -2742,14 +2749,17 @@ class Scanner_fast(Scanner):
         #s = torch.sum(self.signal,0)
         #r = torch.matmul(self.G_adj.permute([2,3,0,1,4]).contiguous().view([self.NVox,3,self.T*self.NRep*3]), s.view([1,self.T*self.NRep*3,1]))
         #import pdb; pdb.set_trace()
+        
+        nrm = np.sqrt(np.prod(self.sz))
         r = torch.einsum("ijkln,oijnp->klp",[self.G_adj, self.signal])
-        self.reco = r[:,:2,0]
+        self.reco = r[:,:2,0] / nrm
         
         # transpose for adjoint
         self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
         
     def generalized_adjoint(self, alpha=1e-4, nmb_iter=55):
         self.init_reco()
+        nrm = np.sqrt(np.prod(self.sz))
         
         s = torch.sum(self.signal,0)
         adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
@@ -2757,7 +2767,13 @@ class Scanner_fast(Scanner):
         s = s.view([adc_idx.size*self.NRep*2,1])
         
         A = self.G_adj[adc_idx,:,:,:2,:2].permute([2,3,0,1,4]).contiguous().view([self.NVox*2,adc_idx.size*self.NRep*2]).permute([1,0])
+        A /= nrm
         AtA = torch.matmul(A.permute([1,0]),A)
+        
+        t = AtA @ self.setdevice(torch.ones((AtA.shape[1],)))
+        genalpha = 1e-2 * 192 / torch.mean(t)  
+        alpha = genalpha
+        
         b = torch.matmul(A.permute([1,0]),s)
         r = alpha*b
         
@@ -2811,6 +2827,7 @@ class Scanner_fast(Scanner):
         self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])        
         
     def adjoint_separable(self):
+        nrm = np.sqrt(np.prod(self.sz))
         self.init_reco()
         
         s = torch.sum(self.signal,0)
@@ -2821,7 +2838,7 @@ class Scanner_fast(Scanner):
         r = r[:,:,:2,0]
         r = r.reshape([self.NRep,self.sz[0],self.sz[1],2]).flip([1,2]).permute([0,2,1,3]).reshape([self.NRep,self.NVox,2])
         
-        self.reco = torch.sum(r,0)
+        self.reco = torch.sum(r,0) / nrm
         return r
         
         
