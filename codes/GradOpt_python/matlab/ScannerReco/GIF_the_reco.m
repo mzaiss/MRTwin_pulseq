@@ -4,9 +4,9 @@ single = 0;
 %%
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
-  seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
-  experiment_id = 'tgtGRE_tsk_GRE_no_grad';
-  seq_dir = [mrizero_git_dir '/codes/GradOpt_python/out'];
+  experiment_id = 'e24_tgtRARE_tskRARE96_lowSAR_phantom_highpass_scaler';
+  sdate = '190820';
+  seq_dir = ['/media/upload3t/CEST_seq/pulseq_zero/sequences/results/seq',sdate];
 else
   mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
   d = uigetdir('\\mrz3t\Upload\CEST_seq\pulseq_zero\sequences\results', 'Select a sequence folder');
@@ -14,6 +14,16 @@ else
   out=regexp(d,'\','split');
   experiment_id=out{end};
 end
+
+%{
+experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_phantom_highpass_scaler"])
+experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass_scaler"])
+experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass"])
+experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom"])
+experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFArebalance"])
+experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFArebalanceYBLI"])
+experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFAScaler"])
+%}
 
 % methodstr='generalized_adjoint';
 %methodstr='nufft';
@@ -153,12 +163,12 @@ axis([-1 1 -1 1]*sz(1)/2*1.5);
 
 
 subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,1,:,2)),'r','DisplayName','phase1'); hold on;% a 2D plot
-subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,2,:,2)),'b','DisplayName','phase2'); hold off; xlabel('rep'); ylabel('phase angle [°]');
+subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,2,:,2)),'b','DisplayName','phase2'); hold off; xlabel('rep'); ylabel('phase angle [ï¿½]');
 
 subplot(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(1,:,1)),'r.','DisplayName','flips tgt'); hold on;% a 2D plot
 subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,1,:,1))),'r','DisplayName','flips'); 
 subplot(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(2,:,1)),'b.','DisplayName','flips tgt'); % a 2D plot
-subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,2,:,1))),'b','DisplayName','flips');hold off;  xlabel('rep'); ylabel('flip angle [°]');
+subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,2,:,1))),'b','DisplayName','flips');hold off;  xlabel('rep'); ylabel('flip angle [ï¿½]');
 % subplot(3,3,7), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
 ylim= max([5, round( loss(jj)/(10^max([floor(log10(loss(jj))),0])))*(10^max([floor(log10(loss(jj))),0])*2)]);
 subplot(3,4,12), yyaxis left; plot(loss); hold on;  plot(jj,loss(jj),'b.'); plot(loss*0+min(loss(3:end)),'b:');hold off; axis([jj-50 jj+50 -10e-12 ylim]);ylabel('[%] error');
