@@ -373,7 +373,7 @@ opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
 opt.set_opt_param_idx([1]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.01,0.1,0.1,0.1]
+opt.custom_learning_rate = [0.01,0.1,0.1,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
@@ -381,10 +381,10 @@ opt.scanner_opt_params = opt.init_variables()
 lr_inc=np.array([0.1, 0.2, 0.5, 0.5, 0.5, 0.5,0.5, 0.5,0.5, 0.5, 0.1, 0.1, 0.1, 0.05,0.01, 0.7 , 0.7, 0.7, 0.5, 0.2, 0.1,0.01])
 
 for i in range(len(lr_inc)):
-    opt.custom_learning_rate = [0.01,0.01,1e-2,lr_inc[i],0.1]
+    opt.custom_learning_rate = [0.01,0.1,1e-2,lr_inc[i],0.1]
     print('<seq> Optimization ' + str(i+1) + ' starts now. lr=' +str(lr_inc[i]))
     opt.train_model(training_iter=300, do_vis_image=True, save_intermediary_results=True, adaptive_stopping=True) # save_intermediary_results=1 if you want to plot them later
-opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 
     
