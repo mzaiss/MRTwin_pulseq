@@ -41,7 +41,7 @@ do_real_meas = True
 test_iter_number = False
 use_custom_iter_sel_scheme = True
 
-max_nmb_iter = 70
+max_nmb_iter = 42
 
 # NRMSE error function
 def e(gt,x):
@@ -178,10 +178,13 @@ experiment_list = []
 
 #experiment_list.append(["190821", "t03_tgtRARE_tskRARE_96_inittotarget"])
 #experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFAScaler"])
-experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_phantom_highpass_scaler"])
-experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass_scaler"])
-experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass"])
-experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom"])
+#experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_phantom_highpass_scaler"])
+#experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass_scaler"])
+#experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass"])
+#experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom"])
+#experiment_list.append(["190822", "p10_tgt_nonMR_nosar"])
+#experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass"])
+experiment_list.append(["190919", "p10_tgt_nonMR_nosar_NNoutput"])
 
 
 
@@ -357,7 +360,7 @@ for exp_current in experiment_list:
         non_increasing_error_iter = non_increasing_error_iter[(np.ceil(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
         
     if use_custom_iter_sel_scheme:
-        non_increasing_error_iter = np.arange(0,itt.size,itt.size//70)
+        non_increasing_error_iter = np.arange(0,itt.size,itt.size//max_nmb_iter)
         
     #non_increasing_error_iter = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,25,46,67,100,150,200,250,300,400,500,800])
         
