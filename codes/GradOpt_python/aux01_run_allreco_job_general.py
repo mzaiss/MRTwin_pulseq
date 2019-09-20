@@ -37,9 +37,9 @@ use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
-do_real_meas = True
+do_real_meas = False
 test_iter_number = False
-use_custom_iter_sel_scheme = True
+use_custom_iter_sel_scheme = False
 
 max_nmb_iter = 70
 
@@ -162,7 +162,7 @@ experiment_list = []
 #experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_48_lowsar"])
 #experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised"])
 #experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
-experiment_list.append(["190730", "p08_tgtFLAIR_RARE_tsklowSAR_allFA"])
+experiment_list.append(["190902", "p13_tgtGRESPradial_tskFLASHradial_bigR",True,[0.039,40]])
 
 
 
@@ -263,7 +263,7 @@ for exp_current in experiment_list:
     coil_idx = 0
     adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
     sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
-    target_sim_kspace = tonumpy(sim_kspace[:,1:,:].detach()).reshape([sz[0],sz[1],2])
+    target_sim_kspace = tonumpy(sim_kspace[:,:,:].detach()).reshape([sz[0],sz[1],2])
     
     ######### REAL
     # send to scanner
@@ -292,7 +292,7 @@ for exp_current in experiment_list:
         scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
         scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
     
-    real_kspace = scanner.signal[coil_idx,adc_idx,1:,:2,0]
+    real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
     target_real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
     
     # real adjoint
@@ -412,7 +412,7 @@ for exp_current in experiment_list:
         
         coil_idx = 0
         adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
-        sim_kspace = scanner.signal[coil_idx,adc_idx,1:,:2,0]
+        sim_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
         sim_kspace = tonumpy(sim_kspace.detach()).reshape([sz[0],sz[1],2])
         all_sim_kspace[lin_iter_counter] = sim_kspace
         
@@ -452,7 +452,7 @@ for exp_current in experiment_list:
             scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
             scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
         
-        real_kspace = scanner.signal[coil_idx,adc_idx,1:,:2,0]
+        real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
         real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
         all_real_kspace[lin_iter_counter] = real_kspace
         
