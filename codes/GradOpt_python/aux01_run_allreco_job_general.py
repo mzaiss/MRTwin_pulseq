@@ -37,7 +37,7 @@ use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
-do_real_meas = True
+do_real_meas = False
 test_iter_number = False
 use_custom_iter_sel_scheme = False
 
