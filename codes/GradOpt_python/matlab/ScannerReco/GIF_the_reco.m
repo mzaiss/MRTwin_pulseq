@@ -4,8 +4,8 @@ single = 0;
 %%
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
-  experiment_id = 'e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_sardiv100';
-  sdate = '190927';
+  experiment_id = 'p13_tgtGRESPradial_tskFLASHradial_reparafix_noshifts';
+  sdate = '190926';
   seq_dir = ['/media/upload3t/CEST_seq/pulseq_zero/sequences/results/seq',sdate];
 else
   mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
@@ -27,8 +27,8 @@ experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFAScale
 
 % methodstr='generalized_adjoint';
 %methodstr='nufft';
-methodstr='adjoint';
-%methodstr='generalized_adjoint';
+%methodstr='adjoint';
+methodstr='generalized_adjoint';
 
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
@@ -92,9 +92,9 @@ subplot(3,4,5), imagesc(phase_tgt_sim,[-pi pi]), title(' phase target (sim)'), a
 ax=gca; PCLIM=ax.CLim;
 
 if real_exists 
-    subplot(3,4,4), imagesc(sos_tgt_real); title('magnitude, target (real)'), axis('image'); %colorbar;
+    subplot(3,4,4), imagesc(sos_tgt_real); title('magnitude, target (meas)'), axis('image'); %colorbar;
     ax=gca; CLIM_real=ax.CLim;
-    subplot(3,4,8), imagesc(phase_tgt_real), title(' phase target (real)'), axis('image'); %colorbar;
+    subplot(3,4,8), imagesc(phase_tgt_real), title(' phase target (meas)'), axis('image'); %colorbar;
     ax=gca;
 end
 
@@ -129,8 +129,8 @@ for ii=array
   if real_exists
         %subplot(3,4,3), h3=imagesc(sos_real,CLIM_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
         %subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
-      subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' magnitude (real), iter %d',ii)), axis('image'); %colorbar;
-      subplot(3,4,7), h7=imagesc(phase_real,PCLIM); title(' phase (real) '), axis('image'); %colorbar;
+      subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' magnitude (meas), iter %d',ii)), axis('image'); %colorbar;
+      subplot(3,4,7), h7=imagesc(phase_real,PCLIM); title(' phase (meas) '), axis('image'); %colorbar;
       if kplot
       subplot(3,4,1), h1=imagesc(squeeze(abs(scanner_dict.all_sim_kspace(ii,:,:,1)))); title(sprintf(' magnitude (sim), iter %d',ii)), axis('image'); %colorbar;
       subplot(3,4,5), h5=imagesc(squeeze(abs(scanner_dict.all_real_kspace(ii,:,:,1)))); title(sprintf(' magnitude (real), iter %d',ii)), axis('image'); %colorbar;
@@ -150,7 +150,7 @@ for ii=array
   set(h6,'CDATA',phase_sim);
   if real_exists
   %set(h3,'CDATA',sos_real); subplot(3,4,3), title(sprintf(' sos real, iter %d, SAR %.2f',scanner_dict.iter_idx(ii),SAR_sim)),
-  set(h3,'CDATA',sos_real); subplot(3,4,3), title(sprintf(' magnitude (real), iter %d',scanner_dict.iter_idx(ii))),
+  set(h3,'CDATA',sos_real); subplot(3,4,3), title(sprintf(' magnitude (meas), iter %d',scanner_dict.iter_idx(ii))),
   set(h7,'CDATA',phase_real);
       if kplot
       set(h1,'CDATA',squeeze(abs(scanner_dict.all_sim_kspace(ii,:,:,1)))); subplot(3,4,1), title('ksim');
