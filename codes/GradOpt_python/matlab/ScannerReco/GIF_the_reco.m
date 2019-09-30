@@ -4,8 +4,8 @@ single = 0;
 %%
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
-  experiment_id = 'e24_tgtRARE_tskRARE96_lowSAR_phantom_highpass_scaler';
-  sdate = '190820';
+  experiment_id = 'e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_sardiv5';
+  sdate = '190928';
   seq_dir = ['/media/upload3t/CEST_seq/pulseq_zero/sequences/results/seq',sdate];
 else
   mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
@@ -17,7 +17,7 @@ end
 
 %{
 experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_phantom_highpass_scaler"])
-experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass_scaler"])
+experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass_scaler"]) 
 experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass"])
 experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom"])
 experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFArebalance"])
@@ -28,6 +28,8 @@ experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFAScale
 % methodstr='generalized_adjoint';
 %methodstr='nufft';
 methodstr='adjoint';
+%methodstr='generalized_adjoint';
+
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
 addpath([ mrizero_git_dir,'/codes/SequenceSIM/3rdParty/pulseq-master/matlab/']);
@@ -46,7 +48,7 @@ sz = double(scanner_dict.sz);
 T = scanner_dict.T;
 NRep = scanner_dict.NRep;
 
-niter = numel(scanner_dict.iter_idx)
+niter = numel(scanner_dict.iter_idx);
 k = 1;
 array = 1:1:niter;
 
@@ -69,7 +71,10 @@ for ii=array
 loss_image = squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,:)) - scanner_dict.(['target_sim_reco_' methodstr]);   % only magnitude optscanner_dict.iter_idximization
 loss(ii) = sum(loss_image(:).^2);
 loss(ii) = 100*sqrt(loss(ii)) / sqrt( sum(CC(:).^2));
-SARloss(ii) = sum(reshape((squeeze(scanner_dict.all_flips(ii,:,:,1).^2)),1,[]))./SAR_tgt_sim*100;
+
+jj=scanner_dict.iter_idx(ii)+1; % index for parameters
+
+SARloss(ii) = sum(reshape((squeeze(scanner_dict.all_flips(jj,:,:,1).^2)),1,[]))./SAR_tgt_sim*100;
 end
 loss=scanner_dict.all_errors;
 
@@ -103,7 +108,7 @@ jj=scanner_dict.iter_idx(ii)+1; % index for parameters
  
 sos_sim = abs(squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,2)));
 phase_sim = angle(squeeze(scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,1)+1j*scanner_dict.(['all_sim_reco_' methodstr])(ii,:,:,2)));
-SAR_sim = sum(reshape((squeeze(scanner_dict.all_flips(jj,:,:,1).^2)),1,[]))./SAR_tgt_sim;
+SAR_sim = sum(reshape((squeeze(scanner_dict.all_flips(jj,:,:,1).^2)),1,[]))./SAR_tgt_sim*100;
 TA_sim =  sum(reshape((abs(squeeze(scanner_dict.all_event_times(jj,:,:)))),1,[]));
 
 if real_exists
@@ -112,13 +117,13 @@ phase_real = angle(squeeze(scanner_dict.(['all_real_reco_' methodstr])(ii,:,:,1)
 end
 
 if ii==1
-subplot(3,4,2), h2=imagesc(sos_sim,CLIM); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
-%subplot(3,4,2), h2=imagesc(sos_sim); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+%subplot(3,4,2), h2=imagesc(sos_sim,CLIM); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+subplot(3,4,2), h2=imagesc(sos_sim); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
 subplot(3,4,6), h6=imagesc(phase_sim,PCLIM); title(' phase coil(1) '), axis('image'); %colorbar;
 
 if real_exists
-      subplot(3,4,3), h3=imagesc(sos_real,CLIM_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
-%      subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+      %subplot(3,4,3), h3=imagesc(sos_real,CLIM_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+      subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
     subplot(3,4,7), h7=imagesc(phase_real,PCLIM); title(' phase coil(1) '), axis('image'); %colorbar;
     if kplot
     subplot(3,4,1), h1=imagesc(squeeze(abs(scanner_dict.all_sim_kspace(ii,:,:,1)))); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
@@ -163,12 +168,12 @@ axis([-1 1 -1 1]*sz(1)/2*1.5);
 
 
 subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,1,:,2)),'r','DisplayName','phase1'); hold on;% a 2D plot
-subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,2,:,2)),'b','DisplayName','phase2'); hold off; xlabel('rep'); ylabel('phase angle [�]');
+subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,2,:,2)),'b','DisplayName','phase2'); hold off; xlabel('rep'); ylabel('phase angle [°]');
 
 subplot(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(1,:,1)),'r.','DisplayName','flips tgt'); hold on;% a 2D plot
 subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,1,:,1))),'r','DisplayName','flips'); 
 subplot(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(2,:,1)),'b.','DisplayName','flips tgt'); % a 2D plot
-subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,2,:,1))),'b','DisplayName','flips');hold off;  xlabel('rep'); ylabel('flip angle [�]');
+subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,2,:,1))),'b','DisplayName','flips');hold off;  xlabel('rep'); ylabel('flip angle [°]');
 % subplot(3,3,7), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
 ylim= max([5, round( loss(jj)/(10^max([floor(log10(loss(jj))),0])))*(10^max([floor(log10(loss(jj))),0])*2)]);
 subplot(3,4,12), yyaxis left; plot(loss); hold on;  plot(jj,loss(jj),'b.'); plot(loss*0+min(loss(3:end)),'b:');hold off; axis([jj-50 jj+50 -10e-12 ylim]);ylabel('[%] error');
