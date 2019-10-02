@@ -4,8 +4,8 @@ single = 0;
 %%
 if isunix
   mrizero_git_dir = '/is/ei/aloktyus/git/mrizero_tueb';
-  experiment_id = 'p13_tgtGRESPradial_tskFLASHradial_reparafix_noshifts';
-  sdate = '190926';
+  experiment_id = 'p10_tgtGRESPcartSteadyState_tskFLASHradial_FA_ET_48';
+  sdate = '190802';
   seq_dir = ['/media/upload3t/CEST_seq/pulseq_zero/sequences/results/seq',sdate];
 else
   mrizero_git_dir = 'D:/root/ZAISS_LABLOG/LOG_MPI/27_MRI_zero/mrizero_tueb';
@@ -27,8 +27,8 @@ experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFAScale
 
 % methodstr='generalized_adjoint';
 %methodstr='nufft';
-%methodstr='adjoint';
-methodstr='generalized_adjoint';
+methodstr='adjoint';
+%methodstr='generalized_adjoint';
 
 
 addpath([ mrizero_git_dir,'/codes/SequenceSIM']);
@@ -49,11 +49,18 @@ T = scanner_dict.T;
 NRep = scanner_dict.NRep;
 
 niter = numel(scanner_dict.iter_idx);
+
+%niter = 22;
+
 k = 1;
 array = 1:1:niter;
 
 sos_tgt_sim= abs(scanner_dict.(['target_sim_reco_' methodstr])(:,:,1)+1j*scanner_dict.(['target_sim_reco_' methodstr])(:,:,2));
 phase_tgt_sim = angle(squeeze(scanner_dict.(['target_sim_reco_' methodstr])(:,:,1)+1j*scanner_dict.(['target_sim_reco_' methodstr])(:,:,2)));
+
+%sos_tgt_sim= abs(scanner_dict.(['target'])(:,:,1)+1j*scanner_dict.(['target'])(:,:,2));
+%phase_tgt_sim = angle(squeeze(scanner_dict.(['target'])(:,:,1)+1j*scanner_dict.(['target'])(:,:,2)));
+
 SAR_tgt_sim=sum(reshape((scanner_dict.target_flips(:,:,1).^2),1,[]));
 
 if real_exists
@@ -83,18 +90,18 @@ for jj = 1:size(SARloss,1)
   SARloss(jj) = sum(reshape((squeeze(scanner_dict.all_flips(jj,:,:,1).^2)),1,[]))./SAR_tgt_sim*100;
 end
 
-
-
 %iter 1 and tgt
-subplot(3,4,1), imagesc(sos_tgt_sim); title('magnitude, target (sim)'), axis('image'); %colorbar;
+%subaxis(3,4,1, 'sh', 0.03, 'sv', 0.01, 'padding', 0, 'margin', 0), imagesc(sos_tgt_sim); title('magnitude, target (sim)'), axis('image'); %colorbar;
+subaxis(3,4,1), imagesc(sos_tgt_sim'); title('magnitude, target (sim)'), axis('image'); %colorbar;
 ax=gca; CLIM=ax.CLim;
-subplot(3,4,5), imagesc(phase_tgt_sim,[-pi pi]), title(' phase target (sim)'), axis('image'); %colorbar;
+
+subaxis(3,4,5), imagesc(phase_tgt_sim',[-pi pi]), title(' phase target (sim)'), axis('image'); %colorbar;
 ax=gca; PCLIM=ax.CLim;
 
 if real_exists 
-    subplot(3,4,4), imagesc(sos_tgt_real); title('magnitude, target (meas)'), axis('image'); %colorbar;
+    subaxis(3,4,4), imagesc(sos_tgt_real'); title('magnitude, target (meas)'), axis('image'); %colorbar;
     ax=gca; CLIM_real=ax.CLim;
-    subplot(3,4,8), imagesc(phase_tgt_real), title(' phase target (meas)'), axis('image'); %colorbar;
+    subaxis(3,4,8), imagesc(phase_tgt_real'), title(' phase target (meas)'), axis('image'); %colorbar;
     ax=gca;
 end
 
@@ -121,19 +128,19 @@ for ii=array
   end
 
   if ii==1
-  %subplot(3,4,2), h2=imagesc(sos_sim,CLIM); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
-  %subplot(3,4,2), h2=imagesc(sos_sim); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
-  subplot(3,4,2), h2=imagesc(sos_sim); title(sprintf(' magnitude (sim), iter %d',ii)), axis('image'); %colorbar;
-  subplot(3,4,6), h6=imagesc(phase_sim,PCLIM); title(' phase (sim) '), axis('image'); %colorbar;
+  %subaxis(3,4,2), h2=imagesc(sos_sim',CLIM); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+  %subaxis(3,4,2), h2=imagesc(sos_sim'); title(sprintf(' sos sim, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+  subaxis(3,4,2), h2=imagesc(sos_sim'); title(sprintf(' magnitude (sim), iter %d',ii)), axis('image'); %colorbar;
+  subaxis(3,4,6), h6=imagesc(phase_sim',PCLIM); title(' phase (sim) '), axis('image'); %colorbar;
 
   if real_exists
-        %subplot(3,4,3), h3=imagesc(sos_real,CLIM_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
-        %subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
-      subplot(3,4,3), h3=imagesc(sos_real); title(sprintf(' magnitude (meas), iter %d',ii)), axis('image'); %colorbar;
-      subplot(3,4,7), h7=imagesc(phase_real,PCLIM); title(' phase (meas) '), axis('image'); %colorbar;
+        %subaxis(3,4,3), h3=imagesc(sos_real',CLIM_real); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+        %subaxis(3,4,3), h3=imagesc(sos_real'); title(sprintf(' sos real, iter %d, SAR %.1f',ii,SAR_sim)), axis('image'); %colorbar;
+      subaxis(3,4,3), h3=imagesc(sos_real'); title(sprintf(' magnitude (meas), iter %d',ii)), axis('image'); %colorbar;
+      subaxis(3,4,7), h7=imagesc(phase_real',PCLIM); title(' phase (meas) '), axis('image'); %colorbar;
       if kplot
-      subplot(3,4,1), h1=imagesc(squeeze(abs(scanner_dict.all_sim_kspace(ii,:,:,1)))); title(sprintf(' magnitude (sim), iter %d',ii)), axis('image'); %colorbar;
-      subplot(3,4,5), h5=imagesc(squeeze(abs(scanner_dict.all_real_kspace(ii,:,:,1)))); title(sprintf(' magnitude (real), iter %d',ii)), axis('image'); %colorbar;
+      subaxis(3,4,1), h1=imagesc(squeeze(abs(scanner_dict.all_sim_kspace(ii,:,:,1)))); title(sprintf(' magnitude (sim), iter %d',ii)), axis('image'); %colorbar;
+      subaxis(3,4,5), h5=imagesc(squeeze(abs(scanner_dict.all_real_kspace(ii,:,:,1)))); title(sprintf(' magnitude (real), iter %d',ii)), axis('image'); %colorbar;
       end
   end
 
@@ -141,20 +148,21 @@ for ii=array
   fct = 1.3;
   %set(gcf, 'Outerposition',[137         296        1281         767]) % extralarge
   set(gcf, 'Outerposition',[137*fct         296*fct        1281*fct         767*fct]) % extralarge
+  set(gcf,'color','w');
   %   set(gcf, 'Outerposition',[404   356   850   592]) %large
   % set(gcf, 'Outerposition',[451   346   598   398]) % small
   end
 
-  %set(h2,'CDATA',sos_sim); subplot(3,4,2), title(sprintf(' sos sim, iter %d, SAR %.2f,\n TA %.2f, meanTR %.2f',scanner_dict.iter_idx(ii),SAR_sim,TA_sim,TA_sim/sz(1))),
-  set(h2,'CDATA',sos_sim); subplot(3,4,2), title(sprintf(' magnitude (sim), iter %d',scanner_dict.iter_idx(ii))),
-  set(h6,'CDATA',phase_sim);
+  %set(h2,'CDATA',sos_sim); subaxis(3,4,2), title(sprintf(' sos sim, iter %d, SAR %.2f,\n TA %.2f, meanTR %.2f',scanner_dict.iter_idx(ii),SAR_sim,TA_sim,TA_sim/sz(1))),
+  set(h2,'CDATA',sos_sim'); subaxis(3,4,2), title(sprintf(' magnitude (sim), iter %d',scanner_dict.iter_idx(ii))),
+  set(h6,'CDATA',phase_sim');
   if real_exists
-  %set(h3,'CDATA',sos_real); subplot(3,4,3), title(sprintf(' sos real, iter %d, SAR %.2f',scanner_dict.iter_idx(ii),SAR_sim)),
-  set(h3,'CDATA',sos_real); subplot(3,4,3), title(sprintf(' magnitude (meas), iter %d',scanner_dict.iter_idx(ii))),
-  set(h7,'CDATA',phase_real);
+  %set(h3,'CDATA',sos_real); subaxis(3,4,3), title(sprintf(' sos real, iter %d, SAR %.2f',scanner_dict.iter_idx(ii),SAR_sim)),
+  set(h3,'CDATA',sos_real'); subaxis(3,4,3), title(sprintf(' magnitude (meas), iter %d',scanner_dict.iter_idx(ii))),
+  set(h7,'CDATA',phase_real');
       if kplot
-      set(h1,'CDATA',squeeze(abs(scanner_dict.all_sim_kspace(ii,:,:,1)))); subplot(3,4,1), title('ksim');
-      set(h5,'CDATA',squeeze(abs(scanner_dict.all_real_kspace(ii,:,:,1))));subplot(3,4,5), title('kmeas');
+      set(h1,'CDATA',squeeze(abs(scanner_dict.all_sim_kspace(ii,:,:,1)))); subaxis(3,4,1), title('ksim');
+      set(h5,'CDATA',squeeze(abs(scanner_dict.all_real_kspace(ii,:,:,1))));subaxis(3,4,5), title('kmeas');
       end
   end
 
@@ -167,7 +175,7 @@ for ii=array
   % remove ADC
   temp = temp(scanner_dict.target_adc_mask==1,:,:);
 
-  subplot(3,4,9), 
+  subaxis(3,4,9), 
   ccc=colormap(gca,parula(size(temp,2))); 
   set(gca, 'ColorOrder', ccc, 'NextPlot', 'replacechildren');
   plot(temp(:,:,1),temp(:,:,2),'-','DisplayName','k-sim'); hold on;% a 2D plot
@@ -181,17 +189,17 @@ for ii=array
   axis([-1 1 -1 1]*sz(1)/2*1.5);
 
 
-  subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,1,:,2)),'r','DisplayName','phase1'); hold on;% a 2D plot
-  subplot(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,2,:,2)),'b','DisplayName','phase2'); hold off; xlabel('rep'); ylabel('phase angle [°]');
+  subaxis(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,1,:,2)),'r','DisplayName','phase1'); hold on;% a 2D plot
+  subaxis(3,4,11), plot(180/pi*squeeze(scanner_dict.all_flips(jj,2,:,2)),'b','DisplayName','phase2'); hold off; xlabel('repetition'); ylabel('RF (phase) [°]'); axis tight;
 
-  subplot(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(1,:,1)),'r.','DisplayName','flips tgt'); hold on;% a 2D plot
-  subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,1,:,1))),'r','DisplayName','flips'); 
-  subplot(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(2,:,1)),'b.','DisplayName','flips tgt'); % a 2D plot
-  subplot(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,2,:,1))),'b','DisplayName','flips');hold off;  xlabel('rep'); ylabel('flip angle [°]');
-  % subplot(3,3,7), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
+  subaxis(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(1,:,1)),'r.','DisplayName','flips tgt'); hold on;% a 2D plot
+  subaxis(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,1,:,1))),'r','DisplayName','flips'); 
+  subaxis(3,4,10), plot(180/pi*squeeze(scanner_dict.target_flips(2,:,1)),'b.','DisplayName','flips tgt'); % a 2D plot
+  subaxis(3,4,10), plot(180/pi*(squeeze(scanner_dict.all_flips(jj,2,:,1))),'b','DisplayName','flips');hold off;  xlabel('repetition'); ylabel('flip angle [°]'); axis tight;
+  % subaxis(3,3,7), plot(180/pi*squeeze(scanner_dict.flips(ii,1,:,1)),'r--','DisplayName','flips'); hold off; axis([-Inf Inf 0 Inf]);
   ylim= max([5, round( loss(jj)/(10^max([floor(log10(loss(jj))),0])))*(10^max([floor(log10(loss(jj))),0])*2)]);
-  subplot(3,4,12), 
-  yyaxis left; plot(loss); hold on;  plot(jj,loss(jj),'b.'); plot(loss*0+min(loss(3:end)),'b:');hold off; axis([jj-50 jj+50 -10e-12 ylim]);ylabel('[%] NRMSE error');
+  subaxis(3,4,12), 
+  yyaxis left; plot(loss); hold on;  plot(jj,loss(jj),'b.'); plot(loss*0+min(loss(3:end)),'b:');xlabel('optimization iteration');hold off; axis([jj-50 jj+50 -10e-12 ylim]);ylabel('[%] NRMSE error');
   yyaxis right; plot(SARloss); hold on; plot(jj,SARloss(jj),'r.'); hold off; ylabel('[%] SAR'); grid on; 
 
 
