@@ -1,0 +1,66 @@
+<XProtocol> 
+{
+  
+  <ParamMap.""> 
+  {
+    
+    <ParamFunctor."DataExportConfigurator"> 
+    {
+      <Class> "DataExportConfigurator@IceDataExport" 
+      <Visible> "true" 
+    }
+  }
+}
+<XProtocol> 
+{
+  
+  <ParamMap.""> 
+  {
+    
+    <ParamFunctor."DataExportFunctor"> 
+    {
+      <Class> "DataExportFunctor@IceDataExport" 
+      <Visible> "true" 
+      
+      <Method."ComputeScan">  { "uint64_t" "class IceAs" "class MdhProxy" "class ScanControl"  }
+      
+      <Event."ScanReady">  { "uint64_t" "class IceAs" "class MdhProxy" "class ScanControl"  }
+      
+      <ParamLong."Threading"> 
+      {
+        <Visible> "true" 
+      }
+      
+      <ParamBool."_Execute"> 
+      {
+        <Visible> "true" 
+        <LimitRange> { "false" "true" }
+        "true" 
+      }
+      
+      <ParamArray."_BypassEvents"> 
+      {
+        <Visible> "true" 
+        <MinSize> 0 
+        <MaxSize> 2147483647 
+        <Default> <ParamString.""> 
+        {
+          <Visible> "true" 
+        }
+        
+      }
+      
+      <ParamArray."_BypassSinks"> 
+      {
+        <Visible> "true" 
+        <MinSize> 0 
+        <MaxSize> 2147483647 
+        <Default> <ParamString.""> 
+        {
+          <Visible> "true" 
+        }
+        
+      }
+    }
+  }
+}
