@@ -37,7 +37,7 @@ print('32x float forwardfast oS')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = False
+do_scanner_query = True
 
 use_gpu = 1
 gpu_dev = 0
@@ -374,7 +374,7 @@ query_kwargs = experiment_id, today_datestr, sequence_class
 for i in range(7):
     opt.custom_learning_rate = [0.01,0.01,0.1,lr_inc[i]]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=200, do_vis_image=False, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+    opt.train_model(training_iter=200, do_vis_image=True, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
 opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 

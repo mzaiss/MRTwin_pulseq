@@ -35,9 +35,9 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = False
-recreate_pulseq_files_for_sim = False
-do_real_meas = False
+recreate_pulseq_files = True
+recreate_pulseq_files_for_sim = True
+do_real_meas = True
 get_real_meas = True               # this is to load existing seq.dat files when they were already measured completeley
 use_custom_iter_sel_scheme = True   # if this is false search for sampling_of_optiters
 
@@ -462,14 +462,13 @@ for exp_current in experiment_list:
         scanner.set_flip_tensor_withB1plus(flips)
         
         # rotate ADC according to excitation phase
-		if sequence_class.lower() == "gre" or sequence_class.lower() == "bssfp":
-			scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific #TODO
-			
-		else if sequence_class.lower() == "rare" or sequence_class.lower() == "se":
-			scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific #TODO
-		else
-			print('dont know sequuence class dont know what to do with ADC rot)
-			stop()
+        if sequence_class.lower() == "gre" or sequence_class.lower() == "bssfp":
+            scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific #TODO
+        elif (sequence_class.lower() == "rare" or sequence_class.lower() == "se"):
+            scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific #TODO
+        else:
+            print('dont know sequuence class dont know what to do with ADC rot')
+            stop()
 
         TR=torch.sum(event_time[:,1])
         TE=torch.sum(event_time[:11,1])
@@ -575,7 +574,7 @@ for exp_current in experiment_list:
         lin_iter_counter += 1
         
         if do_real_meas: # this is the web status update
-			try:
+            try:
 	            scipy.misc.toimage(magimg(target_sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_sim_reco_adjoint.jpg"))
 	            scipy.misc.toimage(magimg(target_real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_real_reco_adjoint.jpg"))
 	            scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
@@ -613,6 +612,8 @@ for exp_current in experiment_list:
             
 	            with open(os.path.join(dp_control, "status_related", "status_lines.txt"),"w") as f:
 	                f.writelines(status_lines)
+            except:
+                print('no status update possible, maybe server connectionto MPI down')
         
     allreco_dict = dict()
     
