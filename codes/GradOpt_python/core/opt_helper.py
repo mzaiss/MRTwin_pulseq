@@ -724,7 +724,14 @@ class OPT_helper():
         scipy.io.savemat(os.path.join(basepath,"scanner_dict.mat"), scanner_dict)
         
     def get_base_path(self, experiment_id, today_datestr):
-        with open(os.path.join('core','pathfile.txt'),"r") as f:
+        
+        if os.path.isfile(os.path.join('core','pathfile_local.txt')):
+            pathfile ='pathfile_local.txt'
+        else:
+            pathfile ='pathfile.txt'
+            print('You dont have a local pathfile in core/pathfile_local.txt, so we use standard file: pathfile.txt')
+                
+        with open(os.path.join('core',pathfile),"r") as f:
             path_from_file = f.readline()
         if platform == 'linux':
             hostname = socket.gethostname()
