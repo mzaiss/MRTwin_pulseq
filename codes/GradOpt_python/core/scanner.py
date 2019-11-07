@@ -36,6 +36,7 @@ class Scanner():
         self.NRep = NRep                              # number of repetitions
         self.T = T                     # number of "actions" within a readout
         self.NCoils = NCoils                # number of receive coil elements
+        self.NTransmitCoils = 1
         self.noise_std = noise_std              # additive Gaussian noise std
         
         self.adc_mask = None         # ADC signal acquisition event mask (T,)
@@ -183,13 +184,21 @@ class Scanner():
         
         return out    
         
-    def init_coil_sensitivities(self):
+    def init_coil_sensitivities(self, B1=None):
         # handle complex mul as matrix mul
-        B1 = torch.zeros((self.NCoils,1,self.NVox,2,2), dtype=torch.float32)
-        B1[:,0,:,0,0] = 1
-        B1[:,0,:,1,1] = 1
+        B1_init = torch.zeros((self.NCoils,1,self.NVox,2,2), dtype=torch.float32)
         
-        self.B1 = self.setdevice(B1)
+        if B1 is not None:
+            B1 = torch.reshape(B1,(self.NCoils,self.NVox,2))
+            
+            B1_init[:,0,:,0,0] = B1[:,:,0]
+            B1_init[:,0,:,0,1] = -B1[:,:,1]
+            B1_init[:,0,:,1,0] = B1[:,:,1]
+            B1_init[:,0,:,1,1] = B1[:,:,0]
+        else:
+            B1_init[:,0,:,0,0] = 1
+        
+        self.B1 = self.setdevice(B1_init)
         
     def init_flip_tensor_holder(self):
         F = torch.zeros((self.T,self.NRep,1,3,3), dtype=torch.float32)
@@ -549,65 +558,74 @@ class Scanner():
         self.reco = self.setdevice(reco)
         
     def do_ifft_reco(self):
-        spectrum = self.signal[0,self.adc_mask.flatten()!=0,:,:2,0].clone()
         
-        # fftshift
-        spectrum = roll(spectrum,self.NCol//2-1,0)
-        spectrum = roll(spectrum,self.NRep//2-1,1)
-        
-        space = torch.ifft(spectrum,2)
-        
-        if self.NCol > self.sz[0]:
-            print("do_ifft_reco: oversampled singal detected, doing crop around center in space...")
-            hsz = (self.NCol - self.sz[0])//2
-            space = space[hsz:hsz+self.sz[0]]
-        
-        # fftshift
-        space = roll(space,self.sz[0]//2-1,0)
-        space = roll(space,self.sz[1]//2-1,1)
-       
-        self.reco = space.reshape([self.NVox,2])
+        if self.NCoils == 1:                      # for backwards compat mostly
+            spectrum = self.signal[0,self.adc_mask.flatten()!=0,:,:2,0].clone()
+            
+            # fftshift
+            spectrum = roll(spectrum,self.NCol//2-1,0)
+            spectrum = roll(spectrum,self.NRep//2-1,1)
+            
+            space = torch.ifft(spectrum,2)
+            
+            if self.NCol > self.sz[0]:
+                print("do_ifft_reco: oversampled singal detected, doing crop around center in space...")
+                hsz = (self.NCol - self.sz[0])//2
+                space = space[hsz:hsz+self.sz[0]]
+            
+            # fftshift
+            space = roll(space,self.sz[0]//2-1,0)
+            space = roll(space,self.sz[1]//2-1,1)
+           
+            self.reco = space.reshape([self.NVox,2])
+        else:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('do_ifft_rec: parallel imaging not implemented!')
         
     def do_nufft_reco(self):
         sz = self.sz
         NCol = self.NCol
         NRep = self.NRep
         
-        adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
-        spectrum = self.signal[0,self.adc_mask.flatten()!=0,:,:2,0].detach().cpu().numpy()
-        
-        X, Y = np.meshgrid(np.linspace(0,NCol-1,NCol) - NCol / 2, np.linspace(0,NRep-1,NRep) - NRep/2)
-        
-        grid = self.kspace_loc[adc_idx,:,:]
-        grid = torch.flip(grid, [2]).detach().cpu().numpy()
-        
-        try:
-            spectrum_resampled_x = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,0].ravel(), (X, Y), method='cubic')
-            spectrum_resampled_y = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,1].ravel(), (X, Y), method='cubic')
+        if self.NCoils == 1:                      # for backwards compat mostly
+            adc_idx = np.where(self.adc_mask.cpu().numpy())[0]
+            spectrum = self.signal[0,self.adc_mask.flatten()!=0,:,:2,0].detach().cpu().numpy()
             
-            spectrum_resampled = np.stack((spectrum_resampled_x.reshape(sz),spectrum_resampled_y.reshape(sz))).transpose([1,2,0])
-            spectrum_resampled[np.isnan(spectrum_resampled)] = 0
-            spectrum_resampled = self.setdevice(torch.from_numpy(spectrum_resampled).float())
-        except:
-            print("do_nufft_reco: FATAL, gridding failed, returning zeros")
-            spectrum_resampled = self.setdevice(torch.from_numpy(spectrum))
-        
-        # fftshift
-        spectrum_resampled = roll(spectrum_resampled,NCol//2-1,0)
-        spectrum_resampled = roll(spectrum_resampled,NRep//2-1,1)
-        
-        space = torch.ifft(spectrum_resampled,2)
-        
-        if NCol > sz[0]:
-            print("do_nufft_reco: oversampled singal detected, doing crop around center in space...")
-            hsz = (NCol - sz[0])//2
-            space = space[hsz:hsz+sz[0]]        
-        
-        # fftshift
-        space = roll(space,self.sz[0]//2-1,0)
-        space = roll(space,self.sz[1]//2-1,1)
-           
-        self.reco = space.reshape([self.NVox,2])
+            X, Y = np.meshgrid(np.linspace(0,NCol-1,NCol) - NCol / 2, np.linspace(0,NRep-1,NRep) - NRep/2)
+            
+            grid = self.kspace_loc[adc_idx,:,:]
+            grid = torch.flip(grid, [2]).detach().cpu().numpy()
+            
+            try:
+                spectrum_resampled_x = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,0].ravel(), (X, Y), method='cubic')
+                spectrum_resampled_y = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), spectrum[:,:,1].ravel(), (X, Y), method='cubic')
+                
+                spectrum_resampled = np.stack((spectrum_resampled_x.reshape(sz),spectrum_resampled_y.reshape(sz))).transpose([1,2,0])
+                spectrum_resampled[np.isnan(spectrum_resampled)] = 0
+                spectrum_resampled = self.setdevice(torch.from_numpy(spectrum_resampled).float())
+            except:
+                print("do_nufft_reco: FATAL, gridding failed, returning zeros")
+                spectrum_resampled = self.setdevice(torch.from_numpy(spectrum))
+            
+            # fftshift
+            spectrum_resampled = roll(spectrum_resampled,NCol//2-1,0)
+            spectrum_resampled = roll(spectrum_resampled,NRep//2-1,1)
+            
+            space = torch.ifft(spectrum_resampled,2)
+            
+            if NCol > sz[0]:
+                print("do_nufft_reco: oversampled singal detected, doing crop around center in space...")
+                hsz = (NCol - sz[0])//2
+                space = space[hsz:hsz+sz[0]]        
+            
+            # fftshift
+            space = roll(space,self.sz[0]//2-1,0)
+            space = roll(space,self.sz[1]//2-1,1)
+               
+            self.reco = space.reshape([self.NVox,2])
+        else:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('do_ifft_rec: parallel imaging not implemented!')            
     
     def discard_out_of_kspace_sig(self):
         kspace_loc_cloned = self.kspace_loc.clone().view([self.T*self.NRep,2])
@@ -623,17 +641,18 @@ class Scanner():
         if self.adc_mask[t] != 0:
             
             # parallel imaging disabled for now
-            #sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(0).unsqueeze(4))
+            sig = spins.M[:,0,:,:2,0]
+            sig = torch.matmul(self.B1,sig.unsqueeze(0).unsqueeze(4))
             
             if self.noise_std > 0:
-                sig = torch.sum(spins.M[:,:,:,:2],[0])
+                sig = torch.sum(sig,[1])
                 noise = self.noise_std*torch.randn(sig.shape).float()
                 noise = self.setdevice(noise)
-                sig += noise  
+                sig += noise
             
-                self.signal[0,t,r,:2] = ((torch.sum(sig,[0,1]) * self.adc_mask[t])) / self.NSpins
+                self.signal[:,t,r,:2] = ((torch.sum(sig,[1]) * self.adc_mask[t])) / self.NSpins
             else:
-                self.signal[0,t,r,:2] = ((torch.sum(spins.M[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins  
+                self.signal[:,t,r,:2] = ((torch.sum(sig,[1,2]) * self.adc_mask[t])) / self.NSpins  
                 
     # run throw all repetition/actions and yield signal
     def forward(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True):
@@ -751,6 +770,7 @@ class Scanner():
                 delay = torch.abs(event_time[t,r]) + 1e-6
                 
                 if self.adc_mask[t] != 0:
+                    import pdb; pdb.set_trace()
                     self.signal[0,t,r,:2] = ((torch.sum(spins_cut[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins 
                     
                 self.ROI_signal[t,r,0] =   delay
@@ -1068,10 +1088,11 @@ class Scanner():
                             
                             #intraSpins = torch.einsum("ijklm,njomp,irops->nrols",[IVP,S,spins.M])
                             signal = torch.matmul(FWD,intraSpins)
-
+                            
+                            signal = torch.matmul(self.B1, signal[:,:,:,:2,:1])
                             signal = torch.sum(signal,[2])
                             
-                            self.signal[0,start_t:start_t+half_read*2,r,:,0] = signal.squeeze() / self.NSpins 
+                            self.signal[:,start_t:start_t+half_read*2,r,:2,0] = signal.squeeze() / self.NSpins 
                             
                         # do gradient precession (use adjoint as free kumulator)
                         if compact_grad_tensor:
@@ -1118,9 +1139,9 @@ class Scanner():
         self.lastM = spins.M.clone()
         
         if self.noise_std > 0:
-            noise = self.noise_std*torch.randn(self.signal[0,:,:,:2,0].shape).float()
+            noise = self.noise_std*torch.randn(self.signal[:,:,:,:2,0].shape).float()
             noise = self.setdevice(noise)
-            self.signal[0,:,:,:2,0] += noise * self.adc_mask.view([self.T,1,1])
+            self.signal[:,:,:,:2,0] += noise * self.adc_mask.view([self.T,1,1])
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -2351,18 +2372,25 @@ class Scanner():
 
     # reconstruct image readout by readout            
     def do_grad_adj_reco(self,rep):
-        s = self.signal[:,:,rep,:,:]
-         
-        # for now we ignore parallel imaging options here (do naive sum sig over coil)
-        s = torch.sum(s, 0)        
-
-        nrm = np.sqrt(np.prod(self.sz))
-                                          
-        r = torch.matmul(self.G_adj.permute([1,0,2,3]), s)  / nrm
-        self.reco = self.reco + torch.sum(r[:,:,:2,0],1)
+        sig = self.signal[:,:,rep,:,:]
+        nrm = np.sqrt(np.prod(self.sz)) 
         
+        if self.NCoils == 1:                                  # backward compat
+            # for now we ignore parallel imaging options here (do naive sum sig over coil)
+            sig = torch.sum(sig, 0)        
+    
+            r = torch.matmul(self.G_adj.permute([1,0,2,3]), sig)  / nrm
+            self.reco = self.reco + torch.sum(r[:,:,:2,0],1)
+        else:
+            reco = torch.matmul(self.G_adj.permute([1,0,2,3]).unsqueeze(1), sig)  / nrm
+            self.reco = self.reco + torch.sum(reco[:,:,:,:2,0],2).permute([1,0,2])
+            
     def adjoint(self):
-        self.init_reco()
+        if self.NCoils == 1:
+            self.init_reco()
+        else:
+            reco = torch.zeros((self.NCoils,self.NVox,2), dtype = torch.float32)
+            self.reco = self.setdevice(reco)              
         
         #adc_mask = self.adc_mask.unsqueeze(0).unsqueeze(2).unsqueeze(3)
         #self.signal *= adc_mask        
@@ -2372,7 +2400,12 @@ class Scanner():
             self.do_grad_adj_reco(rep)
             
         # transpose for adjoint
-        self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
+        if self.NCoils > 1:                                             # do SOS
+            self.reco = torch.sqrt(torch.sum(self.reco[:,:,0]**2 + self.reco[:,:,1]**2,0))
+            self.reco = self.reco.reshape([self.sz[0],self.sz[1]]).flip([0,1]).permute([1,0]).reshape([self.NVox]).unsqueeze(1).repeat([1,2])
+            self.reco[:,1] = 0
+        else:
+            self.reco = self.reco.reshape([self.sz[0],self.sz[1],2]).flip([0,1]).permute([1,0,2]).reshape([self.NVox,2])
         
     def adjoint_supermem(self):
         self.init_reco()
