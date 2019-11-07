@@ -8,6 +8,7 @@ import scipy
 import shutil
 import socket
 
+
 #sys.path.append("../scannerloop_libs/twixreader")
 #import twixreader as tr # twixreader install: conda install pyyaml; conda install -c certik antlr4-python3-runtime
 
@@ -770,7 +771,6 @@ class Scanner():
                 delay = torch.abs(event_time[t,r]) + 1e-6
                 
                 if self.adc_mask[t] != 0:
-                    import pdb; pdb.set_trace()
                     self.signal[0,t,r,:2] = ((torch.sum(spins_cut[:,:,:,:2],[0,1,2]) * self.adc_mask[t])) / self.NSpins 
                     
                 self.ROI_signal[t,r,0] =   delay
@@ -956,7 +956,8 @@ class Scanner():
         half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
         
         PD0_mask = spins.PD0_mask.flatten()
-        PD0_mask[:] = 1
+        PD0_mask[:] = True
+        PD0_mask = PD0_mask.type(torch.bool)
         
         # scanner forward process loop
         for r in range(self.NRep):                         # for all repetitions
@@ -1157,8 +1158,8 @@ class Scanner():
         
         half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
         
-        PD0_mask = spins.PD0_mask.flatten()
-        spins_cut = spins.M[:,:,PD0_mask,:,:].clone()        
+        PD0_mask = spins.PD0_mask.flatten().bool()
+        spins_cut = spins.M[:,:,PD0_mask,:,:].clone()      
         
         # scanner forward process loop
         for r in range(self.NRep):                         # for all repetitions
@@ -1784,12 +1785,12 @@ class Scanner():
             
         torch.cuda.empty_cache()
         
-    def forward_sparse_fast_supermem(self,spins,event_time):
+    def forward_sparse_fast_supermem(self,spins,event_time,kill_transverse):
         self.init_signal()
         spins.set_initial_magnetization()
         self.reco = 0
         
-        PD0_mask = spins.PD0_mask.flatten()
+        PD0_mask = spins.PD0_mask.flatten().bool()
         spins_cut = spins.M[:,:,PD0_mask,:,:].clone()  
         
         nmb_svox = torch.sum(PD0_mask)
@@ -2143,6 +2144,9 @@ class Scanner():
                         total_delay = delay
                     else:                                       # keep accumulating
                         total_delay += delay
+                        
+            if kill_transverse:
+                spins.M[:,0,:,:2,0] = 0
 
                     
         # kill numerically unstable parts of M vector for backprop
@@ -2494,6 +2498,15 @@ class Scanner():
         return r 
 
     def get_base_path(self, experiment_id, today_datestr):
+
+        if os.path.isfile(os.path.join('core','pathfile_local.txt')):
+            pathfile ='pathfile_local.txt'
+        else:
+            pathfile ='pathfile.txt'
+            print('You dont have a local pathfile in core/pathfile_local.txt, so we use standard file: pathfile.txt')
+
+        with open(os.path.join('core',pathfile),"r") as f:
+            path_from_file = f.readline()
         if platform == 'linux':
             hostname = socket.gethostname()
             if hostname == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron':
@@ -2501,9 +2514,9 @@ class Scanner():
             else:                                                     # cluster
                 basepath = 'out'
         else:
-            basepath = 'K:\CEST_seq\pulseq_zero\sequences'
-
-        basepath_seq = os.path.join(basepath, "seq" + today_datestr)
+            basepath = path_from_file
+        basepath_seq = os.path.join(basepath, 'sequences')
+        basepath_seq = os.path.join(basepath_seq, "seq" + today_datestr)
         basepath_seq = os.path.join(basepath_seq, experiment_id)
 
         return basepath, basepath_seq
@@ -2511,11 +2524,10 @@ class Scanner():
     # interaction with real system
     def send_job_to_real_system(self, experiment_id, today_datestr, basepath_seq_override=None, jobtype="target", iterfile=None):
         basepath, basepath_seq = self.get_base_path(experiment_id, today_datestr)
-        
         if platform == 'linux':
             basepath_control = '/media/upload3t/CEST_seq/pulseq_zero/control'
         else:
-            basepath_control = 'K:\CEST_seq\pulseq_zero\control'
+            basepath_control  = os.path.join(basepath, 'control')
         
         if basepath_seq_override is not None:
             basepath_seq = basepath_seq_override
@@ -2563,9 +2575,10 @@ class Scanner():
         if position >= len(control_lines) or len(control_lines) == 0 or control_lines.count('wait') > 1 or control_lines.count('quit') > 1:
             class ExecutionControl(Exception): pass
             raise ExecutionControl("control file is corrupt")
-            
-        basepath_out = "//mrz3t//upload//CEST_seq//pulseq_zero//sequences//" + "seq" + today_datestr + "//" + experiment_id
-            
+        
+        basepath_out  = os.path.join(basepath_seq, "seq" + today_datestr,experiment_id)
+        basepath_out = basepath_seq.replace('\\','//')
+    
         # add sequence file
         if control_lines[-1] == 'wait':
             control_lines[-1] = basepath_out + "//" + fn_pulseq
@@ -2592,6 +2605,16 @@ class Scanner():
             fn_twix = "lastiter.seq"   
         elif jobtype == "iter":
             fn_twix = iterfile + ".seq"
+        
+        # if load from data folder
+#        if jobtype == "target":
+#            fn_twix = "target"
+#        elif jobtype == "lastiter":
+#            fn_twix = "lastiter"   
+#        elif jobtype == "iter":
+#            fn_twix = iterfile + ""
+#        fn_twix = os.path.join("data", fn_twix)
+        #end
             
         fn_twix += ".dat"
             
@@ -2607,22 +2630,24 @@ class Scanner():
                 print("TWIX file arrived. Reading....")
                 
                 raw_file = os.path.join(basepath_seq, fn_twix)
-                ncoils = 2
+                ncoils = 8
                 
                 time.sleep(0.2)
                 
                 raw = np.loadtxt(raw_file)
                 
                 dp_twix = os.path.dirname(fnpath)
-                shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix.split('.')[0]+".dat"))
+                shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix))
                 
-                if raw.size != self.NRep*ncoils*self.NCol*2:
+                heuristic_shift = 4
+                
+                if raw.size != self.NRep*ncoils*(self.NCol+heuristic_shift)*2:
                       print("get_signal_from_real_system: SERIOUS ERROR, TWIX dimensions corrupt, returning zero array..")
-                      raw = np.zeros((self.NRep,ncoils,self.NCol,2))
-                      raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
+                      raw = np.zeros((self.NRep,ncoils,self.NCol+heuristic_shift,2))
+                      raw = raw[:,:,:-heuristic_shift,0] + 1j*raw[:,:,:-heuristic_shift,1]
                 else:
-                      raw = raw.reshape([self.NRep,ncoils,self.NCol,2])
-                      raw = raw[:,:,:,0] + 1j*raw[:,:,:,1]
+                      raw = raw.reshape([self.NRep,ncoils,self.NCol+heuristic_shift,2])
+                      raw = raw[:,:,:-heuristic_shift,0] + 1j*raw[:,:,:-heuristic_shift,1]
 #                      raw /= np.max(np.abs(raw))
 #                      raw /= 0.05*0.014/9
                 
@@ -2632,11 +2657,20 @@ class Scanner():
                 raw = raw.transpose([2,1,0])
                 raw = np.copy(raw)
                 #raw = np.roll(raw,1,axis=0)
+            
                 
                 # assume for now a single coil
-                coil_idx = 0
-                self.signal[0,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))
-                self.signal[0,adc_idx,:,1,0] = self.setdevice(torch.from_numpy(np.imag(raw[:,coil_idx,:])))
+                
+                if True:  # mutli coil?
+                    all_coil_reco = torch.zeros((ncoils,self.NVox,2), dtype = torch.float32)
+                    for coil_idx in range(ncoils):
+                        self.signal[coil_idx,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))
+                        self.signal[coil_idx,adc_idx,:,1,0] = self.setdevice(torch.from_numpy(np.imag(raw[:,coil_idx,:])))
+                else:
+                    coil_idx=0
+                    self.signal[0,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))
+                    self.signal[0,adc_idx,:,1,0] = self.setdevice(torch.from_numpy(np.imag(raw[:,coil_idx,:])))
+                    
                 
                 done_flag = True
                 
@@ -2763,11 +2797,11 @@ class Scanner_fast(Scanner):
     def forward_fast_supermem(self,spins,event_time,do_dummy_scans=False):
         super().forward_fast_supermem(spins,event_time)        
         
-    def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False):
-        super().forward_sparse_fast(spins,event_time,do_dummy_scans,compact_grad_tensor=False)
+    def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False,kill_transverse=False):
+        super().forward_sparse_fast(spins,event_time,do_dummy_scans,kill_transverse=kill_transverse,compact_grad_tensor=False)
         
-    def forward_sparse_fast_supermem(self,spins,event_time,do_dummy_scans=False):
-        super().forward_sparse_fast_supermem(spins,event_time)
+    def forward_sparse_fast_supermem(self,spins,event_time,do_dummy_scans=False,kill_transverse=False):
+        super().forward_sparse_fast_supermem(spins,event_time,kill_transverse=kill_transverse)
         
     def do_dummy_scans(self,spins,event_time,nrep=0):
         super().do_dummy_scans(spins,event_time,compact_grad_tensor=False,nrep=nrep)
@@ -2996,7 +3030,7 @@ class RelaxSparseClass(torch.autograd.Function):
         gx = torch.matmul(ctx.f.permute([0,1,3,2]),grad_output)
       
         gf = ctx.scanner.lastM.permute([0,1,2,4,3]) * grad_output
-        gf[:,:,:,2,2] -= ctx.spins.MZ0 * grad_output[:,:,:,2,0]
+        gf[:,:,:,2,2] -= ctx.spins.MZ0[:,:,ctx.mask] * grad_output[:,:,:,2,0]
         gf = torch.sum(gf,[0])
         
         ctx.scanner.lastM = ctx.scanner.setdevice(ctx.M)

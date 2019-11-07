@@ -329,7 +329,7 @@ class OPT_helper():
                 _,self.last_reco,self.last_error = self.phi_FRP_model(self.scanner_opt_params, None)
             print(colored("\033[93m iter %d, recon error = %f \033[0m%%" % (inner_iter,self.last_error), 'green'))
             
-            if np.mod(inner_iter,10)==0:                
+            if np.mod(inner_iter,1)==0:                
                 self.print_status(do_vis_image,self.last_reco, plot_ROI=False)
             
             if query_scanner:
@@ -712,7 +712,7 @@ class OPT_helper():
         #scanner_dict['adjoint_mtx'] = tonumpy(self.scanner.G_adj.permute([2,3,0,1,4]))
         scanner_dict['signal'] = tonumpy(self.scanner.signal)
         
-        basepath = self.get_base_path(experiment_id, today_datestr)
+        _, basepath = self.get_base_path(experiment_id, today_datestr)
         
         try:
             os.makedirs(basepath)
@@ -724,6 +724,15 @@ class OPT_helper():
         scipy.io.savemat(os.path.join(basepath,"scanner_dict.mat"), scanner_dict)
         
     def get_base_path(self, experiment_id, today_datestr):
+        
+        if os.path.isfile(os.path.join('core','pathfile_local.txt')):
+            pathfile ='pathfile_local.txt'
+        else:
+            pathfile ='pathfile.txt'
+            print('You dont have a local pathfile in core/pathfile_local.txt, so we use standard file: pathfile.txt')
+                
+        with open(os.path.join('core',pathfile),"r") as f:
+            path_from_file = f.readline()
         if platform == 'linux':
             hostname = socket.gethostname()
             if hostname == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron':
@@ -732,15 +741,16 @@ class OPT_helper():
                 basepath = 'out'
         else:
             basepath = 'K:\CEST_seq\pulseq_zero\sequences'
+            basepath = path_from_file
+            
+        basepath_seq = os.path.join(basepath, 'sequences')
+        basepath_seq = os.path.join(basepath_seq, "seq" + today_datestr)
+        basepath_seq = os.path.join(basepath_seq, experiment_id)
 
-        basepath = os.path.join(basepath, "seq" + today_datestr)
-        basepath = os.path.join(basepath, experiment_id)
-
-        return basepath   
+        return basepath,basepath_seq 
         
     def export_to_pulseq(self, experiment_id, today_datestr, sequence_class, plot_seq=False):
-        basepath = self.get_base_path(experiment_id, today_datestr)
-        
+        basepath,basepath_seq = self.get_base_path(experiment_id, today_datestr)
         fn_lastiter_array = "lastiter_arr.npy"
         fn_pulseq = "lastiter.seq"
         
@@ -772,34 +782,39 @@ class OPT_helper():
         lastiter_array['event_times'] = event_time_numpy
         lastiter_array['grad_moms'] = grad_moms_numpy
         lastiter_array['kloc'] = tonumpy(self.scanner.kspace_loc)
-        lastiter_array['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+        try:
+            lastiter_array['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+        except:
+            lastiter_array['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1]])
+          
+
         lastiter_array['ROI'] = tonumpy(self.scanner.ROI_signal)
         lastiter_array['sz'] = self.scanner.sz
         lastiter_array['signal'] = tonumpy(self.scanner.signal)
         lastiter_array['sequence_class'] = sequence_class
         
         try:
-            os.makedirs(basepath)
-            os.makedirs(os.path.join(basepath,"data"))
+            os.makedirs(basepath_seq)
+            os.makedirs(os.path.join(basepath_seq,"data"))
         except:
             pass
-        np.save(os.path.join(os.path.join(basepath, fn_lastiter_array)), lastiter_array)
+        np.save(os.path.join(os.path.join(basepath_seq, fn_lastiter_array)), lastiter_array)
         
         # save sequence
         seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
         
         if sequence_class.lower() == "gre":
-            pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
+            pulseq_write_GRE(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "rare":
-            pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
+            pulseq_write_RARE(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "bssfp":
-            pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
+            pulseq_write_BSSFP(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "epi":
-            pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
+            pulseq_write_EPI(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=plot_seq)
         
     # save entire history of the optimized parameters
     def save_param_reco_history(self, experiment_id, today_datestr, sequence_class, generate_pulseq=True):
-        basepath = self.get_base_path(experiment_id, today_datestr)
+        basepath, basepath_seq = self.get_base_path(experiment_id, today_datestr)
         
         fn_alliter_array = "alliter_arr.npy"
         
@@ -848,11 +863,11 @@ class OPT_helper():
         alliter_dict['B1'] = tonumpy(self.scanner.B1)
         
         try:
-            os.makedirs(basepath)
-            os.makedirs(os.path.join(basepath,"data"))
+            os.makedirs(basepath_seq)
+            os.makedirs(os.path.join(basepath_seq,"data"))
         except:
             pass
-        np.save(os.path.join(os.path.join(basepath, fn_alliter_array)), alliter_dict)
+        np.save(os.path.join(os.path.join(basepath_seq, fn_alliter_array)), alliter_dict)
         
         # generate sequence files
         if generate_pulseq:
@@ -866,18 +881,18 @@ class OPT_helper():
                 seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
                 
                 if sequence_class.lower() == "gre":
-                    pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)
+                    pulseq_write_GRE(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)
                 elif sequence_class.lower() == "rare":
-                    pulseq_write_RARE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)
+                    pulseq_write_RARE(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)
                 elif sequence_class.lower() == "bssfp":
-                    pulseq_write_BSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)
+                    pulseq_write_BSSFP(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)
                 elif sequence_class.lower() == "epi":
-                    pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=False)          
+                    pulseq_write_EPI(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)          
         
         
     # save entire history of the optimized parameters (to Matlab)
     def save_param_reco_history_matlab(self, experiment_id, today_datestr):
-        basepath = self.get_base_path(experiment_id, today_datestr)
+        _, basepath = self.get_base_path(experiment_id, today_datestr)
         try:
             os.makedirs(basepath)
             os.makedirs(os.path.join(basepath,"data"))
