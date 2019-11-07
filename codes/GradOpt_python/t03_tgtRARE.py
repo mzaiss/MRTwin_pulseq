@@ -5,7 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't03_tgtRARE_tskRARE_32_linear'
+experiment_id = 'FAU_t03_tgtRARE_tskRARE_32_linear'
 sequence_class = "RARE"
 experiment_description = """
 RARE, cpmg
@@ -33,6 +33,9 @@ if sys.platform != 'linux':
     gpu_dev = 0
     
 do_scanner_query = True
+
+import warnings
+warnings.simplefilter("ignore")
 
 # NRMSE error function
 def e(gt,x):
@@ -81,7 +84,7 @@ spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
 cutoff = 1e-12
 
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
@@ -160,7 +163,7 @@ scanner.set_flip_tensor_withB1plus(flips)
 scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 
 # event timing vector 
-TEd= 1.1*1e-3 # increase to reduce SAR
+TEd= 1.1*1e-3 # increase to reduce SAR   orig 1.1*1e-3
 event_time = torch.from_numpy(0.05*1e-4*np.ones((scanner.T,scanner.NRep))).float()
 event_time[0,1:] = 0.2*1e-3     # for TE2_180_2   delay only
 
@@ -250,7 +253,6 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         
     targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)  
                     
-    stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -304,7 +306,7 @@ def phi_FRP_model(opt_params,aux_params):
     adc_mask,flips,event_time,grad_moms = reparameterize(opt_params)
 
     scanner.init_flip_tensor_holder()
-    scanner.set_flipXY_tensor(flips)    
+    scanner.set_flip_tensor_withB1plus(flips)
     # rotate ADC according to excitation phase
     scanner.set_ADC_rot_tensor(-flips[0,:,1]*0)  # GRE/FID specific, this must be the excitation pulse
           
@@ -315,7 +317,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_sparse_fast(spins, event_time)
     scanner.adjoint()
 
-    lbd = 0.4*1e1         # switch on of SAR cost
+    lbd = 0.01*1e1         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -354,14 +356,14 @@ opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
 opt.set_opt_param_idx([1]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,0.1,0.1,0.1]
+opt.custom_learning_rate = [0.01,0.05,0.1,0.1]
 
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
 
 #opt.train_model_with_restarts(nmb_rnd_restart=20, training_iter=10,do_vis_image=True)
-
-opt.train_model(training_iter=1000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+query_kwargs = experiment_id, today_datestr, sequence_class
+opt.train_model(training_iter=1000, do_vis_image=True, save_intermediary_results=True, query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
 
 _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 
@@ -369,7 +371,6 @@ _,reco,error = phi_FRP_model(opt.scanner_opt_params, opt.aux_params)
 targetSeq.print_status(True, reco=None)
 opt.print_status(True, reco)
 
-stop()
 
 # %% # save optimized parameter history
 targetSeq.export_to_matlab(experiment_id, today_datestr)

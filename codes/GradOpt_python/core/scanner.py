@@ -2666,11 +2666,6 @@ class Scanner():
                     for coil_idx in range(ncoils):
                         self.signal[coil_idx,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))
                         self.signal[coil_idx,adc_idx,:,1,0] = self.setdevice(torch.from_numpy(np.imag(raw[:,coil_idx,:])))
-                        self.adjoint()
-                        all_coil_reco[coil_idx,:] = self.reco
-                        
-                    self.init_reco()    
-                    self.reco[:,0] = torch.sum(all_coil_reco[:,:,0]**2+all_coil_reco[:,:,1]**2, 0)
                 else:
                     coil_idx=0
                     self.signal[0,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))

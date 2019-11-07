@@ -36,7 +36,7 @@ from core.pulseq_exporter import pulseq_write_EPI
 use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
-recreate_pulseq_files_for_sim = False
+recreate_pulseq_files_for_sim = True
 do_real_meas = False
 test_iter_number = False
 use_custom_iter_sel_scheme = False
@@ -78,8 +78,16 @@ if platform == 'linux':
     basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
     dp_control = '/media/upload3t/CEST_seq/pulseq_zero/control'
 else:
-    basepath = 'K:\CEST_seq\pulseq_zero\sequences'
-    dp_control = 'K:\CEST_seq\pulseq_zero\control'
+    if os.path.isfile(os.path.join('core','pathfile_local.txt')):
+        pathfile ='pathfile_local.txt'
+    else:
+        pathfile ='pathfile.txt'
+        print('You dont have a local pathfile in core/pathfile_local.txt, so we use standard file: pathfile.txt')
+                
+    with open(os.path.join('core',pathfile),"r") as f:
+            path_from_file = f.readline()
+    basepath = os.path.join(path_from_file,'sequences')
+    dp_control = os.path.join(path_from_file,'control')
     
 experiment_list = []
 #experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd"])
@@ -162,7 +170,7 @@ experiment_list = []
 #experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_48_lowsar"])
 #experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised"])
 #experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
-experiment_list.append(["190821", "p11_tgtGRESPradialSS_tskFLASHradial_FAopt",True,[0.039,40]])
+experiment_list.append(["191015", "t01_tgtGRESP_tsk_GRESP_no_grad_noflip_kspaceloss_new",True,[0.039,40]])
 
 
 

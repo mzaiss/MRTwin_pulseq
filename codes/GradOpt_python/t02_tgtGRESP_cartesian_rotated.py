@@ -78,7 +78,7 @@ NVox = sz[0]*sz[1]
 
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev)
-
+cutoff = 1e-12
 real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
@@ -147,13 +147,18 @@ flips[0,:,1] = torch.tensor(scanner.phase_cycler[:NRep]).float()*np.pi/180
 flips = setdevice(flips)
 
 scanner.init_flip_tensor_holder()
-scanner.set_flipXY_tensor(flips)
+B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
+B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
+B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
+scanner.B1plus = setdevice(B1plus)    
+scanner.set_flip_tensor_withB1plus(flips)
 
 # rotate ADC according to excitation phase
 scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.2*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time[0,:] =  2e-3
 event_time[1,:] =  2e-3
 event_time[-2,:] = 2*1e-3
 event_time[-1,:] = 12.6*1e-3

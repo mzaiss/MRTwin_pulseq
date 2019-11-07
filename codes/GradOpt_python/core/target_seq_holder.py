@@ -204,8 +204,7 @@ class TargetSequenceHolder():
         
     def get_base_path(self, experiment_id, today_datestr):
         print(os.getcwd())
-        #stop()
-		if os.path.isfile(os.path.join('core','pathfile_local.txt')):
+        if os.path.isfile(os.path.join('core','pathfile_local.txt')):
             pathfile ='pathfile_local.txt'
         else:
             pathfile ='pathfile.txt'

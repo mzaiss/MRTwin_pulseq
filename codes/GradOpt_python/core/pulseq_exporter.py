@@ -31,11 +31,11 @@ def FOV():
     #FOV = 0.110
     return 0.200
 
-    nonsel = 0
-    if nonsel==1:
-        slice_thickness = 200*1e-3
-    else:
-        slice_thickness = 8e-3
+nonsel = 0
+if nonsel==1:
+    slice_thickness = 200*1e-3
+else:
+    slice_thickness = 8e-3
 
 
 def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
