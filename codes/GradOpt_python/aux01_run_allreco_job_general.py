@@ -36,8 +36,8 @@ from core.pulseq_exporter import pulseq_write_EPI
 use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
-recreate_pulseq_files_for_sim = True
-do_real_meas = False
+recreate_pulseq_files_for_sim = False
+do_real_meas = True
 test_iter_number = False
 use_custom_iter_sel_scheme = False
 
@@ -458,6 +458,8 @@ for exp_current in experiment_list:
         if do_real_meas:
             scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
             scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+        if 'extra_par_idx4' in alliter_array:
+            scanner.signal *= setdevice(torch.from_numpy(alliter_array['extra_par_idx4'][c_iter].reshape([1,1,NRep,1,1])))
             
 #        rescaler = torch.from_numpy(np.array([5.8627, 6.2810, 5.6015, 5.7243, 6.3226, 5.3682, 5.2082, 5.8453, 5.3125,
 #        5.9015, 5.8165, 5.2041, 5.1915, 6.0994, 4.7890, 5.5623, 4.1322, 4.8194,

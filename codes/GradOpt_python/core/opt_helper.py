@@ -403,9 +403,16 @@ class OPT_helper():
                 saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
                 saved_state['event_times'] = tonumpy(tosave_opt_params[2])
                 saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                
+                if len(tosave_opt_params) > 4:
+                    saved_state['extra_par_idx4'] = tonumpy(tosave_opt_params[4].clone())
+                
                 saved_state['kloc'] = tonumpy(self.scanner.kspace_loc.clone())
                 saved_state['learn_rates'] = self.custom_learning_rate
                 
+                if self.NN is not None:
+                    saved_state['NNparams'] = self.NN.state_dict()
+                    
                 legs=['x','y','z']
                 for i in range(3):
                     M_roi = tonumpy(self.scanner.ROI_signal[:,:,1+i]).transpose([1,0]).reshape([(self.scanner.T)*self.scanner.NRep])
@@ -817,6 +824,7 @@ class OPT_helper():
         basepath, basepath_seq = self.get_base_path(experiment_id, today_datestr)
         
         fn_alliter_array = "alliter_arr.npy"
+        fn_NN_paramlist = "alliter_NNparamlist_"
         
         param_reco_history = self.param_reco_history
         
@@ -836,6 +844,17 @@ class OPT_helper():
         all_signals = np.zeros((NIter,self.scanner.NCoils,T,NRep,3))
         all_errors = np.zeros((NIter,1))
         
+        if 'extra_par_idx4' in param_reco_history[0]:
+            all_extra_par_idx4 = np.zeros((NIter,)+param_reco_history[0]['extra_par_idx4'].shape)
+        
+#        all_NN_params = []
+#        
+        if self.NN is not None:
+            for ni in range(NIter):
+                fp_nn_out = os.path.join(os.path.join(basepath, fn_NN_paramlist))
+                torch.save(param_reco_history[ni]['NNparams'], fp_nn_out + str(ni) + '.pt')
+        
+        
         for ni in range(NIter):
             all_adc_masks[ni] = param_reco_history[ni]['adc_mask'].ravel()
             all_flips[ni] = param_reco_history[ni]['flips_angles']
@@ -845,6 +864,9 @@ class OPT_helper():
             all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
             all_signals[ni] = param_reco_history[ni]['signal'].reshape([self.scanner.NCoils,T,NRep,3])
             all_errors[ni] = param_reco_history[ni]['error']
+            
+            if 'extra_par_idx4' in param_reco_history[0]:
+                all_extra_par_idx4[ni] = param_reco_history[ni]['extra_par_idx4']
         
         alliter_dict = dict()
         alliter_dict['all_adc_masks'] = all_adc_masks
@@ -861,6 +883,9 @@ class OPT_helper():
         alliter_dict['target'] = self.target
         alliter_dict['sequence_class'] = sequence_class
         alliter_dict['B1'] = tonumpy(self.scanner.B1)
+        
+        if 'extra_par_idx4' in param_reco_history[0]:
+            alliter_dict['extra_par_idx4'] = all_extra_par_idx4
         
         try:
             os.makedirs(basepath_seq)

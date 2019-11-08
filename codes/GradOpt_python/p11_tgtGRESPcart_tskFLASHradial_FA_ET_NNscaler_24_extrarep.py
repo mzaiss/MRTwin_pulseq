@@ -10,7 +10,7 @@ GRE90spoiled_relax2s
 
 """
 
-experiment_id = 'p11_tgtGRESPcart_tskFLASHradial_FA_ET_NNscaler_24_extrarep'
+experiment_id = 'p11_tgtGRESPradialSS_tskFLASHradial_FAopt'
 sequence_class = "GRE"
 experiment_description = """
 opt pitcher try different fwd procs
@@ -39,7 +39,7 @@ double_precision = False
 do_scanner_query = False
 
 use_gpu = 1
-gpu_dev = 3
+gpu_dev = 1
 
 if sys.platform != 'linux':
     use_gpu = 0
@@ -87,10 +87,10 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([24,24])                                           # image size
+sz = np.array([48,48])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 24**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
@@ -227,9 +227,13 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 #scanner.forward_fast_supermem(spins, event_time)
 scanner.forward_fast(spins, event_time)
 for i in range(10):
-    scanner.forward_fast(spins, event_time,do_dummy_scans=True)
+    scanner.forward_fast(spins, event_time,do_dummy_scans=True,kill_transverse=True)
     
-genalpha = 7.5*1e-5
+genalpha = 1.5*1e-5
+
+adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
+A = scanner.G_adj[adc_idx,:,:,:2,:2].permute([2,3,0,1,4]).contiguous().view([scanner.NVox*2,adc_idx.size*scanner.NRep*2]).permute([1,0])
+AtA = torch.matmul(A.permute([1,0]),A)
         
 scanner.generalized_adjoint(alpha=genalpha,nmb_iter=55)
 
@@ -256,7 +260,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         
     targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
                 
-stop()
+#stop()
     
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
