@@ -1140,15 +1140,9 @@ class Scanner():
         self.lastM = spins.M.clone()
         
         if self.noise_std > 0:
-<<<<<<< HEAD
-            noise = self.noise_std*torch.randn(self.signal[0,:,:,:2].shape).float()
-            noise = self.setdevice(noise)
-            self.signal[0,:,:,:2] += noise * self.adc_mask.view([self.T,1,1,1])
-=======
             noise = self.noise_std*torch.randn(self.signal[:,:,:,:2,0].shape).float()
             noise = self.setdevice(noise)
             self.signal[:,:,:,:2,0] += noise * self.adc_mask.view([self.T,1,1])
->>>>>>> d14be5508a1aea0a0761f692337f439bb6563433
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
