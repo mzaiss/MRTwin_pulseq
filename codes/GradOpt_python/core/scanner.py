@@ -1118,9 +1118,9 @@ class Scanner():
         self.lastM = spins.M.clone()
         
         if self.noise_std > 0:
-            noise = self.noise_std*torch.randn(self.signal[0,:,:,:2,0].shape).float()
+            noise = self.noise_std*torch.randn(self.signal[0,:,:,:2].shape).float()
             noise = self.setdevice(noise)
-            self.signal[0,:,:,:2,0] += noise * self.adc_mask.view([self.T,1,1])
+            self.signal[0,:,:,:2] += noise * self.adc_mask.view([self.T,1,1,1])
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -1301,9 +1301,9 @@ class Scanner():
         self.lastM = spins_cut.clone()
         
         if self.noise_std > 0:
-            noise = self.noise_std*torch.randn(self.signal[0,t,r,:2].shape).float()
+            noise = self.noise_std*torch.randn(self.signal[0,:,:,:2].shape).float()
             noise = self.setdevice(noise)
-            self.signal[0,t,r,:2] += noise * self.adc_mask.view([self.T,1,1])
+            self.signal[0,:,:,:2] += noise * self.adc_mask.view([self.T,1,1])
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -1753,9 +1753,9 @@ class Scanner():
         self.lastM = spins.M.clone() 
         
         if self.noise_std > 0:
-            noise = self.noise_std*torch.randn(self.signal[0,t,r,:2].shape).float()
+            noise = self.noise_std*torch.randn(self.signal[0,:,:,:2].shape).float()
             noise = self.setdevice(noise)
-            self.signal[0,t,r,:2] += noise        
+            self.signal[0,:,:,:2] += noise        
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -2135,9 +2135,9 @@ class Scanner():
         self.lastM = spins_cut.clone() 
         
         if self.noise_std > 0:
-            noise = self.noise_std*torch.randn(self.signal[0,t,r,:2].shape).float()
+            noise = self.noise_std*torch.randn(self.signal[0,:,:,:2].shape).float()
             noise = self.setdevice(noise)
-            self.signal[0,t,r,:2] += noise        
+            self.signal[0,:,:,:2] += noise        
         
         # rotate ADC phase according to phase of the excitation if necessary
         if self.AF is not None:
@@ -2772,7 +2772,7 @@ class Scanner_fast(Scanner):
         
         t = AtA @ self.setdevice(torch.ones((AtA.shape[1],)))
         genalpha = 1e-2 * 192 / torch.mean(t)  
-        alpha = genalpha
+#        alpha = genalpha
         
         b = torch.matmul(A.permute([1,0]),s)
         r = alpha*b

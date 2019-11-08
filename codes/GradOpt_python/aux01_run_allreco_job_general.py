@@ -37,7 +37,7 @@ use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
 recreate_pulseq_files_for_sim = False
-do_real_meas = False
+do_real_meas = True
 test_iter_number = False
 use_custom_iter_sel_scheme = False
 
@@ -162,7 +162,7 @@ experiment_list = []
 #experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_48_lowsar"])
 #experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised"])
 #experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
-experiment_list.append(["190902", "p13_tgtGRESPradial_tskFLASHradial_bigR",True,[0.039,40]])
+experiment_list.append(["190926", "p13_tgtGRESPradial_tskFLASHradial_reparafix_noshifts",True,[0.039,40]])
 
 
 
@@ -451,6 +451,9 @@ for exp_current in experiment_list:
         if do_real_meas:
             scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
             scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+        
+        if 'extra_par_idx4' in alliter_array:
+            scanner.signal *= setdevice(torch.from_numpy(alliter_array['extra_par_idx4'][c_iter].reshape([1,1,NRep,1,1])))
         
         real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
         real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
