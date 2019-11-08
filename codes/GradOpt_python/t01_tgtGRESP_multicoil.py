@@ -5,7 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 't01_tgtGRESP_tsk_GRESP_no_grad_noflip_kspaceloss_new'
+experiment_id = 't01_tgtGRESP_tsk_GRESP_multicoil'
 sequence_class = "GRE"
 experiment_description = """
 tgt FLASHspoiled_relax20ms, with spoilers and random phase cycling
@@ -37,7 +37,7 @@ print('32x float forwardfast oS')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = True
+do_scanner_query = False
 
 use_gpu = 1
 gpu_dev = 0
