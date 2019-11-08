@@ -17,6 +17,7 @@ from torch import optim
 import core.spins
 import core.scanner
 import core.opt_helper
+import core.nnreco
 import core.target_seq_holder
 from sys import platform
 import scipy.misc
@@ -194,11 +195,18 @@ experiment_list = []
 #experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass_scaler"])
 #experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass"])
 #experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom"])
-#experiment_list.append(["190822", "p10_tgt_nonMR_nosar"])
-#experiment_list.append(["190820", "e24_tgtRARE_tskRARE96_lowSAR_brainphantom_highpass"])
+#experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFArebalance"])
+#experiment_list.append(["190820", "e43_tgSErelaxed_tskSEshortETlastactALlFArebalanceYBLI"])
 #experiment_list.append(["190925", "e24_tgtRARE_tskRARE64_lowSAR_phantom_supervised"])
-experiment_list.append(["190927", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_sardiv100"])
-#experiment_list.append(["191022", "FAU_t01_tgtGRESP_tsk_GRESP_no_grad_noflip_kspaceloss_new"])
+#experiment_list.append(["190928", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_sardiv5"])
+#experiment_list.append(["190927", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_sardiv100"])
+#experiment_list.append(["190927", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_sardiv10"])
+#experiment_list.append(["190926", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom"])
+#experiment_list.append(["190926", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_highsarpenalty"])
+experiment_list.append(["191104", "p10_tgt_nonMR_nosar_norm64"])
+experiment_list.append(["191105", "p10_tgt_nonMR_nosar_norm96"])
+
+
 
 
 
@@ -217,6 +225,12 @@ for exp_current in experiment_list:
     
     fn_alliter_array = "alliter_arr.npy"
     alliter_array = np.load(os.path.join(os.path.join(fullpath_seq, fn_alliter_array)), allow_pickle=True)
+    
+    try:
+        fn_NN_paramlist = "alliter_NNparamlist.npy"
+        all_NN_params = np.load(os.path.join(os.path.join(fullpath_seq, fn_NN_paramlist)), allow_pickle=True)
+    except:
+        all_NN_params = None
     
     alliter_array = alliter_array.item()
     
@@ -330,7 +344,7 @@ for exp_current in experiment_list:
             
     if get_real_meas:
         scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
-    
+        
     real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
     target_real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
     
@@ -420,9 +434,6 @@ for exp_current in experiment_list:
         non_increasing_error_iter = [''.join(i for i in s if i.isdigit()) for s in all_seq_files]
         non_increasing_error_iter = [ int(x) for x in non_increasing_error_iter ]
         
-#        nmb_iter = non_increasing_error_iter.size
-
-
     #non_increasing_error_iter = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,25,46,67,100,150,200,250,300,400,500,800])
         
     #non_increasing_error_iter = np.concatenate((non_increasing_error_iter[:5],non_increasing_error_iter[-5:]))
@@ -481,6 +492,19 @@ for exp_current in experiment_list:
         
         # simulation adjoint
         scanner.adjoint()
+        
+        fn_NN_paramlist = "alliter_NNparamlist_" + str(c_iter) + '.pt'
+        if os.path.isfile(os.path.join(fullpath_seq, fn_NN_paramlist)):
+            spectrum_max_norm = torch.max(scanner.signal).item()
+            
+            nmb_hidden_neurons_list = [2*sz[0],8,8,2]
+            NN = core.nnreco.VoxelwiseNet(scanner.sz, nmb_hidden_neurons_list,use_gpu=use_gpu,gpu_device=gpu_dev)
+            state_dict = torch.load(os.path.join(fullpath_seq, fn_NN_paramlist))
+            NN.load_state_dict(state_dict)
+            
+            reco_sep = scanner.adjoint_separable()
+            scanner.reco = NN(reco_sep.permute([1,0,2]).reshape([reco_sep.shape[1],reco_sep.shape[0]*reco_sep.shape[2]]))
+        
         sim_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
         all_sim_reco_adjoint[lin_iter_counter] = sim_reco_adjoint
         
@@ -545,6 +569,10 @@ for exp_current in experiment_list:
             scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)               
         if get_real_meas:
             scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+            
+        if 'extra_par_idx4' in alliter_array:
+#            scanner.signal *= setdevice(torch.from_numpy(alliter_array['extra_par_idx4'][c_iter].reshape([1,1,NRep,1,1])))             
+            scanner.signal *= alliter_array['extra_par_idx4'][c_iter]
         
         real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
         real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
@@ -552,6 +580,19 @@ for exp_current in experiment_list:
         
         # real adjoint
         scanner.adjoint()
+        
+        fn_NN_paramlist = "alliter_NNparamlist_" + str(c_iter) + '.pt'
+        if os.path.isfile(os.path.join(fullpath_seq, fn_NN_paramlist)):
+            scanner.signal = 20.0*spectrum_max_norm * scanner.signal / torch.max(scanner.signal)
+            
+            nmb_hidden_neurons_list = [2*sz[0],8,8,2]
+            NN = core.nnreco.VoxelwiseNet(scanner.sz, nmb_hidden_neurons_list,use_gpu=use_gpu,gpu_device=gpu_dev)
+            state_dict = torch.load(os.path.join(fullpath_seq, fn_NN_paramlist))
+            NN.load_state_dict(state_dict)
+            
+            reco_sep = scanner.adjoint_separable()
+            scanner.reco = NN(reco_sep.permute([1,0,2]).reshape([reco_sep.shape[1],reco_sep.shape[0]*reco_sep.shape[2]]))
+        
         real_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
         all_real_reco_adjoint[lin_iter_counter] = real_reco_adjoint
         
