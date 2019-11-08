@@ -37,12 +37,13 @@ from core.pulseq_exporter import pulseq_write_EPI
 use_gpu = 0
 gpu_dev = 0
 recreate_pulseq_files = True
-recreate_pulseq_files_for_sim = False
+recreate_pulseq_files_for_sim = True
 do_real_meas = True
-test_iter_number = False
-use_custom_iter_sel_scheme = True
+get_real_meas = True               # this is to load existing seq.dat files when they were already measured completeley
+use_custom_iter_sel_scheme = True   # if this is false search for sampling_of_optiters
 
-max_nmb_iter = 70
+
+max_nmb_iter = 30
 
 # NRMSE error function
 def e(gt,x):
@@ -79,8 +80,19 @@ if platform == 'linux':
     basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
     dp_control = '/media/upload3t/CEST_seq/pulseq_zero/control'
 else:
-    basepath = 'K:\CEST_seq\pulseq_zero\sequences'
-    dp_control = 'K:\CEST_seq\pulseq_zero\control'
+    if os.path.isfile(os.path.join('core','pathfile_local.txt')):
+        pathfile ='pathfile_local.txt'
+    else:
+        pathfile ='pathfile.txt'
+        print('You dont have a local pathfile in core/pathfile_local.txt, so we use standard file: pathfile.txt')
+                
+    with open(os.path.join('core',pathfile),"r") as f:
+            path_from_file = f.readline()
+    basepath = os.path.join(path_from_file,'sequences')
+    dp_control = os.path.join(path_from_file,'control')
+    
+#    basepath = "//141.67.249.47/MRtransfer/pulseq_zero/sequences"
+#    dp_control = "//141.67.249.47/MRtransfer/pulseq_zero/control"
     
 experiment_list = []
 #experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd"])
@@ -193,7 +205,6 @@ experiment_list = []
 #experiment_list.append(["190926", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_highsarpenalty"])
 experiment_list.append(["191104", "p10_tgt_nonMR_nosar_norm64"])
 experiment_list.append(["191105", "p10_tgt_nonMR_nosar_norm96"])
-
 
 
 
@@ -327,8 +338,11 @@ for exp_current in experiment_list:
         elif sequence_class.lower() == "epi":
             pulseq_write_EPI(seq_params, os.path.join(basepath_out, fn_pulseq), plot_seq=False)        
     
-    if do_real_meas and test_iter_number == False:
-        scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
+    if do_real_meas:
+            scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
+            scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)     
+            
+    if get_real_meas:
         scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype)
         
     real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
@@ -360,34 +374,73 @@ for exp_current in experiment_list:
     jobtype = "iter"
     nmb_total_iter = alliter_array['all_signals'].shape[0]
     
-    # autoiter metric
-    itt = alliter_array['all_errors']
-    
+
+    sampling_of_optiters = 'SAR' # 'SAR' 'err'
+         
+    if sampling_of_optiters=='err':
+        # autoiter metric error
+        itt = alliter_array['all_errors']
+        itt = alliter_array['all_errors']
+        threshhold = 1
+        lasterror = 1e10
+        sign_fun = lambda x: np.abs(x)
+        
+    if sampling_of_optiters=='SAR':
+        # autoiter metric SAR
+        itt = alliter_array['flips']
+        itt = np.sum(itt[:,:,:,0],axis=1)
+        itt = np.sum(itt,axis=1)
+        threshhold = 0.05
+        lasterror = 1e10
+        sign_fun = lambda x: np.abs(x)
+
     non_increasing_error_iter = []
-    lasterror = 1e10
+    
+
     for c_iter in range(itt.size):
-        if -(itt[c_iter] - lasterror) > 0.1:
+
+        if (sign_fun(itt[c_iter] - lasterror) > threshhold):
             non_increasing_error_iter.append(c_iter)
-            lasterror = itt[c_iter]
+
+            lasterror =itt[c_iter]
             
     non_increasing_error_iter = np.array(non_increasing_error_iter)
+
+    non_increasing_error_iter=non_increasing_error_iter[0:150]  # to be altered
     nmb_iter = non_increasing_error_iter.size
+
+    
+    
     if nmb_iter > max_nmb_iter:
         non_increasing_error_iter = non_increasing_error_iter[(np.ceil(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
-        
+        plt.plot(non_increasing_error_iter,itt[non_increasing_error_iter],"d")
+       
+   
+            
+#    stop()    
     if use_custom_iter_sel_scheme:
-        non_increasing_error_iter = np.arange(0,itt.size,itt.size//70)
-        
-#    non_increasing_error_iter = non_increasing_error_iter[-2:]
+
+#        non_increasing_error_iter = np.arange(0,itt.size,itt.size//max_nmb_iter)
+        non_increasing_error_iter = np.concatenate( (np.arange(0,max_nmb_iter-9,1), max_nmb_iter-9+np.array([10,20,50,100,200,300,400,500,800])))
+        nmb_iter = non_increasing_error_iter.size
+    
+    plt.plot(itt)
+    plt.plot(non_increasing_error_iter,itt[non_increasing_error_iter],"x")         
+    plt.show()
+
+    if get_real_meas:
+        all_seq_files = os.listdir(fullpath_seq)
+        all_seq_files = [filename for filename in all_seq_files if (filename[-3:]=="seq" and filename[:4]=="iter")]
+        non_increasing_error_iter = [''.join(i for i in s if i.isdigit()) for s in all_seq_files]
+        non_increasing_error_iter = [ int(x) for x in non_increasing_error_iter ]
         
     #non_increasing_error_iter = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,25,46,67,100,150,200,250,300,400,500,800])
         
     #non_increasing_error_iter = np.concatenate((non_increasing_error_iter[:5],non_increasing_error_iter[-5:]))
-    nmb_iter = non_increasing_error_iter.size
+#    nmb_iter = non_increasing_error_iter.size
     
-    if test_iter_number:
-        print("exp = {} iteration number = {}".format(exp_current, nmb_iter))
-        stop()
+    print("exp = {} iteration number = {}".format(exp_current, nmb_iter))
+
     
     all_sim_reco_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
     all_sim_reco_generalized_adjoint = np.zeros([nmb_iter,sz[0],sz[1],2])
@@ -420,8 +473,14 @@ for exp_current in experiment_list:
         scanner.set_flip_tensor_withB1plus(flips)
         
         # rotate ADC according to excitation phase
-        scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific
-        
+        if sequence_class.lower() == "gre" or sequence_class.lower() == "bssfp":
+            scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2) #GRE/FID specific #TODO
+        elif (sequence_class.lower() == "rare" or sequence_class.lower() == "se"):
+            scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific #TODO
+        else:
+            print('dont know sequuence class dont know what to do with ADC rot')
+            stop()
+
         TR=torch.sum(event_time[:,1])
         TE=torch.sum(event_time[:11,1])
         
@@ -507,6 +566,8 @@ for exp_current in experiment_list:
                 
         if do_real_meas:
             scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
+            scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)               
+        if get_real_meas:
             scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
             
         if 'extra_par_idx4' in alliter_array:
@@ -553,44 +614,47 @@ for exp_current in experiment_list:
         
         lin_iter_counter += 1
         
-        if do_real_meas:
-            scipy.misc.toimage(magimg(target_sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_sim_reco_adjoint.jpg"))
-            scipy.misc.toimage(magimg(target_real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_real_reco_adjoint.jpg"))
-            scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
-            scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
-            scipy.misc.toimage(phaseimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
-            scipy.misc.toimage(phaseimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint_phase.jpg"))
-            scipy.misc.toimage((1e-8+magimg(sim_kspace))).save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
-            scipy.misc.toimage((1e-8+magimg(real_kspace))).save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
+        if do_real_meas: # this is the web status update
+            try:
+	            scipy.misc.toimage(magimg(target_sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_sim_reco_adjoint.jpg"))
+	            scipy.misc.toimage(magimg(target_real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_real_reco_adjoint.jpg"))
+	            scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
+	            scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
+	            scipy.misc.toimage(phaseimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
+	            scipy.misc.toimage(phaseimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint_phase.jpg"))
+	            scipy.misc.toimage((1e-8+magimg(sim_kspace))).save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
+	            scipy.misc.toimage((1e-8+magimg(real_kspace))).save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
             
-            # make some gifs            
-            gif_array = []
-            for i in range(all_sim_reco_adjoint.shape[0]):
-                frame = magimg(all_sim_reco_adjoint[i,:,:,:])
-                frame *= 255.0/np.max(frame)
-                gif_array.append(frame.astype(np.uint8))  
-            imageio.mimsave(os.path.join(dp_control, "status_related", "sim_reco_adjoint.gif"), gif_array)
+	            # make some gifs            
+	            gif_array = []
+	            for i in range(all_sim_reco_adjoint.shape[0]):
+	                frame = magimg(all_sim_reco_adjoint[i,:,:,:])
+	                frame *= 255.0/np.max(frame)
+	                gif_array.append(frame.astype(np.uint8))  
+	            imageio.mimsave(os.path.join(dp_control, "status_related", "sim_reco_adjoint.gif"), gif_array)
             
-            gif_array = []
-            for i in range(all_real_reco_adjoint.shape[0]):
-                frame = magimg(all_real_reco_adjoint[i,:,:,:])
-                frame *= 255.0/np.max(frame)
-                gif_array.append(frame.astype(np.uint8))  
-            imageio.mimsave(os.path.join(dp_control, "status_related", "real_reco_adjoint.gif"), gif_array)
+	            gif_array = []
+	            for i in range(all_real_reco_adjoint.shape[0]):
+	                frame = magimg(all_real_reco_adjoint[i,:,:,:])
+	                frame *= 255.0/np.max(frame)
+	                gif_array.append(frame.astype(np.uint8))  
+	            imageio.mimsave(os.path.join(dp_control, "status_related", "real_reco_adjoint.gif"), gif_array)
             
-            status_lines = []
-            status_lines.append("experiment id: " + experiment_id + "\n")
-            status_lines.append("processing iteration {} out of {} \n".format(lin_iter_counter, nmb_iter))
+	            status_lines = []
+	            status_lines.append("experiment id: " + experiment_id + "\n")
+	            status_lines.append("processing iteration {} out of {} \n".format(lin_iter_counter, nmb_iter))
             
-            sim_error = e(magimg(target_sim_reco_adjoint), magimg(sim_reco_adjoint))
-            meas_error = e(magimg(target_real_reco_adjoint), magimg(real_reco_adjoint))
+	            sim_error = e(magimg(target_sim_reco_adjoint), magimg(sim_reco_adjoint))
+	            meas_error = e(magimg(target_real_reco_adjoint), magimg(real_reco_adjoint))
             
-            # compute error wrt target
-            status_lines.append("error = "+str(np.round(sim_error))+"%\n")
-            status_lines.append("error = "+str(np.round(meas_error))+"%\n")
+	            # compute error wrt target
+	            status_lines.append("error = "+str(np.round(sim_error))+"%\n")
+	            status_lines.append("error = "+str(np.round(meas_error))+"%\n")
             
-            with open(os.path.join(dp_control, "status_related", "status_lines.txt"),"w") as f:
-                f.writelines(status_lines)
+	            with open(os.path.join(dp_control, "status_related", "status_lines.txt"),"w") as f:
+	                f.writelines(status_lines)
+            except:
+                print('no status update possible, maybe server connectionto MPI down')
         
     allreco_dict = dict()
     
@@ -601,7 +665,7 @@ for exp_current in experiment_list:
     allreco_dict['target_sim_reco_nufft'] = target_sim_reco_nufft
     allreco_dict['target_sim_kspace'] = target_sim_kspace
     
-    if do_real_meas:
+    if do_real_meas or get_real_meas:
         allreco_dict['target_real_kspace'] = target_real_kspace
         allreco_dict['target_real_reco_adjoint'] = target_real_reco_adjoint
         allreco_dict['target_real_reco_generalized_adjoint'] = target_real_reco_generalized_adjoint
@@ -615,7 +679,7 @@ for exp_current in experiment_list:
     allreco_dict['all_sim_reco_nufft'] = all_sim_reco_nufft
     allreco_dict['all_sim_kspace'] = all_sim_kspace
     
-    if do_real_meas:
+    if do_real_meas or get_real_meas:
         allreco_dict['all_real_kspace'] = all_real_kspace
         allreco_dict['all_real_reco_adjoint'] = all_real_reco_adjoint
         allreco_dict['all_real_reco_generalized_adjoint'] = all_real_reco_generalized_adjoint
@@ -652,7 +716,7 @@ for exp_current in experiment_list:
     except:
         pass
     
-    if do_real_meas:
+    if do_real_meas or get_real_meas:
         #np.save(os.path.join(os.path.join(savepath, "all_meas_reco_dict.npy")), allreco_dict)
         scipy.io.savemat(os.path.join(savepath,"all_meas_reco_dict.mat"), allreco_dict)
     else:

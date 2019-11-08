@@ -203,6 +203,15 @@ class TargetSequenceHolder():
 
         
     def get_base_path(self, experiment_id, today_datestr):
+        print(os.getcwd())
+        if os.path.isfile(os.path.join('core','pathfile_local.txt')):
+            pathfile ='pathfile_local.txt'
+        else:
+            pathfile ='pathfile.txt'
+            print('You dont have a local pathfile in core/pathfile_local.txt, so we use standard file: pathfile.txt')
+                
+        with open(os.path.join('core',pathfile),"r") as f:
+            path_from_file = f.readline()
         if platform == 'linux':
             hostname = socket.gethostname()
             if hostname == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron':
@@ -210,8 +219,8 @@ class TargetSequenceHolder():
             else:                                                     # cluster
                 basepath = 'out'
         else:
-            basepath = 'K:\CEST_seq\pulseq_zero\sequences'
-
+            basepath = path_from_file
+        basepath = os.path.join(basepath, 'sequences')
         basepath = os.path.join(basepath, "seq" + today_datestr)
         basepath = os.path.join(basepath, experiment_id)
 

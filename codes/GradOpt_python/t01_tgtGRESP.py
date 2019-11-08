@@ -33,13 +33,16 @@ import core.target_seq_holder
 from importlib import reload
 reload(core.scanner)
 
+#import warnings
+#warnings.simplefilter("error")
+
 print('32x float forwardfast oS')
 
 double_precision = False
 use_supermem = False
-do_scanner_query = True
+do_scanner_query = False
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 if sys.platform != 'linux':
@@ -77,10 +80,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([32,32])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 5**2                                # number of spin sims in each voxel
+NSpins = 25**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -174,7 +177,7 @@ scanner.set_ADC_rot_tensor(-flips[0,:,1] + 0*np.pi/2 + np.pi*rfsign) #GRE/FID sp
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[0,:] =  2e-3  + 6e-3 
+event_time[0,:] =  2e-3  + 0e-3 
 event_time[1,:] =  0.5*1e-3   # for 96
 event_time[-2,:] = 2*1e-3
 event_time[-1,:] = 0
@@ -213,8 +216,8 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
     
 # forward/adjoint pass
 #scanner.forward_fast_supermem(spins, event_time)
-#scanner.forward_fast(spins, event_time)
-scanner.init_signal()
+scanner.forward_fast(spins, event_time)
+#scanner.init_signal()
 scanner.adjoint()
 
 # try to fit this
@@ -234,10 +237,10 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     plt.show()
 
     scanner.do_SAR_test(flips, event_time)    
-    targetSeq.export_to_matlab(experiment_id, today_datestr)
-    targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
-    
+        targetSeq.export_to_matlab(experiment_id, today_datestr)
     if do_scanner_query:
+        
+        targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)
         scanner.send_job_to_real_system(experiment_id,today_datestr)
         scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
@@ -249,7 +252,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
         
                     
-    stop()
+#    stop()
         
     # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
@@ -258,7 +261,7 @@ def init_variables():
     adc_mask = targetSeq.adc_mask.clone()
     
     flips = targetSeq.flips.clone()
-    #flips[0,:,:]=flips[0,:,:]*0
+    flips[0,:,:]=flips[0,:,:]*1e-7
     flips = setdevice(flips)
     
     flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
@@ -307,8 +310,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.set_flip_tensor_withB1plus(flips) 
     # rotate ADC according to excitation phase
 #    scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2)  # GRE/FID specific, this must be the excitation pulse
-    scanner.set_ADC_rot_tensor(-flips[0,:,1] + -np.pi/2) #GRE/FID specific     
-    
+    scanner.set_ADC_rot_tensor(-flips[0,:,1] + 0*np.pi/2 + np.pi*rfsign) #GRE/FID specific
     scanner.init_gradient_tensor_holder()          
     scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # GRE/FID specific, maybe adjust for higher echoes
          
@@ -316,7 +318,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_fast(spins, event_time)
     scanner.adjoint()
 
-    lbd = 1*1e1         # switch on of SAR cost
+    lbd = 0.01*1e1         # switch on of SAR cost
     loss_image = (scanner.reco - targetSeq.target_image)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
@@ -368,7 +370,7 @@ query_kwargs = experiment_id, today_datestr, sequence_class
 for i in range(7):
     opt.custom_learning_rate = [0.01,0.01,0.1,lr_inc[i]]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=200, do_vis_image=False, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
+    opt.train_model(training_iter=200, do_vis_image=True, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later
 opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 

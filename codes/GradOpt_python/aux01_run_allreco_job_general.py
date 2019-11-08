@@ -78,8 +78,16 @@ if platform == 'linux':
     basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
     dp_control = '/media/upload3t/CEST_seq/pulseq_zero/control'
 else:
-    basepath = 'K:\CEST_seq\pulseq_zero\sequences'
-    dp_control = 'K:\CEST_seq\pulseq_zero\control'
+    if os.path.isfile(os.path.join('core','pathfile_local.txt')):
+        pathfile ='pathfile_local.txt'
+    else:
+        pathfile ='pathfile.txt'
+        print('You dont have a local pathfile in core/pathfile_local.txt, so we use standard file: pathfile.txt')
+                
+    with open(os.path.join('core',pathfile),"r") as f:
+            path_from_file = f.readline()
+    basepath = os.path.join(path_from_file,'sequences')
+    dp_control = os.path.join(path_from_file,'control')
     
 experiment_list = []
 #experiment_list.append(["190601", "e25_opt_pitcher24_retry_fwd_fwd"])
@@ -162,7 +170,7 @@ experiment_list = []
 #experiment_list.append(["190724", "p04_tgtGRESP_tskFLASH_FA_G_48_lowsar"])
 #experiment_list.append(["190725", "p06_tgtGRESP_tskFLASH_FA_G_ET_48_lowsar_supervised"])
 #experiment_list.append(["190725", "p07_tgtGRESP_tskFLASH_FA_G_NNscaler_24_lowsar_supervised"])
-experiment_list.append(["190926", "p13_tgtGRESPradial_tskFLASHradial_reparafix_noshifts",True,[0.039,40]])
+experiment_list.append(["191015", "t01_tgtGRESP_tsk_GRESP_no_grad_noflip_kspaceloss_new",True,[0.039,40]])
 
 
 
@@ -338,7 +346,6 @@ for exp_current in experiment_list:
         
     if use_custom_iter_sel_scheme:
         non_increasing_error_iter = np.arange(0,819,10)
-
         
     #non_increasing_error_iter = np.concatenate((non_increasing_error_iter[:5],non_increasing_error_iter[-5:]))
     nmb_iter = non_increasing_error_iter.size
@@ -362,7 +369,7 @@ for exp_current in experiment_list:
     
     lin_iter_counter = 0
     
-    for c_iter in non_increasing_error_iter:
+    for c_iter in non_increasing_error_iter[:]:
         print("Processing the iteration {}/{}  {}/{}".format(c_iter, nmb_total_iter, lin_iter_counter, nmb_iter))
         
         scanner.set_adc_mask(torch.from_numpy(alliter_array['all_adc_masks'][c_iter]))
@@ -451,10 +458,18 @@ for exp_current in experiment_list:
         if do_real_meas:
             scanner.send_job_to_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
             scanner.get_signal_from_real_system(experiment_id, date_str, basepath_seq_override=fullpath_seq, jobtype=jobtype, iterfile=iterfile)
-        
         if 'extra_par_idx4' in alliter_array:
             scanner.signal *= setdevice(torch.from_numpy(alliter_array['extra_par_idx4'][c_iter].reshape([1,1,NRep,1,1])))
-        
+            
+#        rescaler = torch.from_numpy(np.array([5.8627, 6.2810, 5.6015, 5.7243, 6.3226, 5.3682, 5.2082, 5.8453, 5.3125,
+#        5.9015, 5.8165, 5.2041, 5.1915, 6.0994, 4.7890, 5.5623, 4.1322, 4.8194,
+#        1.6492, 3.0107, 3.1469, 4.9188, 3.1849, 2.9187, 2.8462, 2.9271, 2.7809,
+#        3.4084, 2.9947, 3.1708, 4.3739, 3.2740, 2.3960, 2.9983, 1.6980, 1.4632,
+#        2.0549, 1.9081, 1.9032, 2.7698, 3.0564, 1.4028, 1.7031, 1.8345, 1.6406,
+#        1.6448, 1.2895, 1.2694]))
+#    
+#        scanner.signal *= rescaler.view([1,1,NRep,1,1]).float()
+
         real_kspace = scanner.signal[coil_idx,adc_idx,:,:2,0]
         real_kspace = tonumpy(real_kspace.detach()).reshape([sz[0],sz[1],2])
         all_real_kspace[lin_iter_counter] = real_kspace
@@ -483,12 +498,12 @@ for exp_current in experiment_list:
         lin_iter_counter += 1
         
         if do_real_meas:
-            scipy.misc.toimage(magimg(target_sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_sim_reco_adjoint.jpg"))
-            scipy.misc.toimage(magimg(target_real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "target_real_reco_adjoint.jpg"))
-            scipy.misc.toimage(magimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
-            scipy.misc.toimage(magimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
-            scipy.misc.toimage(phaseimg(sim_reco_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
-            scipy.misc.toimage(phaseimg(real_reco_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint_phase.jpg"))
+            scipy.misc.toimage(magimg(target_sim_reco_generalized_adjoint)).save(os.path.join(dp_control, "status_related", "target_sim_reco_adjoint.jpg"))
+            scipy.misc.toimage(magimg(target_real_reco_generalized_adjoint)).save(os.path.join(dp_control, "status_related", "target_real_reco_adjoint.jpg"))
+            scipy.misc.toimage(magimg(sim_reco_generalized_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint.jpg"))
+            scipy.misc.toimage(magimg(real_reco_generalized_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint.jpg"))
+            scipy.misc.toimage(phaseimg(sim_reco_generalized_adjoint)).save(os.path.join(dp_control, "status_related", "sim_reco_adjoint_phase.jpg"))
+            scipy.misc.toimage(phaseimg(real_reco_generalized_adjoint)).save(os.path.join(dp_control, "status_related", "real_reco_adjoint_phase.jpg"))
             scipy.misc.toimage((1e-8+magimg(sim_kspace))).save(os.path.join(dp_control, "status_related", "sim_kspace.jpg"))
             scipy.misc.toimage((1e-8+magimg(real_kspace))).save(os.path.join(dp_control, "status_related", "real_kspace.jpg"))
             

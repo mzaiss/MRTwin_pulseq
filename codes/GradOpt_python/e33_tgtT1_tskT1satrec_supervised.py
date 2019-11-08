@@ -29,6 +29,7 @@ import core.scanner
 import core.nnreco
 import core.opt_helper
 import core.target_seq_holder
+import core.FID_normscan
 
 from importlib import reload
 reload(core.scanner)
@@ -37,7 +38,8 @@ print(experiment_id)
 
 double_precision = False
 use_supermem = True
-do_scanner_query = True
+do_scanner_query = False
+
 
 use_gpu = 1
 gpu_dev = 3
@@ -86,13 +88,15 @@ def stop():
     class ExecutionControl(Exception): pass
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
+    
 
 # define setup
+kill_transverse = True
 sz = np.array([32,32])                                           # image size
 extraRep = 3
 NRep = extraRep*sz[1] + 1                                   # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 26**2                                # number of spin sims in each voxel
+NSpins = 4**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
 import time; today_datestr = time.strftime('%y%m%d')
@@ -104,7 +108,10 @@ NVox = sz[0]*sz[1]
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 cutoff = 1e-12
-real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+#real_phantom = np.zeros((128,128,5), dtype=np.float32); real_phantom[64:80,64:80,:]=1; real_phantom[64:80,64:80,3]=0
+
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
     t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
@@ -117,34 +124,39 @@ for i in range(5):
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1 # Tweak dB0
-spins.set_system(real_phantom_resized)
 
-csz = 12
-nmb_samples = 1
-spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
 
-for i in range(nmb_samples):
-    rvx = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
-    rvy = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
+if False:
+    csz = 12
+    nmb_samples = 10
+    spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
     
-    b0 = (np.random.rand() - 0.5) * 30                            # -60..60 Hz
-    
-    for j in range(rvx,rvx+csz):
-        for k in range(rvy,rvy+csz):
-            pd = 0.5 + np.random.rand()
-            t2 = 0.3 + np.random.rand()
-            t1 = t2 + np.random.rand()
-              
-            spin_db_input[i,j,k,0] = pd
-            spin_db_input[i,j,k,1] = t1
-            spin_db_input[i,j,k,2] = t2
-            spin_db_input[i,j,k,3] = b0
-            
+    for i in range(nmb_samples):
+        rvx = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
+        rvy = np.int(np.floor(np.random.rand() * (sz[0] - csz)))
+        
+        b0 = (np.random.rand() - 0.5) * 30                            # -60..60 Hz
+        pdbase = np.random.rand()
+        for j in range(rvx,rvx+csz):
+            for k in range(rvy,rvy+csz):
+                pd = pdbase + np.random.rand()*0.5
+                t2 = 0.1 + 3*np.random.rand()**1.5
+                t1 = 0.2 + 2*np.random.rand()
+                  
+                spin_db_input[i,j,k,0] = pd
+                spin_db_input[i,j,k,1] = t1
+                spin_db_input[i,j,k,2] = t2
+                spin_db_input[i,j,k,3] = b0
+                
+    VV=spin_db_input[:,:,:,0].flatten(); VV=VV[VV>1e-6]; plt.hist(VV)            
 spin_db_input[0,:,:,:] = real_phantom_resized
             
 tmp = spin_db_input[:,:,:,1:3]
 tmp[tmp < cutoff] = cutoff
 spin_db_input[:,:,:,1:3] = tmp
+
+spins.set_system(real_phantom_resized)
+core.FID_normscan.make_FID(real_phantom_resized)
 
 #sigma = 0.8
 #for i in range(nmb_samples):
@@ -180,7 +192,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,0,0] = 95*np.pi/180 
+flips[0,0,0] = 180*np.pi/180 
 #flips[0,0,1] = 90*np.pi/180 
 
 flips[0,1:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
@@ -207,15 +219,16 @@ scanner.set_flip_tensor_withB1plus(flips)
 rfsign = ((flips[0,:,0]) < 0).float()
 scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
-
 # event timing vector 
-event_time = torch.from_numpy(0.1*1e-4*np.ones((scanner.T,scanner.NRep))).float()
+event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 
+
+TI = np.array([1,2,10])
 # first repetition
 event_time[0,0] =  2e-3
 event_time[1,0] =  0.5*1e-3
 event_time[-2,0] = 2*1e-3
-event_time[-1,0] = 2.9*1e-3 + 0.0
+event_time[-1,0] = 2.9*1e-3 + TI[0]
 
 measRepStep = NRep//extraRep
 first_meas = np.arange(1,measRepStep+1)
@@ -229,7 +242,7 @@ event_time[1,first_meas] =  5.5*1e-3   # for 96
 event_time[-2,first_meas] = 2*1e-3
 event_time[-1,first_meas] = 2.9*1e-3
 
-event_time[-1,measRepStep] = 2.9*1e-3 + 0.1
+event_time[-1,measRepStep] = 2.9*1e-3 + TI[1]
 
 # second measurement
 event_time[0,second_meas] =  2e-3
@@ -238,7 +251,7 @@ event_time[1,second_meas] =  5.5*1e-3   # for 96
 event_time[-2,second_meas] = 2*1e-3
 event_time[-1,second_meas] = 2.9*1e-3
 
-event_time[-1,2*measRepStep] = 2.9*1e-3 + 1.0
+event_time[-1,2*measRepStep] = 2.9*1e-3 + TI[2]
 
 # third measurement
 event_time[0,third_meas] =  2e-3
@@ -316,16 +329,22 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
     
 #scanner.forward_sparse_fast_supermem(spins, event_time)
 #scanner.forward_sparse_fast(spins, event_time)
-scanner.forward_fast(spins, event_time,kill_transverse=True)
+scanner.forward_fast(spins, event_time,kill_transverse=kill_transverse)
 #scanner.forward_mem(spins, event_time)
 #scanner.forward(spins, event_time)
 #scanner.init_signal()
 #scanner.signal[:,:,0,:,:] = 0
+
+normsim=torch.from_numpy(np.load("auxutil/normsim.npy"))
+scanner.signal=scanner.signal/normsim/NVox
+    
 reco_sep = scanner.adjoint_separable()
 
 first_scan = reco_sep[first_meas,:,:].sum(0)
 second_scan = reco_sep[second_meas,:,:].sum(0)
 third_scan = reco_sep[third_meas,:,:].sum(0)
+
+reco_testset = torch.stack((first_scan,second_scan,third_scan),0)  
 
 first_scan_kspace = tonumpy(scanner.signal[0,2:-2,first_meas,:2,0])
 second_scan_kspace = tonumpy(scanner.signal[0,2:-2,second_meas,:2,0])
@@ -392,6 +411,9 @@ if False:
         scanner.send_job_to_real_system(experiment_id,today_datestr)
         scanner.get_signal_from_real_system(experiment_id,today_datestr)
         
+        normmeas=torch.from_numpy(np.load("auxutil/normmeas.npy"))
+        scanner.signal=scanner.signal/normmeas/NVox
+        
         reco_sep = scanner.adjoint_separable()
         
         first_scan = reco_sep[first_meas,:,:].sum(0)
@@ -454,43 +476,121 @@ if False:
 
     stop()
     
+
+# %% ###     quantification ######################################################
+#############################################################################    
+
+mag_echo3 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
+magmask = mag_echo3 > np.mean(mag_echo3.ravel())/3.3
+magmask=magmask.astype(float)
+plt.imshow(magmask)
+mag_echo1 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
+mag_echo2 = magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2]))
+mag_echo3 = magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2]))
+
+mag_echo13 = np.abs((1-mag_echo1/(mag_echo3+1e-12)))
+mag_echo23 = np.abs(1-mag_echo2/(mag_echo3+1e-12))
+
+dTI13 = event_time[-1,0]  
+dTI23 = event_time[-1,:measRepStep+1].sum() 
+
+T1map1= -tonumpy(dTI13)/np.log(mag_echo13 + 1e-12)
+T1map2= -tonumpy(dTI23)/np.log(mag_echo23 + 1e-12)
+T1map1 = T1map1*magmask
+T1map2 = T1map2*magmask
+
+T1map1 = T1map1.transpose([1,0])
+T1map1 = T1map1[::-1,::-1]
+T1map2 = T1map2.transpose([1,0])
+T1map2 = T1map2[::-1,::-1]
+
+plt.subplot(141)
+ax1=plt.imshow(real_phantom_resized[:,:,1], interpolation='none')
+fig = plt.gcf()
+fig.colorbar(ax1)  
+plt.clim(0,np.max(np.abs(real_phantom_resized[:,:,1])))
+plt.title("T1 map phantom")
+plt.ion() 
+
+plt.subplot(142)
+ax=plt.imshow(T1map1)
+plt.clim(0,np.max(np.abs(real_phantom_resized[:,:,1])))
+plt.title("T1 map TI 1")
+plt.ion() 
+
+plt.subplot(143)
+ax=plt.imshow(T1map2)
+plt.clim(0,np.max(np.abs(real_phantom_resized[:,:,1])))
+plt.title("T1 map TI 2")
+plt.ion() 
+
+plt.subplot(144)
+ax=plt.imshow((T1map1+T1map2)/2)
+plt.clim(0,np.max(np.abs(real_phantom_resized[:,:,1])))
+plt.title("T1 map avgd")
+plt.ion() 
+
+fig.set_size_inches(18, 7)
+
+
+plt.show()  
+
+# %% ###    stuff for supervised  ######################################################
+
 # target = T21
 target = setdevice(torch.from_numpy(real_phantom_resized[:,:,1]).float())
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
 
 # Prepare target db: iterate over all samples in the DB
 target_db = setdevice(torch.zeros((nmb_samples,NVox,1)).float())
+reco_all_rep_premeas = setdevice(torch.zeros((nmb_samples,3,NVox,2)).float())
     
 for i in range(nmb_samples):
     tgt = torch.from_numpy(spin_db_input[i,:,:,1:2].reshape([NVox,1]))
-    target_db[i,:,:] = tgt.reshape([sz[0],sz[1],1]).flip([0,1]).permute([1,0,2]).reshape([NVox,1])
-    
-    
-scanner.init_flip_tensor_holder()
-scanner.set_flip_tensor_withB1plus(flips)
+    target_db[i,:,:] = tgt.reshape([sz[0],sz[1],1]).reshape([NVox,1])
+      
 
-# rotate ADC according to excitation phase
-rfsign = (torch.sign(flips[0,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[0,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+    
+    spins.set_system(spin_db_input[i,:,:,:])
+    
+    scanner.forward_fast(spins, event_time,kill_transverse=kill_transverse)
+    
+    core.FID_normscan.make_FID(spin_db_input[i,:,:,:])
+    normsim=torch.from_numpy(np.load("auxutil/normsim.npy"))
+    scanner.signal=scanner.signal/normsim/NVox    
+       
+    reco_sep = scanner.adjoint_separable()
+    
+    first_scan = reco_sep[first_meas,:,:].sum(0)
+    second_scan = reco_sep[second_meas,:,:].sum(0)    
+    third_scan = reco_sep[third_meas,:,:].sum(0)    
+    reco_all_rep_premeas[i,:] = torch.stack((first_scan,second_scan,third_scan),0)    
 
-scanner.init_gradient_tensor_holder()          
-scanner.set_gradient_precession_tensor(grad_moms,sequence_class) # GRE/FID specific, maybe adjust for higher echoes
+#reco_all_rep_premeas=reco_all_rep_premeas.reshape([nmb_samples,3,sz[0],sz[1],2]).permute([0,1,3,2,4]).flip([2,3]).reshape([nmb_samples,3,NVox,2])
+target_db=target_db.reshape([nmb_samples,sz[0],sz[1],1]).permute([0,2,1,3]).flip([1,2]).reshape([nmb_samples,NVox,1])
+
 
 samp_idx = np.random.choice(nmb_samples,1)[0]
+samp_idx=0
 
-spins.set_system(spin_db_input[samp_idx,:,:,:])
-scanner.forward_fast(spins, event_time)
-reco_sep = scanner.adjoint_separable()
+reco_all_rep = reco_all_rep_premeas[samp_idx,:3,:]
 
-first_scan = reco_sep[first_meas,:,:].sum(0)
-second_scan = reco_sep[second_meas,:,:].sum(0)    
-third_scan = reco_sep[third_meas,:,:].sum(0)    
-reco_all_rep_premeas = torch.stack((first_scan,second_scan,third_scan),0)    
+reco_all_rep = torch.sqrt((reco_all_rep**2).sum(2))
+#    reco_all_rep = reco_all_rep.t()
+reco_all_rep = reco_all_rep.permute([1,0])
+ 
+target_image = target_db[samp_idx,:,:].reshape([sz[0],sz[1]])
 
-stop()
+IMG=reco_all_rep =reco_all_rep.reshape([sz[0],sz[1],3,1]) 
+ax1=plt.subplot(121)
+plt.imshow(tonumpy(IMG[:,:,2,0]), interpolation='none')
+ax1=plt.subplot(122)
+plt.imshow(tonumpy(target_image), interpolation='none')
 
-# %% ###     OPTIMIZATION functions phi and init ######################################################
+#r # %% ###     OPTIMIZATION functions phi and init ######################################################
 #############################################################################    
+count_idx=0
+
 def init_variables():
     adc_mask = targetSeq.adc_mask.clone()
     #adc_mask.requires_grad = True     
@@ -533,62 +633,117 @@ def phi_FRP_model(opt_params,aux_params):
 #    reco_all_rep = reco_all_rep[:2,:]
 #    reco_all_rep = reco_all_rep.unsqueeze(2)
     
-    reco_all_rep = reco_all_rep_premeas[:3,:]
+    samp_idx = np.random.choice(nmb_samples,1)[0]
     
+    reco_all_rep = reco_all_rep_premeas[samp_idx,:3,:]
+    
+    reco_all_rep = torch.sqrt((reco_all_rep**2).sum(2))
+#    reco_all_rep = reco_all_rep.t()
+    reco_all_rep = reco_all_rep.permute([1,0])
+     
     target_image = target_db[samp_idx,:,:].reshape([sz[0],sz[1]])
+    
+#    IMG=reco_all_rep =reco_all_rep.reshape([sz[0],sz[1],3,1]) 
+#    ax1=plt.subplot(121)
+#    plt.imshow(tonumpy(IMG[:,:,2,0]), interpolation='none')
+#    ax1=plt.subplot(122)
+#    plt.imshow(tonumpy(target_image), interpolation='none')
     
     # sanity check
     #reco_all_rep[0,:,0] = target_image.view([NVox])
     
     non_zero_voxel_mask = setdevice(torch.from_numpy((spin_db_input[samp_idx,:,:,0] > 1e-3).astype(np.float32)))
-    cnn_output = CNN(reco_all_rep).reshape([sz[0],sz[1]])
+    cnn_output = NN(reco_all_rep).reshape([sz[0],sz[1]])
+    
     
     loss_image = (cnn_output - target_image) * non_zero_voxel_mask
     loss_image = torch.sum(loss_image.squeeze()**2/NVox)
     
     loss = loss_image
     
-    print("loss_image: {} ".format(loss_image))
+
     
     phi = loss
   
     ereco = tonumpy(cnn_output*non_zero_voxel_mask).reshape([sz[0],sz[1]])
     error = e(tonumpy(target_image*non_zero_voxel_mask).ravel(),ereco.ravel())     
     
-    if True:
+    global count_idx
+    count_idx=count_idx+1
+    
+    if np.mod(count_idx,50)==0:
+        print("loss_image: {} ".format(loss_image))
         # print results
-        ax1=plt.subplot(121)
-        ax=plt.imshow(tonumpy(target_image*non_zero_voxel_mask), interpolation='none')
+        IMGs=reco_all_rep.reshape(sz[0],sz[1],3)
+        
+        ax1=plt.subplot(151)
+        ax=plt.imshow(tonumpy(IMGs[:,:,2]), interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('last contrast')
+        plt.ion()
+        
+        ax1=plt.subplot(152)
+        ax=plt.imshow(tonumpy(target_image), interpolation='none')
+        plt.clim(np.min(np.abs(tonumpy(target_image))),np.max(np.abs(tonumpy(target_image))))
         fig = plt.gcf()
         fig.colorbar(ax)        
         plt.title('target')
         plt.ion()
         
-        plt.subplot(122, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(tonumpy(cnn_output*non_zero_voxel_mask), interpolation='none')
+        plt.subplot(153, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(tonumpy(cnn_output), interpolation='none')
+        plt.clim(np.min(np.abs(tonumpy(target_image))),np.max(np.abs(tonumpy(target_image))))
         fig = plt.gcf()
         fig.colorbar(ax)        
         plt.title('reco')
         plt.ion()
         
+        reco_test = torch.sqrt((reco_testset**2).sum(2))
+        reco_test = reco_test.permute([1,0])
+        cnn_testoutput = NN(reco_test).reshape([sz[0],sz[1]])
+        
+        plt.subplot(154)
+        plt.plot(tonumpy(target_image.flatten()),tonumpy(cnn_output.flatten()),'.', np.flip(real_phantom_resized[:,:,1].transpose(),(0,1)).flatten(),tonumpy(cnn_testoutput.flatten()),'r.')
+        plt.xlabel('tgt')
+        plt.ylabel('prd')
+        plt.plot([0,3],[0,3])       
+
+        
+        plt.subplot(155, sharex=ax1, sharey=ax1)
+        ax=plt.imshow(tonumpy(cnn_testoutput), interpolation='none')
+        plt.clim(0,2.2)
+        fig = plt.gcf()
+        fig.colorbar(ax)        
+        plt.title('recotestet')
+        plt.ion()
+        
+        
+        #spin_db_input[0,:,:,:] = real_phantom_resized
+        
+        fig.set_size_inches(15, 3)
         plt.show()
     
     return (phi,cnn_output, error)
         
-# OPTIMIZATION land
+#r # %% ###     OPTIMIZATION start ######################################################
+#############################################################################    
 #nmb_hidden_neurons_list = [2*NRep,8,1]
-nmb_hidden_neurons_list = [6,8,8,8,1]
+#nmb_hidden_neurons_list = [2*NRep,32,32,2]
+#CNN = core.nnreco.VoxelwiseNet(spins.sz, nmb_hidden_neurons_list,use_gpu=use_gpu,gpu_device=gpu_dev)
+
+nmb_hidden_neurons_list = [3,16,32,16,1]
 NN = core.nnreco.VoxelwiseNet(spins.sz, nmb_hidden_neurons_list,use_gpu=use_gpu,gpu_device=gpu_dev)
 
 opt = core.opt_helper.OPT_helper(scanner,spins,NN,1)
 opt.set_target(tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],1]))
 opt.target_seq_holder=targetSeq
 opt.experiment_description = experiment_description
-opt.learning_rate = 1e-2
+opt.learning_rate = 1e-3
 
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'nn'
-opt.batch_size = 1
+opt.batch_size = 5
 
 # 
 opt.set_opt_param_idx([1]) # ADC, RF, time, grad
@@ -597,7 +752,7 @@ opt.custom_learning_rate = [0.01,1e-9,1e-3,0.1]
 opt.set_handles(init_variables, phi_FRP_model)
 opt.scanner_opt_params = opt.init_variables()
 
-opt.train_model(training_iter=3500, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=50000, do_vis_image=False, save_intermediary_results=False) # save_intermediary_results=1 if you want to plot them later
  
 # %% # save optimized parameter history
 

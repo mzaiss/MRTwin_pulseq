@@ -140,7 +140,12 @@ flips[0,0,1] = 90*np.pi/180  # SE preparation part 1 : 90 phase
 flips[1,:,0] = 180*np.pi/180  # RARE specific, RARE preparation part 2 : 180 degree excitation 
 flips = setdevice(flips)
 scanner.init_flip_tensor_holder()
-scanner.set_flipXY_tensor(flips)
+B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
+B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
+B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
+B1plus[:] = 1
+scanner.B1plus = setdevice(B1plus)    
+scanner.set_flip_tensor_withB1plus(flips)
 # rotate ADC according to excitation phase
 scanner.set_ADC_rot_tensor(flips[0,:,1]*0) #GRE/FID specific
 # event timing vector 

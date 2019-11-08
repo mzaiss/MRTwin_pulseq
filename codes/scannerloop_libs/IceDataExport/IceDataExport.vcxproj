@@ -1,0 +1,206 @@
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Linux|Win32">
+      <Configuration>Linux</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.default.props" />
+  <PropertyGroup Label="Configuration">
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ShowAllFiles>false</ShowAllFiles>
+    <SccProjectName>Rational ClearCase</SccProjectName>
+    <SccLocalPath>Rational ClearCase</SccLocalPath>
+    <SccAuxPath>Rational ClearCase</SccAuxPath>
+    <SccProvider>Rational ClearCase</SccProvider>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>\n4\x86\prod\bin\</OutDir>
+    <IntDir>\n4\x86\prod\debug\share\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport\</IntDir>
+    <IncludePath>\n4\pkg;\n4\interfaces\deli\n4\pkg;\n4\tool;\n4\interfaces\deli\n4\tool;\n4\x86\prod\include;\n4\x86\delivery\include;\n4\x86\extsw\MedCom\include;\n4\opensource\boost;\MR_Extern_MSC\MicrosoftSDKs\Windows\v6.1/include;\MR_Extern_MSC\MSVStudio9\VC\atlmfc/include;\extern_OTS\Microsoft.AtlServer/include;\MR_Extern_MSC\MSVStudio9\VC/include;\n4\pkg\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport;\mr_prod\public;\MR\public;\n4\interfaces\deli\MR\public;\n4\x86\extsw\MedCom\versant\vds801\sdk\include;\n4\x86\extsw\include</IncludePath>
+    <ConfigurationType>Makefile</ConfigurationType>
+    <TargetName>IceDataExportd</TargetName>
+    <NMakeBuildCommandLine>medmake -p n4 IceDataExportd.dll &amp; xcopy /y \n4\x86\prod\bin\IceDataExportd.dll C:\Users\z003dppb\AppData\Local\Temp</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>medmake -p n4 IceDataExportd.dll -mf -a &amp; xcopy /y \n4\x86\prod\bin\IceDataExportd.dll C:\Users\z003dppb\AppData\Local\Temp</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>medmake -p n4 IceDataExportd.dll -clean</NMakeCleanCommandLine>
+    <NMakeOutput>\n4\x86\prod\bin\IceDataExportd.dll</NMakeOutput>
+    <NMakePreprocessorDefinitions>MFCDebug;_DEBUG;DEBUG;RWDEBUG;_WINDLL;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NOMINMAX;_BIND_TO_CURRENT_VCLIBS_VERSION;_AFXDLL;WIN32;_WINDOWS;AFX_NOVTABLE=;WINVER=0x0501;_WIN32_WINNT=0x0501;PARC_MODULE_NAME=IceDataExport;MR_MAIN_PKG=MrVista;_RWTOOLSDLL;_UNICODE;UNICODE;O_DLL_PCLASS_ONLY;BUILD_IceDataExport;CSA_HAS_DLL;ACE_HAS_DLL;_MSC_VER=1500;ICEIDEAFUNCTORS_EXPORTS;BUILD_IceScanFunctors;BUILD_IceImageReconFunctors;NAMESPACE_ICE=IceFramework;PROJECT_NAMESPACE=NAMESPACE_DATA_EXPORT;-Zm400</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>\n4\x86\prod\bin\</OutDir>
+    <IntDir>\n4\x86\prod\release\share\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport\</IntDir>
+    <IncludePath>\n4\pkg;\n4\interfaces\deli\n4\pkg;\n4\tool;\n4\interfaces\deli\n4\tool;\n4\x86\prod\include;\n4\x86\delivery\include;\n4\x86\extsw\MedCom\include;\n4\opensource\boost;\MR_Extern_MSC\MicrosoftSDKs\Windows\v6.1/include;\MR_Extern_MSC\MSVStudio9\VC\atlmfc/include;\extern_OTS\Microsoft.AtlServer/include;\MR_Extern_MSC\MSVStudio9\VC/include;\n4\pkg\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport;\mr_prod\public;\MR\public;\n4\interfaces\deli\MR\public;\n4\x86\extsw\MedCom\versant\vds801\sdk\include;\n4\x86\extsw\include</IncludePath>
+    <ConfigurationType>Makefile</ConfigurationType>
+    <TargetName>IceDataExport</TargetName>
+    <NMakeBuildCommandLine>medmake -p n4 IceDataExport.dll &amp; xcopy /y \n4\x86\prod\bin\IceDataExport.dll C:\Users\z003dppb\AppData\Local\Temp</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>medmake -p n4 IceDataExport.dll -mf -a &amp; xcopy /y \n4\x86\prod\bin\IceDataExport.dll C:\Users\z003dppb\AppData\Local\Temp</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>medmake -p n4 IceDataExport.dll -clean</NMakeCleanCommandLine>
+    <NMakeOutput>\n4\x86\prod\bin\IceDataExport.dll</NMakeOutput>
+    <NMakePreprocessorDefinitions>MFCRelease;NDEBUG;_WINDLL;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NOMINMAX;_BIND_TO_CURRENT_VCLIBS_VERSION;_AFXDLL;WIN32;_WINDOWS;AFX_NOVTABLE=;WINVER=0x0501;_WIN32_WINNT=0x0501;PARC_MODULE_NAME=IceDataExport;MR_MAIN_PKG=MrVista;_RWTOOLSDLL;_UNICODE;UNICODE;O_DLL_PCLASS_ONLY;BUILD_IceDataExport;CSA_HAS_DLL;ACE_HAS_DLL;_MSC_VER=1500;ICEIDEAFUNCTORS_EXPORTS;BUILD_IceScanFunctors;BUILD_IceImageReconFunctors;NAMESPACE_ICE=IceFramework;PROJECT_NAMESPACE=NAMESPACE_DATA_EXPORT;-Zm400</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Linux|Win32'">
+    <OutDir>\n4\linux\prod\lib\</OutDir>
+    <IntDir>\n4\linux\prod\release\share\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport\</IntDir>
+    <IncludePath>\n4\pkg;\n4\interfaces\deli\n4\pkg;\MR\public;\n4\interfaces\deli\MR\public;\n4\linux\prod\include;\n4\x86\prod\include;\n4\linux\delivery\include;\n4\x86\delivery\include;\n4\x86\extsw\include;\MR_N4\targets\x64-WinNT5.02\Debug\DoBin\bin\extern;\n4\x86\extsw\MedCom\include;\n4\pkg\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport;\n4\linux\prod\release\share\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport</IncludePath>
+    <ConfigurationType>Makefile</ConfigurationType>
+    <TargetName>IceDataExport</TargetName>
+    <NMakeBuildCommandLine>mml -p n4linux libIceDataExport.so</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>mml -p n4linux libIceDataExport.so -mf -a</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>mml -p n4linux libIceDataExport.so -clean</NMakeCleanCommandLine>
+    <NMakeOutput>\n4\linux\prod\lib\libIceDataExport.so</NMakeOutput>
+    <NMakePreprocessorDefinitions>NDEBUG;_REENTRANT;ACE_HAS_AIO_CALLS;ACE_HAS_EXCEPTIONS;BUILD_PLATFORM_LINUX;MRVISTA;PARC_MODULE_NAME=IceDataExport;MR_MAIN_PKG=MrVista;BUILD_IceDataExport;ICEIDEAFUNCTORS_EXPORTS;BUILD_IceScanFunctors;BUILD_IceImageReconFunctors;NAMESPACE_ICE=IceFramework;PROJECT_NAMESPACE=NAMESPACE_DATA_EXPORT</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>\n4\pkg;\n4\interfaces\deli\n4\pkg;\n4\tool;\n4\interfaces\deli\n4\tool;\n4\x86\prod\include;\n4\x86\delivery\include;\n4\x86\extsw\MedCom\include;\n4\opensource\boost;\MR_Extern_MSC\MicrosoftSDKs\Windows\v6.1/include;\MR_Extern_MSC\MSVStudio9\VC\atlmfc/include;\extern_OTS\Microsoft.AtlServer/include;\MR_Extern_MSC\MSVStudio9\VC/include;\n4\pkg\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport;\mr_prod\public;\MR\public;\n4\interfaces\deli\MR\public;\n4\x86\extsw\MedCom\versant\vds801\sdk\include;\n4\x86\extsw\include;\n4\x86\prod\debug\share\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>MFCDebug;_DEBUG;DEBUG;RWDEBUG;_WINDLL;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NOMINMAX;_BIND_TO_CURRENT_VCLIBS_VERSION;_AFXDLL;WIN32;_WINDOWS;AFX_NOVTABLE=;WINVER=0x0501;_WIN32_WINNT=0x0501;PARC_MODULE_NAME=IceDataExport;MR_MAIN_PKG=MrVista;_RWTOOLSDLL;_UNICODE;UNICODE;O_DLL_PCLASS_ONLY;BUILD_IceDataExport;CSA_HAS_DLL;ACE_HAS_DLL;_MSC_VER=1500;ICEIDEAFUNCTORS_EXPORTS;BUILD_IceScanFunctors;BUILD_IceImageReconFunctors;NAMESPACE_ICE=IceFramework;PROJECT_NAMESPACE=NAMESPACE_DATA_EXPORT;-Zm400</PreprocessorDefinitions>
+      <ProgramDataBaseFileName>\n4\x86\prod\bin\IceDataExportd.pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <IgnoreStandardIncludePath>true</IgnoreStandardIncludePath>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <StringPooling>true</StringPooling>
+      <FunctionLevelLinking>
+      </FunctionLevelLinking>
+      <Optimization>Disabled</Optimization>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <MinimalRebuild>
+      </MinimalRebuild>
+      <SmallerTypeCheck>
+      </SmallerTypeCheck>
+      <StructMemberAlignment>
+      </StructMemberAlignment>
+      <CallingConvention>
+      </CallingConvention>
+      <TreatWarningAsError>
+      </TreatWarningAsError>
+      <OmitFramePointers>
+      </OmitFramePointers>
+      <PrecompiledHeaderOutputFile>
+      </PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>
+      </AssemblerListingLocation>
+      <ErrorReporting>
+      </ErrorReporting>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>IceAlgosd.lib IceBasicd.lib IceUtilsd.lib MrParcd.lib UTraced.lib IceImageReconFunctorsd.lib MrClassDumpd.lib libMES4BVd.lib aced.lib </AdditionalDependencies>
+      <AdditionalLibraryDirectories>\MR_BaseSystem_01_REL\targets\xerces\i586-WinNT5.01\Debug\bin\public;\n4\x86\prod\lib;\n4\x86\delivery\lib;\n4\x86\extsw\MedCom\lib;\n4\x86\extsw\MedCom\versant\vds801\lib;\n4\x86\extsw\lib;\MR\targets\i586-WinNT5.01\Debug\cm_link\extern;\MR_Extern_MSC\MicrosoftSDKs\Windows\v6.1\lib;\MR_Extern_MSC\MSVStudio9\VC\atlmfc\lib;\MR_Extern_MSC\MSVStudio9\VC\lib</AdditionalLibraryDirectories>
+      <OutputFile>\n4\x86\prod\bin\IceDataExportd.dll</OutputFile>
+      <ShowProgress>LinkVerboseLib</ShowProgress>
+      <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <LargeAddressAware>true</LargeAddressAware>
+      <ManifestFile>
+      </ManifestFile>
+      <AllowIsolation>
+      </AllowIsolation>
+      <EnableUAC>
+      </EnableUAC>
+      <ProfileGuidedDatabase>
+      </ProfileGuidedDatabase>
+      <TypeLibraryResourceID>
+      </TypeLibraryResourceID>
+      <BaseAddress>0x60000000</BaseAddress>
+      <LinkErrorReporting>
+      </LinkErrorReporting>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <OptimizeReferences>false</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>\n4\pkg;\n4\interfaces\deli\n4\pkg;\n4\tool;\n4\interfaces\deli\n4\tool;\n4\x86\prod\include;\n4\x86\delivery\include;\n4\x86\extsw\MedCom\include;\n4\opensource\boost;\MR_Extern_MSC\MicrosoftSDKs\Windows\v6.1/include;\MR_Extern_MSC\MSVStudio9\VC\atlmfc/include;\extern_OTS\Microsoft.AtlServer/include;\MR_Extern_MSC\MSVStudio9\VC/include;\n4\pkg\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport;\mr_prod\public;\MR\public;\n4\interfaces\deli\MR\public;\n4\x86\extsw\MedCom\versant\vds801\sdk\include;\n4\x86\extsw\include;\n4\x86\prod\release\share\MrServers\MrVista\Ice\IceApplicationFunctors\IceDataExport</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>MFCRelease;NDEBUG;_WINDLL;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NOMINMAX;_BIND_TO_CURRENT_VCLIBS_VERSION;_AFXDLL;WIN32;_WINDOWS;AFX_NOVTABLE=;WINVER=0x0501;_WIN32_WINNT=0x0501;PARC_MODULE_NAME=IceDataExport;MR_MAIN_PKG=MrVista;_RWTOOLSDLL;_UNICODE;UNICODE;O_DLL_PCLASS_ONLY;BUILD_IceDataExport;CSA_HAS_DLL;ACE_HAS_DLL;_MSC_VER=1500;ICEIDEAFUNCTORS_EXPORTS;BUILD_IceScanFunctors;BUILD_IceImageReconFunctors;NAMESPACE_ICE=IceFramework;PROJECT_NAMESPACE=NAMESPACE_DATA_EXPORT;-Zm400</PreprocessorDefinitions>
+      <ProgramDataBaseFileName>\n4\x86\prod\bin\IceDataExport.pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <IgnoreStandardIncludePath>true</IgnoreStandardIncludePath>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <StringPooling>true</StringPooling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <Optimization>Full</Optimization>
+      <BufferSecurityCheck>
+      </BufferSecurityCheck>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <MinimalRebuild>
+      </MinimalRebuild>
+      <SmallerTypeCheck>
+      </SmallerTypeCheck>
+      <StructMemberAlignment>
+      </StructMemberAlignment>
+      <CallingConvention>
+      </CallingConvention>
+      <TreatWarningAsError>
+      </TreatWarningAsError>
+      <OmitFramePointers>
+      </OmitFramePointers>
+      <PrecompiledHeaderOutputFile>
+      </PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>
+      </AssemblerListingLocation>
+      <ErrorReporting>
+      </ErrorReporting>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>IceAlgos.lib IceBasic.lib IceUtils.lib MrParc.lib UTrace.lib IceImageReconFunctors.lib MrClassDump.lib libMES4BV.lib ace.lib </AdditionalDependencies>
+      <AdditionalLibraryDirectories>\MR_BaseSystem_01_REL\targets\xerces\i586-WinNT5.01\Release\bin\public;\n4\x86\prod\lib;\n4\x86\delivery\lib;\n4\x86\extsw\MedCom\lib;\n4\x86\extsw\MedCom\versant\vds801\lib;\n4\x86\extsw\lib;\MR\targets\i586-WinNT5.01\Release\cm_link\extern;\MR_Extern_MSC\MicrosoftSDKs\Windows\v6.1\lib;\MR_Extern_MSC\MSVStudio9\VC\atlmfc\lib;\MR_Extern_MSC\MSVStudio9\VC\lib</AdditionalLibraryDirectories>
+      <OutputFile>\n4\x86\prod\bin\IceDataExport.dll</OutputFile>
+      <ShowProgress>LinkVerboseLib</ShowProgress>
+      <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <LargeAddressAware>true</LargeAddressAware>
+      <ManifestFile>
+      </ManifestFile>
+      <AllowIsolation>
+      </AllowIsolation>
+      <EnableUAC>
+      </EnableUAC>
+      <ProfileGuidedDatabase>
+      </ProfileGuidedDatabase>
+      <TypeLibraryResourceID>
+      </TypeLibraryResourceID>
+      <BaseAddress>0x60000000</BaseAddress>
+      <LinkErrorReporting>
+      </LinkErrorReporting>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="DataExportFunctor.cpp" />
+    <ClCompile Include="DataExportConfigurator.cpp" />
+    <ClCompile Include="DataExportObjectMap.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DataExportFunctor.h" />
+    <ClInclude Include="DataExportConfigurator.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="makefile.trs" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

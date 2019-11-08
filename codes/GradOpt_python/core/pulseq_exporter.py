@@ -27,20 +27,31 @@ def rectify_flips(flips):
                 rflips[i,j,1] = np.mod(rflips[i,j,1], 2*np.pi)
     return rflips
 
+def FOV():
+    #FOV = 0.110
+    return 0.200
+
+nonsel = 0
+if nonsel==1:
+    slice_thickness = 200*1e-3
+else:
+    slice_thickness = 8e-3
+
+
 def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
     
+    event_time_numpy = np.abs(event_time_numpy)
     flips_numpy = rectify_flips(flips_numpy)
     
     NRep = flips_numpy.shape[1]
     
     # save pulseq definition
     MAXSLEW = 140
-    FOV = 0.220
-    #FOV = 0.110
-    slice_thickness = 5e-3     # slice
+
+
     
-    deltak = 1.0 / FOV
+    deltak = 1.0 / FOV()
     grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
@@ -49,9 +60,7 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     
     seq.add_block(make_delay(2.0))
     
-    nonsel=0
-    if nonsel==1:
-        slice_thickness = 200*1e-3
+
       
 
     for rep in range(NRep):
@@ -59,6 +68,7 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         ###############################
         ###              first action
         idx_T = 0
+        RFdur = 0
         if np.abs(flips_numpy[idx_T,rep,0]) > 1e-16:
             use = "excitation"
             
@@ -150,7 +160,7 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         seq.plot()
     seq.write(seq_fn)
     
-    append_header(seq_fn, FOV,slice_thickness)
+    append_header(seq_fn, FOV(),slice_thickness)
 
 def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
     flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
@@ -161,11 +171,9 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
     
     # save pulseq definition
     MAXSLEW = 140
-    FOV = 0.220
-    #FOV = 0.110
-    slice_thickness = 5e-3     # slice
+
     
-    deltak = 1.0 / FOV
+    deltak = 1.0 / FOV()
     grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
@@ -174,9 +182,7 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
     
     seq.add_block(make_delay(2.0))
     
-    nonsel=1
-    if nonsel==1:
-        slice_thickness = 200*1e-3
+
       
 
     for rep in range(NRep):
@@ -322,7 +328,7 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
         seq.plot()
     seq.write(seq_fn)
     
-    append_header(seq_fn, FOV,slice_thickness)
+    append_header(seq_fn, FOV(),slice_thickness)
         
 def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
@@ -333,22 +339,18 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     
     # save pulseq definition
     MAXSLEW = 140
-    FOV = 0.220
-    slice_thickness = 200e-3     # slice
     
-    deltak = 1.0 / FOV
+    
+    deltak = 1.0 / FOV()
     grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)   
     
-    seq.add_block(make_delay(5.0))
+    seq.add_block(make_delay(1.48))
     
-    nonsel = 0
-    if nonsel==1:
-        slice_thickness = 200*1e-3
-    
+
     for rep in range(NRep):
         
         ###############################
@@ -367,7 +369,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
             else:
                 # alternatively slice selective:
                 use = "excitation"
-                slice_thickness = 5e-3
+                
                 
                 kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
                 rf_ex, gz, gzr= make_sinc_pulse(kwargs_for_sinc, 3)
@@ -398,7 +400,6 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
               rf_ref = make_block_pulse(kwargs_for_block, 1)
               seq.add_block(rf_ref)         
           else:
-              slice_thickness = 5e-3
             
               kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
               rf_ref, gz_ref,gzr = make_sinc_pulse(kwargs_for_sinc, 3)
@@ -461,7 +462,7 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         seq.plot()
     seq.write(seq_fn)
     
-    append_header(seq_fn, FOV,slice_thickness)
+    append_header(seq_fn, FOV(),slice_thickness)
     
 def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
@@ -472,10 +473,8 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     
     # save pulseq definition
     MAXSLEW = 140
-    FOV = 0.220
     
-    
-    deltak = 1.0 / FOV
+    deltak = 1.0 / FOV()
     grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
@@ -484,8 +483,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     
     seq.add_block(make_delay(2.0))
     
-    nonsel = 1
-    
+   
     for rep in range(NRep):
         
         ###############################
@@ -494,7 +492,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
             
             if nonsel:
-                slice_thickness = 200e-3     # slice
+
                 use = "excitation"
                 
                 # alternatively slice selective:
@@ -507,7 +505,6 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
                 # alternatively slice selective:
                 use = "excitation"
                 
-                slice_thickness = 5e-3
                 
                 # alternatively slice selective:
                 kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "phase_offset": flips_numpy[idx_T,rep,1], "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
@@ -580,7 +577,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         seq.plot()
     seq.write(seq_fn)
     
-    append_header(seq_fn, FOV,slice_thickness)    
+    append_header(seq_fn, FOV(),slice_thickness)    
     
 def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
     flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
@@ -591,9 +588,9 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
     
     # save pulseq definition
     MAXSLEW = 140
-    FOV = 0.220    
+      
     
-    deltak = 1.0 / FOV
+    deltak = 1.0 / FOV()
     grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
@@ -602,7 +599,6 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
     
     seq.add_block(make_delay(2.0))
     
-    nonsel = 1
     
     for rep in range(NRep):
         
@@ -725,7 +721,7 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
         seq.plot()
     seq.write(seq_fn)
     
-    append_header(seq_fn, FOV,slice_thickness)    
+    append_header(seq_fn, FOV(),slice_thickness)    
     
 def pulseq_write_EPI(seq_params, seq_fn, plot_seq=False):
     raise
