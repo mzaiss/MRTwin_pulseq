@@ -1785,12 +1785,12 @@ class Scanner():
             
         torch.cuda.empty_cache()
         
-    def forward_sparse_fast_supermem(self,spins,event_time,kill_transverse):
+    def forward_sparse_fast_supermem(self,spins,event_time,kill_transverse=False):
         self.init_signal()
         spins.set_initial_magnetization()
         self.reco = 0
         
-        PD0_mask = spins.PD0_mask.flatten().bool()
+        PD0_mask = spins.PD0_mask.flatten()
         spins_cut = spins.M[:,:,PD0_mask,:,:].clone()  
         
         nmb_svox = torch.sum(PD0_mask)
