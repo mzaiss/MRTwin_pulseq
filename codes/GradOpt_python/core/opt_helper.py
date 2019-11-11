@@ -924,10 +924,7 @@ class OPT_helper():
         param_reco_history = self.param_reco_history    
         NIter_effective = len(param_reco_history)
         
-        if NIter_effective > 819:
-            compact_iteration_idx = np.arange(0,819,10)
-        else:
-            compact_iteration_idx = np.arange(0,NIter_effective,NIter_effective/10)
+        compact_iteration_idx = np.arange(0,NIter_effective,NIter_effective//80)
             
         NIter_reduced = compact_iteration_idx.size    
         
