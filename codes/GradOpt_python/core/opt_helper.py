@@ -927,7 +927,7 @@ class OPT_helper():
         if NIter_effective > 819:
             compact_iteration_idx = np.arange(0,819,10)
         else:
-            compact_iteration_idx = np.arange(0,NIter_effective,10)
+            compact_iteration_idx = np.arange(0,NIter_effective,NIter_effective/10)
             
         NIter_reduced = compact_iteration_idx.size    
         
