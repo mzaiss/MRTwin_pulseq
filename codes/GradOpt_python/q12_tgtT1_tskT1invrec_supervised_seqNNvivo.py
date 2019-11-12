@@ -830,12 +830,12 @@ opt.learning_rate = 10*1e-4
 
 opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seqnn'
-opt.batch_size = 3
+opt.batch_size = 1
 # 
 opt.set_opt_param_idx([2]) # ADC, RF, time, grad
 opt.custom_learning_rate = [0.01,0.01,0.1,0.1]
 
-opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 # %% # run for real scan
 opt.export_to_pulseq(experiment_id, today_datestr, sequence_class)

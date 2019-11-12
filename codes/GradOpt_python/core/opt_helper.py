@@ -568,7 +568,12 @@ class OPT_helper():
                 recoimg = tonumpy(reco[0,:,:]).reshape([sz[0],sz[1],2])
                 PD0_mask = self.spins.PD0_mask[0,:,:]
             else:
-                recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
+                try:
+                    recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
+                except:
+                    recoimg = np.zeros([sz[0],sz[1],2])
+                    recoimg[:,:,0] = tonumpy(reco).reshape([sz[0],sz[1]])
+                    
                 PD0_mask = self.spins.PD0_mask
                 
             # clear previous figure stack            

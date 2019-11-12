@@ -1790,7 +1790,7 @@ class Scanner():
         spins.set_initial_magnetization()
         self.reco = 0
         
-        PD0_mask = spins.PD0_mask.flatten()
+        PD0_mask = spins.PD0_mask.flatten().bool()
         spins_cut = spins.M[:,:,PD0_mask,:,:].clone()  
         
         nmb_svox = torch.sum(PD0_mask)
