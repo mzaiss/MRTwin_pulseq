@@ -214,6 +214,8 @@ class OPT_helper():
         self.last_loss = None
         
         self.param_reco_history = []
+        self.error_history = []
+        self.sar_history = []
         
         self.target_seq_holder = None
         
@@ -427,6 +429,8 @@ class OPT_helper():
                     saved_state['meas_adj_reco'] = meas_reco
                 
                 self.param_reco_history.append(saved_state)      
+                self.error_history.append(self.last_error)      
+                self.sar_history.append(np.sum(saved_state['flips_angles']**2))      
                 
             if self.opti_mode == 'nevergrad':
                 # work in progress....
@@ -634,14 +638,26 @@ class OPT_helper():
 
             fig.set_size_inches(18, 3)
             
-            plt.subplot(258)
-            ax=plt.imshow(tonumpy(phi.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
-            plt.ion()
-            plt.title('phase [\N{DEGREE SIGN}]')
-            plt.clim(-180,270)
-            fig = plt.gcf()
-            fig.colorbar(ax)
-            fig.set_size_inches(18, 3)
+            if len(self.sar_history) > 0:
+                sar_history = np.array(self.sar_history)
+                sar_history = 100*sar_history / sar_history[0]
+                
+                plt.subplot(258)
+                ax=plt.plot(np.array(self.error_history))
+                ax=plt.plot(sar_history)
+                plt.ion()
+                plt.title('error')
+                fig = plt.gcf()
+                plt.clim(0,100)
+    #            fig.colorbar(ax)
+            
+#            ax=plt.imshow(tonumpy(phi.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
+#            plt.ion()
+#            plt.title('phase [\N{DEGREE SIGN}]')
+#            plt.clim(-180,270)
+#            fig = plt.gcf()
+#            fig.colorbar(ax)
+#            fig.set_size_inches(18, 3)
             
             
             plt.subplot(154)
