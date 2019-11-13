@@ -296,6 +296,7 @@ for i in range(nmb_samples):
     #scanner.forward_fast_supermem(spins, event_time)    
     scanner.adjoint()
     target_db[i,:,:] = scanner.reco.clone().squeeze() 
+    print('iteration:', i)
   
 # since we optimize only NN reco part, we can save time by doing fwd pass (radial enc) on all training examples
 adjoint_reco_db = setdevice(torch.zeros((nmb_samples,NVox,2)).float())
@@ -380,7 +381,7 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_sparse_fast_supermem(spins, event_time)
     scanner.adjoint()
 
-    lbd_sar = sz[0]**2*1e-2 * 1e-3 * 1.0
+    lbd_sar = sz[0]**2*1e-2 * 1e-3 * 0.5
     
     loss_image = (scale_param*scanner.reco - tgt)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
