@@ -189,16 +189,17 @@ class Scanner():
         # handle complex mul as matrix mul
         B1_init = torch.zeros((self.NCoils,1,self.NVox,2,2), dtype=torch.float32)
         
-        if B1 is not None:
-            B1 = torch.reshape(B1,(self.NCoils,self.NVox,2))
-            
-            B1_init[:,0,:,0,0] = B1[:,:,0]
-            B1_init[:,0,:,0,1] = -B1[:,:,1]
-            B1_init[:,0,:,1,0] = B1[:,:,1]
-            B1_init[:,0,:,1,1] = B1[:,:,0]
-        else:
-            B1_init[:,0,:,0,0] = 1
+        if B1 is None:
+            B1 = torch.ones((self.NCoils,self.sz[0],self.sz[1],2))     # last dimension real/imag for B1 minus
+            B1[:,:,:,1] = 0
         
+        B1 = torch.reshape(B1,(self.NCoils,self.NVox,2))
+        
+        B1_init[:,0,:,0,0] = B1[:,:,0]
+        B1_init[:,0,:,0,1] = -B1[:,:,1]
+        B1_init[:,0,:,1,0] = B1[:,:,1]
+        B1_init[:,0,:,1,1] = B1[:,:,0]
+            
         self.B1 = self.setdevice(B1_init)
         
     def init_flip_tensor_holder(self):
