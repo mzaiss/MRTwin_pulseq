@@ -975,21 +975,21 @@ class OPT_helper():
         if self.NN is not None:
             for iter_idx, ni in enumerate(compact_iteration_idx):
                 fp_nn_out = os.path.join(os.path.join(basepath_seq, fn_NN_paramlist))
-                torch.save(param_reco_history[iter_idx]['NNparams'], fp_nn_out + str(iter_idx) + '.pt')
+                torch.save(param_reco_history[ni]['NNparams'], fp_nn_out + str(iter_idx) + '.pt')
         
         
         for iter_idx, ni in enumerate(compact_iteration_idx):
-            all_adc_masks[iter_idx] = param_reco_history[iter_idx]['adc_mask'].ravel()
-            all_flips[iter_idx] = param_reco_history[iter_idx]['flips_angles']
-            all_event_times[iter_idx] = param_reco_history[iter_idx]['event_times']
-            all_grad_moms[iter_idx] = param_reco_history[iter_idx]['grad_moms']
-            all_kloc[iter_idx] = param_reco_history[iter_idx]['kloc']
-            all_reco_images[iter_idx] = param_reco_history[iter_idx]['reco_image'].reshape([sz_x,sz_y,2])
-            all_signals[iter_idx] = param_reco_history[iter_idx]['signal'].reshape([self.scanner.NCoils,T,NRep,3])
-            all_errors[iter_idx] = param_reco_history[iter_idx]['error']
+            all_adc_masks[iter_idx] = param_reco_history[ni]['adc_mask'].ravel()
+            all_flips[iter_idx] = param_reco_history[ni]['flips_angles']
+            all_event_times[iter_idx] = param_reco_history[ni]['event_times']
+            all_grad_moms[iter_idx] = param_reco_history[ni]['grad_moms']
+            all_kloc[iter_idx] = param_reco_history[ni]['kloc']
+            all_reco_images[iter_idx] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
+            all_signals[iter_idx] = param_reco_history[ni]['signal'].reshape([self.scanner.NCoils,T,NRep,3])
+            all_errors[iter_idx] = param_reco_history[ni]['error']
             
             if 'extra_par_idx4' in param_reco_history[0]:
-                all_extra_par_idx4[iter_idx] = param_reco_history[iter_idx]['extra_par_idx4']
+                all_extra_par_idx4[iter_idx] = param_reco_history[ni]['extra_par_idx4']
         
         alliter_dict = dict()
         alliter_dict['all_adc_masks'] = all_adc_masks
@@ -1023,9 +1023,9 @@ class OPT_helper():
             for iter_idx, ni in enumerate(compact_iteration_idx):
                 fn_pulseq = "iter" + str(iter_idx).zfill(6) + ".seq"
                 
-                flips_numpy = param_reco_history[iter_idx]['flips_angles']
-                event_time_numpy = param_reco_history[iter_idx]['event_times']
-                grad_moms_numpy = param_reco_history[iter_idx]['grad_moms']    
+                flips_numpy = param_reco_history[ni]['flips_angles']
+                event_time_numpy = param_reco_history[ni]['event_times']
+                grad_moms_numpy = param_reco_history[ni]['grad_moms']    
                 
                 seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
                 
