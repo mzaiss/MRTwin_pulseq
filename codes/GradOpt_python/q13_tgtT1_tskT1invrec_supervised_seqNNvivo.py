@@ -304,11 +304,11 @@ scanner.signal=scanner.signal/normsim/NVox
     
 reco_sep = scanner.adjoint_separable()
 
-all_scans=torch.zeros((extraRep,reco_sep.shape[1],2))
+reco_all_rep=torch.zeros((extraRep,reco_sep.shape[1],2))
 for j in range(0,extraRep):
-    all_scans[j,:,:] = reco_sep[meas_indices[j,:],:,:].sum(0)
+    reco_all_rep[j,:,:] = reco_sep[meas_indices[j,:],:,:].sum(0)
 
-reco_testset = all_scans
+reco_testset = reco_all_rep
 
 first_scan_kspace = tonumpy(scanner.signal[0,5:-2,meas_indices[0,:],:2,0])
 second_scan_kspace = tonumpy(scanner.signal[0,5:-2,meas_indices[1,:],:2,0])
@@ -330,14 +330,14 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     if True:
         # print results
         ax1=plt.subplot(231)
-        ax=plt.imshow(magimg(tonumpy(all_scans[0,:,:]).reshape([sz[0],sz[1],2])), interpolation='none')
+        ax=plt.imshow(magimg(tonumpy(reco_all_rep[0,:,:]).reshape([sz[0],sz[1],2])), interpolation='none')
         fig = plt.gcf()
         fig.colorbar(ax)        
         plt.title('first scan')
         plt.ion()
         
         plt.subplot(232, sharex=ax1, sharey=ax1)
-        ax=plt.imshow(magimg(tonumpy(all_scans[1,:,:]).reshape([sz[0],sz[1],2])), interpolation='none')
+        ax=plt.imshow(magimg(tonumpy(reco_all_rep[1,:,:]).reshape([sz[0],sz[1],2])), interpolation='none')
         fig = plt.gcf()
         fig.colorbar(ax)        
         plt.title('second scan')
@@ -360,7 +360,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
         
         # print results
         ax1=plt.subplot(233)
-        ax=plt.imshow(magimg(tonumpy(all_scans[2,:,:]).reshape([sz[0],sz[1],2])), interpolation='none')
+        ax=plt.imshow(magimg(tonumpy(reco_all_rep[2,:,:]).reshape([sz[0],sz[1],2])), interpolation='none')
         fig = plt.gcf()
         fig.colorbar(ax)        
         plt.title('third scan')
@@ -491,14 +491,14 @@ with torch.no_grad():
                
             reco_sep = scanner.adjoint_separable()
             
-            all_scans=torch.zeros((extraRep,reco_sep.shape[1],2))
+            reco_all_rep=torch.zeros((extraRep,reco_sep.shape[1],2))
             for j in range(0,extraRep):
-                all_scans[j,:,:] = reco_sep[meas_indices[j,:],:,:].sum(0)
+                reco_all_rep[j,:,:] = reco_sep[meas_indices[j,:],:,:].sum(0)
                                        
-            reco_all_rep_premeas[i,:] = all_scans 
+            reco_all_rep_premeas[i,:] = reco_all_rep 
             
             if i==0:
-                reco_testset = all_scans  
+                reco_testset = reco_all_rep  
     
     #reco_all_rep_premeas=reco_all_rep_premeas.reshape([nmb_samples,3,sz[0],sz[1],2]).permute([0,1,3,2,4]).flip([2,3]).reshape([nmb_samples,3,NVox,2])
     target_db=target_db.reshape([nmb_samples,sz[0],sz[1],1]).permute([0,2,1,3]).flip([1,2]).reshape([nmb_samples,NVox,1])
@@ -589,10 +589,10 @@ def phi_FRP_model(opt_params,aux_params):
            
         reco_sep = scanner.adjoint_separable()
         
-        all_scans=torch.zeros((extraRep,reco_sep.shape[1],2))
+        reco_all_rep=torch.zeros((extraRep,reco_sep.shape[1],2))
         for j in range(0,extraRep):
-            all_scans[j,:,:] = reco_sep[meas_indices[j,:],:,:].sum(0)
-        reco_all_rep = all_scans        
+            reco_all_rep[j,:,:] = reco_sep[meas_indices[j,:],:,:].sum(0)
+    
     
     
     reco_all_rep = torch.sqrt((reco_all_rep**2).sum(2))
@@ -729,11 +729,10 @@ scanner.signal=scanner.signal/normmeas/NVox
            
 reco_sep = scanner.adjoint_separable()
         
-all_real_scans=torch.zeros((extraRep,reco_sep.shape[1],2))
+reco_all_rep=torch.zeros((extraRep,reco_sep.shape[1],2))
 for j in range(0,extraRep):
-    all_real_scans[j,:,:] = reco_sep[meas_indices[j,:],:,:].sum(0)
-    
-reco_all_rep= all_real_scans               
+    reco_all_rep[j,:,:] = reco_sep[meas_indices[j,:],:,:].sum(0)
+            
 reco_all_rep = torch.sqrt((reco_all_rep**2).sum(2))
 reco_all_rep = reco_all_rep.permute([1,0])
 
