@@ -194,27 +194,70 @@ for exp_current in experiment_list:
     for j in range(0,extraRep):
         reco_all_rep[j,:,:] = reco_sep[meas_indices[j,:],:,:].sum(0)
         
-    #Conventional Quantification of brain phantom    
-    target_sim_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0], sz[1], 2])
+    #Conventional Quantification of brain phantom
+    first_scan = reco_all_rep[0,:]
+    second_scan = reco_all_rep[1,:]
+    third_scan = reco_all_rep[2,:]
+    mag_echo1 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
+    mag_echo2 = magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2]))
+    mag_echo3 = magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2]))
+    
+    magmask = mag_echo3 > np.mean(mag_echo3.ravel())/6.3
+    magmask=magmask.astype(float)
+    
+    mag_echo13 = np.abs((1-mag_echo1/(mag_echo3+1e-12)))
+    mag_echo23 = np.abs(1-mag_echo2/(mag_echo3+1e-12))
+    
+    dTI13 = torch.abs(event_time[-1,0])
+    dTI23 =  torch.abs(event_time[-1,:measRepStep+1].sum() )
+    
+    T1map1= -tonumpy(dTI13)/np.log(mag_echo13 + 1e-12)
+    T1map2= -tonumpy(dTI23)/np.log(mag_echo23 + 1e-12)
+    T1map1 = T1map1*magmask
+    T1map2 = T1map2*magmask
+    
+    target_sim_reco_adjoint = T1map2
     
     # real measurement
-    scanner.export_to_pulseq(experiment_id, date_str, sequence_class)
-    scanner.send_job_to_real_system(experiment_id,date_str,jobtype="lastiter")
-    scanner.get_signal_from_real_system(experiment_id,date_str,jobtype="lastiter")
-    spin_db_input = np.zeros((1, sz[0], sz[1], 5), dtype=np.float32)
-    core.FID_normscan.make_FID(spin_db_input[0,:,:,:],do_scanner_query = True)
-
-    normmeas=torch.from_numpy(np.load("auxutil/normmeas.npy"))
-    scanner.signal=scanner.signal/normmeas/NVox
-    reco_sep_meas = scanner.adjoint_separable()
-
+    if do_real_meas:
+        scanner.export_to_pulseq(experiment_id, date_str, sequence_class)
+        scanner.send_job_to_real_system(experiment_id,date_str,jobtype="lastiter")
+        scanner.get_signal_from_real_system(experiment_id,date_str,jobtype="lastiter")
+        spin_db_input = np.zeros((1, sz[0], sz[1], 5), dtype=np.float32)
+        core.FID_normscan.make_FID(spin_db_input[0,:,:,:],do_scanner_query = True)
     
-    reco_all_rep_meas=torch.zeros((extraRep,reco_sep.shape[1],2))
-    for j in range(0,extraRep):
-        reco_all_rep_meas[j,:,:] = reco_sep_meas[meas_indices[j,:],:,:].sum(0)
+        normmeas=torch.from_numpy(np.load("auxutil/normmeas.npy"))
+        scanner.signal=scanner.signal/normmeas/NVox
+        reco_sep_meas = scanner.adjoint_separable()
+    
         
-    #Conventional Quantification of real measurement
-    target_real_reco_adjoint = tonumpy(scanner.reco.detach()).reshape([sz[0],sz[1],2])
+        reco_all_rep_meas=torch.zeros((extraRep,reco_sep.shape[1],2))
+        for j in range(0,extraRep):
+            reco_all_rep_meas[j,:,:] = reco_sep_meas[meas_indices[j,:],:,:].sum(0)
+            
+        #Conventional Quantification of real measurement
+        first_scan = reco_all_rep_meas[0,:]
+        second_scan = reco_all_rep_meas[1,:]
+        third_scan = reco_all_rep_meas[2,:]
+        mag_echo1 = magimg(tonumpy(first_scan).reshape([sz[0],sz[1],2]))
+        mag_echo2 = magimg(tonumpy(second_scan).reshape([sz[0],sz[1],2]))
+        mag_echo3 = magimg(tonumpy(third_scan).reshape([sz[0],sz[1],2]))
+        
+        magmask = mag_echo3 > np.mean(mag_echo3.ravel())/6.3
+        magmask=magmask.astype(float)
+        
+        mag_echo13 = np.abs((1-mag_echo1/(mag_echo3+1e-12)))
+        mag_echo23 = np.abs(1-mag_echo2/(mag_echo3+1e-12))
+        
+        dTI13 = torch.abs(event_time[-1,0])
+        dTI23 =  torch.abs(event_time[-1,:measRepStep+1].sum() )
+        
+        T1map1_meas = -tonumpy(dTI13)/np.log(mag_echo13 + 1e-12)
+        T1map2_meas = -tonumpy(dTI23)/np.log(mag_echo23 + 1e-12)
+        T1map1_meas = T1map1*magmask
+        T1map2_meas = T1map2*magmask
+        
+        target_sim_reco_adjoint = T1map2_meas
 
 
     ###########################################################################    
@@ -279,8 +322,9 @@ for exp_current in experiment_list:
         sim_reco_adjoint = tonumpy(NN(reco_all_rep)).reshape([sz[0],sz[1]])
         all_sim_reco_adjoint[lin_iter_counter] = sim_reco_adjoint
 
-        real_reco_adjoint = tonumpy(NN(reco_all_rep_meas)).reshape([sz[0],sz[1]])
-        all_real_reco_adjoint[lin_iter_counter] = real_reco_adjoint
+        if do_real_meas:
+            real_reco_adjoint = tonumpy(NN(reco_all_rep_meas)).reshape([sz[0],sz[1]])
+            all_real_reco_adjoint[lin_iter_counter] = real_reco_adjoint
 
 
         lin_iter_counter += 1
@@ -290,10 +334,14 @@ for exp_current in experiment_list:
 
     # target
     allreco_dict['target_sim_reco_adjoint'] = target_sim_reco_adjoint
-    allreco_dict['target_real_reco_adjoint'] = target_real_reco_adjoint
+    if do_real_meas:
+        allreco_dict['target_real_reco_adjoint'] = target_real_reco_adjoint
 
     # iterations
     allreco_dict['all_sim_reco_adjoint'] = all_sim_reco_adjoint
+    if do_real_meas:
+        allreco_dict['all_real_reco_adjoint'] = all_real_reco_adjoint
+
 
     allreco_dict['target_adc_mask'] = input_array_target['adc_mask']
     allreco_dict['target_target_B1'] = input_array_target['B1']
