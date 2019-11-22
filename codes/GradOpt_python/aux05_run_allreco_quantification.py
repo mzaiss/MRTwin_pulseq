@@ -257,7 +257,7 @@ for exp_current in experiment_list:
         T1map1_meas = T1map1*magmask
         T1map2_meas = T1map2*magmask
         
-        target_sim_reco_adjoint = T1map2_meas
+        target_real_reco_adjoint = T1map2_meas
 
 
     ###########################################################################    
