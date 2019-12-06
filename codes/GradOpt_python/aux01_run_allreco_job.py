@@ -230,8 +230,6 @@ for exp_current in experiment_list:
     fn_alliter_array = "alliter_arr.npy"
     alliter_array = np.load(os.path.join(os.path.join(fullpath_seq, fn_alliter_array)), allow_pickle=True)
     
-    xx
-    
     try:
         fn_NN_paramlist = "alliter_NNparamlist.npy"
         all_NN_params = np.load(os.path.join(os.path.join(fullpath_seq, fn_NN_paramlist)), allow_pickle=True)
