@@ -36,9 +36,9 @@ from core.pulseq_exporter import pulseq_write_EPI
 
 use_gpu = 0
 gpu_dev = 0
-recreate_pulseq_files = True
-recreate_pulseq_files_for_sim = True
-do_real_meas = True
+recreate_pulseq_files = False
+recreate_pulseq_files_for_sim = False
+do_real_meas = False
 get_real_meas = True               # this is to load existing seq.dat files when they were already measured completeley
 use_custom_iter_sel_scheme = True   # if this is false search for sampling_of_optiters
 
@@ -203,8 +203,9 @@ experiment_list = []
 #experiment_list.append(["190927", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_sardiv10"])
 #experiment_list.append(["190926", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom"])
 #experiment_list.append(["190926", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_highsarpenalty"])
-experiment_list.append(["191104", "p10_tgt_nonMR_nosar_norm64"])
-experiment_list.append(["191105", "p10_tgt_nonMR_nosar_norm96"])
+#experiment_list.append(["191104", "p10_tgt_nonMR_nosar_norm64"])
+#experiment_list.append(["191105", "p10_tgt_nonMR_nosar_norm96"])
+experiment_list.append(["191209", "t03_tgtRARE_tskRARE_96_inittotarget"])
 
 
 
@@ -412,7 +413,7 @@ for exp_current in experiment_list:
     
     
     if nmb_iter > max_nmb_iter:
-        non_increasing_error_iter = non_increasing_error_iter[(np.ceil(np.arange(0,nmb_iter,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
+        non_increasing_error_iter = non_increasing_error_iter[(np.ceil(np.arange(0,nmb_iter-1,np.float(nmb_iter)/max_nmb_iter))).astype(np.int32)]
         plt.plot(non_increasing_error_iter,itt[non_increasing_error_iter],"d")
        
    
