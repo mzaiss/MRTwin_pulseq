@@ -214,6 +214,8 @@ class OPT_helper():
         self.last_loss = None
         
         self.param_reco_history = []
+        self.error_history = []
+        self.sar_history = []
         
         self.target_seq_holder = None
         
@@ -427,6 +429,8 @@ class OPT_helper():
                     saved_state['meas_adj_reco'] = meas_reco
                 
                 self.param_reco_history.append(saved_state)      
+                self.error_history.append(self.last_error)      
+                self.sar_history.append(np.sum(saved_state['flips_angles']**2))      
                 
             if self.opti_mode == 'nevergrad':
                 # work in progress....
@@ -564,7 +568,12 @@ class OPT_helper():
                 recoimg = tonumpy(reco[0,:,:]).reshape([sz[0],sz[1],2])
                 PD0_mask = self.spins.PD0_mask[0,:,:]
             else:
-                recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
+                try:
+                    recoimg = tonumpy(reco).reshape([sz[0],sz[1],2])
+                except:
+                    recoimg = np.zeros([sz[0],sz[1],2])
+                    recoimg[:,:,0] = tonumpy(reco).reshape([sz[0],sz[1]])
+                    
                 PD0_mask = self.spins.PD0_mask
                 
             # clear previous figure stack            
@@ -634,14 +643,26 @@ class OPT_helper():
 
             fig.set_size_inches(18, 3)
             
-            plt.subplot(258)
-            ax=plt.imshow(tonumpy(phi.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
-            plt.ion()
-            plt.title('phase [\N{DEGREE SIGN}]')
-            plt.clim(-180,270)
-            fig = plt.gcf()
-            fig.colorbar(ax)
-            fig.set_size_inches(18, 3)
+            if len(self.sar_history) > 0:
+                sar_history = np.array(self.sar_history)
+                sar_history = 100*sar_history / sar_history[0]
+                
+                plt.subplot(258)
+                ax=plt.plot(np.array(self.error_history))
+                ax=plt.plot(sar_history)
+                plt.ion()
+                plt.title('error')
+                fig = plt.gcf()
+                plt.clim(0,100)
+    #            fig.colorbar(ax)
+            
+#            ax=plt.imshow(tonumpy(phi.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
+#            plt.ion()
+#            plt.title('phase [\N{DEGREE SIGN}]')
+#            plt.clim(-180,270)
+#            fig = plt.gcf()
+#            fig.colorbar(ax)
+#            fig.set_size_inches(18, 3)
             
             
             plt.subplot(154)
@@ -743,11 +764,11 @@ class OPT_helper():
         if platform == 'linux':
             hostname = socket.gethostname()
             if hostname == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron':
-                basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+                basepath = '/media/upload3t/CEST_seq/pulseq_zero'
             else:                                                     # cluster
                 basepath = 'out'
         else:
-            basepath = 'K:\CEST_seq\pulseq_zero\sequences'
+            basepath = 'K:\CEST_seq\pulseq_zero'
             basepath = path_from_file
             
         basepath_seq = os.path.join(basepath, 'sequences')
@@ -851,7 +872,7 @@ class OPT_helper():
 #        
         if self.NN is not None:
             for ni in range(NIter):
-                fp_nn_out = os.path.join(os.path.join(basepath, fn_NN_paramlist))
+                fp_nn_out = os.path.join(os.path.join(basepath_seq, fn_NN_paramlist))
                 torch.save(param_reco_history[ni]['NNparams'], fp_nn_out + str(ni) + '.pt')
         
         
@@ -913,6 +934,109 @@ class OPT_helper():
                     pulseq_write_BSSFP(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)
                 elif sequence_class.lower() == "epi":
                     pulseq_write_EPI(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)          
+                    
+    # save entire history of the optimized parameters
+    def save_param_reco_history_compact(self, experiment_id, today_datestr, sequence_class, generate_pulseq=True):
+        basepath, basepath_seq = self.get_base_path(experiment_id, today_datestr)
+        
+        fn_compact_iter_array = "compact_iter_arr.npy"
+        fn_NN_paramlist = "compact_iter_NNparamlist_"
+        
+        param_reco_history = self.param_reco_history    
+        NIter_effective = len(param_reco_history)
+        
+        compact_iteration_idx = np.arange(0,NIter_effective,NIter_effective//80)
+            
+        NIter_reduced = compact_iteration_idx.size    
+        
+        sz_x = self.scanner.sz[0]
+        sz_y = self.scanner.sz[1]
+        
+        T = self.scanner.T
+        NRep = self.scanner.NRep
+        
+        all_adc_masks = np.zeros((NIter_reduced,T))
+        all_flips = np.zeros((NIter_reduced,T,NRep,2))
+        all_event_times = np.zeros((NIter_reduced,T,NRep))
+        all_grad_moms = np.zeros((NIter_reduced,T,NRep,2))
+        all_kloc = np.zeros((NIter_reduced,T,NRep,2))
+        all_reco_images = np.zeros((NIter_reduced,sz_x,sz_y,2))
+        all_signals = np.zeros((NIter_reduced,self.scanner.NCoils,T,NRep,3))
+        all_errors = np.zeros((NIter_effective,1))
+        
+        for ni in range(NIter_effective):
+            all_errors[ni] = param_reco_history[ni]['error']    
+        
+        if 'extra_par_idx4' in param_reco_history[0]:
+            all_extra_par_idx4 = np.zeros((NIter_reduced,)+param_reco_history[0]['extra_par_idx4'].shape)
+        
+    #        all_NN_params = []
+    #        
+        if self.NN is not None:
+            for iter_idx, ni in enumerate(compact_iteration_idx):
+                fp_nn_out = os.path.join(os.path.join(basepath_seq, fn_NN_paramlist))
+                torch.save(param_reco_history[ni]['NNparams'], fp_nn_out + str(iter_idx) + '.pt')
+        
+        
+        for iter_idx, ni in enumerate(compact_iteration_idx):
+            all_adc_masks[iter_idx] = param_reco_history[ni]['adc_mask'].ravel()
+            all_flips[iter_idx] = param_reco_history[ni]['flips_angles']
+            all_event_times[iter_idx] = param_reco_history[ni]['event_times']
+            all_grad_moms[iter_idx] = param_reco_history[ni]['grad_moms']
+            all_kloc[iter_idx] = param_reco_history[ni]['kloc']
+            all_reco_images[iter_idx] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
+            all_signals[iter_idx] = param_reco_history[ni]['signal'].reshape([self.scanner.NCoils,T,NRep,3])
+            all_errors[iter_idx] = param_reco_history[ni]['error']
+            
+            if 'extra_par_idx4' in param_reco_history[0]:
+                all_extra_par_idx4[iter_idx] = param_reco_history[ni]['extra_par_idx4']
+        
+        alliter_dict = dict()
+        alliter_dict['all_adc_masks'] = all_adc_masks
+        alliter_dict['flips'] = all_flips
+        alliter_dict['event_times'] = all_event_times
+        alliter_dict['grad_moms'] = all_grad_moms
+        alliter_dict['all_kloc'] = all_kloc
+        alliter_dict['reco_images'] = all_reco_images
+        alliter_dict['all_signals'] = all_signals
+        alliter_dict['all_errors'] = all_errors
+        alliter_dict['sz'] = np.array([sz_x,sz_y])
+        alliter_dict['T'] = T
+        alliter_dict['NRep'] = NRep
+        alliter_dict['target'] = self.target
+        alliter_dict['sequence_class'] = sequence_class
+        alliter_dict['B1'] = tonumpy(self.scanner.B1)
+        alliter_dict['compact_iteration_idx'] = compact_iteration_idx
+        
+        if 'extra_par_idx4' in param_reco_history[0]:
+            alliter_dict['extra_par_idx4'] = all_extra_par_idx4
+        
+        try:
+            os.makedirs(basepath_seq)
+            os.makedirs(os.path.join(basepath_seq,"data"))
+        except:
+            pass
+        np.save(os.path.join(os.path.join(basepath_seq, fn_compact_iter_array)), alliter_dict)
+        
+        # generate sequence files
+        if generate_pulseq:
+            for iter_idx, ni in enumerate(compact_iteration_idx):
+                fn_pulseq = "iter" + str(iter_idx).zfill(6) + ".seq"
+                
+                flips_numpy = param_reco_history[ni]['flips_angles']
+                event_time_numpy = param_reco_history[ni]['event_times']
+                grad_moms_numpy = param_reco_history[ni]['grad_moms']    
+                
+                seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
+                
+                if sequence_class.lower() == "gre":
+                    pulseq_write_GRE(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)
+                elif sequence_class.lower() == "rare":
+                    pulseq_write_RARE(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)
+                elif sequence_class.lower() == "bssfp":
+                    pulseq_write_BSSFP(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)
+                elif sequence_class.lower() == "epi":
+                    pulseq_write_EPI(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)                       
         
         
     # save entire history of the optimized parameters (to Matlab)

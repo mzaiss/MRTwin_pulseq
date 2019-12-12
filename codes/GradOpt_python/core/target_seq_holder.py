@@ -215,7 +215,7 @@ class TargetSequenceHolder():
         if platform == 'linux':
             hostname = socket.gethostname()
             if hostname == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron':
-                basepath = '/media/upload3t/CEST_seq/pulseq_zero/sequences'
+                basepath = '/media/upload3t/CEST_seq/pulseq_zero'
             else:                                                     # cluster
                 basepath = 'out'
         else:

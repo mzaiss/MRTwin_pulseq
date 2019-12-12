@@ -5,7 +5,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss 
 """
 
-experiment_id = 'e24_tgtRARE_tskRARE96_lowSAR_phantom_highpass_scaler'
+experiment_id = 'p14_tgtRARE_supervised_basic96_div1'
 sequence_class = "RARE"
 experiment_description = """
 RARE, cpmg
@@ -26,7 +26,7 @@ import core.opt_helper
 import core.target_seq_holder
 
 use_gpu = 1
-gpu_dev = 2
+gpu_dev = 1
 
 if sys.platform != 'linux':
     use_gpu = 0
@@ -62,7 +62,7 @@ def stop():
     sys.tracebacklimit = 1000
 
 # define setup
-sz = np.array([64,64])                                           # image size
+sz = np.array([96,96])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
 NSpins = 6**2                                # number of spin sims in each voxel
@@ -98,8 +98,8 @@ real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 
-csz = 2
-nmb_samples = 2
+csz = 4
+nmb_samples = 128
 spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
 spin_db_input[:,:,:,1:3] = cutoff
 
@@ -296,6 +296,7 @@ for i in range(nmb_samples):
     #scanner.forward_fast_supermem(spins, event_time)    
     scanner.adjoint()
     target_db[i,:,:] = scanner.reco.clone().squeeze() 
+    print('iteration:', i)
   
 # since we optimize only NN reco part, we can save time by doing fwd pass (radial enc) on all training examples
 adjoint_reco_db = setdevice(torch.zeros((nmb_samples,NVox,2)).float())
@@ -380,8 +381,8 @@ def phi_FRP_model(opt_params,aux_params):
     scanner.forward_sparse_fast_supermem(spins, event_time)
     scanner.adjoint()
 
-    lbd_sar = sz[0]**2*1e-2
-
+    lbd_sar = sz[0]**2*1e-2 * 1e-3 * 0.5
+    
     loss_image = (scale_param*scanner.reco - tgt)
     #loss_image = (magimg_torch(scanner.reco) - magimg_torch(targetSeq.target_image))   # only magnitude optimization
     
@@ -417,7 +418,7 @@ opt.optimzer_type = 'Adam'
 opt.opti_mode = 'seq'
 # 
 opt.set_opt_param_idx([1,4]) # ADC, RF, time, grad
-opt.custom_learning_rate = [0.01,1e-2,1e-2,1e-2,1e-2]*10
+opt.custom_learning_rate = [0.01,1e-2,1e-2,1e-2,1e-2]
 
 opt.set_handles(init_variables, phi_FRP_model,reparameterize)
 opt.scanner_opt_params = opt.init_variables()
@@ -436,8 +437,10 @@ stop()
 
 # %% # save optimized parameter history
 targetSeq.export_to_matlab(experiment_id, today_datestr)
-opt.export_to_matlab(experiment_id, today_datestr)
-
-opt.save_param_reco_history(experiment_id,today_datestr,sequence_class,generate_pulseq=False)
-opt.save_param_reco_history_matlab(experiment_id,today_datestr)
 opt.export_to_pulseq(experiment_id, today_datestr, sequence_class)
+opt.save_param_reco_history_compact(experiment_id,today_datestr,sequence_class,generate_pulseq=False)
+
+#opt.export_to_matlab(experiment_id, today_datestr)
+#opt.save_param_reco_history(experiment_id,today_datestr,sequence_class,generate_pulseq=False)
+#opt.save_param_reco_history_matlab(experiment_id,today_datestr)
+

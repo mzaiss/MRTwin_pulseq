@@ -83,7 +83,7 @@ def stop():
 sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 25**2                                # number of spin sims in each voxel
+NSpins = 16**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -237,7 +237,7 @@ if True: # check sanity: is target what you expect and is sequence what you expe
     plt.show()
 
     scanner.do_SAR_test(flips, event_time)    
-        targetSeq.export_to_matlab(experiment_id, today_datestr)
+    targetSeq.export_to_matlab(experiment_id, today_datestr)
     if do_scanner_query:
         
         targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class)

@@ -192,7 +192,6 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
         idx_T = 0
         RFdur=0
         if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
-            slice_thickness = 200e-3     # slice
 
             # alternatively slice selective:
             RFdur = event_time_numpy[idx_T,rep]
@@ -215,7 +214,6 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
         idx_T = 2
         RFdur=0
         if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
-            slice_thickness = 200e-3     # slice
 
             # alternatively slice selective:
             RFdur = 0.4*1e-3
@@ -233,6 +231,7 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
             kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": gy_gradmom, "flat_time": dur}
             gy = make_trapezoid(kwargs_for_gy)   
             seq.add_block(gx,gy) 
+        seq.add_block(make_delay(event_time_numpy[idx_T,rep]-RFdur))
   
         ###              first readout (action 3 now)        
         idx_T = 3
