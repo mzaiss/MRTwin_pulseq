@@ -9,7 +9,7 @@ experiment desciption:
 
 """
 
-experiment_id = 'q13_real_invrec_seqNN_vivo'
+experiment_id = 'q14_tgtT1_tskT1invrec_supervised_seqNNvivo_wait2s.py'
 sequence_class = "gre_dream"
 experiment_description = """
 opt pitcher try different fwd procs
@@ -253,7 +253,7 @@ event_time[-1,:] = 2.9*1e-3
 for i in range(0,extraRep):
     event_time[2,i*measRepStep] = TI[i]
     if i>0:
-        event_time[-1,i*measRepStep-1] = 12       #delay after readout before next inversion ( only after the first event played out)
+        event_time[-1,i*measRepStep-1] = 4       #delay after readout before next inversion ( only after the first event played out)
 event_time = setdevice(event_time)
 
 TR=torch.sum(event_time[:,1])
@@ -719,7 +719,7 @@ if first_run:
 opt.learning_rate = 10*1e-4
 
 opt.optimzer_type = 'Adam'
-opt.opti_mode = 'seqnn'
+opt.opti_mode = 'nn'
 opt.batch_size = 3
 # 
 opt.set_opt_param_idx([2]) # ADC, RF, time, grad
@@ -785,6 +785,9 @@ plt.title("T1 conventional exp reco")
 plt.ion()
 
 # %% # save optimized parameter history
+for ni in range(len(opt.param_reco_history)):
+    opt.param_reco_history[ni]['reco_image'] = np.dstack((opt.param_reco_history[ni]['reco_image'],np.zeros((32,32))))
+
 
 opt.export_to_matlab(experiment_id, today_datestr)
 opt.save_param_reco_history(experiment_id,today_datestr,sequence_class,generate_pulseq=False)
