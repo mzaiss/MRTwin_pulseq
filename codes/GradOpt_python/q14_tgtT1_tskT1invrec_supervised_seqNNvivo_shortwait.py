@@ -46,7 +46,7 @@ use_gpu = 1
 gpu_dev = 3
 
 if sys.platform != 'linux':
-    use_gpu = 0
+    use_gpu = 1
     gpu_dev = 0
 
 
@@ -299,7 +299,11 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
     
 #scanner.forward_sparse_fast_supermem(spins, event_time)
 #scanner.forward_sparse_fast(spins, event_time)
+import stopwatch
+t = stopwatch.Stopwatch()
 scanner.forward_sparse_fast(spins, event_time,kill_transverse=kill_transverse)
+t.stop()
+print (t.duration )
 #scanner.forward_mem(spins, event_time)
 #scanner.forward(spins, event_time)
 #scanner.init_signal()
@@ -308,7 +312,7 @@ scanner.forward_sparse_fast(spins, event_time,kill_transverse=kill_transverse)
 normsim=torch.from_numpy(np.load("auxutil/normsim.npy"))
 print(normsim)
 scanner.signal=scanner.signal/normsim/NVox
-    
+
 reco_sep = scanner.adjoint_separable()
 
 reco_all_rep=torch.zeros((extraRep,reco_sep.shape[1],2))
