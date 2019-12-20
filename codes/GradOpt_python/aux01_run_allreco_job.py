@@ -207,7 +207,10 @@ experiment_list = []
 #experiment_list.append(["191105", "p10_tgt_nonMR_nosar_norm96"])
 #experiment_list.append(["191014", "p06_tgtGRESP_tskFLASH_FA_G_48_lowsar_supervised2px_adaptive_frelax"])
 #experiment_list.append(["191023", "p10_tgt_nonMR_nosar_norm48"])
-experiment_list.append(["191209", "t03_tgtRARE_tskRARE_96_inittotarget"])
+#experiment_list.append(["191209", "t03_tgtRARE_tskRARE_96_inittotarget"])
+#experiment_list.append(["191209", "e24_tgtRARE_tskRARE96_lowSAR_highpass_scaler_brainphantom_sardiv100"])
+#experiment_list.append(["191209", "p14_tgtRARE_supervised_basic96_lambda0.1"])
+experiment_list.append(["19paper", "p06_tgtGRESP_tskFLASH_FA_G_48_lowsar_supervised2px_adaptive_frelax"])
 
 
 
