@@ -93,7 +93,7 @@ def stop():
 
 # define setup
 kill_transverse = True
-sz = np.array([48,48])                                           # image size
+sz = np.array([16,16])                                           # image size
 extraRep = 3
 NRep = extraRep*sz[1] + 1                                   # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
@@ -834,8 +834,10 @@ opt.batch_size = 1
 # 
 opt.set_opt_param_idx([2]) # ADC, RF, time, grad
 opt.custom_learning_rate = [0.01,0.01,0.1,0.1]
-
-opt.train_model(training_iter=10000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
+if opt.opti_mode == 'nn':
+    opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=False) # save_intermediary_results=1 if you want to plot them later
+else:
+    opt.train_model(training_iter=10000, do_vis_image=False, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 
 # %% # run for real scan
 opt.export_to_pulseq(experiment_id, today_datestr, sequence_class)

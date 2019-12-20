@@ -9,7 +9,11 @@ experiment desciption:
 
 """
 
+<<<<<<< HEAD
+experiment_id = 'e44_predictT1'
+=======
 experiment_id = 'e31_predictT2_fromGRE_2Xmeas_gpu0'
+>>>>>>> 8e1f023b6d1a30fa5f08e61cb317e3dcf90044ce
 sequence_class = "GRE"
 experiment_description = """
 opt pitcher try different fwd procs
@@ -30,6 +34,22 @@ import core.nnreco
 import core.opt_helper
 import core.target_seq_holder
 
+<<<<<<< HEAD
+from torch import nn
+import torch.nn.functional as F
+import torch.utils.data as tdatautils
+from torch.autograd import Variable
+from torch.utils.data import Dataset, DataLoader
+import fastai
+print(sys.modules['fastai'])
+from fastai.vision import *
+from fastai.callbacks.hooks import *
+from fastai.torch_core import *
+
+from torch.utils.data import Dataset, DataLoader
+
+=======
+>>>>>>> 8e1f023b6d1a30fa5f08e61cb317e3dcf90044ce
 from importlib import reload
 reload(core.scanner)
 
@@ -119,8 +139,13 @@ real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 spins.set_system(real_phantom_resized)
 
+<<<<<<< HEAD
+csz = 22
+nmb_samples = 1
+=======
 csz = 2
 nmb_samples = 10
+>>>>>>> 8e1f023b6d1a30fa5f08e61cb317e3dcf90044ce
 spin_db_input = np.zeros((nmb_samples, sz[0], sz[1], 5), dtype=np.float32)
 
 for i in range(nmb_samples):
@@ -140,12 +165,20 @@ for i in range(nmb_samples):
             spin_db_input[i,j,k,2] = t2
             spin_db_input[i,j,k,3] = b0
             
+<<<<<<< HEAD
+#spin_db_input[0,:,:,:] = real_phantom_resized
+=======
 spin_db_input[0,:,:,:] = real_phantom_resized
+>>>>>>> 8e1f023b6d1a30fa5f08e61cb317e3dcf90044ce
             
 tmp = spin_db_input[:,:,:,1:3]
 tmp[tmp < cutoff] = cutoff
 spin_db_input[:,:,:,1:3] = tmp
 
+<<<<<<< HEAD
+spins.set_system(spin_db_input[0,:,:,:])
+=======
+>>>>>>> 8e1f023b6d1a30fa5f08e61cb317e3dcf90044ce
 #sigma = 0.8
 #for i in range(nmb_samples):
 #    for j in range(3):
@@ -487,6 +520,21 @@ for i in range(nmb_samples):
     second_scan = reco_sep[second_meas,:,:].sum(0)    
     third_scan = reco_sep[third_meas,:,:].sum(0)    
     reco_all_rep_premeas[i,:] = torch.stack((first_scan,second_scan,third_scan),0)    
+<<<<<<< HEAD
+
+    
+#test_signal = torch.reshape(reco_all_rep_premeas,[nmb_samples,3,24,24,2])
+#test_target = torch.reshape(target_db,[nmb_samples,24,24])
+
+#plt.imshow((np.abs(np.array(test_signal[0,0,:,:,0])+1j*np.array(test_signal[0,0,:,:,1]))))
+#plt.imshow((np.abs(np.array(test_signal[0,0,:,:,0])+1j*np.array(test_signal[0,0,:,:,1])))/(np.abs(np.array(test_signal[0,1,:,:,0])+1j*np.array(test_signal[0,1,:,:,1]))))
+#plt.imshow(test_target[0,:,:])
+
+X = torch.reshape(reco_all_rep_premeas.permute((0,2,1,3)),[-1,6])
+Y = torch.reshape(target_db,[nmb_samples,24,24]).flatten()
+
+class FullDataset(Dataset):
+=======
     
     test_signal = torch.reshape(reco_all_rep_premeas,[10,3,24,24,2])
     test_target = torch.reshape(target_db,[10,24,24])
@@ -498,11 +546,16 @@ for i in range(nmb_samples):
     Y = torch.reshape(target_db,[10,24,24]).flatten()
     
     class FullDataset(Dataset):
+>>>>>>> 8e1f023b6d1a30fa5f08e61cb317e3dcf90044ce
     def __init__(self, X, Y, transform=None):
         self.X = X
         self.Y = Y
         self.transform = transform
+<<<<<<< HEAD
+    
+=======
 
+>>>>>>> 8e1f023b6d1a30fa5f08e61cb317e3dcf90044ce
     def __getitem__(self, index):
         # This method should return only 1 sample and label 
         # (according to "index"), not the whole dataset
@@ -510,6 +563,20 @@ for i in range(nmb_samples):
         x = self.X[index]
         y = self.Y[index]
         return x, y
+<<<<<<< HEAD
+    
+    def __len__(self):
+        return len(self.X)
+    
+full_dataset = FullDataset(X,Y)
+    
+train_size = int(0.8 * len(full_dataset))
+test_size = len(full_dataset) - train_size
+
+train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
+
+    
+=======
 
     def __len__(self):
         return len(self.X)
@@ -519,6 +586,7 @@ for i in range(nmb_samples):
     
     train_ds, valid_ds = ArrayDataset(train_x, train_y), ArrayDataset(valid_x, valid_y)
 
+>>>>>>> 8e1f023b6d1a30fa5f08e61cb317e3dcf90044ce
 stop()
 
 # %% ###     OPTIMIZATION functions init ######################################################
@@ -557,7 +625,33 @@ def init_variables():
     
 # Create NN model
     
+<<<<<<< HEAD
+ class MLPModel(nn.Module):
+    def __init__(self, num_features, dropout=0.25, n_hid=8):
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Linear(num_features, n_hid),
+            nn.ReLU(),
+            nn.BatchNorm1d(n_hid),
+            nn.Linear(n_hid, n_hid),
+            nn.ReLU(),
+            nn.BatchNorm1d(n_hid),
+            nn.Dropout(dropout),
+            nn.Linear(n_hid, 1),
+        )
+        for m in self.model:
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight)
+                nn.init.constant_(m.bias, 0)
+
+    def forward(self, input_tensor):
+        return self.model(input_tensor)
+    
+model
+       
+=======
         
+>>>>>>> 8e1f023b6d1a30fa5f08e61cb317e3dcf90044ce
 # OPTIMIZATION land
 #nmb_hidden_neurons_list = [2*NRep,8,1]
 nmb_hidden_neurons_list = [6,8,8,8,1]
