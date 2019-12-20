@@ -2636,19 +2636,22 @@ class Scanner():
                 time.sleep(0.2)
                 
                 raw = np.loadtxt(raw_file)
+
                 
                 dp_twix = os.path.dirname(fnpath)
                 shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix))
                 
                 heuristic_shift = 4
-                
+                print("raw size: {} ".format(raw.size) + "expected size: {} ".format("raw size: {} ".format(self.NRep*ncoils*(self.NCol+heuristic_shift)*2)) )
+#                import pdb; pdb.set_trace();
+                                
                 if raw.size != self.NRep*ncoils*(self.NCol+heuristic_shift)*2:
                       print("get_signal_from_real_system: SERIOUS ERROR, TWIX dimensions corrupt, returning zero array..")
                       raw = np.zeros((self.NRep,ncoils,self.NCol+heuristic_shift,2))
-                      raw = raw[:,:,:-heuristic_shift,0] + 1j*raw[:,:,:-heuristic_shift,1]
+                      raw = raw[:,:,:(self.NCol-heuristic_shift),0] + 1j*raw[:,:,:(self.NCol-heuristic_shift),1]
                 else:
                       raw = raw.reshape([self.NRep,ncoils,self.NCol+heuristic_shift,2])
-                      raw = raw[:,:,:-heuristic_shift,0] + 1j*raw[:,:,:-heuristic_shift,1]
+                      raw = raw[:,:,:(self.NCol-heuristic_shift),0] + 1j*raw[:,:,:(self.NCol-heuristic_shift),1]
 #                      raw /= np.max(np.abs(raw))
 #                      raw /= 0.05*0.014/9
                 
@@ -2662,12 +2665,12 @@ class Scanner():
                 
                 # assume for now a single coil
                 
-                if self.NCoils==ncoils:  # mutli coil?
+                if self.NCoils==ncoils:  # correct multi coil?
                     all_coil_reco = torch.zeros((ncoils,self.NVox,2), dtype = torch.float32)
                     for coil_idx in range(ncoils):
                         self.signal[coil_idx,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))
                         self.signal[coil_idx,adc_idx,:,1,0] = self.setdevice(torch.from_numpy(np.imag(raw[:,coil_idx,:])))
-                elif self.NCoils>1:  # mutli coil?
+                elif ncoils>2:  # pseudo mutli coil SOS
                     all_coil_reco = torch.zeros((ncoils,self.NVox,2), dtype = torch.float32)
                     for coil_idx in range(ncoils):
                         self.signal[0,adc_idx,:,0,0] = self.setdevice(torch.from_numpy(np.real(raw[:,coil_idx,:])))
