@@ -8,12 +8,12 @@ sequence_class = "gre_dream"
 experiment_description = """
 FID or 1 D imaging / spectroscopy
 """
-excersize = """
+excercise = """
 A01.1. alter flipangle flips[3,0,0], find flip angle for max signal, guess function signal(flip_angle) ~= ...
 A01.2. set flip to 90, alter number of spins
 A01.3. alter phase and adc rot
 A01.4. alter event_time
-A01.5. fit signal, alter R2star
+A01.5. fit signal, alter R2star, where does the deviation come from?
 A01.6. alter dB0
 """
 #%%
@@ -109,7 +109,7 @@ real_phantom = np.zeros((128,128,5), dtype=np.float32); real_phantom[64:80,64:80
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
-    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
+    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_NEAREST)
     if i == 0:
         t[t < 0] = 0
     elif i == 1 or i == 2:
@@ -117,7 +117,7 @@ for i in range(5):
     real_phantom_resized[:,:,i] = t
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
-real_phantom_resized[:,:,2] *= 100000 # Tweak T2
+real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] += 0 # Tweak dB0
 real_phantom_resized[:,:,4] *= 1 # Tweak rB1
 
@@ -133,7 +133,7 @@ for i in range(5):
 fig.set_size_inches(18, 3)
 plt.show()
    
-#begin nspins with R*
+#begin nspins with R2* = 1/T2*
 R2star = 250.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
@@ -204,9 +204,9 @@ fig.set_size_inches(64, 7)
 plt.show()
                         
 #%%
-t=np.cumsum(tonumpy(event_time).ravel())
+t=np.cumsum(tonumpy(event_time).transpose().ravel())
 y=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
-t=t[6:-2]; y=y[6:-2]
+t=t[5:-2]; y=y[5:-2]
 def fit_func(t, a, R,c):
     return a*np.exp(-R*t) + c   
 

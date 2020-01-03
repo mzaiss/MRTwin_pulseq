@@ -3,12 +3,22 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'ex01_FID'
+experiment_id = 'exA02_spinecho'
 sequence_class = "gre_dream"
 experiment_description = """
-FID or 1 D imaging / spectroscopy
+SE or 1 D imaging / spectroscopy
 """
-
+excercise = """
+A01.1. alter flipangle flips[3,0,0], find flip angle for max signal, guess function signal(flip_angle) ~= ...
+A01.2. set flip to 90, alter number of spins
+A01.3. alter phase and adc rot
+A01.4. alter event_time
+A01.5. fit signal, alter R2star
+A01.6. alter dB0
+"""
+#%%
+#matplotlib.pyplot.close(fig=None)
+#%%
 import os, sys
 import numpy as np
 import scipy
@@ -24,6 +34,10 @@ import core.nnreco
 import core.opt_helper
 import core.target_seq_holder
 import core.FID_normscan
+import warnings
+import matplotlib.cbook
+warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
+
 
 from importlib import reload
 reload(core.scanner)
@@ -73,10 +87,10 @@ def setdevice(x):
 sz = np.array([4,4])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 3                                    # number of total repetitions
-szread=512
-T = szread + 7                               # number of events F/R/P
-NSpins = 25**2                               # number of spin sims in each voxel
+NRep = 16                                    # number of total repetitions
+szread=128
+T = szread + 5 + 2                               # number of events F/R/P
+NSpins = 26**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -95,7 +109,7 @@ real_phantom = np.zeros((128,128,5), dtype=np.float32); real_phantom[64:80,64:80
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
-    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
+    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_NEAREST)
     if i == 0:
         t[t < 0] = 0
     elif i == 1 or i == 2:
@@ -109,18 +123,19 @@ real_phantom_resized[:,:,4] *= 1 # Tweak rB1
 
 spins.set_system(real_phantom_resized)
 
-param=['PD','T1','T2','dB0','rB1']
-for i in range(5):
-    plt.subplot(151+i), plt.title(param[i])
-    ax=plt.imshow(real_phantom_resized[:,:,i], interpolation='none')
-    fig = plt.gcf()
-    fig.colorbar(ax) 
-fig.set_size_inches(18, 3)
-plt.show()
+if 0:
+    param=['PD','T1','T2','dB0','rB1']
+    for i in range(5):
+        plt.subplot(151+i), plt.title(param[i])
+        ax=plt.imshow(real_phantom_resized[:,:,i], interpolation='none')
+        fig = plt.gcf()
+        fig.colorbar(ax) 
+    fig.set_size_inches(18, 3)
+    plt.show()
    
 #begin nspins with R*
-R2star = 750.0
-omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5+1e-5    # cutoff might bee needed for opt.
+R2star = 50.0
+omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
 omega = R2star * np.tan ( np.pi  * omega)
@@ -151,14 +166,14 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-flips[3,1,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-flips[3,1,1] = -90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[3,0,1] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[3,1:,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 flips = setdevice(flips)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(flips)
 # rotate ADC according to excitation phase
 rfsign = ((flips[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-flips[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -179,16 +194,40 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward(spins, event_time)
-scanner.signal=scanner.signal/NVox
-    
+  
+fig=plt.figure("""signals""")
 ax1=plt.subplot(131)
-ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel())
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel())
+ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label='real')
+plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel(),label='imag')
 plt.title('signal')
+plt.legend()
 plt.ion()
-fig=plt.gcf()
-fig.set_size_inches(96, 7)
+
+fig.set_size_inches(64, 7)
 plt.show()
                         
-    
+#%%
+tfull=np.cumsum(tonumpy(event_time).transpose().ravel())
+yfull=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
+idx=tonumpy(scanner.signal[0,:,:,0,0]).transpose().argmax(1)
+idx=idx + np.linspace(0,(NRep-1)*len(event_time[:,0]),NRep,dtype=np.int64)
+t=tfull[idx]
+y=yfull[idx]
+def fit_func(t, a, R,c):
+    return a*np.exp(-R*t) + c   
+
+p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
+print(p[0][1])
+
+fig=plt.figure("""fit""")
+ax1=plt.subplot(131)
+ax=plt.plot(tfull,yfull,label='fulldata')
+ax=plt.plot(t,y,label='data')
+plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
+plt.title('fit')
+plt.legend()
+plt.ion()
+
+fig.set_size_inches(64, 7)
+plt.show()
             
