@@ -1,2 +1,0 @@
-SUBDIRS = src matlab doc
-
