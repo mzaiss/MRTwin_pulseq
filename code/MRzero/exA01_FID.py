@@ -10,10 +10,10 @@ FID or 1 D imaging / spectroscopy
 """
 excercise = """
 A01.1. alter flipangle flips[3,0,0], find flip angle for max signal, guess function signal(flip_angle) ~= ...
-A01.2. set flip to 90, alter number of spins
+A01.2. set flip to 90 and alter number of spins: How many spins are at least needed to get good approximation of NSpins=Inf.
 A01.3. alter phase and adc rot
 A01.4. alter event_time
-A01.5. fit signal, alter R2star, where does the deviation come from?
+A01.5. uncomment FITTING BLOCK, fit signal, alter R2star, where does the deviation come from?
 A01.6. alter dB0
 """
 #%%
@@ -87,7 +87,7 @@ def setdevice(x):
 sz = np.array([4,4])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 16                                    # number of total repetitions
+NRep = 1                                    # number of total repetitions
 szread=128
 T = szread + 5 + 2                               # number of events F/R/P
 NSpins = 26**2                               # number of spin sims in each voxel
@@ -202,24 +202,24 @@ plt.ion()
 fig.set_size_inches(64, 7)
 plt.show()
                         
-#%%
-t=np.cumsum(tonumpy(event_time).transpose().ravel())
-y=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
-t=t[5:-2]; y=y[5:-2]
-def fit_func(t, a, R,c):
-    return a*np.exp(-R*t) + c   
-
-p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
-print(p[0][1])
-
-fig=plt.figure("""fit""")
-ax1=plt.subplot(131)
-ax=plt.plot(t,y,label='data')
-plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
-plt.title('fit')
-plt.legend()
-plt.ion()
-
-fig.set_size_inches(64, 7)
-plt.show()
+#%%  FITTING BLOCK
+#t=np.cumsum(tonumpy(event_time).transpose().ravel())
+#y=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
+#t=t[5:-2]; y=y[5:-2]
+#def fit_func(t, a, R,c):
+#    return a*np.exp(-R*t) + c   
+#
+#p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
+#print(p[0][1])
+#
+#fig=plt.figure("""fit""")
+#ax1=plt.subplot(131)
+#ax=plt.plot(t,y,label='data')
+#plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
+#plt.title('fit')
+#plt.legend()
+#plt.ion()
+#
+#fig.set_size_inches(64, 7)
+#plt.show()
             
