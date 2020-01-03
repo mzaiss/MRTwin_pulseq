@@ -3,7 +3,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'exA02_spinecho'
+experiment_id = 'solA02_spinecho'
 sequence_class = "gre_dream"
 experiment_description = """
 SE or 1 D imaging / spectroscopy
@@ -89,7 +89,7 @@ def setdevice(x):
 sz = np.array([4,4])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 4                                  # number of total repetitions
+NRep = 16                                    # number of total repetitions
 szread=128
 T = szread + 5 + 2                               # number of events F/R/P
 NSpins = 26**2                               # number of spin sims in each voxel
@@ -137,7 +137,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 250.0
+R2star = 30.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
@@ -169,16 +169,18 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[3,0,1] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[3,1:,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 flips = setdevice(flips)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(flips)
 # rotate ADC according to excitation phase
 rfsign = ((flips[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-flips[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[:,0] =  0.08*1e-3
+event_time[:,0] =  0.04*1e-3
 event_time = setdevice(event_time)
 
 # gradient-driver precession

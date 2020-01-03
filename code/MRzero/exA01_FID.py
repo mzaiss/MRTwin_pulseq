@@ -87,9 +87,9 @@ def setdevice(x):
 sz = np.array([4,4])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 1                                   # number of total repetitions
-szread=256
-T = szread + 7                               # number of events F/R/P
+NRep = 16                                    # number of total repetitions
+szread=128
+T = szread + 5 + 2                               # number of events F/R/P
 NSpins = 26**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
@@ -103,8 +103,8 @@ NVox = sz[0]*sz[1]
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
 cutoff = 1e-12
-#real_phantom = scipy.io.loadmat('../data/phantom2D.mat')['phantom_2D']
-#real_phantom = scipy.io.loadmat('../data/numerical_brain_cropped.mat')['cropped_brain']
+#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+#real_phantom = scipy.io.loadmat('../data/data/numerical_brain_cropped.mat')['cropped_brain']
 real_phantom = np.zeros((128,128,5), dtype=np.float32); real_phantom[64:80,64:80,:2]=1; real_phantom[64:80,64:80,2]=0.1; real_phantom[64:80,64:80,3]=0; real_phantom[64:80,64:80,4]=1;
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
@@ -168,7 +168,6 @@ flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 flips = setdevice(flips)  
 scanner.set_flip_tensor_withB1plus(flips)
-
 # rotate ADC according to excitation phase
 rfsign = ((flips[3,:,0]) < 0).float()
 scanner.set_ADC_rot_tensor(-flips[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
@@ -194,8 +193,8 @@ scanner.forward(spins, event_time)
   
 fig=plt.figure("""signals""")
 ax1=plt.subplot(131)
-ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label=str(NSpins))
-#plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel(),label=str(NSpins))
+ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label='real')
+plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel(),label='imag')
 plt.title('signal')
 plt.legend()
 plt.ion()
