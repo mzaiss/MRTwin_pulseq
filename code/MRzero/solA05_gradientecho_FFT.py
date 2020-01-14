@@ -164,7 +164,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[3,:,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 flips = setdevice(flips)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(flips)
