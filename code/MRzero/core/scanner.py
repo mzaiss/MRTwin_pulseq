@@ -155,9 +155,20 @@ class Scanner():
         
         off = 1 / dim
         if dim == torch.floor(dim):
+
             xv, yv = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
-            xv = xv + (torch.randn(xv.shape))*off
-            yv = yv + (torch.randn(yv.shape))*off
+            # this generates an anti-symmetric distribution in x
+            Rx1= torch.randn(torch.Size([dim.int()/2,dim.int()]))*off
+            Rx2=-torch.flip(Rx1, [0])
+            Rx= torch.cat((Rx1, Rx2),0)
+            # this generates an anti-symmetric distribution in y
+            Ry1= torch.randn(torch.Size([dim.int(),dim.int()/2]))*off
+            Ry2=-torch.flip(Ry1, [1])
+            Ry= torch.cat((Ry1, Ry2),1)
+                        
+            xv = xv + Rx
+            yv = yv + Ry
+
             intravoxel_dephasing_ramp = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
         else:
             class ExecutionControl(Exception): pass
