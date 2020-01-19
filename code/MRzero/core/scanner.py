@@ -464,6 +464,10 @@ class Scanner():
         if sequence_class.lower() == "gre" or sequence_class.lower() == "bssfp":
             pass
         
+        if sequence_class.lower() == "gre_dream" :
+            temp[0:4,:,:]=0
+            k=torch.cumsum(temp,0)
+        
         if sequence_class.lower() == "rare":
             refocusing_pulse_action_idx = 1
             kloc = 0
@@ -2740,6 +2744,10 @@ class Scanner_fast(Scanner):
         
         if sequence_class.lower() == "gre" or sequence_class.lower() == "bssfp":
             pass
+        
+        if sequence_class.lower() == "gre_dream" :
+            temp[0:4,:,:]=0
+            k=torch.cumsum(temp,0)
         
         if sequence_class.lower() == "rare":
             refocusing_pulse_action_idx = 1
