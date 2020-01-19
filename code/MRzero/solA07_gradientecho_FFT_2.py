@@ -3,19 +3,14 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'exA04_gradient_echo'
+experiment_id = 'exA07_gradientecho_FFT_2'
 sequence_class = "gre_dream"
 experiment_description = """
-GRE or 1 D imaging / spectroscopy
+FID or 1 D imaging / spectroscopy
 """
 excercise = """
-this file starts from solA04. we want now to have the same echo in every repetition
-A05.1. have the same flips, event times and gradmoms for every repetition, add recover time in last action as in A03
-A05.2. what is the recover time needed to have same echo amplitudes? is there a general rule for this? 
-A05.3. alter the position of the pixel in the image in line 110. what do you observe?
-A05.4. set a second pixel (activate line 111). What do you observe?
-A05.5. try [8,:,:] and [:,8,:] in line 110. what do you observe?
-A05.6. instead of x gradient use a y gradient moment gradmom[:,:,1]
+A06.1. to separate different frequencies, perform a fourier transform of the signal.
+A06.2. 
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -64,7 +59,10 @@ def tonumpy(x):
 
 # get magnitude image
 def magimg(x):
-  return np.sqrt(np.sum(np.abs(x)**2,2))
+    return np.sqrt(np.sum(np.abs(x)**2,2))
+
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
 
 def magimg_torch(x):
   return torch.sqrt(torch.sum(torch.abs(x)**2,1))
@@ -84,13 +82,12 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([12,12])                      # image size
+sz = np.array([24,24])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 4                                  # number of total repetitions
-szread=128
+szread=24
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 12**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -103,21 +100,30 @@ NVox = sz[0]*szread
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
 cutoff = 1e-12
-#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 #real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-real_phantom_resized[6,6,:]=np.array([1, 1, 0.1, 0,0])
-real_phantom_resized[4,4,:]=np.array([0.25, 1, 0.1, 0,0])
+for i in range(5):
+    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_NEAREST)
+    if i == 0:
+        t[t < 0] = 0
+    elif i == 1 or i == 2:
+        t[t < cutoff] = cutoff        
+    real_phantom_resized[:,:,i] = t
+    
+#real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
+#real_phantom_resized[6,6,:]=np.array([1.0, 1, 0.1, 0,0])
+#real_phantom_resized[2,3,:]=np.array([0.5,    1, 0.1, 0,0])
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] += 0 # Tweak dB0
+real_phantom_resized[:,:,3] *= 3 # Tweak dB0
 real_phantom_resized[:,:,4] *= 1 # Tweak rB1
 
 spins.set_system(real_phantom_resized)
 
-if 1:
+if 0:
     plt.figure("""phantom""")
     param=['PD','T1','T2','dB0','rB1']
     for i in range(5):
@@ -166,12 +172,12 @@ scanner.init_flip_tensor_holder()
 scanner.set_flip_tensor_withB1plus(flips)
 # rotate ADC according to excitation phase
 rfsign = ((flips[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-flips[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[:,0] =  0.08*1e-3
-event_time[-1,:] =  5
+event_time[-1,:] =  10
 event_time = setdevice(event_time)
 
 # gradient-driver precession
@@ -179,6 +185,7 @@ event_time = setdevice(event_time)
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 grad_moms[4,:,1] = -0.5*szread
 grad_moms[5:-2,:,1] = 1
+grad_moms[4,:,0] = torch.arange(0,sz[0],1)-sz[0]/2
 grad_moms = setdevice(grad_moms)
 
 scanner.init_gradient_tensor_holder()
@@ -186,29 +193,81 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 ## end S3: MR sequence definition ::: #####################################
 
 
+
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
   
-fig=plt.figure("""seq and signal""")
-plt.subplot(311)
-ax=plt.plot(np.tile(tonumpy(adc_mask),NRep).transpose().ravel(),'.',label='ADC')
-ax=plt.plot(tonumpy(event_time).transpose().ravel(),'.',label='time')
-ax=plt.plot(tonumpy(flips[:,:,0]).transpose().ravel(),label='RF')
-plt.legend()
-plt.subplot(312)
-ax=plt.plot(tonumpy(grad_moms[:,:,0]).transpose().ravel(),label='gx')
-ax=plt.plot(tonumpy(grad_moms[:,:,1]).transpose().ravel(),label='gy')
-plt.legend()
-plt.subplot(313)
-ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel(),label='imag')
-plt.title('signal')
-plt.legend()
-plt.ion()
+#%% ############################################################################
+## S5: MR reconstruction of signal ::: #####################################
 
-fig.set_size_inches(64, 7)
-plt.show()
-                        
+plt.subplot(311)
+spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) # get all complex DC signals
+spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # generate complex signal
+plt.plot(np.transpose(np.real(spectrum)).flatten(),label='real')
+plt.plot(np.transpose(np.imag(spectrum)).flatten(),label='imag')
+major_ticks = np.arange(0, szread*NRep, szread)
+ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+space = np.zeros_like(spectrum)
+spectrum = np.roll(spectrum,szread//2,axis=0)
+spectrum = np.roll(spectrum,NRep//2,axis=1)
+
+for i in range(0,NRep):
+    space[:,i] = np.fft.ifft(spectrum[:,i])
+space = np.fft.ifft2(spectrum)
+# fftshift
+space= np.roll(space,szread//2-1,axis=0)
+space = np.roll(space,NRep//2-1,axis=1)
+plt.subplot(312)
+plt.plot(np.abs(np.transpose(space).ravel()))
+plt.plot(np.imag(np.transpose(space).ravel()))
+ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
             
+plt.subplot(3,5,11)
+plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
+
+space = np.fft.ifft2(spectrum)
+space = np.roll(space,szread//2-1,axis=0)
+space = np.roll(space,NRep//2-1,axis=1)
+space = np.flip(space,(0,1))
+        
+plt.subplot(3,5,12)
+plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread)
+plt.subplot(3,5,13)
+plt.imshow(np.angle(space)*(np.abs(space)>0.2*np.max(np.abs(space))), interpolation='none',aspect = sz[0]/szread)
+#plt.imshow(np.imag(space), interpolation='none')
+scanner.adjoint()
+plt.subplot(3,5,14)
+plt.imshow(magimg(tonumpy(scanner.reco).reshape([sz[0],sz[1],2])), interpolation='none')
+plt.subplot(3,5,15)
+plt.imshow(phaseimg(tonumpy(scanner.reco).reshape([sz[0],sz[1],2])), interpolation='none')
+
+print(phaseimg(tonumpy(scanner.reco).reshape([sz[0],sz[1],2]))[10,10])
+plt.show()                     
+#%% FITTING BLOCK
+#tfull=np.cumsum(tonumpy(event_time).transpose().ravel())
+#yfull=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
+##yfull=tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel()
+#idx=tonumpy(scanner.signal[0,:,:,0,0]).transpose().argmax(1)
+#idx=idx + np.linspace(0,(NRep-1)*len(event_time[:,0]),NRep,dtype=np.int64)
+#t=tfull[idx]
+#y=yfull[idx]
+#def fit_func(t, a, R,c):
+#    return a*np.exp(-R*t) + c   
+#
+#p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
+#print(p[0][1])
+#
+#fig=plt.figure("""fit""")
+#ax1=plt.subplot(131)
+#ax=plt.plot(tfull,yfull,label='fulldata')
+#ax=plt.plot(t,y,label='data')
+#plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
+#plt.title('fit')
+#plt.legend()
+#plt.ion()
+#
+#fig.set_size_inches(64, 7)
+#plt.show()
+#            

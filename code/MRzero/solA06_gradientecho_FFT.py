@@ -86,7 +86,7 @@ sz = np.array([12,12])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
 NRep = 12                                  # number of total repetitions
-szread=12
+szread=128
 T = szread + 5 + 2                               # number of events F/R/P
 NSpins = 26**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -127,7 +127,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 30.0
+R2star = 0.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
@@ -177,7 +177,7 @@ event_time = setdevice(event_time)
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 grad_moms[4,:,1] = -0.5*szread
 grad_moms[5:-2,:,1] = 1
-grad_moms[4,:,0] = torch.arange(1,sz[0]+1,1)-4
+grad_moms[4,:,0] = torch.arange(0,sz[0],1)-sz[0]/2
 grad_moms = setdevice(grad_moms)
 
 scanner.init_gradient_tensor_holder()
@@ -202,8 +202,8 @@ plt.plot(np.transpose(np.imag(spectrum)).flatten(),label='imag')
 major_ticks = np.arange(0, szread*NRep, szread)
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
 space = np.zeros_like(spectrum)
-spectrum = np.roll(spectrum,szread//2-1,axis=0)
-spectrum = np.roll(spectrum,NRep//2-1,axis=1)
+spectrum = np.roll(spectrum,szread//2,axis=0)
+spectrum = np.roll(spectrum,NRep//2,axis=1)
 
 for i in range(0,NRep):
     space[:,i] = np.fft.ifft(spectrum[:,i])
