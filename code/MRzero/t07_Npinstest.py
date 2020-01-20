@@ -6,11 +6,11 @@ Created on Tue Jan 29 14:38:26 2019
 experiment_id = 'exA07_gradientecho_FFT_2'
 sequence_class = "gre_dream"
 experiment_description = """
-FID or 1 D imaging / spectroscopy
+this is a gre after a 80 degree prepulse
 """
 excercise = """
-A06.1. to separate different frequencies, perform a fourier transform of the signal.
-A06.2. 
+inrease the NSPINS until image quality is good.
+
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
