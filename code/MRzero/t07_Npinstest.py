@@ -188,6 +188,8 @@ grad_moms[1,:,:] = 30*szread
 grad_moms[4,:,1] = -0.5*szread
 grad_moms[5:-2,:,1] = 1
 grad_moms[4,:,0] = torch.arange(0,sz[0],1)-sz[0]/2
+#grad_moms[-2,:,1] = -0.5*szread
+#grad_moms[-2,:,0] = -grad_moms[4,:,0] 
 grad_moms = setdevice(grad_moms)
 
 scanner.init_gradient_tensor_holder()
