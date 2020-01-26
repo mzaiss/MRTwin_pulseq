@@ -84,7 +84,7 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([16,16])                      # image size
+sz = np.array([12,12])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
 NRep = 4                                  # number of total repetitions
@@ -95,7 +95,7 @@ NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
 import time; today_datestr = time.strftime('%y%m%d')
-NVox = sz[0]*sz[1]
+NVox = sz[0]*szread
 
 #############################################################################
 ## S1: Init spin system and phantom::: #####################################
@@ -107,7 +107,7 @@ cutoff = 1e-12
 #real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-real_phantom_resized[8,8,:]=np.array([1, 1, 0.1, 0,0])
+real_phantom_resized[6,6,:]=np.array([1, 1, 0.1, 0,0])
 #real_phantom_resized[7,7,:]=np.array([0.25, 1, 0.1, 0,0])
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
@@ -141,7 +141,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -160,7 +160,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+flips[3,0,0] = 90*np.pi/180  # 90deg excitation in first rep
 flips = setdevice(flips)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(flips)
@@ -192,24 +192,20 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 scanner.init_signal()
 scanner.forward(spins, event_time)
   
-fig=plt.figure("""seq and signal""")
-plt.subplot(311)
-ax=plt.plot(np.tile(tonumpy(adc_mask),NRep).transpose().ravel(),'.',label='ADC')
-ax=plt.plot(tonumpy(event_time).transpose().ravel(),'.',label='time')
-ax=plt.plot(tonumpy(flips[:,:,0]).transpose().ravel(),label='RF')
+fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
+plt.subplot(311); plt.title('seq: RF, time, ADC')
+plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
+plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
+plt.plot(tonumpy(flips[:,:,0]).flatten('F'),label='RF')
 plt.legend()
-plt.subplot(312)
-ax=plt.plot(tonumpy(grad_moms[:,:,0]).transpose().ravel(),label='gx')
-ax=plt.plot(tonumpy(grad_moms[:,:,1]).transpose().ravel(),label='gy')
+plt.subplot(312); plt.title('seq: gradients')
+plt.plot(tonumpy(grad_moms[:,:,0]).flatten('F'),label='gx')
+plt.plot(tonumpy(grad_moms[:,:,1]).flatten('F'),label='gy')
 plt.legend()
-plt.subplot(313)
-ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel(),label='imag')
-plt.title('signal')
+plt.subplot(313); plt.title('signal')
+plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
+plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
 plt.legend()
-plt.ion()
-
-fig.set_size_inches(64, 7)
 plt.show()
                         
             

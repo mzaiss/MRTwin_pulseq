@@ -3,19 +3,27 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solA05_gradientecho_pixel'
+experiment_id = 'solA06_gradientecho_freq_enc_FFT'
 sequence_class = "gre_dream"
 experiment_description = """
-GRE or 1 D imaging / spectroscopy
+GRE or 1 D imaging
 """
 excercise = """
-this file starts from solA04. we want now to have the same echo in every repetition
-A05.1. have the same flips, event times and gradmoms for every repetition, add recover time in last action as in A03
-A05.2. what is the recover time needed to have same echo amplitudes? is there a general rule for this? 
-A05.3. alter the position of the pixel in the image in line 110. what do you observe?
-A05.4. set a second pixel (activate line 111). What do you observe?
-A05.5. try [8,:,:] and [:,8,:] in line 110. what do you observe?
-A05.6. instead of x gradient use a y gradient moment gradmom[:,:,1]
+this file starts from solA05. we want now to create the 1D - fourier transform of the signal to get a 1D image.
+This is also called frequency encoding.
+A06.1. to speed things up: use scanner.forward_fast(spins, event_time), NRep =1
+A06.2  isolate only the signal when ADC is on: spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
+A06.3. to separate different frequencies, perform a fourier transform of the signal. Learn from sim02_fft.py
+A06.4. compare your result to the upsampled phantom:
+    
+        plt.subplot(313); plt.title('phantom projection')
+        t = cv2.resize(real_phantom_resized[:,:,0], dsize=(sz[0],szread), interpolation=cv2.INTER_NEAREST)
+        t=np.flipud(np.roll(t,-szread//sz[1]//2+1,0))  # this is needed due to the oversampling of the phantom, szread>sz
+        plt.plot(np.sum(t,axis=1).flatten('F'),label='real')
+        plt.show()  
+
+A06.5. what happens if you change y to x gradient encoding
+A06.6. what happens if you use both x and y gradients?
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -64,7 +72,10 @@ def tonumpy(x):
 
 # get magnitude image
 def magimg(x):
-  return np.sqrt(np.sum(np.abs(x)**2,2))
+    return np.sqrt(np.sum(np.abs(x)**2,2))
+
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
 
 def magimg_torch(x):
   return torch.sqrt(torch.sum(torch.abs(x)**2,1))
@@ -87,7 +98,7 @@ def setdevice(x):
 sz = np.array([12,12])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 4                                  # number of total repetitions
+NRep = 1                                  # number of total repetitions
 szread=128
 T = szread + 5 + 2                               # number of events F/R/P
 NSpins = 26**2                               # number of spin sims in each voxel
@@ -107,13 +118,8 @@ cutoff = 1e-12
 #real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-real_phantom_resized[6,6,:]=np.array([1, 1, 0.1, 0,0])
-real_phantom_resized[4,4,:]=np.array([0.25, 1, 0.1, 0,0]) # two pixels make two frquencies visible
-    
-real_phantom_resized[:,:,1] *= 1 # Tweak T1
-real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] += 0 # Tweak dB0
-real_phantom_resized[:,:,4] *= 1 # Tweak rB1
+real_phantom_resized[6,7,:]=np.array([1, 1, 0.1, 0,0])
+real_phantom_resized[4,3:5,:]=np.array([0.5, 1, 0.1, 0,0]) # two pixels make two frquencies visible
 
 spins.set_system(real_phantom_resized)
 
@@ -171,14 +177,16 @@ scanner.set_ADC_rot_tensor(-flips[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID spec
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[:,0] =  0.08*1e-3
-event_time[-1,:] =  5			# each rep has a long recovery phase at the end
+event_time[-1,:] =  5
 event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
-grad_moms[4,:,1] = -0.5*szread 	# each rep has now a rewinder event
-grad_moms[5:-2,:,1] = 1			# each rep has the same readout gradient 
+grad_moms[4,:,1] = -0.5*szread
+grad_moms[5:-2,:,1] = 1
+#grad_moms[4,:,0] = -0.5*szread *0.7
+#grad_moms[5:-2,:,0] = 1 *0.7
 grad_moms = setdevice(grad_moms)
 
 scanner.init_gradient_tensor_holder()
@@ -186,10 +194,12 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 ## end S3: MR sequence definition ::: #####################################
 
 
+
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward(spins, event_time)
+
   
 fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
 plt.subplot(311); plt.title('seq: RF, time, ADC')
@@ -206,5 +216,22 @@ plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
 plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
 plt.legend()
 plt.show()
-                        
-            
+
+#%% ############################################################################
+## S5: MR reconstruction of signal ::: #####################################
+fig=plt.figure("""Fourier Transform""")
+plt.subplot(311); plt.title('ADC signal')
+spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
+spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
+plt.plot(np.real(spectrum).flatten('F'),label='real')
+plt.plot(np.imag(spectrum).flatten('F'),label='imag')
+major_ticks = np.arange(0, szread*NRep, szread) # this adds ticks at the correct position szread
+ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+
+space = np.zeros_like(spectrum)
+
+plt.subplot(312); plt.title('FFT')
+plt.plot(np.abs(space.flatten('F')))
+plt.plot(np.imag(space.flatten('F')))
+ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+           

@@ -105,8 +105,8 @@ spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=do
 cutoff = 1e-12
 #real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 #real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
-real_phantom = np.zeros((128,128,5), dtype=np.float32); real_phantom[64:80,64:80,:2]=1; real_phantom[64:80,64:80,2]=0.1; real_phantom[64:80,64:80,3]=0
-
+real_phantom = np.zeros((128,128,5), dtype=np.float32)
+real_phantom[64:80,64:80,:]=np.array([1, 1, 0.1, 0,1])
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
     t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_NEAREST)

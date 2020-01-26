@@ -3,19 +3,31 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solA05_gradientecho_pixel'
+experiment_id = 'exA08_gradientecho_freq_phaae_enc_FFT2'
 sequence_class = "gre_dream"
 experiment_description = """
-GRE or 1 D imaging / spectroscopy
+GRE or 1 D imaging
 """
 excercise = """
-this file starts from solA04. we want now to have the same echo in every repetition
-A05.1. have the same flips, event times and gradmoms for every repetition, add recover time in last action as in A03
-A05.2. what is the recover time needed to have same echo amplitudes? is there a general rule for this? 
-A05.3. alter the position of the pixel in the image in line 110. what do you observe?
-A05.4. set a second pixel (activate line 111). What do you observe?
-A05.5. try [8,:,:] and [:,8,:] in line 110. what do you observe?
-A05.6. instead of x gradient use a y gradient moment gradmom[:,:,1]
+this file starts from solA06 and combines A06 and A07.
+We want now to have both frequency and phase encoding simultaneously,
+to be able to create the 2D - fourier transform of the signal,
+to get a 2D image with full encoding.
+this file starts from solA06. 
+A08.1  set NRep=12, as in A07, create a loop over NRep to generate  the fourier transform for every rep. Check if it is always identical.
+A08.2. in addition to the frequency encoding, add phase encoding gradient events as in A07.
+A08.3. to have full encoding you now have to fourier transform a second time, once loop over NReps iFFT in szread, then loop over szread iFFT i NRep dimension 
+A08.4. plot the result as an image, plt.imshow()  or plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread)
+A08.5. find the correct fft shift for display using np.roll(..) or np.fft.ifftshift / np.fft.fftshift
+A08.6. The two fourier transforms can be concatenated using np.fft.ifft2. 
+A08.7. set NReps =sz[1], set szread=sz[0], then increase sz to e.g. 24,24 
+A08.8. change phantom to 2D phantom, or brain 
+A08.9. Use plt.imshow() to show the magnitude image (np.abs), and the phase image (np.angle), 
+        if phase has wraps or  chekckerboard->fftshift
+        use np.flip(matrix,(0,1)) and np.transpose(matrix) to get wanted orientation
+
+Now you have your first fully encoded MR image!!!
+
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -64,7 +76,10 @@ def tonumpy(x):
 
 # get magnitude image
 def magimg(x):
-  return np.sqrt(np.sum(np.abs(x)**2,2))
+    return np.sqrt(np.sum(np.abs(x)**2,2))
+
+def phaseimg(x):
+    return np.angle(1j*x[:,:,1]+x[:,:,0])
 
 def magimg_torch(x):
   return torch.sqrt(torch.sum(torch.abs(x)**2,1))
@@ -87,10 +102,10 @@ def setdevice(x):
 sz = np.array([12,12])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 4                                  # number of total repetitions
+NRep = 1                                 # number of total repetitions
 szread=128
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -102,19 +117,24 @@ NVox = sz[0]*szread
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
-cutoff = 1e-12
-#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
-
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-real_phantom_resized[6,6,:]=np.array([1, 1, 0.1, 0,0])
-real_phantom_resized[4,4,:]=np.array([0.25, 1, 0.1, 0,0]) # two pixels make two frquencies visible
-    
-real_phantom_resized[:,:,1] *= 1 # Tweak T1
-real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] += 0 # Tweak dB0
-real_phantom_resized[:,:,4] *= 1 # Tweak rB1
+real_phantom_resized[6,6,:]=np.array([1.0, 1, 0.1, 0,0])
+real_phantom_resized[2,3,:]=np.array([0.5,    1, 0.1, 0,0])
 
+## load phantom from file
+#cutoff = 1e-12
+##real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+#
+#real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
+#for i in range(5):
+#    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
+#    if i == 0:
+#        t[t < 0] = 0
+#    elif i == 1 or i == 2:
+#        t[t < cutoff] = cutoff        
+#    real_phantom_resized[:,:,i] = t
+    
 spins.set_system(real_phantom_resized)
 
 if 1:
@@ -171,14 +191,14 @@ scanner.set_ADC_rot_tensor(-flips[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID spec
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[:,0] =  0.08*1e-3
-event_time[-1,:] =  5			# each rep has a long recovery phase at the end
+event_time[-1,:] =  5
 event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
-grad_moms[4,:,1] = -0.5*szread 	# each rep has now a rewinder event
-grad_moms[5:-2,:,1] = 1			# each rep has the same readout gradient 
+grad_moms[4,:,1] = -0.5*szread
+grad_moms[5:-2,:,1] = 1
 grad_moms = setdevice(grad_moms)
 
 scanner.init_gradient_tensor_holder()
@@ -186,10 +206,11 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 ## end S3: MR sequence definition ::: #####################################
 
 
+
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
-scanner.forward(spins, event_time)
+scanner.forward_fast(spins, event_time)
   
 fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
 plt.subplot(311); plt.title('seq: RF, time, ADC')
@@ -206,5 +227,42 @@ plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
 plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
 plt.legend()
 plt.show()
-                        
+
+#%% ############################################################################
+## S5: MR reconstruction of signal ::: #####################################
+fig=plt.figure("""Fourier Transform""")
+plt.subplot(311)
+spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
+spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
+plt.plot(np.real(spectrum).flatten('F'),label='real')
+plt.plot(np.imag(spectrum).flatten('F'),label='imag')
+major_ticks = np.arange(0, szread*NRep, szread) # this adds ticks at the correct position szread
+ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+
+space = np.zeros_like(spectrum)
+
+spectrum = np.roll(spectrum,szread//2,axis=0)
+spectrum = np.roll(spectrum,NRep//2,axis=1)
+
+for i in range(0,NRep):
+    space[:,i] = np.fft.ifft(spectrum[:,i])
+
+# fftshift
+space= np.roll(space,szread//2-1,axis=0)
+space = np.roll(space,NRep//2-1,axis=1)
+plt.subplot(312)
+plt.plot(np.abs(space.flatten('F')))
+plt.plot(np.imag(space.flatten('F')))
+ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
             
+plt.subplot(337)
+plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
+
+        
+plt.subplot(338)
+plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread)
+plt.subplot(339)
+plt.imshow(np.angle(space)*(np.abs(space)>0.2*np.max(np.abs(space))), interpolation='none',aspect = sz[0]/szread)
+
+plt.show()                     
+        

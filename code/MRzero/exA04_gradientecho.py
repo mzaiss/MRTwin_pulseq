@@ -13,7 +13,7 @@ A04.1. add a spatial gradient moment in each readout step of the first repetitio
 A04.2. try to recover the signal without using an additional RF event, but an additional grad_mom
 A04.3. what is the condition to get the gradient echo in the center of the acquisition phase?
 A04.4. generate a whole train of gradient echoes after one excitation
-A04.5. uncomment FITTING BLOCK, fit signal, what is the recovery rate of the envelope?
+A04.5. uncomment FITTING BLOCK, fit signal, what is the decay rate of the envelope?
 A04.6. in the first repetition we have an FID, in all others an echo, can we also make an echo in the first repetition? Hint: you need a gradmom in grad_moms[4,0,0]
 """
 #%%
