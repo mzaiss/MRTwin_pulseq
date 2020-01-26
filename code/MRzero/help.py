@@ -23,3 +23,11 @@ np.transpose(tonumpy(event_time)).flatten()
 np.transpose(tonumpy(event_time)).ravel()
 # or
 np.ravel(tonumpy(event_time),order='F')
+
+
+# plot signal as a function of total time:
+plt.subplot(413); plt.ylabel('signal')
+time_axis=np.cumsum(tonumpy(event_time).flatten('F'))
+plt.plot(time_axis,tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
+plt.plot(time_axis,tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
+ax=plt.gca(); ax.set_xticks(time_axis[major_ticks]); ax.grid()

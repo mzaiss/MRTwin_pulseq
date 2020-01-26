@@ -3,23 +3,30 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solA10_GRE_fully_relaxed'
+experiment_id = 'solA10_GRE_to FLASH'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
 """
 excercise = """
-The current sequence is very long. 
+The current sequence has a very long scan time.
 A10.1. calculate the total scan time of the sequence
 A10.1. lower the recovery time after each repetition to event_time[-1,:] =  0.1 . 
     What do you observe?
-    whats the shortest time to still have a good image?
+    Whats the shortest time to still have a good image?   
 A10.2. lower the flip angle to 5 degree.
     What do you observe?
-    whats now the shortest time to still have a good image?
-A10.3. find a way to get rid of transverse magnetization from the previous rep using a gradient. (spoiler or crusher gradient)
-        can you now go even shorter with the event times? how short?
-A10.4. remove the spoiler gradient. find a way to get rid of transverse magnetization from the previous rep using the rf phase
+    whats now the shortest time to still have a good image? (This is also called "Long TR spoiling")
+A10.3. Turn off all phase gradients and look at the signals. 
+    Do you see additional echoes? Where are they originating from? 
+    Try to find a way to get rid of transverse magnetization from the previous rep using the rf phase (RF spoiling)
+A10.4. find a way to get rid of transverse magnetization from the previous rep using a gradient. (gradient spoiling, spoiler or crusher gradient)
+    can you now go even shorter with the event times? how short?
+A10.5.  combine both gradient and RF spoiling
+A10.6.  Include a phase backblip to balance all phase gradients
+
+Now you have generated the famous FLASH sequence.
+
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -96,9 +103,9 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-noise_std = 0*1e-3                          # additive Gaussian noise std
+noise_std = 0*100*1e-3                        # additive Gaussian noise std
 kill_transverse = False                     #
 import time; today_datestr = time.strftime('%y%m%d')
 NVox = sz[0]*szread
@@ -125,7 +132,7 @@ for i in range(5):
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] *= 3 # Tweak dB0
+real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 real_phantom_resized[:,:,4] *= 1 # Tweak rB1
 
 spins.set_system(real_phantom_resized)
@@ -142,7 +149,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 30.0
+R2star = 0.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
@@ -174,6 +181,20 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
+
+flips[3,:,1]=torch.arange(0,50*NRep,50)*np.pi/180 
+
+def get_phase_cycler(n, dphi,flag=0):
+    out = np.cumsum(np.arange(n) * dphi)  #  from Alex (standard)
+    if flag:
+        for j in range(0,n,1):               # from Zur et al (1991)
+            out[j] = dphi/2*(j**2 +j+2)
+    out = torch.from_numpy(np.mod(out, 360).astype(np.float32))
+    return out    
+
+flips[3,:,1]=get_phase_cycler(NRep,117)*np.pi/180 
+
+
 flips = setdevice(flips)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(flips)
@@ -185,16 +206,15 @@ scanner.set_ADC_rot_tensor(-flips[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID spec
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
 event_time[-1,:] =  0.01
 event_time = setdevice(event_time)
-TA = tonumpy(torch.sum(event_time))
+
 # gradient-driver precession
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 grad_moms[4,:,1] = -0.5*szread
-grad_moms[5:-2,:,1] = 1
-grad_moms[4,:,0] = torch.arange(0,NRep,1)-NRep/2
-#grad_moms[-2,:,1] = 2.0*szread
-#grad_moms[-2,:,0] = grad_moms[4,:,0]
-#grad_moms[-2,:,1] = -0.5*szread
+grad_moms[5:-2,:,1] = 1.0
+#grad_moms[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
+#grad_moms[-2,:,0] = -grad_moms[4,:,0]  # phase backblip
+#grad_moms[-2,:,1] = 1.5*szread         # spoiler (even numbers sometimes give stripes, best is ~ 1.5 kspaces, for some reason 0.2 works well,too  )
 grad_moms = setdevice(grad_moms)
 
 scanner.init_gradient_tensor_holder()
@@ -208,23 +228,24 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
 
-fig=plt.figure("""seq and image"""); fig.set_size_inches(64, 7)
-plt.subplot(311); plt.title('seq: RF, time, ADC')
+fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
+plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
 plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
 plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
 plt.plot(tonumpy(flips[:,:,0]).flatten('F'),label='RF')
 major_ticks = np.arange(0, T*NRep, T) # this adds ticks at the correct position szread
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
 plt.legend()
-plt.subplot(312); plt.title('seq: gradients')
+plt.subplot(412); plt.ylabel('gradients')
 plt.plot(tonumpy(grad_moms[:,:,0]).flatten('F'),label='gx')
 plt.plot(tonumpy(grad_moms[:,:,1]).flatten('F'),label='gy')
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
 plt.legend()
-#plt.subplot(313); plt.title('signal')
-#plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-#plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-#plt.legend()
+plt.subplot(413); plt.ylabel('signal')
+plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
+plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
+ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+plt.legend()
 plt.show()
   
 #%% ############################################################################
@@ -232,25 +253,25 @@ plt.show()
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
-space = np.zeros_like(spectrum)
+kspace=spectrum
 spectrum = np.roll(spectrum,szread//2,axis=0)
 spectrum = np.roll(spectrum,NRep//2,axis=1)
+space = np.zeros_like(spectrum)
 space = np.fft.ifft2(spectrum)
 space = np.roll(space,szread//2-1,axis=0)
 space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
-plt.subplot(3,6,13)
+plt.subplot(4,6,19)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
-plt.subplot(3,6,14)
-plt.imshow(real_phantom_resized[:,:,1], interpolation='none'); plt.xlabel('T1')
-plt.subplot(3,6,15)
-plt.imshow(real_phantom_resized[:,:,2], interpolation='none'); plt.xlabel('T2')
-plt.subplot(3,6,16)
+plt.subplot(4,6,20)
 plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
-plt.subplot(3,6,17)
+
+plt.subplot(4,6,22)
+plt.imshow(np.abs(kspace), interpolation='none'); plt.xlabel('kspace')
+plt.subplot(4,6,23)
 plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
-plt.subplot(3,6,18)
+plt.subplot(4,6,24)
 mask=(np.abs(space)>0.2*np.max(np.abs(space)))
 plt.imshow(np.angle(space)*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     
