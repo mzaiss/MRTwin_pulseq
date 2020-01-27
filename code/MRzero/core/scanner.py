@@ -559,7 +559,10 @@ class Scanner():
     # intravoxel gradient-driven precession
     def grad_intravoxel_precess(self,t,r,spins):
         self.set_grad_intravoxel_precess_tensor(t,r)
-        spins.M = torch.matmul(self.IVP,spins.M)
+        if len(self.intravoxel_dephasing_ramp.shape) == 4:
+            spins.M = torch.matmul(self.IVP[:,r,:,:,:].unsqueeze(1),spins.M)
+        else:
+            spins.M = torch.matmul(self.IVP,spins.M)
         
         
     def init_signal(self):

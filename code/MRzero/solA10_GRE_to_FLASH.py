@@ -110,6 +110,8 @@ kill_transverse = False                     #
 import time; today_datestr = time.strftime('%y%m%d')
 NVox = sz[0]*szread
 
+do_voxel_rand_ramp_distr = True
+
 #############################################################################
 ## S1: Init spin system and phantom::: #####################################
 # initialize scanned object
@@ -132,7 +134,7 @@ for i in range(5):
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] *= 1 # Tweak dB0
+real_phantom_resized[:,:,3] *= 0 # Tweak dB0
 real_phantom_resized[:,:,4] *= 1 # Tweak rB1
 
 spins.set_system(real_phantom_resized)
@@ -161,7 +163,36 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+
+if do_voxel_rand_ramp_distr:
+    dim = scanner.setdevice(torch.sqrt(torch.tensor(scanner.NSpins).float()))
+    off = 1 / dim
+    mg = 1000
+    intravoxel_dephasing_ramp = setdevice(torch.zeros((scanner.NSpins,scanner.NVox,2), dtype=torch.float32))
+    xvb, yvb = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
+    
+    for i in range(scanner.NVox):
+        # this generates an anti-symmetric distribution in x
+        Rx1= torch.randn(torch.Size([dim.int()/2,dim.int()]))*off
+        Rx2=-torch.flip(Rx1, [0])
+        Rx= torch.cat((Rx1, Rx2),0)
+        # this generates an anti-symmetric distribution in y
+        Ry1= torch.randn(torch.Size([dim.int(),dim.int()/2]))*off
+        Ry2=-torch.flip(Ry1, [1])
+        Ry= torch.cat((Ry1, Ry2),1)
+                    
+        xv = xvb + Rx
+        yv = yvb + Ry
+    
+        intravoxel_dephasing_ramp[:,i,:] = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
+    
+    # remove coupling w.r.t. R2
+    permvec = np.random.choice(scanner.NSpins,scanner.NSpins,replace=False)
+    intravoxel_dephasing_ramp = intravoxel_dephasing_ramp[permvec,:,:]
+    
+    intravoxel_dephasing_ramp /= setdevice(torch.from_numpy(scanner.sz).float().unsqueeze(0).unsqueeze(0))
+    scanner.intravoxel_dephasing_ramp = intravoxel_dephasing_ramp
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -181,7 +212,6 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 flips[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
-
 flips[3,:,1]=torch.arange(0,50*NRep,50)*np.pi/180 
 
 def get_phase_cycler(n, dphi,flag=0):
@@ -196,7 +226,7 @@ flips[3,:,1]=get_phase_cycler(NRep,117)*np.pi/180
 
 
 flips = setdevice(flips)
-scanner.init_flip_tensor_holder()    
+scanner.init_flip_tensor_holder()
 scanner.set_flip_tensor_withB1plus(flips)
 # rotate ADC according to excitation phase
 rfsign = ((flips[3,:,0]) < 0).float()
@@ -211,13 +241,16 @@ event_time = setdevice(event_time)
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 grad_moms[4,:,1] = -0.5*szread
+#grad_moms[4,:,1] = -2.0*szread
 grad_moms[5:-2,:,1] = 1.0
-#grad_moms[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
-#grad_moms[-2,:,0] = -grad_moms[4,:,0]  # phase backblip
+grad_moms[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
+grad_moms[-2,:,0] = -grad_moms[4,:,0]  # phase backblip
 #grad_moms[-2,:,1] = 1.5*szread         # spoiler (even numbers sometimes give stripes, best is ~ 1.5 kspaces, for some reason 0.2 works well,too  )
+grad_moms[-2,:,1] = 2.0* sz[0]
+#grad_moms[-2,:,1] = 0.2* sz[0]
 grad_moms = setdevice(grad_moms)
 
-scanner.init_gradient_tensor_holder()
+scanner.init_gradient_tensor_holder(do_voxel_rand_ramp_distr=do_voxel_rand_ramp_distr)
 scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
@@ -226,7 +259,8 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
-scanner.forward_fast(spins, event_time)
+#scanner.forward_fast(spins, event_time)
+scanner.forward(spins, event_time)
 
 fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
 plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
@@ -262,16 +296,19 @@ space = np.roll(space,szread//2-1,axis=0)
 space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
+fig=plt.figure("""blabla""");
+fig.set_size_inches(30, 19); 
+
 plt.subplot(4,6,19)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
 plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
 
-plt.subplot(4,6,22)
-plt.imshow(np.abs(kspace), interpolation='none'); plt.xlabel('kspace')
-plt.subplot(4,6,23)
+plt.subplot(4,6,21)
+plt.imshow(np.log(np.abs(kspace)), interpolation='none'); plt.xlabel('kspace')
+plt.subplot(4,6,19)
 plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
-plt.subplot(4,6,24)
+plt.subplot(4,6,20)
 mask=(np.abs(space)>0.2*np.max(np.abs(space)))
 plt.imshow(np.angle(space)*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     
