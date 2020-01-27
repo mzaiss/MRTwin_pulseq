@@ -400,7 +400,7 @@ class Scanner():
         self.SB0 = S
         
     
-    def init_gradient_tensor_holder(self):
+    def init_gradient_tensor_holder(self, do_voxel_rand_ramp_distr=False):
         G = torch.zeros((self.T,self.NVox,3,3), dtype=torch.float32)
         G[:,:,2,2] = 1
          
@@ -411,15 +411,16 @@ class Scanner():
         self.G_adj = self.setdevice(G_adj)
         
         # intravoxel precession
-        IVP = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
-        IVP = self.setdevice(IVP)
-        IVP[:,0,0,2,2] = 1
-        self.IVP = IVP        
-        
-#        IVP = torch.zeros((self.NSpins,1,self.NVox,3,3), dtype=torch.float32)
-#        IVP = self.setdevice(IVP)
-#        IVP[:,0,:,2,2] = 1
-#        self.IVP = IVP          
+        if not do_voxel_rand_ramp_distr:
+            IVP = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
+            IVP = self.setdevice(IVP)
+            IVP[:,0,0,2,2] = 1
+            self.IVP = IVP    
+        else:
+            IVP = torch.zeros((self.NSpins,1,self.NVox,3,3), dtype=torch.float32)
+            IVP = self.setdevice(IVP)
+            IVP[:,0,:,2,2] = 1
+            self.IVP = IVP          
         
     def set_grad_op(self,r):
           
@@ -526,28 +527,33 @@ class Scanner():
         
     #def set_grad_intravoxel_precess_tensor_allvox_samedistr(self,t,r):
     def set_grad_intravoxel_precess_tensor(self,t,r):
-        intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0) * self.intravoxel_dephasing_ramp
-        intra_b0 = torch.sum(intra_b0,1)
+        
+        # assume voxel-variable ramp distribution
+        if len(self.intravoxel_dephasing_ramp.shape) == 3:
+            self.set_grad_intravoxel_precess_tensor_var_voxramp(t,r)
+        else:
+            intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0) * self.intravoxel_dephasing_ramp
+            intra_b0 = torch.sum(intra_b0,1)
+            
+            IVP_nspins_cos = torch.cos(intra_b0)
+            IVP_nspins_sin = torch.sin(intra_b0)
+             
+            self.IVP[:,0,0,0,0] = IVP_nspins_cos
+            self.IVP[:,0,0,0,1] = -IVP_nspins_sin
+            self.IVP[:,0,0,1,0] = IVP_nspins_sin
+            self.IVP[:,0,0,1,1] = IVP_nspins_cos
+        
+    def set_grad_intravoxel_precess_tensor_var_voxramp(self,t,r):
+        intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0).unsqueeze(0) * self.intravoxel_dephasing_ramp
+        intra_b0 = torch.sum(intra_b0,2)
         
         IVP_nspins_cos = torch.cos(intra_b0)
         IVP_nspins_sin = torch.sin(intra_b0)
-         
-        self.IVP[:,0,0,0,0] = IVP_nspins_cos
-        self.IVP[:,0,0,0,1] = -IVP_nspins_sin
-        self.IVP[:,0,0,1,0] = IVP_nspins_sin
-        self.IVP[:,0,0,1,1] = IVP_nspins_cos
         
-#    def set_grad_intravoxel_precess_tensor(self,t,r):
-#        intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0).unsqueeze(0) * self.intravoxel_dephasing_ramp
-#        intra_b0 = torch.sum(intra_b0,2)
-#        
-#        IVP_nspins_cos = torch.cos(intra_b0)
-#        IVP_nspins_sin = torch.sin(intra_b0)
-#        
-#        self.IVP[:,0,:,0,0] = IVP_nspins_cos
-#        self.IVP[:,0,:,0,1] = -IVP_nspins_sin
-#        self.IVP[:,0,:,1,0] = IVP_nspins_sin
-#        self.IVP[:,0,:,1,1] = IVP_nspins_cos
+        self.IVP[:,0,:,0,0] = IVP_nspins_cos
+        self.IVP[:,0,:,0,1] = -IVP_nspins_sin
+        self.IVP[:,0,:,1,0] = IVP_nspins_sin
+        self.IVP[:,0,:,1,1] = IVP_nspins_cos
    
         
     # intravoxel gradient-driven precession
@@ -1067,6 +1073,7 @@ class Scanner():
                             #intraSpins = spins.M
                             
                             kum_grad_intravoxel = torch.cumsum(self.grad_moms_for_intravoxel_precession[start_t:start_t+half_read*2,r,:],0)
+                            
                             intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
                             intra_b0 = torch.sum(intra_b0,2)
                             
