@@ -110,7 +110,8 @@ kill_transverse = False                     #
 import time; today_datestr = time.strftime('%y%m%d')
 NVox = sz[0]*szread
 
-do_voxel_rand_ramp_distr = True
+do_voxel_rand_ramp_distr = False
+do_voxel_rand_r2_distr = False
 
 #############################################################################
 ## S1: Init spin system and phantom::: #####################################
@@ -151,9 +152,12 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 0.0
-omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
-omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+R2star = 30.0
+if not do_voxel_rand_r2_distr:
+    omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
+    omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+else:
+    omega = np.random.rand(NSpins,NVox) - 0.5   # cutoff might bee needed for opt.
 omega*=0.99 # cutoff large freqs
 omega = R2star * np.tan ( np.pi  * omega)
 spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
@@ -163,36 +167,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
-
-if do_voxel_rand_ramp_distr:
-    dim = scanner.setdevice(torch.sqrt(torch.tensor(scanner.NSpins).float()))
-    off = 1 / dim
-    mg = 1000
-    intravoxel_dephasing_ramp = setdevice(torch.zeros((scanner.NSpins,scanner.NVox,2), dtype=torch.float32))
-    xvb, yvb = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
-    
-    for i in range(scanner.NVox):
-        # this generates an anti-symmetric distribution in x
-        Rx1= torch.randn(torch.Size([dim.int()/2,dim.int()]))*off
-        Rx2=-torch.flip(Rx1, [0])
-        Rx= torch.cat((Rx1, Rx2),0)
-        # this generates an anti-symmetric distribution in y
-        Ry1= torch.randn(torch.Size([dim.int(),dim.int()/2]))*off
-        Ry2=-torch.flip(Ry1, [1])
-        Ry= torch.cat((Ry1, Ry2),1)
-                    
-        xv = xvb + Rx
-        yv = yvb + Ry
-    
-        intravoxel_dephasing_ramp[:,i,:] = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
-    
-    # remove coupling w.r.t. R2
-    permvec = np.random.choice(scanner.NSpins,scanner.NSpins,replace=False)
-    intravoxel_dephasing_ramp = intravoxel_dephasing_ramp[permvec,:,:]
-    
-    intravoxel_dephasing_ramp /= setdevice(torch.from_numpy(scanner.sz).float().unsqueeze(0).unsqueeze(0))
-    scanner.intravoxel_dephasing_ramp = intravoxel_dephasing_ramp
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision,do_voxel_rand_ramp_distr=do_voxel_rand_ramp_distr,do_voxel_rand_r2_distr=do_voxel_rand_r2_distr)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -250,7 +225,7 @@ grad_moms[-2,:,1] = 2.0* sz[0]
 #grad_moms[-2,:,1] = 0.2* sz[0]
 grad_moms = setdevice(grad_moms)
 
-scanner.init_gradient_tensor_holder(do_voxel_rand_ramp_distr=do_voxel_rand_ramp_distr)
+scanner.init_gradient_tensor_holder()
 scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
@@ -259,8 +234,8 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
-#scanner.forward_fast(spins, event_time)
-scanner.forward(spins, event_time)
+scanner.forward_fast(spins, event_time)
+#scanner.forward(spins, event_time)
 
 fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
 plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))

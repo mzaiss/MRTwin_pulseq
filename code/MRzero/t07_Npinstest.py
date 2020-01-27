@@ -40,6 +40,9 @@ reload(core.scanner)
 double_precision = False
 do_scanner_query = False
 
+do_voxel_rand_ramp_distr = True
+do_voxel_rand_r2_distr = False
+
 use_gpu = 1
 gpu_dev = 0
 
@@ -87,7 +90,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=24
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 30**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -136,8 +139,12 @@ if 0:
    
 #begin nspins with R2* = 1/T2*
 R2star = 30.0
-omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
-omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+if not do_voxel_rand_r2_distr:
+    omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
+    omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+else:
+    omega = np.random.rand(NSpins,NVox) - 0.5   # cutoff might bee needed for opt.
+    
 omega*=0.99 # cutoff large freqs
 omega = R2star * np.tan ( np.pi  * omega)
 spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
@@ -147,7 +154,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision,do_voxel_rand_ramp_distr=do_voxel_rand_ramp_distr,do_voxel_rand_r2_distr=do_voxel_rand_r2_distr)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -185,11 +192,12 @@ event_time = setdevice(event_time)
 # Cartesian encoding
 grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
 grad_moms[1,:,:] = 30*szread
+grad_moms[1,:,0] = 0
 grad_moms[4,:,1] = -0.5*szread
 grad_moms[5:-2,:,1] = 1
 grad_moms[4,:,0] = torch.arange(0,sz[0],1)-sz[0]/2
-#grad_moms[-2,:,1] = -0.5*szread
-#grad_moms[-2,:,0] = -grad_moms[4,:,0] 
+grad_moms[-2,:,1] = -0.5*szread
+grad_moms[-2,:,0] = -grad_moms[4,:,0] 
 grad_moms = setdevice(grad_moms)
 
 scanner.init_gradient_tensor_holder()
@@ -202,6 +210,7 @@ scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=F
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
+#scanner.forward(spins, event_time)
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
