@@ -29,7 +29,7 @@ def roll(x,n,dim):
 
 # HOW we measure
 class Scanner():
-    def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu,double_precision=False):
+    def __init__(self,sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu,double_precision=False,do_voxel_rand_ramp_distr=False,do_voxel_rand_r2_distr=False):
         
         self.sz = sz                                             # image size
         self.NVox = sz[0]*sz[1]                                 # voxel count
