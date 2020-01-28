@@ -137,8 +137,13 @@ plt.show()
    
 #begin nspins with R2* = 1/T2*
 R2star = 250.0
-omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
-omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+do_voxel_rand_r2_distr=True
+if not do_voxel_rand_r2_distr:
+    omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
+    omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+else:
+    omega = np.random.rand(NSpins,NVox) - 0.5   # cutoff might bee needed for opt.
+    
 omega*=0.99 # cutoff large freqs
 omega = R2star * np.tan ( np.pi  * omega)
 spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
@@ -148,7 +153,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision,do_voxel_rand_r2_distr=True)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision,do_voxel_rand_r2_distr=do_voxel_rand_r2_distr)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
