@@ -180,7 +180,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
+flips[3,:,0] = 15*np.pi/180  # 90deg excitation now for every rep
 
 flips[3,:,1]=torch.arange(0,50*NRep,50)*np.pi/180 
 
@@ -216,6 +216,22 @@ grad_moms[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
 grad_moms[-2,:,0] = -grad_moms[4,:,0]  # phase backblip
 grad_moms[-2,:,1] = 1.5*szread         # spoiler (even numbers sometimes give stripes, best is ~ 1.5 kspaces, for some reason 0.2 works well,too  )
 grad_moms = setdevice(grad_moms)
+
+# centric 
+permvec= np.zeros((NRep,),dtype=int) 
+permvec[0] = 0
+for i in range(1,int(NRep/2)+1):
+    permvec[i*2-1] = (-i)
+    if i < NRep/2:
+        permvec[i*2] = i
+permvec=permvec+NRep//2     # centric out reordering
+
+#permvec=np.arange(0,NRep,1)  # this eleiminates the permutation again
+#permvec=np.arange(NRep-1,-1,-1)  # inverse linear reordering
+#permvec=np.random.permutation(NRep) # inverse linear reordering
+
+grad_moms[4,:,0]=grad_moms[4,permvec,0]
+grad_moms[-2,:,0] = -grad_moms[4,:,0]  # phase backblip
 
 scanner.init_gradient_tensor_holder()
 scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
@@ -253,6 +269,9 @@ plt.show()
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
+inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
+spectrum=spectrum[:,inverse_perm]
+#spectrum[:,permvec]=spectrum
 kspace=spectrum
 spectrum = np.roll(spectrum,szread//2,axis=0)
 spectrum = np.roll(spectrum,NRep//2,axis=1)
