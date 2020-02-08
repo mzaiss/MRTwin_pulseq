@@ -167,7 +167,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-#flips[3,0,0] = 90*np.pi/180  # 90deg excitation
+flips[3,16,0] = 0*np.pi/180  # 90deg excitation
 #flips[3,18,0] = 90*np.pi/180  # 90deg excitation 
 #flips[3,17,0] = 90*np.pi/180  # 90deg excitation 
 #flips[3,15:25,0] = 90*np.pi/180  # 90deg excitation 
