@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import os
 import scipy
 import socket
+from matplotlib.pyplot import cm
+
+
 
 from sys import platform
 import time
@@ -55,7 +58,7 @@ class TargetSequenceHolder():
             self.target_image = self.target_image[0,:,:]
             self.PD0_mask = self.PD0_mask[0,:,:]
         
-    def print_status(self, do_vis_image=False, reco=None, do_scanner_query=False):
+    def print_status(self, do_vis_image=False, kplot=False, reco=None, do_scanner_query=False):
         if do_vis_image:
             
             recoimg= (tonumpy(self.target_image).reshape([self.sz[0],self.sz[1],2]))
@@ -80,7 +83,7 @@ class TargetSequenceHolder():
             plt.title('target reco phase')
             plt.ion()
                
-            plt.subplot(153)
+            plt.subplot(253)
             if self.flips.dim() == 3:
                 FA=self.flips[:,:,0]
             else:
@@ -90,6 +93,20 @@ class TargetSequenceHolder():
             plt.ion()
             plt.title('FA [\N{DEGREE SIGN}]')
             plt.clim(-90,270)
+            fig = plt.gcf()
+            fig.colorbar(ax)
+            fig.set_size_inches(18, 3)
+            
+            plt.subplot(258)
+            if self.flips.dim() == 3:
+                FA=self.flips[:,:,1]
+            else:
+                FA=self.flips
+                
+            ax=plt.imshow(np.transpose(tonumpy(FA*180/np.pi),[1,0]),cmap=plt.get_cmap('nipy_spectral'))
+            plt.ion()
+            plt.title('phase [\N{DEGREE SIGN}]')
+            plt.clim(0,360)
             fig = plt.gcf()
             fig.colorbar(ax)
             fig.set_size_inches(18, 3)
@@ -175,7 +192,85 @@ class TargetSequenceHolder():
                 
                 plt.ion()
                 plt.show()                
-                plt.pause(0.02)            
+                plt.pause(0.02)      
+                
+    def print_seq_pic(self, kplot=False, plotsize=[20,2]):
+            # clear previous figure stack            
+            plt.clf()            
+               
+            plt.subplot(331); plt.title('event times [s]'); plt.ylabel('repetition'); plt.yticks(np.arange(0, self.scanner.NRep, 5))
+            ax=plt.imshow(tonumpy(torch.abs(self.event_time).permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))        
+            fig = plt.gcf();fig.colorbar(ax)
+            
+            plt.subplot(332); plt.title('ADC'); plt.yticks(np.arange(0, self.scanner.NRep, 5))
+            ax=plt.imshow(np.tile(tonumpy(self.adc_mask),self.scanner.NRep).transpose(),cmap=plt.get_cmap('nipy_spectral'))        
+            fig = plt.gcf();fig.colorbar(ax)
+            
+            
+            plt.subplot(334); plt.title('rf flip [\N{DEGREE SIGN}]'); plt.ylabel('repetition'); plt.yticks(np.arange(0, self.scanner.NRep, 5))
+            if self.flips.dim() == 3:
+                flip_phase_event=self.flips
+            else:
+                flip_phase_event=self.flips
+                
+            ax=plt.imshow(np.transpose(tonumpy(flip_phase_event[:,:,0]*180/np.pi),[1,0]),cmap=plt.get_cmap('nipy_spectral'))
+            plt.clim(-90,270)
+            fig = plt.gcf(); fig.colorbar(ax)
+
+            plt.subplot(335); plt.title('rf phase [\N{DEGREE SIGN}]'); plt.yticks(np.arange(0, self.scanner.NRep, 5))
+            ax=plt.imshow(np.transpose(tonumpy(flip_phase_event[:,:,1]*180/np.pi),[1,0]),cmap=plt.get_cmap('nipy_spectral'))
+            plt.clim(0,360)
+            fig = plt.gcf();fig.colorbar(ax)
+
+            plt.subplot(337); plt.title('grad_mom_x'); plt.xlabel('event index') ; plt.ylabel('repetition');plt.yticks(np.arange(0, self.scanner.NRep, 5))
+            ax=plt.imshow(tonumpy(self.grad_moms[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            fig = plt.gcf();fig.colorbar(ax)
+                        
+            ax1=plt.subplot(338); plt.title('grad_mom_y'); plt.xlabel('event index');plt.yticks(np.arange(0, self.scanner.NRep, 5))
+            ax=plt.imshow(tonumpy(self.grad_moms[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            fig = plt.gcf();fig.colorbar(ax)
+            
+            
+            if kplot:  #k-space plot             
+                plt.subplot(339) ; plt.title('k-space loc.')               
+                kx= tonumpy(self.scanner.kspace_loc[:,:,0])
+                ky= tonumpy(self.scanner.kspace_loc[:,:,1])
+                color=cm.rainbow(np.linspace(0,1,kx.shape[1]))
+                for i in range(kx.shape[1]):
+                    plt.plot(kx[:,i],ky[:,i],c=color[i])
+                plt.xlabel('k_x')
+          
+            fig = plt.gcf();  
+            plt.ion()
+            fig.set_size_inches(plotsize[0], plotsize[1])
+            plt.show()
+            plt.pause(0.02)
+            
+    def print_seq(self, plotsize=[20,2]):
+        fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
+        plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(self.event_time))))
+        plt.plot(np.tile(tonumpy(self.adc_mask),self.scanner.NRep).flatten('F'),'.',label='ADC')
+        plt.plot(tonumpy(self.event_time).flatten('F'),'.',label='time')
+        plt.plot(tonumpy(self.flips[:,:,0]).flatten('F'),label='RF')
+        major_ticks = np.arange(0, self.scanner.T*self.scanner.NRep, self.scanner.T) # this adds ticks at the correct position szread
+        ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+        plt.legend()
+        plt.subplot(412); plt.ylabel('gradients')
+        plt.plot(tonumpy(self.grad_moms[:,:,0]).flatten('F'),label='gx')
+        plt.plot(tonumpy(self.grad_moms[:,:,1]).flatten('F'),label='gy')
+        ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+        plt.legend()
+        plt.subplot(413); plt.ylabel('signal')
+        plt.plot(tonumpy(self.scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
+        plt.plot(tonumpy(self.scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
+        plt.xlabel('event index')
+        ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+        plt.legend()
+        plt.show()
+        
+                
+                           
+                
             
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id, today_datestr):

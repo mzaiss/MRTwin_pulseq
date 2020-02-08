@@ -80,10 +80,10 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([32,32])                                           # image size
+sz = np.array([12,12])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 T = sz[0] + 4                                        # number of events F/R/P
-NSpins = 26**2                                # number of spin sims in each voxel
+NSpins = 4**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
 noise_std = 0*1e0                               # additive Gaussian noise std
@@ -155,8 +155,8 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: flips and phases
 flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[0,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-flips[0,0,0] = 45*np.pi/180 
+flips[0,:,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+#flips[0,0,0] = 45*np.pi/180 
 #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
 
 # randomize RF phases
@@ -199,7 +199,7 @@ grad_moms[-2,:,1] = -grad_moms[1,:,1]      # GRE/FID specific, yblip rewinder
 grad_moms = setdevice(grad_moms)
 
 #     centric ordering
-if False:
+if True:
     grad_moms[1,:,1] = 0
     for i in range(1,int(sz[1]/2)+1):
         grad_moms[1,i*2-1,1] = (-i)
@@ -224,10 +224,16 @@ scanner.adjoint()
 # try to fit this
 # scanner.reco = scanner.do_ifft_reco()
 target = scanner.reco.clone()
-   
+  
+
+import core.target_seq_holder
 # save sequence parameters and target image to holder object
 targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
-if True: # check sanity: is target what you expect and is sequence what you expect
+targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9])
+    # %% ###  
+
+if False: # check sanity: is target what you expect and is sequence what you expect
     #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
     for i in range(3):
         plt.subplot(1, 3, i+1)

@@ -3,7 +3,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solA09_GRE_fully_relaxed'
+experiment_id = 'exA09_GRE_fully_relaxed'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
@@ -172,7 +172,7 @@ flips = torch.zeros((T,NRep,2), dtype=torch.float32)
 #flips[3,17,0] = 90*np.pi/180  # 90deg excitation 
 #flips[3,15:25,0] = 90*np.pi/180  # 90deg excitation 
 #flips[3,10:30,0] = 90*np.pi/180  # 90deg excitation 
-flips[3,:,0] = 90*np.pi/180  # 90deg excitation 
+#flips[3,:,0] = 90*np.pi/180  # 90deg excitation 
 flips = setdevice(flips)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(flips)
