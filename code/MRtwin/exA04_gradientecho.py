@@ -9,12 +9,12 @@ experiment_description = """
 FID or 1 D imaging / spectroscopy
 """
 excercise = """
-A04.1. add a spatial gradient moment in each readout step of the first repetition: e.g.,  grad_moms[5:-2,0,0] = 0.5
+A04.1. add a spatial gradient moment in each readout step of the first repetition: e.g.,  gradm_event[5:-2,0,0] = 0.5
 A04.2. try to recover the signal without using an additional RF event, but an additional grad_mom
 A04.3. what is the condition to get the gradient echo in the center of the acquisition phase?
 A04.4. generate a whole train of gradient echoes after one excitation
 A04.5. uncomment FITTING BLOCK, fit signal, what is the decay rate of the envelope?
-A04.6. in the first repetition we have an FID, in all others an echo, can we also make an echo in the first repetition? Hint: you need a gradmom in grad_moms[4,0,0]
+A04.6. in the first repetition we have an FID, in all others an echo, can we also make an echo in the first repetition? Hint: you need a gradmom in gradm_event[4,0,0]
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -164,15 +164,15 @@ adc_mask[:5]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
-# RF events: flips and phases
-flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-flips = setdevice(flips)
+# RF events: rf_event and phases
+rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+rf_event[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
-scanner.set_flip_tensor_withB1plus(flips)
+scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
-rfsign = ((flips[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+rfsign = ((rf_event[3,:,0]) < 0).float()
+scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -181,11 +181,11 @@ event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
-grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
-grad_moms = setdevice(grad_moms)
+gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 

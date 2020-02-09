@@ -160,26 +160,26 @@ def make_FID(phantom=None,do_scanner_query = False):
     adc_mask[-2:] = 0
     scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
     
-    # RF events: flips and phases
-    flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-    flips[0,:,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-    #flips[0,:,1] = torch.rand(flips.shape[1])*90*np.pi/180
+    # RF events: rf_event and phases
+    rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+    rf_event[0,:,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+    #rf_event[0,:,1] = torch.rand(rf_event.shape[1])*90*np.pi/180
     
     # randomize RF phases
-    flips[0,:,1] = scanner.get_phase_cycler(NRep,117)*np.pi/180
+    rf_event[0,:,1] = scanner.get_phase_cycler(NRep,117)*np.pi/180
     
-    flips = setdevice(flips)
+    rf_event = setdevice(rf_event)
     
     scanner.init_flip_tensor_holder()
     B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
     B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
     B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
     scanner.B1plus = setdevice(B1plus)    
-    scanner.set_flip_tensor_withB1plus(flips)
+    scanner.set_flip_tensor_withB1plus(rf_event)
     
     # rotate ADC according to excitation phase
-    rfsign = ((flips[0,:,0]) < 0).float()
-    scanner.set_ADC_rot_tensor(-flips[0,:,1] + 0*np.pi/2 + np.pi*rfsign) #GRE/FID specific
+    rfsign = ((rf_event[0,:,0]) < 0).float()
+    scanner.set_ADC_rot_tensor(-rf_event[0,:,1] + 0*np.pi/2 + np.pi*rfsign) #GRE/FID specific
     
     
     # event timing vector 
@@ -193,15 +193,15 @@ def make_FID(phantom=None,do_scanner_query = False):
     
     # gradient-driver precession
     # Cartesian encoding
-    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
-    grad_moms = setdevice(grad_moms)
+    gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32) 
+    gradm_event = setdevice(gradm_event)
     
     
     
     # end sequence 
     
     scanner.init_gradient_tensor_holder()
-    scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+    scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
     
     #############################################################################
     ## Forward process ::: ######################################################
@@ -225,7 +225,7 @@ def make_FID(phantom=None,do_scanner_query = False):
     target = scanner.reco.clone()
 #       
 #    # save sequence parameters and target image to holder object
-    targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
+    targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,target)
 #    if True: # check sanity: is target what you expect and is sequence what you expect
 #        #plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
 #        for i in range(3):
@@ -236,7 +236,7 @@ def make_FID(phantom=None,do_scanner_query = False):
 #            fig.set_size_inches(16, 3)
 #        plt.show()
 #    
-#        scanner.do_SAR_test(flips, event_time)    
+#        scanner.do_SAR_test(rf_event, event_time)    
 #            
     if do_scanner_query:
 #        targetSeq.export_to_matlab(experiment_id, today_datestr)

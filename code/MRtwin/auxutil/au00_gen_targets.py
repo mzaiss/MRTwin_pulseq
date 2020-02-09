@@ -88,22 +88,22 @@ for subjid in range(NSubj):
     scanner.init_coil_sensitivities()
     
     # init tensors
-    flips = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
-    flips[0,:] = 90*np.pi/180
+    rf_event = torch.ones((T,NRep), dtype=torch.float32) * 0 * np.pi/180
+    rf_event[0,:] = 90*np.pi/180
          
-    flips = setdevice(flips)
+    rf_event = setdevice(rf_event)
          
     scanner.init_flip_tensor_holder()
-    scanner.set_flip_tensor(flips)
+    scanner.set_flip_tensor(rf_event)
     
     # gradient-driver precession
-    grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32) 
+    gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32) 
     
     # Cartesian encoding
-    grad_moms[T-sz[0]:,:,0] = torch.linspace(-sz[0]/2,sz[0]/2-1,sz[0]).view(sz[0],1).repeat([1,NRep])
-    grad_moms[T-sz[0]:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,NRep).repeat([sz[0],1])
+    gradm_event[T-sz[0]:,:,0] = torch.linspace(-sz[0]/2,sz[0]/2-1,sz[0]).view(sz[0],1).repeat([1,NRep])
+    gradm_event[T-sz[0]:,:,1] = torch.linspace(-sz[1]/2,sz[1]/2-1,NRep).repeat([sz[0],1])
     
-    grad_moms = setdevice(grad_moms)
+    gradm_event = setdevice(gradm_event)
     
     # event timing vector 
     event_time = torch.from_numpy(1e-2*np.zeros((scanner.T,1))).float()
@@ -111,7 +111,7 @@ for subjid in range(NSubj):
     event_time = setdevice(event_time)
     
     scanner.init_gradient_tensor_holder()
-    scanner.set_gradient_precession_tensor(grad_moms)
+    scanner.set_gradient_precession_tensor(gradm_event)
     
     #############################################################################
     ## Forward process ::: ######################################################
@@ -121,8 +121,8 @@ for subjid in range(NSubj):
     
     # always flip 90deg on first action (test)
     if False:                                 
-        flips_base = torch.ones((1,NRep), dtype=torch.float32) * 90 * np.pi/180
-        scanner.custom_flip_allRep(0,flips_base,spins)
+        rf_event_base = torch.ones((1,NRep), dtype=torch.float32) * 90 * np.pi/180
+        scanner.custom_flip_allRep(0,rf_event_base,spins)
         scanner.custom_relax(spins,dt=0.06)                # relax till ADC (sec)
         
     # scanner forward process loop

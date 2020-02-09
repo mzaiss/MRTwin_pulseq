@@ -148,23 +148,23 @@ adc_mask[:5]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
-# RF events: flips and phases
-flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-flips[3,1,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-flips[3,1,1] = -90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+# RF events: rf_event and phases
+rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+rf_event[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[3,1,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[3,1,1] = -90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 # randomize RF phases
 measRepStep = NRep//extraMeas
 #for i in range(0,extraMeas):
-#    flips[3,i*measRepStep:(i+1)*measRepStep,1] = torch.tensor(scanner.phase_cycler[:(measRepStep)]).float()*np.pi/180
-flips = setdevice(flips)
+#    rf_event[3,i*measRepStep:(i+1)*measRepStep,1] = torch.tensor(scanner.phase_cycler[:(measRepStep)]).float()*np.pi/180
+rf_event = setdevice(rf_event)
 
 scanner.init_flip_tensor_holder()    
-scanner.set_flip_tensor_withB1plus(flips)
+scanner.set_flip_tensor_withB1plus(rf_event)
 
 # rotate ADC according to excitation phase
-rfsign = ((flips[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+rfsign = ((rf_event[3,:,0]) < 0).float()
+scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -178,7 +178,7 @@ event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
-grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
+gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
 
 meas_indices=np.zeros((extraMeas,measRepStep))
 for i in range(0,extraMeas):
@@ -186,25 +186,25 @@ for i in range(0,extraMeas):
 
 for j in range(0,extraMeas):
     # second action after inversion pulse (chrusher)
-    grad_moms[1,j*measRepStep] = 1e-2
+    gradm_event[1,j*measRepStep] = 1e-2
 
     #  measurement
-    grad_moms[4,meas_indices[j,:] ,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
-    grad_moms[4,meas_indices[j,:] ,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(meas_indices[j,:].size))  # phase encoding blip in second event block
-    grad_moms[5:-2,meas_indices[j,:] ,0] = torch.ones(int(szread)).view(int(szread),1).repeat([1,meas_indices[j,:].size]) # ADC open, readout, freq encoding
-    grad_moms[-2,meas_indices[j,:] ,0] = torch.ones(1)*sz[0]*2  # GRE/FID specific, SPOILER
-    grad_moms[-2,meas_indices[j,:] ,1] = -grad_moms[1,meas_indices[j,:] ,1]      # GRE/FID specific, yblip rewinder
+    gradm_event[4,meas_indices[j,:] ,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
+    gradm_event[4,meas_indices[j,:] ,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(meas_indices[j,:].size))  # phase encoding blip in second event block
+    gradm_event[5:-2,meas_indices[j,:] ,0] = torch.ones(int(szread)).view(int(szread),1).repeat([1,meas_indices[j,:].size]) # ADC open, readout, freq encoding
+    gradm_event[-2,meas_indices[j,:] ,0] = torch.ones(1)*sz[0]*2  # GRE/FID specific, SPOILER
+    gradm_event[-2,meas_indices[j,:] ,1] = -gradm_event[1,meas_indices[j,:] ,1]      # GRE/FID specific, yblip rewinder
     
-    grad_moms[4,meas_indices[j,:] ,1] = 0
-    grad_moms[-2,meas_indices[j,:] ,1] = -grad_moms[4,meas_indices[j,:] ,1]
+    gradm_event[4,meas_indices[j,:] ,1] = 0
+    gradm_event[-2,meas_indices[j,:] ,1] = -gradm_event[4,meas_indices[j,:] ,1]
     
-grad_moms[:] = 0
-grad_moms = setdevice(grad_moms)
+gradm_event[:] = 0
+gradm_event = setdevice(gradm_event)
 
 # end sequence 
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 
 
 #############################################################################
@@ -241,7 +241,7 @@ first_scan_kspace_mag = magimg(first_scan_kspace)
 target = scanner.reco.clone()
    
 # save sequence parameters and target image to holder object
-targetSeq = core.target_seq_holder.TargetSequenceHolder(flips,event_time,grad_moms,scanner,spins,target)
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,target)
 if True: # check sanity: is target what you expect and is sequence what you expect
     plt.plot(np.cumsum(tonumpy(scanner.ROI_signal[:,0,0])),tonumpy(scanner.ROI_signal[:,0,1:3]), label='x')
 

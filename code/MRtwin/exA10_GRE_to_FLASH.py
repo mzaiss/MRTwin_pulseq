@@ -177,15 +177,15 @@ adc_mask[:5]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
-# RF events: flips and phases
-flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[3,:,0] = 90*np.pi/180  # 90deg excitation now for every rep
-flips = setdevice(flips)
+# RF events: rf_event and phases
+rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+rf_event[3,:,0] = 90*np.pi/180  # 90deg excitation now for every rep
+rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
-scanner.set_flip_tensor_withB1plus(flips)
+scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
-rfsign = ((flips[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+rfsign = ((rf_event[3,:,0]) < 0).float()
+scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -194,14 +194,14 @@ event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
-grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
-grad_moms[4,:,1] = -0.5*szread
-grad_moms[5:-2,:,1] = 1.0
-grad_moms[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
-grad_moms = setdevice(grad_moms)
+gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+gradm_event[4,:,1] = -0.5*szread
+gradm_event[5:-2,:,1] = 1.0
+gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
+gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 
@@ -215,13 +215,13 @@ fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9);
 plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(12345.0))
 plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
 plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(flips[:,:,0]).flatten('F'),label='RF')
+plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
 major_ticks = np.arange(0, T*NRep, T) # this adds ticks at the correct position szread
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
 plt.legend()
 plt.subplot(412); plt.ylabel('gradients')
-plt.plot(tonumpy(grad_moms[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(grad_moms[:,:,1]).flatten('F'),label='gy')
+plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
+plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
 plt.legend()
 plt.subplot(413); plt.ylabel('signal')

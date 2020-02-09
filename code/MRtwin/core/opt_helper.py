@@ -402,9 +402,9 @@ class OPT_helper():
                 
                 saved_state = dict()
                 saved_state['adc_mask'] = tonumpy(tosave_opt_params[0])
-                saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
+                saved_state['rf_event_angles'] = tonumpy(tosave_opt_params[1])
                 saved_state['event_times'] = tonumpy(tosave_opt_params[2])
-                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['gradm_event'] = tonumpy(tosave_opt_params[3].clone())
                 
                 if len(tosave_opt_params) > 4:
                     saved_state['extra_par_idx4'] = tonumpy(tosave_opt_params[4].clone())
@@ -430,7 +430,7 @@ class OPT_helper():
                 
                 self.param_reco_history.append(saved_state)      
                 self.error_history.append(self.last_error)      
-                self.sar_history.append(np.sum(saved_state['flips_angles']**2))      
+                self.sar_history.append(np.sum(saved_state['rf_event_angles']**2))      
                 
             if self.opti_mode == 'nevergrad':
                 # work in progress....
@@ -497,9 +497,9 @@ class OPT_helper():
                 
                 saved_state = dict()
                 saved_state['adc_mask'] = tonumpy(tosave_opt_params[0])
-                saved_state['flips_angles'] = tonumpy(tosave_opt_params[1])
+                saved_state['rf_event_angles'] = tonumpy(tosave_opt_params[1])
                 saved_state['event_times'] = tonumpy(tosave_opt_params[2])
-                saved_state['grad_moms'] = tonumpy(tosave_opt_params[3].clone())
+                saved_state['gradm_event'] = tonumpy(tosave_opt_params[3].clone())
                 saved_state['kloc'] = tonumpy(self.scanner.kspace_loc.clone())
                 saved_state['learn_rates'] = self.custom_learning_rate
                 
@@ -730,9 +730,9 @@ class OPT_helper():
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
         scanner_dict['B1'] = tonumpy(self.scanner.B1)
-        scanner_dict['flips'] = tonumpy(tosave_opt_params[1])
+        scanner_dict['rf_event'] = tonumpy(tosave_opt_params[1])
         scanner_dict['event_times'] = np.abs(tonumpy(tosave_opt_params[2]))
-        scanner_dict['grad_moms'] = tonumpy(tosave_opt_params[3])
+        scanner_dict['gradm_event'] = tonumpy(tosave_opt_params[3])
         scanner_dict['kloc'] = tonumpy(self.scanner.kspace_loc)
         scanner_dict['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
@@ -798,17 +798,17 @@ class OPT_helper():
         if self.reparameterize is not None:
             tosave_opt_params =self.reparameterize(tosave_opt_params)            
         
-        flips_numpy = tonumpy(tosave_opt_params[1])
+        rf_event_numpy = tonumpy(tosave_opt_params[1])
         event_time_numpy = tonumpy(tosave_opt_params[2])
-        grad_moms_numpy = tonumpy(tosave_opt_params[3])
+        gradm_event_numpy = tonumpy(tosave_opt_params[3])
         
         # save lastiter seq param array
         lastiter_array = dict()
         lastiter_array['adc_mask'] = tonumpy(self.scanner.adc_mask)
         lastiter_array['B1'] = tonumpy(self.scanner.B1)
-        lastiter_array['flips'] = flips_numpy
+        lastiter_array['rf_event'] = rf_event_numpy
         lastiter_array['event_times'] = event_time_numpy
-        lastiter_array['grad_moms'] = grad_moms_numpy
+        lastiter_array['gradm_event'] = gradm_event_numpy
         lastiter_array['kloc'] = tonumpy(self.scanner.kspace_loc)
         try:
             lastiter_array['reco'] = tonumpy(reco).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
@@ -829,7 +829,7 @@ class OPT_helper():
         np.save(os.path.join(os.path.join(basepath_seq, fn_lastiter_array)), lastiter_array)
         
         # save sequence
-        seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
+        seq_params = rf_event_numpy, event_time_numpy, gradm_event_numpy
         
         if sequence_class.lower() == "gre":
             pulseq_write_GRE(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=plot_seq)
@@ -857,9 +857,9 @@ class OPT_helper():
         NRep = self.scanner.NRep
         
         all_adc_masks = np.zeros((NIter,T))
-        all_flips = np.zeros((NIter,T,NRep,2))
+        all_rf_event = np.zeros((NIter,T,NRep,2))
         all_event_times = np.zeros((NIter,T,NRep))
-        all_grad_moms = np.zeros((NIter,T,NRep,2))
+        all_gradm_event = np.zeros((NIter,T,NRep,2))
         all_kloc = np.zeros((NIter,T,NRep,2))
         all_reco_images = np.zeros((NIter,sz_x,sz_y,2))
         all_signals = np.zeros((NIter,self.scanner.NCoils,T,NRep,3))
@@ -878,9 +878,9 @@ class OPT_helper():
         
         for ni in range(NIter):
             all_adc_masks[ni] = param_reco_history[ni]['adc_mask'].ravel()
-            all_flips[ni] = param_reco_history[ni]['flips_angles']
+            all_rf_event[ni] = param_reco_history[ni]['rf_event_angles']
             all_event_times[ni] = param_reco_history[ni]['event_times']
-            all_grad_moms[ni] = param_reco_history[ni]['grad_moms']
+            all_gradm_event[ni] = param_reco_history[ni]['gradm_event']
             all_kloc[ni] = param_reco_history[ni]['kloc']
             all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
             all_signals[ni] = param_reco_history[ni]['signal'].reshape([self.scanner.NCoils,T,NRep,3])
@@ -891,9 +891,9 @@ class OPT_helper():
         
         alliter_dict = dict()
         alliter_dict['all_adc_masks'] = all_adc_masks
-        alliter_dict['flips'] = all_flips
+        alliter_dict['rf_event'] = all_rf_event
         alliter_dict['event_times'] = all_event_times
-        alliter_dict['grad_moms'] = all_grad_moms
+        alliter_dict['gradm_event'] = all_gradm_event
         alliter_dict['all_kloc'] = all_kloc
         alliter_dict['reco_images'] = all_reco_images
         alliter_dict['all_signals'] = all_signals
@@ -920,11 +920,11 @@ class OPT_helper():
             for ni in range(NIter):
                 fn_pulseq = "iter" + str(ni).zfill(6) + ".seq"
                 
-                flips_numpy = param_reco_history[ni]['flips_angles']
+                rf_event_numpy = param_reco_history[ni]['rf_event_angles']
                 event_time_numpy = param_reco_history[ni]['event_times']
-                grad_moms_numpy = param_reco_history[ni]['grad_moms']    
+                gradm_event_numpy = param_reco_history[ni]['gradm_event']    
                 
-                seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
+                seq_params = rf_event_numpy, event_time_numpy, gradm_event_numpy
                 
                 if sequence_class.lower() == "gre":
                     pulseq_write_GRE(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)
@@ -956,9 +956,9 @@ class OPT_helper():
         NRep = self.scanner.NRep
         
         all_adc_masks = np.zeros((NIter_reduced,T))
-        all_flips = np.zeros((NIter_reduced,T,NRep,2))
+        all_rf_event = np.zeros((NIter_reduced,T,NRep,2))
         all_event_times = np.zeros((NIter_reduced,T,NRep))
-        all_grad_moms = np.zeros((NIter_reduced,T,NRep,2))
+        all_gradm_event = np.zeros((NIter_reduced,T,NRep,2))
         all_kloc = np.zeros((NIter_reduced,T,NRep,2))
         all_reco_images = np.zeros((NIter_reduced,sz_x,sz_y,2))
         all_signals = np.zeros((NIter_reduced,self.scanner.NCoils,T,NRep,3))
@@ -980,9 +980,9 @@ class OPT_helper():
         
         for iter_idx, ni in enumerate(compact_iteration_idx):
             all_adc_masks[iter_idx] = param_reco_history[ni]['adc_mask'].ravel()
-            all_flips[iter_idx] = param_reco_history[ni]['flips_angles']
+            all_rf_event[iter_idx] = param_reco_history[ni]['rf_event_angles']
             all_event_times[iter_idx] = param_reco_history[ni]['event_times']
-            all_grad_moms[iter_idx] = param_reco_history[ni]['grad_moms']
+            all_gradm_event[iter_idx] = param_reco_history[ni]['gradm_event']
             all_kloc[iter_idx] = param_reco_history[ni]['kloc']
             all_reco_images[iter_idx] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
             all_signals[iter_idx] = param_reco_history[ni]['signal'].reshape([self.scanner.NCoils,T,NRep,3])
@@ -993,9 +993,9 @@ class OPT_helper():
         
         alliter_dict = dict()
         alliter_dict['all_adc_masks'] = all_adc_masks
-        alliter_dict['flips'] = all_flips
+        alliter_dict['rf_event'] = all_rf_event
         alliter_dict['event_times'] = all_event_times
-        alliter_dict['grad_moms'] = all_grad_moms
+        alliter_dict['gradm_event'] = all_gradm_event
         alliter_dict['all_kloc'] = all_kloc
         alliter_dict['reco_images'] = all_reco_images
         alliter_dict['all_signals'] = all_signals
@@ -1023,11 +1023,11 @@ class OPT_helper():
             for iter_idx, ni in enumerate(compact_iteration_idx):
                 fn_pulseq = "iter" + str(iter_idx).zfill(6) + ".seq"
                 
-                flips_numpy = param_reco_history[ni]['flips_angles']
+                rf_event_numpy = param_reco_history[ni]['rf_event_angles']
                 event_time_numpy = param_reco_history[ni]['event_times']
-                grad_moms_numpy = param_reco_history[ni]['grad_moms']    
+                gradm_event_numpy = param_reco_history[ni]['gradm_event']    
                 
-                seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
+                seq_params = rf_event_numpy, event_time_numpy, gradm_event_numpy
                 
                 if sequence_class.lower() == "gre":
                     pulseq_write_GRE(seq_params, os.path.join(basepath_seq, fn_pulseq), plot_seq=False)
@@ -1071,9 +1071,9 @@ class OPT_helper():
         NRep = self.scanner.NRep
         
         all_adc_masks = np.zeros((NIter,T))
-        all_flips = np.zeros((NIter,T,NRep,2))
+        all_rf_event = np.zeros((NIter,T,NRep,2))
         all_event_times = np.zeros((NIter,T,NRep))
-        all_grad_moms = np.zeros((NIter,T,NRep,2))
+        all_gradm_event = np.zeros((NIter,T,NRep,2))
         all_kloc = np.zeros((NIter,T,NRep,2))
         all_reco_images = np.zeros((NIter,sz_x,sz_y,2))
         all_signals = np.zeros((NIter,T,NRep,3))
@@ -1081,9 +1081,9 @@ class OPT_helper():
         
         for ni in range(NIter):
             all_adc_masks[ni] = param_reco_history[ni]['adc_mask'].ravel()
-            all_flips[ni] = param_reco_history[ni]['flips_angles']
+            all_rf_event[ni] = param_reco_history[ni]['rf_event_angles']
             all_event_times[ni] = param_reco_history[ni]['event_times']
-            all_grad_moms[ni] = param_reco_history[ni]['grad_moms']
+            all_gradm_event[ni] = param_reco_history[ni]['gradm_event']
             all_kloc[ni] = param_reco_history[ni]['kloc']
             all_reco_images[ni] = param_reco_history[ni]['reco_image'].reshape([sz_x,sz_y,2])
             all_signals[ni] = param_reco_history[ni]['signal'].reshape([T,NRep,3])
@@ -1091,9 +1091,9 @@ class OPT_helper():
         
         scanner_dict = dict()
         scanner_dict['all_adc_masks'] = all_adc_masks
-        scanner_dict['flips'] = all_flips
+        scanner_dict['rf_event'] = all_rf_event
         scanner_dict['event_times'] = all_event_times
-        scanner_dict['grad_moms'] = all_grad_moms
+        scanner_dict['gradm_event'] = all_gradm_event
         scanner_dict['all_kloc'] = all_kloc
         scanner_dict['reco_images'] = all_reco_images
         scanner_dict['all_signals'] = all_signals

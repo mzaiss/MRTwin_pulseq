@@ -9,7 +9,7 @@ experiment_description = """
 FID or 1 D imaging / spectroscopy
 """
 excercise = """
-A01.1. alter flipangle flips[3,0,0], find flip angle for max signal, guess function signal(flip_angle) ~= ...
+A01.1. alter flipangle rf_event[3,0,0], find flip angle for max signal, guess function signal(flip_angle) ~= ...
 A01.2  real_phantom_resized[:,:,3] += 1000 # Tweak dB0  do this to see lab frame movement, then 0 again.
 A01.4. set flip to 90 and alter number of spins: How many spins are at least needed to get good approximation of NSpins=Inf.
 A01.5. alter phase and adc rot
@@ -170,14 +170,14 @@ adc_mask[:5]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
-# RF events: flips and phases
-flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-flips = setdevice(flips)  
-scanner.set_flip_tensor_withB1plus(flips)
+# RF events: rf_event and phases
+rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+rf_event[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event = setdevice(rf_event)  
+scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
-rfsign = ((flips[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+rfsign = ((rf_event[3,:,0]) < 0).float()
+scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -185,11 +185,11 @@ event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
-grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
-grad_moms = setdevice(grad_moms)
+gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 

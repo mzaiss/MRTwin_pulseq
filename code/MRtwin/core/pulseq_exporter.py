@@ -16,16 +16,16 @@ from pypulseq.opts import Opts
 # for trap and sinc
 from pypulseq.holder import Holder
 
-def rectify_flips(flips):
-    rflips = np.copy(flips)
+def rectify_rf_event(rf_event):
+    rrf_event = np.copy(rf_event)
     
-    for i in range(rflips.shape[0]):
-        for j in range(rflips.shape[1]):
-            if rflips[i,j,0] < 0:
-                rflips[i,j,0] = -rflips[i,j,0]
-                rflips[i,j,1] += np.pi
-                rflips[i,j,1] = np.mod(rflips[i,j,1], 2*np.pi)
-    return rflips
+    for i in range(rrf_event.shape[0]):
+        for j in range(rrf_event.shape[1]):
+            if rrf_event[i,j,0] < 0:
+                rrf_event[i,j,0] = -rrf_event[i,j,0]
+                rrf_event[i,j,1] += np.pi
+                rrf_event[i,j,1] = np.mod(rrf_event[i,j,1], 2*np.pi)
+    return rrf_event
 
 def FOV():
     #FOV = 0.110
@@ -39,12 +39,12 @@ else:
 
 
 def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
-    flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
+    rf_event_numpy, event_time_numpy, gradm_event_numpy_input = seq_params
     
     event_time_numpy = np.abs(event_time_numpy)
-    flips_numpy = rectify_flips(flips_numpy)
+    rf_event_numpy = rectify_rf_event(rf_event_numpy)
     
-    NRep = flips_numpy.shape[1]
+    NRep = rf_event_numpy.shape[1]
     
     # save pulseq definition
     MAXSLEW = 140
@@ -52,7 +52,7 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
 
     
     deltak = 1.0 / FOV()
-    grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
+    gradm_event_numpy = deltak*gradm_event_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
@@ -69,20 +69,20 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         ###              first action
         idx_T = 0
         RFdur = 0
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-16:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-16:
             use = "excitation"
             
             if nonsel:
                 RFdur = 1*1e-3
-                kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+                kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1]}
                 rf = make_block_pulse(kwargs_for_block, 1)
                 seq.add_block(rf)
-#                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness":  50e-3, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+#                kwargs_for_sinc = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness":  50e-3, "apodization": 0.5, "time_bw_product": 4, "phase_offset": rf_event_numpy[idx_T,rep,1]}
 #                rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
 #                seq.add_block(rf,gz)
             else:
                 # alternatively slice selective:
-                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+                kwargs_for_sinc = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": rf_event_numpy[idx_T,rep,1]}
                 rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
                 seq.add_block(rf, gz)
                 seq.add_block(gzr)            
@@ -97,19 +97,19 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         idx_T = 1
         
         # calculated here, update in next event
-        gradmom_rewinder = np.squeeze(grad_moms_numpy[idx_T,rep,:])
+        gradmom_rewinder = np.squeeze(gradm_event_numpy[idx_T,rep,:])
         eventtime_rewinder = np.squeeze(event_time_numpy[idx_T,rep])
         
         ###############################
         ###              line acquisition T(3:end-1)
-        idx_T = np.arange(2, grad_moms_numpy.shape[0] - 2) # T(2)
+        idx_T = np.arange(2, gradm_event_numpy.shape[0] - 2) # T(2)
         dur = np.sum(event_time_numpy[idx_T,rep])
         
-        gx_gradmom = np.sum(grad_moms_numpy[idx_T,rep,0],0)
+        gx_gradmom = np.sum(gradm_event_numpy[idx_T,rep,0],0)
         kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": gx_gradmom, "flat_time": dur}
         gx = make_trapezoid(kwargs_for_gx)    
         
-        gy_gradmom = np.sum(grad_moms_numpy[idx_T,rep,1],0)
+        gy_gradmom = np.sum(gradm_event_numpy[idx_T,rep,1],0)
         kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": gy_gradmom, "flat_time": dur}
         gy = make_trapezoid(kwargs_for_gy)
         
@@ -138,21 +138,21 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
         
         ###############################
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
-        idx_T = grad_moms_numpy.shape[0] - 2     # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 2     # T(2)
         
-        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": gradm_event_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gx_post = make_trapezoid(kwargs_for_gxpost)  
         
-        kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gypost = {"channel": 'y', "system": system, "area": gradm_event_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gy_post = make_trapezoid(kwargs_for_gypost)  
         
         # dont play zero grads (cant even do FID otherwise)
-        if np.abs(grad_moms_numpy[idx_T,rep,0]) > 0 or np.abs(grad_moms_numpy[idx_T,rep,1]) > 0:
+        if np.abs(gradm_event_numpy[idx_T,rep,0]) > 0 or np.abs(gradm_event_numpy[idx_T,rep,1]) > 0:
             seq.add_block(gx_post, gy_post)
         
         ###############################
         ###     last extra event  T(end)
-        idx_T = grad_moms_numpy.shape[0] - 1 # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 1 # T(2)
         
         seq.add_block(make_delay(event_time_numpy[idx_T,rep]))
     
@@ -163,18 +163,18 @@ def pulseq_write_GRE(seq_params, seq_fn, plot_seq=False):
     append_header(seq_fn, FOV(),slice_thickness)
 
 def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
-    flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
+    rf_event_numpy, event_time_numpy, gradm_event_numpy_input = seq_params
     
-    flips_numpy = rectify_flips(flips_numpy)
+    rf_event_numpy = rectify_rf_event(rf_event_numpy)
     
-    NRep = flips_numpy.shape[1]
+    NRep = rf_event_numpy.shape[1]
     
     # save pulseq definition
     MAXSLEW = 140
 
     
     deltak = 1.0 / FOV()
-    grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
+    gradm_event_numpy = deltak*gradm_event_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
@@ -191,11 +191,11 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
         ###              first action
         idx_T = 0
         RFdur=0
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-8:
 
             # alternatively slice selective:
             RFdur = event_time_numpy[idx_T,rep]
-            kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+            kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1]}
             rf = make_block_pulse(kwargs_for_block, 1)
             
             seq.add_block(rf)  
@@ -203,9 +203,9 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
             
         ###              second action
         idx_T = 1
-        if np.abs(grad_moms_numpy[idx_T,rep,0])>0:
+        if np.abs(gradm_event_numpy[idx_T,rep,0])>0:
             dur = event_time_numpy[idx_T,rep]
-            gx_gradmom = grad_moms_numpy[idx_T,rep,0]
+            gx_gradmom = gradm_event_numpy[idx_T,rep,0]
             kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": gx_gradmom, "flat_time": dur}
             gx = make_trapezoid(kwargs_for_gx)    
             seq.add_block(gx) 
@@ -213,21 +213,21 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
         ###              third action
         idx_T = 2
         RFdur=0
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-8:
 
             # alternatively slice selective:
             RFdur = 0.4*1e-3
-            kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+            kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1]}
             rf = make_block_pulse(kwargs_for_block, 1)
             
             seq.add_block(rf) 
             seq.add_block(make_delay(1e-4))
             
             dur = event_time_numpy[idx_T,rep]-RFdur
-            gx_gradmom = grad_moms_numpy[idx_T,rep,0]
+            gx_gradmom = gradm_event_numpy[idx_T,rep,0]
             kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": gx_gradmom, "flat_time": dur}
             gx = make_trapezoid(kwargs_for_gx)    
-            gy_gradmom = grad_moms_numpy[idx_T,rep,1]
+            gy_gradmom = gradm_event_numpy[idx_T,rep,1]
             kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": gy_gradmom, "flat_time": dur}
             gy = make_trapezoid(kwargs_for_gy)   
             seq.add_block(gx,gy) 
@@ -236,20 +236,20 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
         ###              first readout (action 3 now)        
         idx_T = 3
         RFdur = 0
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-16:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-16:
             use = "excitation"
             
             if nonsel:
                 RFdur = 1*1e-3
-                kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+                kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1]}
                 rf = make_block_pulse(kwargs_for_block, 1)
                 seq.add_block(rf)
-#                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness":  50e-3, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+#                kwargs_for_sinc = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness":  50e-3, "apodization": 0.5, "time_bw_product": 4, "phase_offset": rf_event_numpy[idx_T,rep,1]}
 #                rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
 #                seq.add_block(rf,gz)
             else:
                 # alternatively slice selective:
-                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+                kwargs_for_sinc = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": rf_event_numpy[idx_T,rep,1]}
                 rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
                 seq.add_block(rf, gz)
                 seq.add_block(gzr)            
@@ -264,19 +264,19 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
         idx_T = 4
         
         # calculated here, update in next event
-        gradmom_rewinder = np.squeeze(grad_moms_numpy[idx_T,rep,:])
+        gradmom_rewinder = np.squeeze(gradm_event_numpy[idx_T,rep,:])
         eventtime_rewinder = np.squeeze(event_time_numpy[idx_T,rep])
         
         ###############################
         ###              line acquisition T(5:end-2)
-        idx_T = np.arange(5, grad_moms_numpy.shape[0] - 2) # T(2)
+        idx_T = np.arange(5, gradm_event_numpy.shape[0] - 2) # T(2)
         dur = np.sum(event_time_numpy[idx_T,rep])
         
-        gx_gradmom = np.sum(grad_moms_numpy[idx_T,rep,0],0)
+        gx_gradmom = np.sum(gradm_event_numpy[idx_T,rep,0],0)
         kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": gx_gradmom, "flat_time": dur}
         gx = make_trapezoid(kwargs_for_gx)    
         
-        gy_gradmom = np.sum(grad_moms_numpy[idx_T,rep,1],0)
+        gy_gradmom = np.sum(gradm_event_numpy[idx_T,rep,1],0)
         kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": gy_gradmom, "flat_time": dur}
         gy = make_trapezoid(kwargs_for_gy)
         
@@ -284,7 +284,7 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
         adc = makeadc(kwargs_for_adc)    
         
         #update rewinder for gxgy ramp times, from second event
-        kwargs_for_gxpre = {"channel": 'x', "system": system, "area": -grad_moms_numpy[idx_T[0],rep,0]/2 + gradmom_rewinder[0]-gx.amplitude*gx.rise_time/2, "duration": eventtime_rewinder}
+        kwargs_for_gxpre = {"channel": 'x', "system": system, "area": -gradm_event_numpy[idx_T[0],rep,0]/2 + gradmom_rewinder[0]-gx.amplitude*gx.rise_time/2, "duration": eventtime_rewinder}
         gx_pre = make_trapezoid(kwargs_for_gxpre)
         
         kwargs_for_gypre = {"channel": 'y', "system": system, "area": gradmom_rewinder[1]-gy.amplitude*gy.rise_time/2, "duration": eventtime_rewinder}
@@ -305,21 +305,21 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
         
         ###############################
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
-        idx_T = grad_moms_numpy.shape[0] - 2     # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 2     # T(2)
         
-        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": gradm_event_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gx_post = make_trapezoid(kwargs_for_gxpost)  
         
-        kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gypost = {"channel": 'y', "system": system, "area": gradm_event_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gy_post = make_trapezoid(kwargs_for_gypost)  
         
         # dont play zero grads (cant even do FID otherwise)
-        if np.abs(grad_moms_numpy[idx_T,rep,0]) > 0 or np.abs(grad_moms_numpy[idx_T,rep,1]) > 0:
+        if np.abs(gradm_event_numpy[idx_T,rep,0]) > 0 or np.abs(gradm_event_numpy[idx_T,rep,1]) > 0:
             seq.add_block(gx_post, gy_post)
         
         ###############################
         ###     last extra event  T(end)
-        idx_T = grad_moms_numpy.shape[0] - 1 # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 1 # T(2)
         
         seq.add_block(make_delay(event_time_numpy[idx_T,rep]))
     
@@ -330,18 +330,18 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
     append_header(seq_fn, FOV(),slice_thickness)
         
 def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
-    flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
+    rf_event_numpy, event_time_numpy, gradm_event_numpy_input = seq_params
     
-    flips_numpy = rectify_flips(flips_numpy)
+    rf_event_numpy = rectify_rf_event(rf_event_numpy)
     
-    NRep = flips_numpy.shape[1]
+    NRep = rf_event_numpy.shape[1]
     
     # save pulseq definition
     MAXSLEW = 140
     
     
     deltak = 1.0 / FOV()
-    grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
+    gradm_event_numpy = deltak*gradm_event_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
@@ -356,12 +356,12 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         ###              first action
         idx_T = 0
         RFdur = 0
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-8:
             use = "excitation"
             
             if nonsel:
                 RFdur = 1*1e-3
-                kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+                kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1]}
                 rf_ex = make_block_pulse(kwargs_for_block, 1)
                 
                 seq.add_block(rf_ex)     
@@ -370,14 +370,14 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
                 use = "excitation"
                 
                 
-                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+                kwargs_for_sinc = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": rf_event_numpy[idx_T,rep,1]}
                 rf_ex, gz, gzr= make_sinc_pulse(kwargs_for_sinc, 3)
                 seq.add_block(rf_ex, gz)
                 gzr.amplitude=gzr.amplitude
                 seq.add_block(gzr)
                 RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
                 
-            kwargs_for_gxPre90 = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0], "duration": event_time_numpy[idx_T,rep]-RFdur}
+            kwargs_for_gxPre90 = {"channel": 'x', "system": system, "area": gradm_event_numpy[idx_T,rep,0], "duration": event_time_numpy[idx_T,rep]-RFdur}
             gxPre90 = make_trapezoid(kwargs_for_gxPre90) 
             
             seq.add_block(gxPre90)
@@ -391,23 +391,23 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         
         RFdur = 0
         
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-8:
           RFdur = 1*1e-3
           
           if nonsel:
-              kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+              kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1]}
               rf_ref = make_block_pulse(kwargs_for_block, 1)
               seq.add_block(rf_ref)         
           else:
             
-              kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": flips_numpy[idx_T,rep,1]}
+              kwargs_for_sinc = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": rf_event_numpy[idx_T,rep,1]}
               rf_ref, gz_ref,gzr = make_sinc_pulse(kwargs_for_sinc, 3)
               seq.add_block(rf_ref, gz_ref)
               RFdur = gz_ref.rise_time + gz_ref.flat_time + gz_ref.fall_time 
               
 
         # calculated here, update in next event
-        gradmom_rewinder = np.squeeze(grad_moms_numpy[idx_T,rep,:])
+        gradmom_rewinder = np.squeeze(gradm_event_numpy[idx_T,rep,:])
         eventtime_rewinder = 1.5*1e-3 
         
         delay_after_rev=np.squeeze(event_time_numpy[idx_T,rep]-RFdur-eventtime_rewinder)
@@ -415,11 +415,11 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         
         ###############################
         ###              line acquisition T(3:end-1)
-        idx_T = np.arange(2, grad_moms_numpy.shape[0] - 2) # T(2)
+        idx_T = np.arange(2, gradm_event_numpy.shape[0] - 2) # T(2)
         
         dur = np.sum(event_time_numpy[idx_T,rep])
         
-        kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,0],0), "flat_time": dur}
+        kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(gradm_event_numpy[idx_T,rep,0],0), "flat_time": dur}
         gx = make_trapezoid(kwargs_for_gx)   
         
         kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time - event_time_numpy[idx_T[0],rep]/2, "phase_offset": rf_ex.phase_offset - np.pi/4}
@@ -441,19 +441,19 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
         
         ###############################
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
-        idx_T = grad_moms_numpy.shape[0] - 2     # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 2     # T(2)
         
-        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": gradm_event_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gx_post = make_trapezoid(kwargs_for_gxpost)  
         
-        kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms_numpy[idx_T,rep,1], "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gypost = {"channel": 'y', "system": system, "area": gradm_event_numpy[idx_T,rep,1], "duration": event_time_numpy[idx_T,rep]}
         gy_post = make_trapezoid(kwargs_for_gypost)  
         
         seq.add_block(gx_post, gy_post)
           
         ###############################
         ###     last extra event  T(end)
-        idx_T = grad_moms_numpy.shape[0] - 1 # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 1 # T(2)
         
         seq.add_block(make_delay(event_time_numpy[idx_T,rep]))
         
@@ -464,17 +464,17 @@ def pulseq_write_RARE(seq_params, seq_fn, plot_seq=False):
     append_header(seq_fn, FOV(),slice_thickness)
     
 def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
-    flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
+    rf_event_numpy, event_time_numpy, gradm_event_numpy_input = seq_params
     
-    flips_numpy = rectify_flips(flips_numpy)
+    rf_event_numpy = rectify_rf_event(rf_event_numpy)
     
-    NRep = flips_numpy.shape[1]
+    NRep = rf_event_numpy.shape[1]
     
     # save pulseq definition
     MAXSLEW = 140
     
     deltak = 1.0 / FOV()
-    grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
+    gradm_event_numpy = deltak*gradm_event_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
@@ -488,7 +488,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         ###############################
         ###              first action
         idx_T = 0
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-8:
             
             if nonsel:
 
@@ -496,7 +496,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
                 
                 # alternatively slice selective:
                 RFdur = 0.8*1e-3
-                kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+                kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1]}
                 rf = make_block_pulse(kwargs_for_block, 1)
                 
                 seq.add_block(rf)     
@@ -506,7 +506,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
                 
                 
                 # alternatively slice selective:
-                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "phase_offset": flips_numpy[idx_T,rep,1], "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
+                kwargs_for_sinc = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "phase_offset": rf_event_numpy[idx_T,rep,1], "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
                 rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
                 
                 seq.add_block(rf, gz)
@@ -523,18 +523,18 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         idx_T = 1
         
         # calculated here, update in next event
-        gradmom_rewinder = np.squeeze(grad_moms_numpy[idx_T,rep,:])
+        gradmom_rewinder = np.squeeze(gradm_event_numpy[idx_T,rep,:])
         eventtime_rewinder = np.squeeze(event_time_numpy[idx_T,rep])
         
         ###############################
         ###              line acquisition T(3:end-1)
-        idx_T = np.arange(2, grad_moms_numpy.shape[0] - 2) # T(2)
+        idx_T = np.arange(2, gradm_event_numpy.shape[0] - 2) # T(2)
         dur = np.sum(event_time_numpy[idx_T,rep])
         
-        kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,0],0), "flat_time": dur}
+        kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(gradm_event_numpy[idx_T,rep,0],0), "flat_time": dur}
         gx = make_trapezoid(kwargs_for_gx)    
         
-        kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,1],0), "flat_time": dur}
+        kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(gradm_event_numpy[idx_T,rep,1],0), "flat_time": dur}
         gy = make_trapezoid(kwargs_for_gy)
         
         kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time - event_time_numpy[idx_T[0],rep]/2, "phase_offset": rf.phase_offset - np.pi/4}
@@ -552,12 +552,12 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         
         ###############################
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
-        idx_T = grad_moms_numpy.shape[0] - 2     # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 2     # T(2)
         
-        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": gradm_event_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gx_post = make_trapezoid(kwargs_for_gxpost)  
         
-        kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gypost = {"channel": 'y', "system": system, "area": gradm_event_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gy_post = make_trapezoid(kwargs_for_gypost)  
         
         if nonsel:
@@ -568,7 +568,7 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
         
         ###############################
         ###     last extra event  T(end)
-        idx_T = grad_moms_numpy.shape[0] - 1 # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 1 # T(2)
         
         seq.add_block(make_delay(event_time_numpy[idx_T,rep]))
     
@@ -579,18 +579,18 @@ def pulseq_write_BSSFP(seq_params, seq_fn, plot_seq=False):
     append_header(seq_fn, FOV(),slice_thickness)    
     
 def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
-    flips_numpy, event_time_numpy, grad_moms_numpy_input = seq_params
+    rf_event_numpy, event_time_numpy, gradm_event_numpy_input = seq_params
     
-    flips_numpy = rectify_flips(flips_numpy)
+    rf_event_numpy = rectify_rf_event(rf_event_numpy)
     
-    NRep = flips_numpy.shape[1]
+    NRep = rf_event_numpy.shape[1]
     
     # save pulseq definition
     MAXSLEW = 140
       
     
     deltak = 1.0 / FOV()
-    grad_moms_numpy = deltak*grad_moms_numpy_input  # adjust for FOV
+    gradm_event_numpy = deltak*gradm_event_numpy_input  # adjust for FOV
     
     kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
     system = Opts(kwargs_for_opts)
@@ -604,24 +604,24 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
         ###############################
         ###              first action
         idx_T = 0
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-8:
             slice_thickness = 200e-3     # slice
 
             # alternatively slice selective:
             RFdur = event_time_numpy[idx_T,rep]
-            kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1],"freq_offset": int(flips_numpy[idx_T,rep,2])}
+            kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1],"freq_offset": int(rf_event_numpy[idx_T,rep,2])}
             rf = make_block_pulse(kwargs_for_block, 1)
             
             seq.add_block(rf)  
             seq.add_block(make_delay(1e-4))
         ###              second action
         idx_T = 1
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-8:
             slice_thickness = 200e-3     # slice
             
             # alternatively slice selective:
             RFdur = event_time_numpy[idx_T,rep]
-            kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1],"freq_offset": flips_numpy[idx_T,rep,2]}
+            kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1],"freq_offset": rf_event_numpy[idx_T,rep,2]}
             rf = make_block_pulse(kwargs_for_block, 1)
             
             seq.add_block(rf)  
@@ -631,7 +631,7 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
         ###              first readout (action 2 now)            
         idx_T = 2
         RFdur=0
-        if np.abs(flips_numpy[idx_T,rep,0]) > 1e-8:
+        if np.abs(rf_event_numpy[idx_T,rep,0]) > 1e-8:
             
             if nonsel:
                 slice_thickness = 200e-3     # slice
@@ -639,7 +639,7 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
                 
                 # alternatively slice selective:
                 RFdur = 0.8*1e-3
-                kwargs_for_block = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": flips_numpy[idx_T,rep,1]}
+                kwargs_for_block = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": RFdur, "phase_offset": rf_event_numpy[idx_T,rep,1]}
                 rf = make_block_pulse(kwargs_for_block, 1)
                 
                 seq.add_block(rf)     
@@ -650,7 +650,7 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
                 slice_thickness = 5e-3
                 
                 # alternatively slice selective:
-                kwargs_for_sinc = {"flip_angle": flips_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "phase_offset": flips_numpy[idx_T,rep,1], "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
+                kwargs_for_sinc = {"flip_angle": rf_event_numpy[idx_T,rep,0], "system": system, "duration": 1e-3, "phase_offset": rf_event_numpy[idx_T,rep,1], "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4}
                 rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
                 
                 seq.add_block(rf, gz)
@@ -667,18 +667,18 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
         idx_T = 3
         
         # calculated here, update in next event
-        gradmom_rewinder = np.squeeze(grad_moms_numpy[idx_T,rep,:])
+        gradmom_rewinder = np.squeeze(gradm_event_numpy[idx_T,rep,:])
         eventtime_rewinder = np.squeeze(event_time_numpy[idx_T,rep])
         
         ###############################
         ###              line acquisition T(3:end-1)
-        idx_T = np.arange(4, grad_moms_numpy.shape[0] - 2) # T(2)
+        idx_T = np.arange(4, gradm_event_numpy.shape[0] - 2) # T(2)
         dur = np.sum(event_time_numpy[idx_T,rep])
         
-        kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,0],0), "flat_time": dur}
+        kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": np.sum(gradm_event_numpy[idx_T,rep,0],0), "flat_time": dur}
         gx = make_trapezoid(kwargs_for_gx)    
         
-        kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(grad_moms_numpy[idx_T,rep,1],0), "flat_time": dur}
+        kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": np.sum(gradm_event_numpy[idx_T,rep,1],0), "flat_time": dur}
         gy = make_trapezoid(kwargs_for_gy)
         
         kwargs_for_adc = {"num_samples": idx_T.size, "duration": gx.flat_time, "delay": gx.rise_time - event_time_numpy[idx_T[0],rep]/2, "phase_offset": rf.phase_offset - np.pi/4}
@@ -696,12 +696,12 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
         
         ###############################
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
-        idx_T = grad_moms_numpy.shape[0] - 2     # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 2     # T(2)
         
-        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": grad_moms_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": gradm_event_numpy[idx_T,rep,0]-gx.amplitude*gx.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gx_post = make_trapezoid(kwargs_for_gxpost)  
         
-        kwargs_for_gypost = {"channel": 'y', "system": system, "area": grad_moms_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
+        kwargs_for_gypost = {"channel": 'y', "system": system, "area": gradm_event_numpy[idx_T,rep,1]-gy.amplitude*gy.fall_time/2, "duration": event_time_numpy[idx_T,rep]}
         gy_post = make_trapezoid(kwargs_for_gypost)  
         
         if nonsel:
@@ -712,7 +712,7 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
         
         ###############################
         ###     last extra event  T(end)
-        idx_T = grad_moms_numpy.shape[0] - 1 # T(2)
+        idx_T = gradm_event_numpy.shape[0] - 1 # T(2)
         
         seq.add_block(make_delay(event_time_numpy[idx_T,rep]))
     

@@ -31,13 +31,13 @@ def phaseimg(x):
     return np.angle(1j*x[:,:,1]+x[:,:,0])
 
 class TargetSequenceHolder():
-    def __init__(self,flips,event_time,grad_moms,scanner,spins,target):
+    def __init__(self,rf_event,event_time,gradm_event,scanner,spins,target):
         
         self.scanner = scanner
         self.target_image = target
         self.sz = scanner.sz
-        self.flips = flips.clone()
-        self.grad_moms = grad_moms.clone()
+        self.rf_event = rf_event.clone()
+        self.gradm_event = gradm_event.clone()
         self.event_time = event_time.clone()
         self.adc_mask = scanner.adc_mask.clone()
         self.ROI_signal=scanner.ROI_signal.clone()
@@ -84,10 +84,10 @@ class TargetSequenceHolder():
             plt.ion()
                
             plt.subplot(253)
-            if self.flips.dim() == 3:
-                FA=self.flips[:,:,0]
+            if self.rf_event.dim() == 3:
+                FA=self.rf_event[:,:,0]
             else:
-                FA=self.flips
+                FA=self.rf_event
                 
             ax=plt.imshow(np.transpose(tonumpy(FA*180/np.pi),[1,0]),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
@@ -98,10 +98,10 @@ class TargetSequenceHolder():
             fig.set_size_inches(18, 3)
             
             plt.subplot(258)
-            if self.flips.dim() == 3:
-                FA=self.flips[:,:,1]
+            if self.rf_event.dim() == 3:
+                FA=self.rf_event[:,:,1]
             else:
-                FA=self.flips
+                FA=self.rf_event
                 
             ax=plt.imshow(np.transpose(tonumpy(FA*180/np.pi),[1,0]),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
@@ -122,7 +122,7 @@ class TargetSequenceHolder():
               
             
 #            ax1=plt.subplot(2, 5, 5)
-#            ax=plt.imshow(tonumpy(self.grad_moms[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+#            ax=plt.imshow(tonumpy(self.gradm_event[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
 #            plt.ion()
 #            plt.title('gradx')
 #            fig = plt.gcf()
@@ -130,7 +130,7 @@ class TargetSequenceHolder():
 #            fig.colorbar(ax)
                         
 #            ax1=plt.subplot(2, 5, 10)
-#            ax=plt.imshow(tonumpy(self.grad_moms[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+#            ax=plt.imshow(tonumpy(self.gradm_event[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
 #            plt.ion()
 #            fig = plt.gcf()
 #            fig.set_size_inches(18, 3)
@@ -208,10 +208,10 @@ class TargetSequenceHolder():
             
             
             plt.subplot(334); plt.title('rf flip [\N{DEGREE SIGN}]'); plt.ylabel('repetition'); plt.yticks(np.arange(0, self.scanner.NRep, 5))
-            if self.flips.dim() == 3:
-                flip_phase_event=self.flips
+            if self.rf_event.dim() == 3:
+                flip_phase_event=self.rf_event
             else:
-                flip_phase_event=self.flips
+                flip_phase_event=self.rf_event
                 
             ax=plt.imshow(np.transpose(tonumpy(flip_phase_event[:,:,0]*180/np.pi),[1,0]),cmap=plt.get_cmap('nipy_spectral'))
             plt.clim(-90,270)
@@ -223,11 +223,11 @@ class TargetSequenceHolder():
             fig = plt.gcf();fig.colorbar(ax)
 
             plt.subplot(337); plt.title('grad_mom_x'); plt.xlabel('event index') ; plt.ylabel('repetition');plt.yticks(np.arange(0, self.scanner.NRep, 5))
-            ax=plt.imshow(tonumpy(self.grad_moms[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(self.gradm_event[:,:,0].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             fig = plt.gcf();fig.colorbar(ax)
                         
             ax1=plt.subplot(338); plt.title('grad_mom_y'); plt.xlabel('event index');plt.yticks(np.arange(0, self.scanner.NRep, 5))
-            ax=plt.imshow(tonumpy(self.grad_moms[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
+            ax=plt.imshow(tonumpy(self.gradm_event[:,:,1].permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             fig = plt.gcf();fig.colorbar(ax)
             
             
@@ -251,13 +251,13 @@ class TargetSequenceHolder():
         plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(self.event_time))))
         plt.plot(np.tile(tonumpy(self.adc_mask),self.scanner.NRep).flatten('F'),'.',label='ADC')
         plt.plot(tonumpy(self.event_time).flatten('F'),'.',label='time')
-        plt.plot(tonumpy(self.flips[:,:,0]).flatten('F'),label='RF')
+        plt.plot(tonumpy(self.rf_event[:,:,0]).flatten('F'),label='RF')
         major_ticks = np.arange(0, self.scanner.T*self.scanner.NRep, self.scanner.T) # this adds ticks at the correct position szread
         ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
         plt.legend()
         plt.subplot(412); plt.ylabel('gradients')
-        plt.plot(tonumpy(self.grad_moms[:,:,0]).flatten('F'),label='gx')
-        plt.plot(tonumpy(self.grad_moms[:,:,1]).flatten('F'),label='gy')
+        plt.plot(tonumpy(self.gradm_event[:,:,0]).flatten('F'),label='gx')
+        plt.plot(tonumpy(self.gradm_event[:,:,1]).flatten('F'),label='gy')
         ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
         plt.legend()
         plt.subplot(413); plt.ylabel('signal')
@@ -279,9 +279,9 @@ class TargetSequenceHolder():
         scanner_dict = dict()
         scanner_dict['adc_mask'] = tonumpy(self.scanner.adc_mask)
         scanner_dict['B1'] = tonumpy(self.scanner.B1)
-        scanner_dict['flips'] = tonumpy(self.flips)
+        scanner_dict['rf_event'] = tonumpy(self.rf_event)
         scanner_dict['event_times'] = np.abs(tonumpy(self.event_time))
-        scanner_dict['grad_moms'] = tonumpy(self.grad_moms)
+        scanner_dict['gradm_event'] = tonumpy(self.gradm_event)
         scanner_dict['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         scanner_dict['ROI'] = tonumpy(self.scanner.ROI_signal)
         scanner_dict['sz'] = self.scanner.sz
@@ -336,17 +336,17 @@ class TargetSequenceHolder():
 #            except:
 #                pass
         
-        flips_numpy = tonumpy(self.flips)
+        rf_event_numpy = tonumpy(self.rf_event)
         event_time_numpy = np.abs(tonumpy(self.event_time))
-        grad_moms_numpy = tonumpy(self.grad_moms)
+        gradm_event_numpy = tonumpy(self.gradm_event)
         
         # save target seq param array
         target_array = dict()
         target_array['adc_mask'] = tonumpy(self.scanner.adc_mask)
         target_array['B1'] = tonumpy(self.scanner.B1)
-        target_array['flips'] = flips_numpy
+        target_array['rf_event'] = rf_event_numpy
         target_array['event_times'] = event_time_numpy
-        target_array['grad_moms'] = grad_moms_numpy
+        target_array['gradm_event'] = gradm_event_numpy
         target_array['kloc'] = tonumpy(self.scanner.kspace_loc)
         target_array['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
         target_array['ROI'] = tonumpy(self.scanner.ROI_signal)
@@ -362,7 +362,7 @@ class TargetSequenceHolder():
         np.save(os.path.join(os.path.join(basepath, fn_target_array)), target_array)
         
         # save sequence
-        seq_params = flips_numpy, event_time_numpy, grad_moms_numpy
+        seq_params = rf_event_numpy, event_time_numpy, gradm_event_numpy
         
         if sequence_class.lower() == "gre":
             pulseq_write_GRE(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)

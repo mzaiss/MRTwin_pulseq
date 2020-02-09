@@ -161,25 +161,25 @@ for exp_current in experiment_list:
     scanner.kspace_loc = setdevice(torch.from_numpy(input_array_target['kloc']))
     sequence_class = input_array_target['sequence_class']
 
-    flips = setdevice(torch.from_numpy(input_array_target['flips']))
+    rf_event = setdevice(torch.from_numpy(input_array_target['rf_event']))
     event_time = setdevice(torch.from_numpy(input_array_target['event_times']))
-    grad_moms = setdevice(torch.from_numpy(input_array_target['grad_moms']))
+    gradm_event = setdevice(torch.from_numpy(input_array_target['gradm_event']))
 
     B1plus = torch.ones((NCoils, 1, NVox, 1, 1), dtype=torch.float32)
     # B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([NCoils, NVox]))
     scanner.B1plus = setdevice(B1plus)
 
     scanner.init_flip_tensor_holder()
-    scanner.set_flip_tensor_withB1plus(flips)
+    scanner.set_flip_tensor_withB1plus(rf_event)
 
     # rotate ADC according to excitation phase
-    scanner.set_ADC_rot_tensor(-flips[0, :, 1] + np.pi / 2)  # GRE/FID specific
+    scanner.set_ADC_rot_tensor(-rf_event[0, :, 1] + np.pi / 2)  # GRE/FID specific
 
     TR = torch.sum(event_time[:, 1])
     TE = torch.sum(event_time[:11, 1])
 
     scanner.init_gradient_tensor_holder()
-    scanner.set_gradient_precession_tensor(grad_moms, sequence_class)
+    scanner.set_gradient_precession_tensor(gradm_event, sequence_class)
 
     ######### SIMULATION
 
@@ -348,15 +348,15 @@ for exp_current in experiment_list:
     allreco_dict['target_signal'] = input_array_target['signal']
     allreco_dict['target_reco'] = input_array_target['reco']
     allreco_dict['target_kloc'] = input_array_target['kloc']
-    allreco_dict['target_flips'] = input_array_target['flips']
+    allreco_dict['target_rf_event'] = input_array_target['rf_event']
     allreco_dict['target_event_times'] = input_array_target['event_times']
-    allreco_dict['target_grad_moms'] = input_array_target['grad_moms']
+    allreco_dict['target_gradm_event'] = input_array_target['gradm_event']
 
     allreco_dict['all_adc_masks'] = alliter_array['all_adc_masks']
 
-    allreco_dict['all_flips'] = alliter_array['flips']
+    allreco_dict['all_rf_event'] = alliter_array['rf_event']
     allreco_dict['all_event_times'] = alliter_array['event_times']
-    allreco_dict['all_grad_moms'] = alliter_array['grad_moms']
+    allreco_dict['all_gradm_event'] = alliter_array['gradm_event']
     allreco_dict['all_kloc'] = alliter_array['all_kloc']
     allreco_dict['all_errors'] = alliter_array['all_errors']
     allreco_dict['sz'] = alliter_array['sz']

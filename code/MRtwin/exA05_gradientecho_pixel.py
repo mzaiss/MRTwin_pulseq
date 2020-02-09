@@ -10,7 +10,7 @@ GRE or 1 D imaging / spectroscopy
 """
 excercise = """
 this file starts from solA04. we want now to have the same echo in every repetition
-A05.1. have the same flips, event times and gradmoms for every repetition, add recover time in last action as in A03
+A05.1. have the same rf_event, event times and gradmoms for every repetition, add recover time in last action as in A03
 A05.2. what is the recover time needed to have same echo amplitudes? is there a general rule for this? 
 A05.3. alter the position of the pixel in the image in line 110. what do you observe?
 A05.4. set a second pixel (activate line 111). What do you observe?
@@ -158,15 +158,15 @@ adc_mask[:5]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
-# RF events: flips and phases
-flips = torch.zeros((T,NRep,2), dtype=torch.float32)
-flips[3,0,0] = 90*np.pi/180  # 90deg excitation in first rep
-flips = setdevice(flips)
+# RF events: rf_event and phases
+rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+rf_event[3,0,0] = 90*np.pi/180  # 90deg excitation in first rep
+rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
-scanner.set_flip_tensor_withB1plus(flips)
+scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
-rfsign = ((flips[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-flips[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+rfsign = ((rf_event[3,:,0]) < 0).float()
+scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -175,15 +175,15 @@ event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
-grad_moms = torch.zeros((T,NRep,2), dtype=torch.float32)
-grad_moms[4,0,0] = -0.5*szread
-grad_moms[5:-2,0,0] = 1
-grad_moms[5:-2,1::2,0] = -1 
-grad_moms[5:-2,2::2,0] =  1
-grad_moms = setdevice(grad_moms)
+gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+gradm_event[4,0,0] = -0.5*szread
+gradm_event[5:-2,0,0] = 1
+gradm_event[5:-2,1::2,0] = -1 
+gradm_event[5:-2,2::2,0] =  1
+gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_moms,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 
@@ -196,11 +196,11 @@ fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
 plt.subplot(311); plt.title('seq: RF, time, ADC')
 plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
 plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(flips[:,:,0]).flatten('F'),label='RF')
+plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
 plt.legend()
 plt.subplot(312); plt.title('seq: gradients')
-plt.plot(tonumpy(grad_moms[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(grad_moms[:,:,1]).flatten('F'),label='gy')
+plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
+plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
 plt.legend()
 plt.subplot(313); plt.title('signal')
 plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')

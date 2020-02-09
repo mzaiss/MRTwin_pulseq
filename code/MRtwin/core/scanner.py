@@ -100,10 +100,10 @@ class Scanner():
     def tonumpy(self, x):
         return x.detach().cpu().numpy()    
     
-    def do_SAR_test(self, flips, event_time):
+    def do_SAR_test(self, rf_event, event_time):
         TACQ = torch.sum(event_time)*1000 + 2e3
         watchdog_norm = 100 / 0.45245
-        SAR_watchdog = (torch.sum(flips[:,:,0]**2) / TACQ).cpu()
+        SAR_watchdog = (torch.sum(rf_event[:,:,0]**2) / TACQ).cpu()
         print("SAR_watchdog = {}%".format(np.round(SAR_watchdog*watchdog_norm)))
         
         
@@ -220,25 +220,25 @@ class Scanner():
          
         self.F = self.setdevice(F)
          
-    def set_flip_tensor(self,flips):
+    def set_flip_tensor(self,rf_event):
         
-        flips_cos = torch.cos(flips)
-        flips_sin = torch.sin(flips)
+        rf_event_cos = torch.cos(rf_event)
+        rf_event_sin = torch.sin(rf_event)
         
-        self.F[:,:,0,0,0] = flips_cos
-        self.F[:,:,0,0,2] = flips_sin
-        self.F[:,:,0,2,0] = -flips_sin
-        self.F[:,:,0,2,2] = flips_cos 
+        self.F[:,:,0,0,0] = rf_event_cos
+        self.F[:,:,0,0,2] = rf_event_sin
+        self.F[:,:,0,2,0] = -rf_event_sin
+        self.F[:,:,0,2,2] = rf_event_cos 
         
-    def set_flipXY_tensor(self,input_flips):
+    def set_flipXY_tensor(self,input_rf_event):
         
         class ExecutionControl(Exception): pass
         raise ExecutionControl('set_flipXY_tensor method is deprecated! use set_flip_tensor_withB1plus instead')
         
-        vx = torch.cos(input_flips[:,:,1])
-        vy = torch.sin(input_flips[:,:,1])
+        vx = torch.cos(input_rf_event[:,:,1])
+        vy = torch.sin(input_rf_event[:,:,1])
         
-        theta = input_flips[:,:,0]
+        theta = input_rf_event[:,:,0]
             
         theta = theta.unsqueeze(2).unsqueeze(2).unsqueeze(2)
         
@@ -261,7 +261,7 @@ class Scanner():
         self.F[:,:,0,2,2] += 1
         
     # flip operator with B1plus inhomogeneity
-    def set_flip_tensor_withB1plus(self,input_flips):
+    def set_flip_tensor_withB1plus(self,input_rf_event):
         if not hasattr(self,'B1plus'):
             class ExecutionControl(Exception): pass
             raise ExecutionControl('set_flip_tensor_withB1plus: set B1plus before use')
@@ -272,8 +272,8 @@ class Scanner():
          
         Fglob = self.setdevice(Fglob)
         
-        vx = torch.cos(input_flips[:,:,1])
-        vy = torch.sin(input_flips[:,:,1])
+        vx = torch.cos(input_rf_event[:,:,1])
+        vy = torch.sin(input_rf_event[:,:,1])
         
         Fglob[:,:,0,0,0] = 0
         Fglob[:,:,0,0,1] = 0
@@ -288,7 +288,7 @@ class Scanner():
         # matrix square
         F2 = torch.matmul(Fglob,Fglob)
         
-        theta = input_flips[:,:,0]
+        theta = input_rf_event[:,:,0]
         theta = theta.unsqueeze(2).unsqueeze(2).unsqueeze(2)
         
         # WARNING TODO, not future proof
@@ -309,13 +309,13 @@ class Scanner():
 
         
     # use Rodriguez' rotation formula to compute rotation around arbitrary axis
-    # flips are now (T,NRep,3) -- axis angle representation
+    # rf_event are now (T,NRep,3) -- axis angle representation
     # angle = norm of the rotation vector    
-    def set_flipAxisAngle_tensor(self,flips):
+    def set_flipAxisAngle_tensor(self,rf_event):
         
         # ... greatly simplifies if assume rotations in XY plane ...
-        theta = torch.norm(flips,dim=2).unsqueeze(2)
-        v = flips / theta
+        theta = torch.norm(rf_event,dim=2).unsqueeze(2)
+        v = rf_event / theta
         theta = theta.unsqueeze(2).unsqueeze(2)
         
         self.F[:,:,0,0,0] = 0
@@ -452,12 +452,12 @@ class Scanner():
         self.G_adj[:,:,1,0] = -B0_grad_adj_sin
         self.G_adj[:,:,1,1] = B0_grad_adj_cos
         
-    def set_gradient_precession_tensor(self,grad_moms,sequence_class):
-        grads=grad_moms
+    def set_gradient_precession_tensor(self,gradm_event,sequence_class):
+        grads=gradm_event
         
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
         padder = self.setdevice(padder)
-        temp = torch.cat((padder,grad_moms),0)
+        temp = torch.cat((padder,gradm_event),0)
         temp = temp[:-1,:,:]
         k=torch.cumsum(temp,0)
         
@@ -498,8 +498,8 @@ class Scanner():
             
         self.grads = grads
         
-        # save grad_moms for intravoxel precession op
-        self.grad_moms_for_intravoxel_precession = grad_moms
+        # save gradm_event for intravoxel precession op
+        self.gradm_event_for_intravoxel_precession = gradm_event
         
         self.kspace_loc = k
         
@@ -532,7 +532,7 @@ class Scanner():
         if len(self.intravoxel_dephasing_ramp.shape) == 3:
             self.set_grad_intravoxel_precess_tensor_var_voxramp(t,r)
         else:
-            intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0) * self.intravoxel_dephasing_ramp
+            intra_b0 = self.gradm_event_for_intravoxel_precession[t,r,:].unsqueeze(0) * self.intravoxel_dephasing_ramp
             intra_b0 = torch.sum(intra_b0,1)
             
             IVP_nspins_cos = torch.cos(intra_b0)
@@ -544,7 +544,7 @@ class Scanner():
             self.IVP[:,0,0,1,1] = IVP_nspins_cos
         
     def set_grad_intravoxel_precess_tensor_var_voxramp(self,t,r):
-        intra_b0 = self.grad_moms_for_intravoxel_precession[t,r,:].unsqueeze(0).unsqueeze(0) * self.intravoxel_dephasing_ramp
+        intra_b0 = self.gradm_event_for_intravoxel_precession[t,r,:].unsqueeze(0).unsqueeze(0) * self.intravoxel_dephasing_ramp
         intra_b0 = torch.sum(intra_b0,2)
         
         IVP_nspins_cos = torch.cos(intra_b0)
@@ -908,7 +908,7 @@ class Scanner():
                             REW = G_adj[start_t,r,:,:,:]
                             
                         # set grad intravoxel precession tensor
-                        kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
+                        kum_grad_intravoxel = torch.sum(self.gradm_event_for_intravoxel_precession[start_t:t+1,r,:],0)
                         intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
                         intra_b0 = torch.sum(intra_b0,1)
                         
@@ -1075,7 +1075,7 @@ class Scanner():
                             
                             #intraSpins = spins.M
                             
-                            kum_grad_intravoxel = torch.cumsum(self.grad_moms_for_intravoxel_precession[start_t:start_t+half_read*2,r,:],0)
+                            kum_grad_intravoxel = torch.cumsum(self.gradm_event_for_intravoxel_precession[start_t:start_t+half_read*2,r,:],0)
                             
                             intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
                             intra_b0 = torch.sum(intra_b0,2)
@@ -1128,7 +1128,7 @@ class Scanner():
                             FWD = G_adj_cut[t+1,r,:,:,:].permute([0,2,1])
                             
                         # set grad intravoxel precession tensor
-                        kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
+                        kum_grad_intravoxel = torch.sum(self.gradm_event_for_intravoxel_precession[start_t:t+1,r,:],0)
                         intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
                         intra_b0 = torch.sum(intra_b0,1)
                         
@@ -1258,7 +1258,7 @@ class Scanner():
                             
                             #intraSpins = spins_cut
                             
-                            kum_grad_intravoxel = torch.cumsum(self.grad_moms_for_intravoxel_precession[start_t:start_t+half_read*2,r,:],0)
+                            kum_grad_intravoxel = torch.cumsum(self.gradm_event_for_intravoxel_precession[start_t:start_t+half_read*2,r,:],0)
                             intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
                             intra_b0 = torch.sum(intra_b0,2)
                             
@@ -1310,7 +1310,7 @@ class Scanner():
                             FWD = G_adj_cut[t+1,r,:,:,:].permute([0,2,1])
                             
                         # set grad intravoxel precession tensor
-                        kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
+                        kum_grad_intravoxel = torch.sum(self.gradm_event_for_intravoxel_precession[start_t:t+1,r,:],0)
                         intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
                         intra_b0 = torch.sum(intra_b0,1)
                         
@@ -1445,7 +1445,7 @@ class Scanner():
                 # Intra-voxel grad precession
                 intraSpins = x
                             
-                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[t1:t2,r,:],0)
+                kum_grad_intravoxel = torch.cumsum(ctx.scanner.gradm_event_for_intravoxel_precession[t1:t2,r,:],0)
                 intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
                 intra_b0 = torch.sum(intra_b0,2)
                 
@@ -1521,7 +1521,7 @@ class Scanner():
                 #grad_output = torch.repeat_interleave(grad_output,ctx.scanner.NSpins,0)
                 
                 # Intra-voxel grad precession
-                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[ctx.t1:ctx.t2,r,:],0)
+                kum_grad_intravoxel = torch.cumsum(ctx.scanner.gradm_event_for_intravoxel_precession[ctx.t1:ctx.t2,r,:],0)
                 intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
                 intra_b0 = torch.sum(intra_b0,2)
                 
@@ -1767,7 +1767,7 @@ class Scanner():
                             self.signal[0,start_t:start_t+half_read*2,r,:2,0] = signal.squeeze() / self.NSpins 
                             
                         # set grad intravoxel precession tensor
-                        kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
+                        kum_grad_intravoxel = torch.sum(self.gradm_event_for_intravoxel_precession[start_t:t+1,r,:],0)
                         intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
                         intra_b0 = torch.sum(intra_b0,1)
                         
@@ -1897,7 +1897,7 @@ class Scanner():
                 # Intra-voxel grad precession
                 intraSpins = x
                             
-                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[t1:t2,r,:],0)
+                kum_grad_intravoxel = torch.cumsum(ctx.scanner.gradm_event_for_intravoxel_precession[t1:t2,r,:],0)
                 intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
                 intra_b0 = torch.sum(intra_b0,2)
                 
@@ -1964,7 +1964,7 @@ class Scanner():
                 #grad_output = torch.repeat_interleave(grad_output,ctx.scanner.NSpins,0)
                 
                 # Intra-voxel grad precession
-                kum_grad_intravoxel = torch.cumsum(ctx.scanner.grad_moms_for_intravoxel_precession[ctx.t1:ctx.t2,r,:],0)
+                kum_grad_intravoxel = torch.cumsum(ctx.scanner.gradm_event_for_intravoxel_precession[ctx.t1:ctx.t2,r,:],0)
                 intra_b0 = kum_grad_intravoxel.unsqueeze(0) * ctx.scanner.intravoxel_dephasing_ramp.unsqueeze(1)
                 intra_b0 = torch.sum(intra_b0,2)
                 
@@ -2147,7 +2147,7 @@ class Scanner():
                             
                         # do gradient precession (use adjoint as free kumulator)
                         # set grad intravoxel precession tensor
-                        kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
+                        kum_grad_intravoxel = torch.sum(self.gradm_event_for_intravoxel_precession[start_t:t+1,r,:],0)
                         intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
                         intra_b0 = torch.sum(intra_b0,1)
                         
@@ -2260,7 +2260,7 @@ class Scanner():
                             spins.M = torch.matmul(FWD,spins.M)
                             
                             # set grad intravoxel precession tensor
-                            kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
+                            kum_grad_intravoxel = torch.sum(self.gradm_event_for_intravoxel_precession[start_t:t+1,r,:],0)
                             intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
                             intra_b0 = torch.sum(intra_b0,1)
                             
@@ -2367,7 +2367,7 @@ class Scanner():
                             spins_cut = torch.matmul(FWD,spins_cut)
                             
                             # set grad intravoxel precession tensor
-                            kum_grad_intravoxel = torch.sum(self.grad_moms_for_intravoxel_precession[start_t:t+1,r,:],0)
+                            kum_grad_intravoxel = torch.sum(self.gradm_event_for_intravoxel_precession[start_t:t+1,r,:],0)
                             intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
                             intra_b0 = torch.sum(intra_b0,1)
                             
@@ -2735,17 +2735,17 @@ class Scanner_fast(Scanner):
         
         self.IVP = IVP
         
-    def set_gradient_precession_tensor(self,grad_moms,sequence_class):
-        # we need to shift grad_moms to the right for adjoint pass, since at each repetition we have:
+    def set_gradient_precession_tensor(self,gradm_event,sequence_class):
+        # we need to shift gradm_event to the right for adjoint pass, since at each repetition we have:
         # meas-signal, flip, relax,grad order  (signal comes before grads!)
         padder = torch.zeros((1,self.NRep,2),dtype=torch.float32)
         padder = self.setdevice(padder)
-        temp = torch.cat((padder,grad_moms),0)
+        temp = torch.cat((padder,gradm_event),0)
         temp = temp[:-1,:,:]
         k=torch.cumsum(temp,0)
         
-        B0X = torch.unsqueeze(grad_moms[:,:,0],2) * self.rampX
-        B0Y = torch.unsqueeze(grad_moms[:,:,1],2) * self.rampY
+        B0X = torch.unsqueeze(gradm_event[:,:,0],2) * self.rampX
+        B0Y = torch.unsqueeze(gradm_event[:,:,1],2) * self.rampY
         
         B0_grad = (B0X + B0Y).view([self.T,self.NRep,self.NVox])
         
@@ -2805,9 +2805,9 @@ class Scanner_fast(Scanner):
         self.G_adj[:,:,:,1,0] = -B0_grad_adj_sin
         self.G_adj[:,:,:,1,1] = B0_grad_adj_cos
         
-        # save grad_moms for intravoxel precession op
-        self.grad_moms_for_intravoxel_precession = grad_moms
-        self.grads = grad_moms
+        # save gradm_event for intravoxel precession op
+        self.gradm_event_for_intravoxel_precession = gradm_event
+        self.grads = gradm_event
         
         self.kspace_loc = k
         

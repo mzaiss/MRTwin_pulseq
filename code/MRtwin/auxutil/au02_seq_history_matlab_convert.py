@@ -44,22 +44,22 @@ else:
     event_time[1,:] = 1e-3
     event_time[-2,:] = 1e-3
 
-all_flips = np.zeros((NIter,T,NRep,2))
+all_rf_event = np.zeros((NIter,T,NRep,2))
 all_event_times = np.zeros((NIter,T,NRep))
-all_grad_moms = np.zeros((NIter,T,NRep,2))
+all_gradm_event = np.zeros((NIter,T,NRep,2))
 all_reco_images = np.zeros((NIter,sz,sz,2))
 
 for ni in range(NIter):
-    all_flips[ni] = b[0][ni]['flips_angles']
+    all_rf_event[ni] = b[0][ni]['rf_event_angles']
     all_event_times[ni] = event_time
-    all_grad_moms[ni] = b[0][ni]['grad_moms']
+    all_gradm_event[ni] = b[0][ni]['gradm_event']
     all_reco_images[ni] = b[0][ni]['reco_image'].reshape([sz,sz,2])
     
 
 scanner_dict = dict()
-scanner_dict['flips'] = all_flips
+scanner_dict['rf_event'] = all_rf_event
 scanner_dict['event_times'] = all_event_times
-scanner_dict['grad_moms'] = all_grad_moms
+scanner_dict['gradm_event'] = all_gradm_event
 scanner_dict['reco_images'] = all_reco_images
 scanner_dict['sz'] = np.array([sz,sz])
 scanner_dict['T'] = T
