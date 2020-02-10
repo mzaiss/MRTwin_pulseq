@@ -88,10 +88,10 @@ def setdevice(x):
 ## S0: define image and simulation settings::: #####################################
 sz = np.array([32,32])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
-NRep = extraMeas*sz[1]                      # number of total repetitions
+NRep = extraMeas*sz[1]                   # number of total repetitions
 szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 12**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -115,12 +115,10 @@ for i in range(5):
     elif i == 1 or i == 2:
         t[t < cutoff] = cutoff        
     real_phantom_resized[:,:,i] = t
-    
-
-    
+       
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] *= 3 # Tweak dB0
+real_phantom_resized[:,:,3] *= 1 # Tweak dB0
 real_phantom_resized[:,:,4] *= 1 # Tweak rB1
 
 spins.set_system(real_phantom_resized)
@@ -168,19 +166,27 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
-rf_event[2,:,0] = 2.5*np.pi/180  # 90deg excitation now for every rep
-rf_event[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
+rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
+rf_event[2,0,0] = 5*np.pi/180  # 90deg excitation now for every rep
+rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
+rf_event[3,:,0] = 10*np.pi/180  # 90deg excitation now for every rep
+
+alternate= torch.tensor([0,1])
+rf_event[3,:,1]=np.pi*alternate.repeat(NRep//2)
+
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
 rfsign = ((rf_event[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+
+scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[2,0] =  0.01*0.5  
-event_time[-1,:] =  0.01
+event_time[1,0] =  2
+event_time[2,0] =  0.002*0.5  
+event_time[-1,:] =  0.002
 event_time = setdevice(event_time)
 TA = tonumpy(torch.sum(event_time))
 # gradient-driver precession
@@ -188,10 +194,10 @@ TA = tonumpy(torch.sum(event_time))
 gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
 gradm_event[4,:,1] = -0.5*szread
 gradm_event[5:-2,:,1] = 1
-gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2
-#gradm_event[-2,:,1] = 2.0*szread
-#gradm_event[-2,:,0] = gradm_event[4,:,0]
-#gradm_event[-2,:,1] = -0.5*szread
+gradm_event[-2,:,1] = -0.5*szread # readback
+gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2  #phaseblip
+gradm_event[-2,:,0] = -gradm_event[4,:,0]            #phasebackblip
+
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -199,30 +205,14 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 ## end S3: MR sequence definition ::: #####################################
 
 
-
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
 
-fig=plt.figure("""seq and image"""); fig.set_size_inches(64, 7)
-plt.subplot(311); plt.title('seq: RF, time, ADC')
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-major_ticks = np.arange(0, T*NRep, T) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(312); plt.title('seq: gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-#plt.subplot(313); plt.title('signal')
-#plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-#plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-#plt.legend()
-plt.show()
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9])
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
