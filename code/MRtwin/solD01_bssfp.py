@@ -94,7 +94,7 @@ T = szread + 5 + 2                               # number of events F/R/P
 NSpins = 12**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
-kill_transverse = False                     #
+kill_transverse = True                     # kills transverse when above 1.5 k.-spaces
 import time; today_datestr = time.strftime('%y%m%d')
 NVox = sz[0]*szread
 
