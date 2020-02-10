@@ -1335,7 +1335,8 @@ class Scanner():
                         total_delay = delay
                     else:                                       # keep accumulating
                         total_delay += delay
-                        
+                if self.grads[t,r,0] > 1.5*np.abs(self.sz[0]) and kill_transverse:
+                    spins_cut[:,0,:,:2,0] = 0                    
             if kill_transverse:
                 spins_cut[:,0,:,:2,0] = 0
                     
