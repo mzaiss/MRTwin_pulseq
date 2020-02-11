@@ -1,4 +1,3 @@
 
-code/pypulseq/__pycache__/
-code/MRzero/__pycache__/
-code/MRzero/core/__pycache__/
+codes/scannerloop_libs/pypulseq/__pycache__/
+codes/MRtwin/core/__pycache__/

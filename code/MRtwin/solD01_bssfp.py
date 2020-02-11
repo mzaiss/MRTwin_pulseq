@@ -91,7 +91,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                   # number of total repetitions
 szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 12**2                               # number of spin sims in each voxel
+NSpins = 20**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = True                     # kills transverse when above 1.5 k.-spaces
@@ -135,7 +135,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 30.0
+R2star = 0.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
