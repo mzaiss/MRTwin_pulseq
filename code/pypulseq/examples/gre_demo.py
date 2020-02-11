@@ -6,7 +6,7 @@ Date: December 15, 2017.
 from math import pi
 
 import numpy as np
-
+sys.path.append("../")
 from pypulseq.Sequence.sequence import Sequence
 from pypulseq.calc_duration import calc_duration
 from pypulseq.make_adc import makeadc
