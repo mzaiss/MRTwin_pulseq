@@ -65,6 +65,8 @@ class Scanner():
         self.AF = None
         self.use_gpu =  use_gpu
         self.double_precision = double_precision
+        self.do_voxel_rand_ramp_distr = do_voxel_rand_ramp_distr
+        self.do_voxel_rand_r2_distr = do_voxel_rand_r2_distr
         self.NCol = None # number of samples in readout (computed at adc_mask set)
         
         
@@ -154,34 +156,61 @@ class Scanner():
         dim = self.setdevice(torch.sqrt(torch.tensor(self.NSpins).float()))
         
         off = 1 / dim
-        if dim == torch.floor(dim):
-
-            xv, yv = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
-            # this generates an anti-symmetric distribution in x
-            Rx1= torch.randn(torch.Size([dim.int()/2,dim.int()]))*off
-            Rx2=-torch.flip(Rx1, [0])
-            Rx= torch.cat((Rx1, Rx2),0)
-            # this generates an anti-symmetric distribution in y
-            Ry1= torch.randn(torch.Size([dim.int(),dim.int()/2]))*off
-            Ry2=-torch.flip(Ry1, [1])
-            Ry= torch.cat((Ry1, Ry2),1)
-                        
-            xv = xv + Rx
-            yv = yv + Ry
-
-            intravoxel_dephasing_ramp = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
-        else:
-            class ExecutionControl(Exception): pass
-            raise ExecutionControl('init_intravoxel_dephasing_ramps: sqrt(NSpins) should be integer!')
+        
+        # same intravoxel dephasing ramp random jitter at each voxel
+        if not self.do_voxel_rand_ramp_distr:
+            if dim == torch.floor(dim):
+                xv, yv = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
+                # this generates an anti-symmetric distribution in x
+                Rx1= torch.randn(torch.Size([dim.int()/2,dim.int()]))*off
+                Rx2=-torch.flip(Rx1, [0])
+                Rx= torch.cat((Rx1, Rx2),0)
+                # this generates an anti-symmetric distribution in y
+                Ry1= torch.randn(torch.Size([dim.int(),dim.int()/2]))*off
+                Ry2=-torch.flip(Ry1, [1])
+                Ry= torch.cat((Ry1, Ry2),1)
+                            
+                xv = xv + Rx
+                yv = yv + Ry
+    
+                intravoxel_dephasing_ramp = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
+            else:
+                class ExecutionControl(Exception): pass
+                raise ExecutionControl('init_intravoxel_dephasing_ramps: sqrt(NSpins) should be integer!')
+                
+                intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
+                
+            # remove coupling w.r.t. R2
+            permvec = np.random.choice(self.NSpins,self.NSpins,replace=False)
+            intravoxel_dephasing_ramp = intravoxel_dephasing_ramp[permvec,:]
+            #intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
+            #intravoxel_dephasing_ramp /= torch.from_numpy(self.sz-1).float().unsqueeze(0)
+            intravoxel_dephasing_ramp /= torch.from_numpy(self.sz).float().unsqueeze(0)
+        else:  # different intravoxel dephasing ramp random jitter at each voxel
+            intravoxel_dephasing_ramp = self.setdevice(torch.zeros((self.NSpins,self.NVox,2), dtype=torch.float32))
+            xvb, yvb = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
             
-            intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
+            for i in range(self.NVox):
+                # this generates an anti-symmetric distribution in x
+                Rx1= torch.randn(torch.Size([dim.int()/2,dim.int()]))*off
+                Rx2=-torch.flip(Rx1, [0])
+                Rx= torch.cat((Rx1, Rx2),0)
+                # this generates an anti-symmetric distribution in y
+                Ry1= torch.randn(torch.Size([dim.int(),dim.int()/2]))*off
+                Ry2=-torch.flip(Ry1, [1])
+                Ry= torch.cat((Ry1, Ry2),1)
+                            
+                xv = xvb + Rx
+                yv = yvb + Ry
             
-        # remove coupling w.r.t. R2
-        permvec = np.random.choice(self.NSpins,self.NSpins,replace=False)
-        intravoxel_dephasing_ramp = intravoxel_dephasing_ramp[permvec,:]
-        #intravoxel_dephasing_ramp = np.pi*2*(torch.rand(self.NSpins,2) - 0.5)
-        #intravoxel_dephasing_ramp /= torch.from_numpy(self.sz-1).float().unsqueeze(0)
-        intravoxel_dephasing_ramp /= torch.from_numpy(self.sz).float().unsqueeze(0)
+                intravoxel_dephasing_ramp[:,i,:] = np.pi*torch.stack((xv.flatten(),yv.flatten()),1)
+            
+            # remove coupling w.r.t. R2
+            permvec = np.random.choice(self.NSpins,self.NSpins,replace=False)
+            intravoxel_dephasing_ramp = intravoxel_dephasing_ramp[permvec,:,:]
+            
+            intravoxel_dephasing_ramp /= self.setdevice(torch.from_numpy(self.sz).float().unsqueeze(0).unsqueeze(0))  
+            self.intravoxel_dephasing_ramp = intravoxel_dephasing_ramp            
             
         self.intravoxel_dephasing_ramp = self.setdevice(intravoxel_dephasing_ramp)    
         
@@ -364,22 +393,40 @@ class Scanner():
         self.R = R
         
     def set_freeprecession_tensor(self,spins,dt):
-        P = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
-        P = self.setdevice(P)
-        
-        B0_nspins = spins.omega[:,0].view([self.NSpins])
-        
-        B0_nspins_cos = torch.cos(B0_nspins*dt)
-        B0_nspins_sin = torch.sin(B0_nspins*dt)
-         
-        P[:,0,0,0,0] = B0_nspins_cos
-        P[:,0,0,0,1] = -B0_nspins_sin
-        P[:,0,0,1,0] = B0_nspins_sin
-        P[:,0,0,1,1] = B0_nspins_cos
-         
-        P[:,0,0,2,2] = 1
-         
-        self.P = P
+        if not self.do_voxel_rand_r2_distr:
+            P = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
+            P = self.setdevice(P)
+            
+            B0_nspins = spins.omega[:,0].view([self.NSpins])
+            
+            B0_nspins_cos = torch.cos(B0_nspins*dt)
+            B0_nspins_sin = torch.sin(B0_nspins*dt)
+             
+            P[:,0,0,0,0] = B0_nspins_cos
+            P[:,0,0,0,1] = -B0_nspins_sin
+            P[:,0,0,1,0] = B0_nspins_sin
+            P[:,0,0,1,1] = B0_nspins_cos
+             
+            P[:,0,0,2,2] = 1
+             
+            self.P = P
+        else:
+            P = torch.zeros((self.NSpins,1,self.NVox,3,3), dtype=torch.float32)
+            P = self.setdevice(P)
+            
+            B0_nspins = spins.omega
+            
+            B0_nspins_cos = torch.cos(B0_nspins*dt)
+            B0_nspins_sin = torch.sin(B0_nspins*dt)
+             
+            P[:,0,:,0,0] = B0_nspins_cos
+            P[:,0,:,0,1] = -B0_nspins_sin
+            P[:,0,:,1,0] = B0_nspins_sin
+            P[:,0,:,1,1] = B0_nspins_cos
+             
+            P[:,0,:,2,2] = 1
+             
+            self.P = P            
         
     def set_B0inhomogeneity_tensor(self,spins,delay):
         S = torch.zeros((1,1,self.NVox,3,3), dtype=torch.float32)
@@ -400,7 +447,7 @@ class Scanner():
         self.SB0 = S
         
     
-    def init_gradient_tensor_holder(self, do_voxel_rand_ramp_distr=False):
+    def init_gradient_tensor_holder(self):
         G = torch.zeros((self.T,self.NVox,3,3), dtype=torch.float32)
         G[:,:,2,2] = 1
          
@@ -411,7 +458,7 @@ class Scanner():
         self.G_adj = self.setdevice(G_adj)
         
         # intravoxel precession
-        if not do_voxel_rand_ramp_distr:
+        if not self.do_voxel_rand_ramp_distr:
             IVP = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
             IVP = self.setdevice(IVP)
             IVP[:,0,0,2,2] = 1
@@ -527,12 +574,11 @@ class Scanner():
         
     #def set_grad_intravoxel_precess_tensor_allvox_samedistr(self,t,r):
     def set_grad_intravoxel_precess_tensor(self,t,r):
-        
         # assume voxel-variable ramp distribution
-        if len(self.intravoxel_dephasing_ramp.shape) == 3:
-            self.set_grad_intravoxel_precess_tensor_var_voxramp(t,r)
-        else:
+
+        if not self.do_voxel_rand_ramp_distr:
             intra_b0 = self.gradm_event_for_intravoxel_precession[t,r,:].unsqueeze(0) * self.intravoxel_dephasing_ramp
+            
             intra_b0 = torch.sum(intra_b0,1)
             
             IVP_nspins_cos = torch.cos(intra_b0)
@@ -541,7 +587,10 @@ class Scanner():
             self.IVP[:,0,0,0,0] = IVP_nspins_cos
             self.IVP[:,0,0,0,1] = -IVP_nspins_sin
             self.IVP[:,0,0,1,0] = IVP_nspins_sin
-            self.IVP[:,0,0,1,1] = IVP_nspins_cos
+            self.IVP[:,0,0,1,1] = IVP_nspins_cos             
+        else:
+            self.set_grad_intravoxel_precess_tensor_var_voxramp(t,r)
+           
         
     def set_grad_intravoxel_precess_tensor_var_voxramp(self,t,r):
         intra_b0 = self.gradm_event_for_intravoxel_precession[t,r,:].unsqueeze(0).unsqueeze(0) * self.intravoxel_dephasing_ramp
@@ -555,7 +604,6 @@ class Scanner():
         self.IVP[:,0,:,1,0] = IVP_nspins_sin
         self.IVP[:,0,:,1,1] = IVP_nspins_cos
    
-        
     # intravoxel gradient-driven precession
     def grad_intravoxel_precess(self,t,r,spins):
         self.set_grad_intravoxel_precess_tensor(t,r)
@@ -719,6 +767,10 @@ class Scanner():
             self.signal = torch.matmul(self.AF,self.signal)    
             
     def forward_mem(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True):
+        if self.do_voxel_rand_ramp_distr:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('forward_mem:  do_voxel_rand_ramp_distr mode not supported')
+        
         self.init_signal()
         if do_dummy_scans == False:
             spins.set_initial_magnetization()
@@ -776,6 +828,10 @@ class Scanner():
             self.signal = torch.matmul(self.AF,self.signal)
             
     def forward_sparse(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True):
+        if self.do_voxel_rand_ramp_distr:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('forward_sparse:  do_voxel_rand_ramp_distr mode not supported')
+        
         self.init_signal()
         if do_dummy_scans == False:
             spins.set_initial_magnetization()
@@ -1077,21 +1133,36 @@ class Scanner():
                             
                             kum_grad_intravoxel = torch.cumsum(self.gradm_event_for_intravoxel_precession[start_t:start_t+half_read*2,r,:],0)
                             
-                            intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
-                            intra_b0 = torch.sum(intra_b0,2)
-                            
-                            IVP_nspins_cos = torch.cos(intra_b0)
-                            IVP_nspins_sin = torch.sin(intra_b0)                            
-                            
-                            IVP = torch.zeros((self.NSpins,self.NCol,1,3,3), dtype=torch.float32)
-                            IVP = self.setdevice(IVP)
-                            IVP[:,:,0,2,2] = 1
-                            
-                            IVP[:,:,0,0,0] = IVP_nspins_cos
-                            IVP[:,:,0,0,1] = -IVP_nspins_sin
-                            IVP[:,:,0,1,0] = IVP_nspins_sin
-                            IVP[:,:,0,1,1] = IVP_nspins_cos
-                            
+                            if not self.do_voxel_rand_ramp_distr:
+                                intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp.unsqueeze(1)
+                                intra_b0 = torch.sum(intra_b0,2)
+                                
+                                IVP_nspins_cos = torch.cos(intra_b0)
+                                IVP_nspins_sin = torch.sin(intra_b0)                            
+                                
+                                IVP = torch.zeros((self.NSpins,self.NCol,1,3,3), dtype=torch.float32)
+                                IVP = self.setdevice(IVP)
+                                IVP[:,:,0,2,2] = 1
+                                
+                                IVP[:,:,0,0,0] = IVP_nspins_cos
+                                IVP[:,:,0,0,1] = -IVP_nspins_sin
+                                IVP[:,:,0,1,0] = IVP_nspins_sin
+                                IVP[:,:,0,1,1] = IVP_nspins_cos
+                            else:
+                                intra_b0 = kum_grad_intravoxel.unsqueeze(0).unsqueeze(2) * self.intravoxel_dephasing_ramp.unsqueeze(1)
+                                intra_b0 = torch.sum(intra_b0,3)
+                                
+                                IVP_nspins_cos = torch.cos(intra_b0)
+                                IVP_nspins_sin = torch.sin(intra_b0)                            
+                                
+                                IVP = torch.zeros((self.NSpins,self.NCol,self.NVox,3,3), dtype=torch.float32)
+                                IVP = self.setdevice(IVP)
+                                IVP[:,:,:,2,2] = 1
+                                
+                                IVP[:,:,:,0,0] = IVP_nspins_cos
+                                IVP[:,:,:,0,1] = -IVP_nspins_sin
+                                IVP[:,:,:,1,0] = IVP_nspins_sin
+                                IVP[:,:,:,1,1] = IVP_nspins_cos                            
                             #intraSpins = torch.matmul(IVP, intraSpins)
                             
                             S = torch.zeros((1,self.NCol,self.NVox,3,3), dtype=torch.float32)
@@ -1129,16 +1200,29 @@ class Scanner():
                             
                         # set grad intravoxel precession tensor
                         kum_grad_intravoxel = torch.sum(self.gradm_event_for_intravoxel_precession[start_t:t+1,r,:],0)
-                        intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
-                        intra_b0 = torch.sum(intra_b0,1)
                         
-                        IVP_nspins_cos = torch.cos(intra_b0)
-                        IVP_nspins_sin = torch.sin(intra_b0)
-                         
-                        self.IVP[:,0,0,0,0] = IVP_nspins_cos
-                        self.IVP[:,0,0,0,1] = -IVP_nspins_sin
-                        self.IVP[:,0,0,1,0] = IVP_nspins_sin
-                        self.IVP[:,0,0,1,1] = IVP_nspins_cos                
+                        if not self.do_voxel_rand_ramp_distr:
+                            intra_b0 = kum_grad_intravoxel.unsqueeze(0) * self.intravoxel_dephasing_ramp
+                            intra_b0 = torch.sum(intra_b0,1)
+                            
+                            IVP_nspins_cos = torch.cos(intra_b0)
+                            IVP_nspins_sin = torch.sin(intra_b0)
+                             
+                            self.IVP[:,0,0,0,0] = IVP_nspins_cos
+                            self.IVP[:,0,0,0,1] = -IVP_nspins_sin
+                            self.IVP[:,0,0,1,0] = IVP_nspins_sin
+                            self.IVP[:,0,0,1,1] = IVP_nspins_cos 
+                        else:
+                            intra_b0 = kum_grad_intravoxel.unsqueeze(0).unsqueeze(0) * self.intravoxel_dephasing_ramp
+                            intra_b0 = torch.sum(intra_b0,2)
+                            
+                            IVP_nspins_cos = torch.cos(intra_b0)
+                            IVP_nspins_sin = torch.sin(intra_b0)
+                             
+                            self.IVP[:,0,:,0,0] = IVP_nspins_cos
+                            self.IVP[:,0,:,0,1] = -IVP_nspins_sin
+                            self.IVP[:,0,:,1,0] = IVP_nspins_sin
+                            self.IVP[:,0,:,1,1] = IVP_nspins_cos                             
                         
                         # do intravoxel precession
                         spins.M = GradIntravoxelPrecessClass.apply(self.IVP,spins.M,self)
@@ -1176,6 +1260,9 @@ class Scanner():
             
     # run throw all repetition/actions and yield signal
     def forward_sparse_fast(self,spins,event_time,do_dummy_scans=False,compact_grad_tensor=True,kill_transverse=False):
+        if self.do_voxel_rand_ramp_distr:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('forward_sparse_fast:  do_voxel_rand_ramp_distr mode not supported')
 
         self.init_signal()
         if do_dummy_scans == False:
@@ -1359,6 +1446,10 @@ class Scanner():
             
 
     def forward_fast_supermem(self,spins,event_time):
+        if self.do_voxel_rand_ramp_distr:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('forward_fast_supermem:  do_voxel_rand_ramp_distr mode not supported')
+        
         self.init_signal()
         spins.set_initial_magnetization()
         self.reco = 0
@@ -1812,6 +1903,10 @@ class Scanner():
         torch.cuda.empty_cache()
         
     def forward_sparse_fast_supermem(self,spins,event_time,kill_transverse=False):
+        if self.do_voxel_rand_ramp_distr:
+            class ExecutionControl(Exception): pass
+            raise ExecutionControl('forward_sparse_fast_supermem:  do_voxel_rand_ramp_distr mode not supported')
+        
         self.init_signal()
         spins.set_initial_magnetization()
         self.reco = 0
@@ -2197,6 +2292,9 @@ class Scanner():
         torch.cuda.empty_cache()        
             
     def do_dummy_scans(self,spins,event_time,compact_grad_tensor=True,nrep=0):
+        class ExecutionControl(Exception): pass
+        raise ExecutionControl('do_dummy_scans:  currently broken')
+        
         spins.set_initial_magnetization()
         
         for nr in range(nrep):
@@ -2291,6 +2389,9 @@ class Scanner():
         self.lastM = spins.M.clone() 
             
     def do_dummy_scans_sparse(self,spins,event_time,compact_grad_tensor=True,nrep=0):
+        class ExecutionControl(Exception): pass
+        raise ExecutionControl('do_dummy_scans:  currently broken')        
+        
         spins.set_initial_magnetization()
         
         for nr in range(nrep):
@@ -2728,12 +2829,18 @@ class Scanner_fast(Scanner):
         self.G_adj = self.setdevice(G_adj)
         
         # intravoxel precession
-        IVP = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
-        IVP = self.setdevice(IVP)
-        
-        IVP[:,0,0,2,2] = 1
-        
-        self.IVP = IVP
+        if not self.do_voxel_rand_ramp_distr:
+            IVP = torch.zeros((self.NSpins,1,1,3,3), dtype=torch.float32)
+            IVP = self.setdevice(IVP)
+            
+            IVP[:,0,0,2,2] = 1
+            
+            self.IVP = IVP
+        else:
+            IVP = torch.zeros((self.NSpins,1,self.NVox,3,3), dtype=torch.float32)
+            IVP = self.setdevice(IVP)
+            IVP[:,0,:,2,2] = 1
+            self.IVP = IVP  
         
     def set_gradient_precession_tensor(self,gradm_event,sequence_class):
         # we need to shift gradm_event to the right for adjoint pass, since at each repetition we have:
