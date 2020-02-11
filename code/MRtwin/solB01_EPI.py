@@ -96,7 +96,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 4**2                               # number of spin sims in each voxel
+NSpins = 20**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*100*1e-3                        # additive Gaussian noise std
 kill_transverse = False                     #
@@ -154,7 +154,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision,do_voxel_rand_ramp_distr=True)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -190,11 +190,11 @@ event_time = setdevice(event_time)
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
-gradm_event[4,0,1] = -0.5*szread
-gradm_event[4,0,0] =  -0.5*NRep
-gradm_event[5:-2,::2,0] = 1.0
-gradm_event[5:-2,1::2,0] = -1.0
-gradm_event[4,1:,1] = 1 #phase blib
+gradm_event[4,0,0] = -0.5*szread
+gradm_event[4,0,1] =  -0.5*NRep
+gradm_event[5:-2,::2,1] = 1.0
+gradm_event[5:-2,1::2,1] = -1.0
+gradm_event[4,1:,0] = 1 #phase blib
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -236,8 +236,8 @@ plt.show()
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
-inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
-spectrum=spectrum[:,inverse_perm]
+#inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
+#spectrum=spectrum[:,inverse_perm]
 #spectrum[:,permvec]=spectrum
 kspace=spectrum
 spectrum = np.roll(spectrum,szread//2,axis=0)
