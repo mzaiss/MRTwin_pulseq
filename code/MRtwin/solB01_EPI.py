@@ -14,9 +14,7 @@ B01.1. remove all rf_events exept for the very fist on, make this 90°, remove a
         Now, there should be only signal in the very first repetition. 
 B01.2. Think of a way to get back again some magnetization in the second repetition without using an rf event, but a gradient.
 B01.3. If the last task was successful, do the same trick for all repetitions. Decrease the even_times until you see an echo in each repetition.
-B01.4. If the sign is opposite, adjust the  ADC phase  (set_ADC_rot_tensor). The following can be helpful
-        alternate_sign= torch.tensor([0,1])
-        alternate_sign= np.pi*alternate_sign.repeat(NRep//2)
+
 B01.5. Try to cover the full k-space again, by adding phase encoding-gradients
 B01.6. The image can still show a ghost. This is a typical N/2 ghost. See http://mriquestions.com/nyquist-n2-ghosts.html for more
         
@@ -91,12 +89,12 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([32,32])                      # image size
+sz = np.array([24,24])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 20**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*100*1e-3                        # additive Gaussian noise std
 kill_transverse = False                     #
@@ -121,11 +119,13 @@ for i in range(5):
         t[t < cutoff] = cutoff        
     real_phantom_resized[:,:,i] = t
     
+real_phantom_resized[:,:,:3]*=0
 
-    
+real_phantom_resized[10,10,:3]=1 
+
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] *= 1.2 # Tweak dB0
+real_phantom_resized[:,:,3] *= 0 # Tweak dB0
 real_phantom_resized[:,:,4] *= 1 # Tweak rB1
 
 spins.set_system(real_phantom_resized)
@@ -142,7 +142,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 30.0
+R2star = 0.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
@@ -180,8 +180,7 @@ scanner.init_flip_tensor_holder()
 scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
 rfsign = ((rf_event[3,:,0]) < 0).float()
-alternate_sign= torch.tensor([0,1])
-scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+0*np.pi*alternate_sign.repeat(NRep//2) + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.008*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -191,10 +190,12 @@ event_time = setdevice(event_time)
 # Cartesian encoding
 gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
 gradm_event[4,0,0] = -0.5*szread
-gradm_event[4,0,1] =  -0.5*NRep
+gradm_event[4,0,1] =  -0.5*NRep 
+
 gradm_event[5:-2,::2,1] = 1.0
 gradm_event[5:-2,1::2,1] = -1.0
 gradm_event[4,1:,0] = 1 #phase blib
+
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -239,6 +240,12 @@ spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex n
 #inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
 #spectrum=spectrum[:,inverse_perm]
 #spectrum[:,permvec]=spectrum
+spectrum[:,1::2]=(spectrum[::-1,1::2])
+
+plt.subplot(413); plt.ylabel('signal')
+plt.plot(np.real(spectrum).flatten('F'),label='real')
+plt.plot(spectrum.imag.flatten('F'),label='imag')
+
 kspace=spectrum
 spectrum = np.roll(spectrum,szread//2,axis=0)
 spectrum = np.roll(spectrum,NRep//2,axis=1)
@@ -247,7 +254,8 @@ space = np.fft.ifft2(spectrum)
 space = np.roll(space,szread//2-1,axis=0)
 space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
-       
+
+   
 plt.subplot(4,6,19)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
