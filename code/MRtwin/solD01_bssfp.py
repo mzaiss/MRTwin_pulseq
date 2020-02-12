@@ -91,7 +91,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                   # number of total repetitions
 szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 20**2                               # number of spin sims in each voxel
+NSpins = 2**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = True                     # kills transverse when above 1.5 k.-spaces
@@ -184,7 +184,7 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID sp
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[1,0] =  2
+event_time[1,0] =  3
 event_time[2,0] =  0.002*0.5  
 event_time[-1,:] =  0.002
 event_time = setdevice(event_time)
@@ -197,6 +197,20 @@ gradm_event[5:-2,:,1] = 1
 gradm_event[-2,:,1] = -0.5*szread # readback
 gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2  #phaseblip
 gradm_event[-2,:,0] = -gradm_event[4,:,0]            #phasebackblip
+
+
+if 1: # centric 
+    permvec= np.zeros((NRep,),dtype=int) 
+    permvec[0] = 0
+    for i in range(1,int(NRep/2)+1):
+        permvec[i*2-1] = (-i)
+        if i < NRep/2:
+            permvec[i*2] = i
+    permvec=permvec+NRep//2     # centric out reordering
+    gradm_event[4,:,0]=gradm_event[4,permvec,0]
+    gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
+else:
+    permvec=np.arange(0,NRep,1)  # this eleiminates the permutation again
 
 gradm_event = setdevice(gradm_event)
 
@@ -219,6 +233,9 @@ targetSeq.print_seq(plotsize=[12,9])
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
+inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
+spectrum=spectrum[:,inverse_perm]
+
 space = np.zeros_like(spectrum)
 spectrum = np.roll(spectrum,szread//2,axis=0)
 spectrum = np.roll(spectrum,NRep//2,axis=1)
