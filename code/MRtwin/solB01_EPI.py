@@ -192,8 +192,8 @@ gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
 gradm_event[4,0,0] = -0.5*szread
 gradm_event[4,0,1] =  -0.5*NRep 
 
-gradm_event[5:-2,::2,1] = 1.0
-gradm_event[5:-2,1::2,1] = -1.0
+gradm_event[5:-3,::2,1] = 1.0
+gradm_event[5:-3,1::2,1] = -1.0
 gradm_event[4,1:,0] = 1 #phase blib
 
 gradm_event = setdevice(gradm_event)
