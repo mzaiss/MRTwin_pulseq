@@ -3,7 +3,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solB01_EPI'
+experiment_id = 'exB01_EPI'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
@@ -147,7 +147,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision,do_voxel_rand_ramp_distr=False)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -166,7 +166,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
-rf_event[3,:,0] = 15*np.pi/180  # 90deg excitation now for every rep
+rf_event[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
 
 rf_event[3,:,1]=torch.arange(0,50*NRep,50)*np.pi/180 
 
@@ -186,7 +186,7 @@ scanner.init_flip_tensor_holder()
 scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
 rfsign = ((rf_event[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
@@ -198,28 +198,23 @@ event_time = setdevice(event_time)
 gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
 gradm_event[4,:,1] = -0.5*szread
 gradm_event[5:-2,:,1] = 1.0
-#gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
-#gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
-#gradm_event[-2,:,1] = 1.5*szread         # spoiler (even numbers sometimes give stripes, best is ~ 1.5 kspaces, for some reason 0.2 works well,too  )
-gradm_event = setdevice(gradm_event)
-
-permvec=np.arange(0,NRep,1)  # this eleiminates the permutation again
-#permvec=np.arange(NRep-1,-1,-1)  # inverse linear reordering
-#permvec=np.random.permutation(NRep) # inverse linear reordering
-
-gradm_event[4,:,0]=gradm_event[4,permvec,0]
+gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
 gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
+gradm_event[-2,:,1] = 1.5*szread         # spoiler (even numbers sometimes give stripes, best is ~ 1.5 kspaces, for some reason 0.2 works well,too  )
+gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
 scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 
-
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
+
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+targetSeq.print_seq_pic(True,plotsize=[12,9])
 
 fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
 plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
@@ -246,9 +241,13 @@ plt.show()
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
-inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
-spectrum=spectrum[:,inverse_perm]
+#inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
+#spectrum=spectrum[:,inverse_perm]
 #spectrum[:,permvec]=spectrum
+plt.subplot(413); plt.ylabel('signal')
+plt.plot(np.real(spectrum).flatten('F'),label='real')
+plt.plot(spectrum.imag.flatten('F'),label='imag')
+
 kspace=spectrum
 spectrum = np.roll(spectrum,szread//2,axis=0)
 spectrum = np.roll(spectrum,NRep//2,axis=1)
