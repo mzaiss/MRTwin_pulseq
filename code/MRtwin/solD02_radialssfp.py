@@ -262,12 +262,12 @@ if 1: # NUFFT
     NCol=adc_idx.size
     
     X, Y = np.meshgrid(np.linspace(0,NCol-1,NCol) - NCol / 2, np.linspace(0,NRep-1,NRep) - NRep/2)
-    grid = torch.flip(grid, [2]).detach().cpu().numpy()
+    grid = np.double(torch.flip(grid, [2]).detach().cpu().numpy())
     
     plt.plot(grid[:,:,0].ravel('F'),grid[:,:,1].ravel('F'),'-X');  plt.plot(X,Y,'.');
     plt.show()
     if 1:
-        idx=range(0,31)
+        idx=list(range(0,31))
         spectrum_resampled_x = scipy.interpolate.griddata((grid[:,idx,0].ravel(), grid[:,idx,1].ravel()), np.real(kspace[:,idx]).ravel(), (X, Y), method='cubic')
         spectrum_resampled_y = scipy.interpolate.griddata((grid[:,idx,0].ravel(), grid[:,idx,1].ravel()), np.imag(kspace[:,idx]).ravel(), (X, Y), method='cubic')
     else:

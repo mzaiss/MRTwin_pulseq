@@ -10,9 +10,22 @@ experiment_description = """
 """
 excercise = """
 This is  currenty a FLASH sequence like  A10
-B01.1. remove all y gradients
-
-
+B01.1. remove all rf_events exept for the very first one, make this 90°, remove all y gradients, remove all rf_phases
+        Now, there should be only an echo in the very first repetition. 
+B01.2. Think of a way to get back again some magnetization in the second repetition without using an additional rf event, but a gradient.
+B01.3. If the last task was successful, do the same trick for all repetitions. Decrease the even_times until you see an echo in each repetition.
+B01.4. Try to cover the full k-space again, by adding phase encoding-gradients.
+B01.5. If you image looks weird, you might have forgotten somthing. Analyse again carfully step B01.3.
+        Also  a single pixel pahntom can be helpful, use this in line 130 to overwrite:
+        real_phantom_resized[:,:,:3]*=0
+        real_phantom_resized[10,10,:3]=1 
+        Look at sim04_reverse.py to find a solution.
+B01.6. The image can still show a ghost. This is a so called N/2 ghost. See http://mriquestions.com/nyquist-n2-ghosts.html for more info.
+        However, here in the simulation it should be possible to remove it competely. Carefully analyse you ADC trajectory using seq_pic
+B01.7. Now you have an echo-planar imaging sequence, EPI, one of the fastes MRI sequences. While its speed is amazing, it also has some drawbacks: 
+        Try increasing the B0 inhomogeneity. 
+        Try to prolong the event times. What do you observe.
+B01.8.  
 """
 #%%
 #matplotlib.pyplot.close(fig=None)

@@ -3,15 +3,20 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solB01_spinecho'
-sequence_class = "gre_dream"
+experiment_id = 'solC01_spinecho'
+sequence_class = "se"
 experiment_description = """
 SE or 1 D imaging / spectroscopy
 """
 excercise = """
-B01.1. This is starts from A02, repeat the spin echo sequence. What is TE and TE/2
-B02.2. Speed up: set NRep to 4. Wan we generate a gradient echo at the same time point as the spin echo?
-B03.3. test what happens when TE_GRE and TE_SE do not match.
+C01.1. This is starts from A02, repeat the spin echo sequence. What is TE and TE/2
+C01.2. Speed up: set NRep to 4. We want to generate a gradient echo at the same time point as the spin echo.
+C01.3. test what happens when TE_GRE and TE_SE do not match.
+C01.4. as in GRE, make every repetition the same (rewinder, TE, same echo), add relaxation time so that all echoes have the same intensity
+C01.5. has the spin echo the correct sign? How does the 180 degree pulse act on the k-space location?
+C01.6. add phase encoding to generate an image.
+C01.7. alter the echo time TE
+C01.8. decrease the repetition time TR, what is the shortest total acquisition time (TA) you can go with still good quality?
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -81,15 +86,14 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([4,4])                      # image size
+sz = np.array([32,32])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 4                                    # number of total repetitions
-szread=128
+szread=sz[0]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-noise_std = 0*1e-3                          # additive Gaussian noise std
+noise_std = 1*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
 import time; today_datestr = time.strftime('%y%m%d')
 NVox = sz[0]*sz[1]
@@ -101,9 +105,8 @@ spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=do
 
 cutoff = 1e-12
 #real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
-real_phantom = np.zeros((128,128,5), dtype=np.float32)
-real_phantom[64:80,64:80,:]=np.array([1, 1, 0.1, 0,1])
+real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
     t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_NEAREST)
@@ -163,9 +166,9 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
-rf_event[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-rf_event[3,0,1] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-rf_event[3,1:,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[1,:,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[1,:,1] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[3,:,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(rf_event)
@@ -175,14 +178,17 @@ scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[:,0] =  0.04*1e-3
+TE=torch.sum(event_time[3:,0])
+event_time[2,:] =  (TE-torch.sum(event_time[1:3,0]))/2
+event_time[-1,:] =  0.2
 event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
-#gradm_event[4,0,0] = -0.5*szread
-#gradm_event[5:-2,:,0] = 1
+gradm_event[2,:,0] = 0.5*szread
+gradm_event[5:-2,:,0] = 1
+gradm_event[2,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -193,41 +199,37 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
-scanner.forward(spins, event_time)
+scanner.forward_fast(spins, event_time)
   
-fig=plt.figure("""signals""")
-ax1=plt.subplot(131)
-ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel(),label='imag')
-plt.title('signal')
-plt.legend()
-plt.ion()
 
-fig.set_size_inches(64, 7)
-plt.show()
-                        
-#%%  FITTING BLOCK
-#tfull=np.cumsum(tonumpy(event_time).transpose().ravel())
-#yfull=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
-#idx=tonumpy(scanner.signal[0,:,:,0,0]).transpose().argmax(1)
-#idx=idx + np.linspace(0,(NRep-1)*len(event_time[:,0]),NRep,dtype=np.int64)
-#t=tfull[idx]
-#y=yfull[idx]
-#def fit_func(t, a, R,c):
-#    return a*np.exp(-R*t) + c   
-#
-#p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
-#print(p[0][1])
-#
-#fig=plt.figure("""fit""")
-#ax1=plt.subplot(131)
-#ax=plt.plot(tfull,yfull,label='fulldata')
-#ax=plt.plot(t,y,label='data')
-#plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
-#plt.title('fit')
-#plt.legend()
-#plt.ion()
-#
-#fig.set_size_inches(64, 7)
-#plt.show()
-            
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9])
+  
+#%% ############################################################################
+## S5: MR reconstruction of signal ::: #####################################
+
+spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
+spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
+
+
+space = np.zeros_like(spectrum)
+spectrum = np.roll(spectrum,szread//2,axis=0)
+spectrum = np.roll(spectrum,NRep//2,axis=1)
+space = np.fft.ifft2(spectrum)
+space = np.roll(space,szread//2-1,axis=0)
+space = np.roll(space,NRep//2-1,axis=1)
+space = np.flip(space,(0,1))
+       
+plt.subplot(4,6,19)
+plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
+plt.subplot(4,6,20)
+plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
+plt.subplot(4,6,22)
+plt.imshow(np.abs(spectrum), interpolation='none'); plt.xlabel('kspace')
+plt.subplot(4,6,23)
+plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
+plt.subplot(4,6,24)
+mask=(np.abs(space)>0.2*np.max(np.abs(space)))
+plt.imshow(np.angle(space)*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
+plt.show()                     
