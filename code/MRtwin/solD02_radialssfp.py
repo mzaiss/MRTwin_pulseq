@@ -91,7 +91,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]            # number of total repetitions
 szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 2**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = True                     # kills transverse when above 1.5 k.-spaces
@@ -266,6 +266,7 @@ if 1: # NUFFT
     
     plt.plot(grid[:,:,0].ravel('F'),grid[:,:,1].ravel('F'),'-X');  plt.plot(X,Y,'.');
     plt.show()
+    
     if 1:
         idx=list(range(0,31))
         spectrum_resampled_x = scipy.interpolate.griddata((grid[:,idx,0].ravel(), grid[:,idx,1].ravel()), np.real(kspace[:,idx]).ravel(), (X, Y), method='cubic')
