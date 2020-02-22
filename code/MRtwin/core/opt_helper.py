@@ -10,7 +10,8 @@ import scipy
 import math
 from torch.optim.optimizer import Optimizer
 import socket
-import nevergrad
+
+                            # pip install imageio
 
 from sys import platform
 import time
@@ -24,6 +25,24 @@ if sys.version_info[0] < 3:
     import cPickle as pickle
 else:
     import pickle
+    
+    
+# for gif
+import io
+import cv2
+import imageio    
+
+# define a function which returns an image as numpy array from figure
+def get_img_from_fig(fig, dpi=180):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=180)
+    buf.seek(0)
+    img_arr = np.frombuffer(buf.getvalue(), dtype=np.uint8)
+    buf.close()
+    img = cv2.imdecode(img_arr, 1)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    return img
     
 # NRMSE error function
 def e(gt,x):
@@ -220,6 +239,7 @@ class OPT_helper():
         self.target_seq_holder = None
         
         self.aux_params = None
+        self.gif_array = []
         
     def set_handles(self,init_variables,phi_FRP_model,reparameterize=None):
         self.init_variables = init_variables
@@ -390,7 +410,8 @@ class OPT_helper():
                 plt.show()
                 
                 meas_error = e(meas_target.ravel(),meas_reco.ravel())    
-                print(colored("\033[93m iter %d, REAL MEAS error = %f \033[0m%%" % (inner_iter,meas_error), 'green'))            
+                print(colored("\033[93m iter %d, REAL MEAS error = %f \033[0m%%" % (inner_iter,meas_error), 'green'))   
+                
             
             # save entire history of optimized params/reco images
             if save_intermediary_results:
@@ -650,11 +671,10 @@ class OPT_helper():
                 plt.subplot(258)
                 ax=plt.plot(np.array(self.error_history))
                 ax=plt.plot(sar_history)
+                plt.ylim((0,self.error_history[-1]*4))
                 plt.ion()
                 plt.title('error')
-                fig = plt.gcf()
-                plt.clim(0,100)
-    #            fig.colorbar(ax)
+
             
 #            ax=plt.imshow(tonumpy(phi.permute([1,0]))*180/np.pi,cmap=plt.get_cmap('nipy_spectral'))
 #            plt.ion()
@@ -669,8 +689,7 @@ class OPT_helper():
             ax=plt.imshow(tonumpy(torch.abs(todisplay_opt_params[2]).permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))
             plt.ion()
             plt.title('TR [s]')
-            fig = plt.gcf()
-            fig.set_size_inches(18, 3)
+            fig = ax.figure
             fig.colorbar(ax)
               
 # grad x grad z plot - old          
@@ -716,6 +735,15 @@ class OPT_helper():
                     fig.set_size_inches(16, 3)
                 plt.show()
                 plt.pause(0.02)
+                
+                
+            # make some gifs    
+            # you can get a high-resolution image as numpy array!!
+            plot_img_np = get_img_from_fig(fig)
+            self.gif_array.append(plot_img_np.astype(np.uint8))
+#            imageio.mimsave("current.gif",self.gif_array,format='GIF', duration=0.4)   
+            # gif end
+            
             
     # save current optimized parameter state to matlab array
     def export_to_matlab(self, experiment_id, today_datestr):
