@@ -3,18 +3,32 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solB01_bSSFP'
+experiment_id = 'exDB02_bSSFP'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
 """
 excercise = """
-This starts from A10 which was the FLASH sequence. 
-B01.1. increase the flipangle to 15 degree.
-A10.1. lower the recovery time after each repetition to event_time[-1,:] =  0.1 . What do you observe?
-A10.2. lower the flip angle to 5 degree.
-A10.3. find a way to get rid of transverse magnetization from the previous rep using a gradient. (spoiler or crusher gradient)
-A10.4. remove the spoiler gradient. find a way to get rid of transverse magnetization from the previous rep using the rf phase
+This starts from A09 which was the fully relaxed GRE sequence. 
+B01.1. As before let us decrease the recovery time. This time make it very short event_time[-1,:] =  0.002
+		You should observe an image with artifacts. Last time we tried to get rid of higher echoes. This time we want to understand them better.
+		Activate lines 125 126: 
+			#real_phantom_resized[:,:,:4]*=0
+			#real_phantom_resized[sz//2,sz//2,:3]=1 
+		In the image you now clearly see a ghost when going from event_time[-1,:] =  5 to 0.002
+        
+B01.2. As shown in exD01 the echoes are at the same  time point. But they have a different encoding as their transverse magnetization saw different gradients.
+        In the second repetition, the FID or gre starts at k=0, then the revinder and readout is applied.
+        At which k-space location does the spin echo start?
+        How can you realize that also the spin echo starts at k=0 at the beginning of the second repetition?
+B01.3  Is there any stimulated echo?
+
+B01.3. To find out if spin echoes or stimulkated echoes are involved. Play out RF pulses only in 3 repetitions. make the last RF pulse of these three an 90 degree or 180 degree pulse. 
+	Then you should see the echoes
+B01.4. You shoudk have observed that the echoes actually are at the same time as the FID. 
+		If you play with the event time after he 90 deg pulse this should become evenen more obvious. 
+		If the echoes are at the same positions, why do we see artifacts?
+		add back the read gradients. 
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -88,13 +102,13 @@ def setdevice(x):
 ## S0: define image and simulation settings::: #####################################
 sz = np.array([32,32])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
-NRep = extraMeas*sz[1]                      # number of total repetitions
+NRep = extraMeas*sz[1]                   # number of total repetitions
 szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 16**2                               # number of spin sims in each voxel
+NSpins = 26**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-noise_std = 0*100*1e-3                        # additive Gaussian noise std
-kill_transverse = False                     #
+noise_std = 0*1e-3                          # additive Gaussian noise std
+kill_transverse = True                     # kills transverse when above 1.5 k.-spaces
 import time; today_datestr = time.strftime('%y%m%d')
 NVox = sz[0]*szread
 
@@ -104,8 +118,8 @@ NVox = sz[0]*szread
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
 cutoff = 1e-12
-#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
@@ -116,7 +130,8 @@ for i in range(5):
         t[t < cutoff] = cutoff        
     real_phantom_resized[:,:,i] = t
     
-
+real_phantom_resized[:,:,:4]*=0
+real_phantom_resized[sz//2,sz//2,:3]=1 
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
@@ -137,7 +152,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 0.0
+R2star = 30.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
@@ -168,20 +183,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
-rf_event[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
-
-rf_event[3,:,1]=torch.arange(0,50*NRep,50)*np.pi/180 
-
-def get_phase_cycler(n, dphi,flag=0):
-    out = np.cumsum(np.arange(n) * dphi)  #  from Alex (standard)
-    if flag:
-        for j in range(0,n,1):               # from Zur et al (1991)
-            out[j] = dphi/2*(j**2 +j+2)
-    out = torch.from_numpy(np.mod(out, 360).astype(np.float32))
-    return out    
-
-rf_event[3,:,1]=get_phase_cycler(NRep,117)*np.pi/180 
-
+rf_event[3,:,0] = 15*np.pi/180  # 90deg excitation now for every rep
 
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
@@ -192,17 +194,19 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #sequence 
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[-1,:] =  0.01
+event_time[-1,:] =  3
+#event_time[-1,:] =  0.002
 event_time = setdevice(event_time)
 TA = tonumpy(torch.sum(event_time))
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
 gradm_event[4,:,1] = -0.5*szread
-gradm_event[5:-2,:,1] = 1.0
-gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
-gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
-gradm_event[-2,:,1] = 1.5*szread         # spoiler (even numbers sometimes give stripes, best is ~ 1.5 kspaces, for some reason 0.2 works well,too  )
+gradm_event[5:-2,:,1] = 1
+gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2
+
+
+
 if 0: # centric 
     permvec= np.zeros((NRep,),dtype=int) 
     permvec[0] = 0
