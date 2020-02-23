@@ -233,6 +233,7 @@ targetSeq.print_seq(plotsize=[12,9])
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
+spectrum_adc= spectrum
 inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
 spectrum=spectrum[:,inverse_perm]
 

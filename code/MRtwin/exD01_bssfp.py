@@ -9,9 +9,8 @@ experiment_description = """
 2 D imaging
 """
 excercise = """
-This starts from A10
+This starts from A10 which was the FLASH sequence. 
 B01.1. increase the flipangle to 15 degree.
-calculate the total scan time of the sequence
 A10.1. lower the recovery time after each repetition to event_time[-1,:] =  0.1 . What do you observe?
 A10.2. lower the flip angle to 5 degree.
 A10.3. find a way to get rid of transverse magnetization from the previous rep using a gradient. (spoiler or crusher gradient)
@@ -94,8 +93,8 @@ szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
 NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-noise_std = 0*1e-3                          # additive Gaussian noise std
-kill_transverse = True                     # kills transverse when above 1.5 k.-spaces
+noise_std = 0*100*1e-3                        # additive Gaussian noise std
+kill_transverse = False                     #
 import time; today_datestr = time.strftime('%y%m%d')
 NVox = sz[0]*szread
 
@@ -138,7 +137,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 30.0
+R2star = 0.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
@@ -204,8 +203,6 @@ gradm_event[5:-2,:,1] = 1.0
 gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
 gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
 gradm_event[-2,:,1] = 1.5*szread         # spoiler (even numbers sometimes give stripes, best is ~ 1.5 kspaces, for some reason 0.2 works well,too  )
-
-
 if 0: # centric 
     permvec= np.zeros((NRep,),dtype=int) 
     permvec[0] = 0
@@ -218,7 +215,6 @@ if 0: # centric
     gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
 else:
     permvec=np.arange(0,NRep,1)  # this eleiminates the permutation again
-
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -241,9 +237,10 @@ targetSeq.print_seq(plotsize=[12,9])
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
+spectrum_adc= spectrum
 inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
 spectrum=spectrum[:,inverse_perm]
-
+kspace=spectrum
 space = np.zeros_like(spectrum)
 spectrum = np.roll(spectrum,szread//2,axis=0)
 spectrum = np.roll(spectrum,NRep//2,axis=1)
@@ -257,6 +254,8 @@ plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
 plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
 
+plt.subplot(4,6,21)
+plt.imshow(np.abs(spectrum_adc), interpolation='none'); plt.xlabel('spectrum/signal')
 plt.subplot(4,6,22)
 plt.imshow(np.abs(kspace), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
