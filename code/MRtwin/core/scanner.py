@@ -2863,7 +2863,7 @@ class Scanner_fast(Scanner):
             pass
         
         if sequence_class.lower() == "gre_dream" :
-            temp[0:4,:,:]=0
+            temp[0:4,:,:]=0   # 3 is excitation pulse event ( still 0) 4 revinder is the first that counts
             k=torch.cumsum(temp,0)
         
         if sequence_class.lower() == "rare":

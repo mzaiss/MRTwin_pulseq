@@ -3,7 +3,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'exDB02_bSSFP'
+experiment_id = 'exD02_bSSFP'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
@@ -11,21 +11,36 @@ experiment_description = """
 excercise = """
 This starts from A09 which was the fully relaxed GRE sequence. 
 flip angle was set to 5 degree
-B01.1. As before let us decrease the recovery time. This time make it very short event_time[-1,:] =  0.002
+D02.1. As before let us decrease the recovery time. This time make it very short event_time[-1,:] =  0.002
 		You should observe an image with artifacts when going from event_time[-1,:] =  5 to 0.002. Last time we tried to get rid of higher echoes. This time we want to understand them better.
 				
-B01.2. As shown in exD01 the echoes are at the same  time point. But they have a different encoding as their transverse magnetization saw different gradients.
-        In the second repetition, the FID or gre starts at k=0, then the revinder and readout is applied.
+D02.2. As shown in exD01 the echoes are at the same time point. But they have a different encoding as their transverse magnetization saw different gradients.
+        This can actually be observed in the k-space plot: do you see the additional intensity at the egde of the k-space?
+        
+D02.3.  In the second repetition, the FID or gre signal starts at k=0, then the revinder and readout is applied.
         At which k-space location does the spin echo start?
         How can you realize that also the spin echo starts at k=0 at the beginning of the second repetition?
-B01.3  Is there any stimulated echo?
 
-B01.4. To find out if spin echoes or stimulkated echoes are involved. Play out RF pulses only in 3 repetitions. make the last RF pulse of these three an 90 degree or 180 degree pulse. 
-	Then you should see the echoes
-B01.4. You shoudk have observed that the echoes actually are at the same time as the FID. 
-		If you play with the event time after he 90 deg pulse this should become evenen more obvious. 
-		If the echoes are at the same positions, why do we see artifacts?
-		add back the read gradients. 
+D02.5 You might still see some artifacts, especially in the phase. This is because the spin echo and the FID will have a different phase. 
+        To correct this you must alter the rf phase in every cycle. This code can be helpful
+        alternate= torch.tensor([0,1])
+        alternate.repeat(NRep//2)
+
+D02.6. Now you have a balance ssfp sequence!  
+        If you switch of the gradients again, you will see that it osclillates in the beginning:
+            This can be solved using  a preppulse, a so called alpha/2 pulse
+            rf_event[2,0,0] = 2.5*np.pi/180  # 90deg excitation now for every rep
+            rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
+            
+            with the correct timing
+
+            event_time[2,0] =  torch.sum(event_time[2:,0])*0.5 
+        
+D02.4  Is there any stimulated echo?
+
+D02.5  If all timing and prep is correct, you can also try centric reordering.
+
+D02.6  Try to reduce number of spins. Why can you decrease this now?
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -127,7 +142,7 @@ for i in range(5):
         t[t < cutoff] = cutoff        
     real_phantom_resized[:,:,i] = t
     
-#real_phantom_resized[:,:,3]*=0
+#real_phantom_resized[:,:,:3]*=0
 #real_phantom_resized[sz//2,sz//2,:3]=1 
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
@@ -201,7 +216,6 @@ gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
 gradm_event[4,:,1] = -0.5*szread
 gradm_event[5:-2,:,1] = 1
 gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2
-
 
 
 if 0: # centric 

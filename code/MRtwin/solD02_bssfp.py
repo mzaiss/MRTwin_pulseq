@@ -3,30 +3,42 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solB02_bSSFP'
+experiment_id = 'solD02_bSSFP'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
 """
 excercise = """
 This starts from A09 which was the fully relaxed GRE sequence. 
-B01.1. As before let us decrease the recovery time. This time make it very short event_time[-1,:] =  0.001
-		You should observe an image with artifacts. Last time we tried to get rid of higher echoes. This time we want to understand them better.
-		Activate lines 125 126: 
-			#real_phantom_resized[:,:,:4]*=0
-			#real_phantom_resized[sz//2,sz//2,:3]=1 
-		In the image you now clearly see a ghost. 
+flip angle was set to 5 degree
+D02.1. As before let us decrease the recovery time. This time make it very short event_time[-1,:] =  0.002
+		You should observe an image with artifacts when going from event_time[-1,:] =  5 to 0.002. Last time we tried to get rid of higher echoes. This time we want to understand them better.
+				
+D02.2. As shown in exD01 the echoes are at the same time point. But they have a different encoding as their transverse magnetization saw different gradients.
+        This can actually be observed in the k-space plot: do you see the additional intensity at the egde of the k-space?
         
-B01.2. set sz to 12 12. set szread to 64, NRep =4. Nspins =26**2. 
-		to see the echoes, remove all eenc gradients. and increase R2star to 1000.
-        Observe change when having long or short event_time[-1,:]
+D02.3.  In the second repetition, the FID or gre signal starts at k=0, then the revinder and readout is applied.
+        At which k-space location does the spin echo start?
+        How can you realize that also the spin echo starts at k=0 at the beginning of the second repetition?
 
-B01.3. To find out if spin echoes or stimulkated echoes are involved. Play out RF pulses only in 3 repetitions. make the last RF pulse of these three an 90 degree or 180 degree pulse. 
-	Then you should see the echoes
-B01.4. You shoudk have observed that the echoes actually are at the same time as the FID. 
-		If you play with the event time after he 90 deg pulse this should become evenen more obvious. 
-		If the echoes are at the same positions, why do we see artifacts?
-		add back the read gradients. 
+D02.5 You might still see some artifacts, especially in the phase. This is because the spin echo and the FID will have a different phase. 
+        To correct this you must alter the rf phase in every cycle. This code can be helpful
+        alternate= torch.tensor([0,1])
+        alternate.repeat(NRep//2)
+
+D02.6. Now you have a balance ssfp sequence!  
+        If you switch of the gradients again, you will see that it osclillates in the beginning:
+            This can be solved using  a preppulse, a so called alpha/2 pulse
+            rf_event[2,0,0] = 2.5*np.pi/180  # 90deg excitation now for every rep
+            rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
+            
+            with the correct timing
+
+            event_time[2,0] =  torch.sum(event_time[2:,0])*0.5 
+        
+D02.4  Is there any stimulated echo?
+
+D02.5  If all timing and prep is correct, you can also try centric reordering.
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -128,8 +140,8 @@ for i in range(5):
         t[t < cutoff] = cutoff        
     real_phantom_resized[:,:,i] = t
     
-real_phantom_resized[:,:,:4]*=0
-real_phantom_resized[sz//2,sz//2,:3]=1 
+#real_phantom_resized[:,:,:4]*=0
+#real_phantom_resized[sz//2,sz//2,:3]=1 
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
@@ -199,8 +211,8 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID sp
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[2,0] =  0.002*0.5  
 event_time[-1,:] =  0.002
+event_time[2,0] =  torch.sum(event_time[2:,0])*0.5 
 event_time = setdevice(event_time)
 TA = tonumpy(torch.sum(event_time))
 # gradient-driver precession

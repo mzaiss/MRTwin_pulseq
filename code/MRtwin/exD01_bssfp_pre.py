@@ -12,10 +12,10 @@ excercise = """
 This starts from A09 which was the fully relaxed GRE sequence. 
 B01.1. As before let us decrease the recovery time. This time make it very short event_time[-1,:] =  0.001
 		You should observe an image with artifacts. Last time we tried to get rid of higher echoes. This time we want to understand them better.
-		Activate lines 125 126: 
+		Activate lines 133 134: 
 			#real_phantom_resized[:,:,:4]*=0
 			#real_phantom_resized[sz//2,sz//2,:3]=1 
-		In the image you now clearly see a ghost. 
+		In the image you now clearly see the artifact. 
         
 B01.2. set sz to 12 12. set szread to 64, NRep =4. Nspins =26**2. 
 		to see the echoes, remove all eenc gradients. and increase R2star to 1000.
