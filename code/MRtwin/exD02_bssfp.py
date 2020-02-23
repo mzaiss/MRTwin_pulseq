@@ -10,20 +10,17 @@ experiment_description = """
 """
 excercise = """
 This starts from A09 which was the fully relaxed GRE sequence. 
+flip angle was set to 5 degree
 B01.1. As before let us decrease the recovery time. This time make it very short event_time[-1,:] =  0.002
-		You should observe an image with artifacts. Last time we tried to get rid of higher echoes. This time we want to understand them better.
-		Activate lines 125 126: 
-			#real_phantom_resized[:,:,:4]*=0
-			#real_phantom_resized[sz//2,sz//2,:3]=1 
-		In the image you now clearly see a ghost when going from event_time[-1,:] =  5 to 0.002
-        
+		You should observe an image with artifacts when going from event_time[-1,:] =  5 to 0.002. Last time we tried to get rid of higher echoes. This time we want to understand them better.
+				
 B01.2. As shown in exD01 the echoes are at the same  time point. But they have a different encoding as their transverse magnetization saw different gradients.
         In the second repetition, the FID or gre starts at k=0, then the revinder and readout is applied.
         At which k-space location does the spin echo start?
         How can you realize that also the spin echo starts at k=0 at the beginning of the second repetition?
 B01.3  Is there any stimulated echo?
 
-B01.3. To find out if spin echoes or stimulkated echoes are involved. Play out RF pulses only in 3 repetitions. make the last RF pulse of these three an 90 degree or 180 degree pulse. 
+B01.4. To find out if spin echoes or stimulkated echoes are involved. Play out RF pulses only in 3 repetitions. make the last RF pulse of these three an 90 degree or 180 degree pulse. 
 	Then you should see the echoes
 B01.4. You shoudk have observed that the echoes actually are at the same time as the FID. 
 		If you play with the event time after he 90 deg pulse this should become evenen more obvious. 
@@ -130,8 +127,8 @@ for i in range(5):
         t[t < cutoff] = cutoff        
     real_phantom_resized[:,:,i] = t
     
-real_phantom_resized[:,:,:4]*=0
-real_phantom_resized[sz//2,sz//2,:3]=1 
+#real_phantom_resized[:,:,3]*=0
+#real_phantom_resized[sz//2,sz//2,:3]=1 
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
@@ -183,7 +180,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
-rf_event[3,:,0] = 15*np.pi/180  # 90deg excitation now for every rep
+rf_event[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
 
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
