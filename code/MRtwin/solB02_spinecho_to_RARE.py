@@ -84,12 +84,12 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([32,32])                      # image size
+sz = np.array([24,24])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[0]
 NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 16**2                               # number of spin sims in each voxel
+NSpins = 26**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 1*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -177,19 +177,19 @@ scanner.set_ADC_rot_tensor(-rf_event[1,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
-TE=torch.sum(event_time[3:,0])*NRep
-event_time[2,0] =  TE/2
+TE=torch.sum(event_time[:,0])
+event_time[2,0] =  TE/2- 2*0.08*1e-3
 event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
-gradm_event[3,0,0] = -1.0*szread
-gradm_event[4,:,0] = 0.5*szread
-gradm_event[5:-2,:,0] = 1
-gradm_event[4,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
-gradm_event[-2,:,1] = -gradm_event[4,:,1]
-gradm_event[-2,:,0] = 0.5*szread
+gradm_event[3,0,1] = -1.0*szread
+gradm_event[4,:,1] = 0.5*szread
+gradm_event[5:-2,:,1] = 1
+gradm_event[4,:,0] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
+gradm_event[-2,:,0] = -gradm_event[4,:,0]
+gradm_event[-2,:,1] = 0.5*szread
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -212,7 +212,7 @@ targetSeq.print_seq(plotsize=[12,9])
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
-
+spectrum_adc=spectrum
 
 space = np.zeros_like(spectrum)
 spectrum = np.roll(spectrum,szread//2,axis=0)
@@ -223,14 +223,14 @@ space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
+plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
+plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,22)
-plt.imshow(np.abs(spectrum), interpolation='none'); plt.xlabel('kspace')
+plt.imshow(np.abs(spectrum_adc).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
-plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
+plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
 plt.subplot(4,6,24)
-mask=(np.abs(space)>0.2*np.max(np.abs(space)))
-plt.imshow(np.angle(space)*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
+mask=(np.abs(space)>0.2*np.max(np.abs(space))).transpose()
+plt.imshow(np.angle(space).transpose()*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     

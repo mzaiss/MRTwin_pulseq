@@ -3,16 +3,16 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solC02_spinecho_to_RARE'
+experiment_id = 'exB02_spinecho_to_RARE'
 sequence_class = "se"
 experiment_description = """
 SE or 1 D imaging / spectroscopy
 """
 excercise = """
-C02.1. This is starts from Co1, which is relatively slow. We want to generate a so called turbo spin echo (TSE), or Rapid Aquisition relaxation enhanced (RARE)
+C02.1. This is starts from B01, which is relatively slow. We want to generate a so called turbo spin echo (TSE), or Rapid Aquisition relaxation enhanced (RARE)
         The idea is similar to the GRE EPI, we can also reuse magnetization after the first repetetion. try to do so, by using now RF events instead of gradients only.
         First try to get another echo in the second repetition, without a fresh 90° pulse. remove phase encoding gradients for testings. Do you need the rewinder gradient?
-C02.2. Once you get an echo in the second repetition, you have to decrease the event_times to have enough signal, repeat to get echoes in all repetitions.
+C02.2. Once you get an echo in the second repetition, you have to decrease the event_times to have enough signal, repeat to get echoes in all repetitions. set sequence class to RARE for correct k-space display
 C02.3. what is the actual echo time now, if unsure compare to C01 contrast for certain echo time.
 C02.4. Try reordering of the sequence, e.g. centric reordering, how does this affect the contrast, the image? Wjat is now the actual "echoe time"
 """
@@ -84,7 +84,7 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([32,32])                      # image size
+sz = np.array([24,24])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[0]
@@ -178,15 +178,15 @@ scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 TE=torch.sum(event_time[3:,0])
 event_time[2,:] =  (TE-torch.sum(event_time[1:3,0]))/2
-event_time[-1,:] =  0.2
+event_time[-1,:] =  0.5
 event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
-gradm_event[2,:,0] = 0.5*szread
-gradm_event[5:-2,:,0] = 1
-gradm_event[2,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
+gradm_event[2,:,1] = 0.5*szread
+gradm_event[5:-2,:,1] = 1
+gradm_event[2,:,0] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -209,7 +209,7 @@ targetSeq.print_seq(plotsize=[12,9])
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
-
+spectrum_adc=spectrum
 
 space = np.zeros_like(spectrum)
 spectrum = np.roll(spectrum,szread//2,axis=0)
@@ -220,14 +220,14 @@ space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
+plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
+plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,22)
-plt.imshow(np.abs(spectrum), interpolation='none'); plt.xlabel('kspace')
+plt.imshow(np.abs(spectrum_adc).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
-plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
+plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
 plt.subplot(4,6,24)
-mask=(np.abs(space)>0.2*np.max(np.abs(space)))
-plt.imshow(np.angle(space)*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
+mask=(np.abs(space)>0.2*np.max(np.abs(space))).transpose()
+plt.imshow(np.angle(space).transpose()*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     

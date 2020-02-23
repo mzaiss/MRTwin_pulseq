@@ -142,7 +142,7 @@ if 0:
     param=['PD','T1','T2','dB0','rB1']
     for i in range(5):
         plt.subplot(151+i), plt.title(param[i])
-        ax=plt.imshow(real_phantom_resized[:,:,i], interpolation='none')
+        ax=plt.imshow(real_phantom_resized[:,:,i].transpose(), interpolation='none')
         fig = plt.gcf()
         fig.colorbar(ax) 
     fig.set_size_inches(18, 3)
@@ -265,15 +265,15 @@ space = np.flip(space,(0,1))
 
    
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
+plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
+plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 
 plt.subplot(4,6,22)
-plt.imshow(np.abs(kspace), interpolation='none'); plt.xlabel('kspace')
+plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
-plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
+plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
 plt.subplot(4,6,24)
 mask=(np.abs(space)>0.2*np.max(np.abs(space)))
-plt.imshow(np.angle(space)*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
+plt.imshow(np.angle(space).transpose()*mask.transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     

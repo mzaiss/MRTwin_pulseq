@@ -199,6 +199,8 @@ class TargetSequenceHolder():
             plt.clf()            
                
             plt.subplot(331); plt.title('event times [s]'); plt.ylabel('repetition'); plt.yticks(np.arange(0, self.scanner.NRep, 5))
+#            ax=plt.pcolormesh(tonumpy(torch.abs(self.event_time).permute([1,0])), edgecolors='k', linewidth=1,cmap=plt.get_cmap('nipy_spectral'))
+#            ax.set_aspect('equal')
             ax=plt.imshow(tonumpy(torch.abs(self.event_time).permute([1,0])),cmap=plt.get_cmap('nipy_spectral'))        
             fig = plt.gcf();fig.colorbar(ax)
             

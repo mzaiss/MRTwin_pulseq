@@ -24,6 +24,7 @@ import numpy as np
 import scipy
 import scipy.io
 from  scipy import ndimage
+import scipy.interpolate
 import torch
 import cv2
 import matplotlib.pyplot as plt
@@ -302,15 +303,15 @@ if 0:
 targetSeq.print_seq(plotsize=[12,9])
       
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
+plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
+plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,21)
-plt.imshow(np.abs(spectrum_adc), interpolation='none'); plt.xlabel('spectrum')
+plt.imshow(np.abs(spectrum_adc).transpose(), interpolation='none'); plt.xlabel('spectrum')
 plt.subplot(4,6,22)
-plt.imshow(np.abs(kspace), interpolation='none'); plt.xlabel('kspace')
+plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
-plt.imshow(np.abs(space), interpolation='none'); plt.xlabel('mag_img')
+plt.imshow(np.abs(space).transpose(), interpolation='none'); plt.xlabel('mag_img')
 plt.subplot(4,6,24)
-plt.imshow(np.angle(space), interpolation='none'); plt.xlabel('phase_img')
+plt.imshow(np.angle(space).transpose(), interpolation='none'); plt.xlabel('phase_img')
 plt.show()                       
