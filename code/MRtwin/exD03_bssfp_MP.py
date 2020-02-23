@@ -3,18 +3,19 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solB01_bSSFP'
+experiment_id = 'exD03_bSSFP'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
 """
 excercise = """
-This starts from A10
-A10.1. calculate the total scan time of the sequence
-A10.1. lower the recovery time after each repetition to event_time[-1,:] =  0.1 . What do you observe?
-A10.2. lower the flip angle to 5 degree.
-A10.3. find a way to get rid of transverse magnetization from the previous rep using a gradient. (spoiler or crusher gradient)
-A10.4. remove the spoiler gradient. find a way to get rid of transverse magnetization from the previous rep using the rf phase
+Start from your solution of D02.
+
+D03.1  try different pahntoms,  manualy increase the B0 inhomogeneity until you see the stopping bands.
+
+D03.2  put a preparation inversion pulse before the whole image readout
+        try different inversion times and dirrenet phantoms.
+        You can also tra a saturatio pulse (90 degree) but then you ned a strng gradient spoiler after that.
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -166,7 +167,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
-rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
+#rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
 rf_event[2,0,0] = 5*np.pi/180  # 90deg excitation now for every rep
 rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
 rf_event[3,:,0] = 10*np.pi/180  # 90deg excitation now for every rep
@@ -184,7 +185,7 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID sp
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[1,0] =  3
+#event_time[1,0] =  3
 event_time[2,0] =  0.002*0.5  
 event_time[-1,:] =  0.002
 event_time = setdevice(event_time)
