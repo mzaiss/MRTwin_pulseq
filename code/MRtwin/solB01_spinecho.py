@@ -3,7 +3,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solC01_spinecho'
+experiment_id = 'solB01_spinecho'
 sequence_class = "se"
 experiment_description = """
 SE or 1 D imaging / spectroscopy

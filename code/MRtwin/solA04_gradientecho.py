@@ -24,6 +24,7 @@ import numpy as np
 import scipy
 import scipy.io
 from  scipy import ndimage
+from scipy.optimize import curve_fit
 import torch
 import cv2
 import matplotlib.pyplot as plt

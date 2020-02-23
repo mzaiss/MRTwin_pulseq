@@ -3,7 +3,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solC02_spinecho_to_RARE'
+experiment_id = 'solB02_spinecho_to_RARE'
 sequence_class = "RARE"
 experiment_description = """
 SE or 1 D imaging / spectroscopy

@@ -247,25 +247,32 @@ class TargetSequenceHolder():
             plt.show()
             plt.pause(0.02)
             
-    def print_seq(self, plotsize=[20,2]):
+    def print_seq(self, plotsize=[20,2],time_axis=0):
+        
+        tfull=np.cumsum(tonumpy(self.event_time).transpose().ravel())
+        xlabel='time [s]'
+        if time_axis==0:
+            tfull=np.arange(tfull.size)
+            xlabel='event index'
+
         fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
         plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(self.event_time))))
-        plt.plot(np.tile(tonumpy(self.adc_mask),self.scanner.NRep).flatten('F'),'.',label='ADC')
-        plt.plot(tonumpy(self.event_time).flatten('F'),'.',label='time')
-        plt.plot(tonumpy(self.rf_event[:,:,0]).flatten('F'),label='RF')
+        plt.plot(tfull,np.tile(tonumpy(self.adc_mask),self.scanner.NRep).flatten('F'),'.',label='ADC')
+        plt.plot(tfull,tonumpy(self.event_time).flatten('F'),'.',label='time')
+        plt.plot(tfull,tonumpy(self.rf_event[:,:,0]).flatten('F'),label='RF')
         major_ticks = np.arange(0, self.scanner.T*self.scanner.NRep, self.scanner.T) # this adds ticks at the correct position szread
-        ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+        ax=plt.gca(); ax.set_xticks(tfull[major_ticks]); ax.grid()
         plt.legend()
         plt.subplot(412); plt.ylabel('gradients')
-        plt.plot(tonumpy(self.gradm_event[:,:,0]).flatten('F'),label='gx')
-        plt.plot(tonumpy(self.gradm_event[:,:,1]).flatten('F'),label='gy')
-        ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+        plt.plot(tfull,tonumpy(self.gradm_event[:,:,0]).flatten('F'),label='gx')
+        plt.plot(tfull,tonumpy(self.gradm_event[:,:,1]).flatten('F'),label='gy')
+        ax=plt.gca(); ax.set_xticks(tfull[major_ticks]); ax.grid()
         plt.legend()
         plt.subplot(413); plt.ylabel('signal')
-        plt.plot(tonumpy(self.scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-        plt.plot(tonumpy(self.scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-        plt.xlabel('event index')
-        ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+        plt.plot(tfull,tonumpy(self.scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
+        plt.plot(tfull,tonumpy(self.scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
+        plt.xlabel(xlabel)
+        ax=plt.gca(); ax.set_xticks(tfull[major_ticks]); ax.grid()
         plt.legend()
         plt.show()
         

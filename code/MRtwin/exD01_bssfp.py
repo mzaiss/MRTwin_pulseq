@@ -10,7 +10,8 @@ experiment_description = """
 """
 excercise = """
 This starts from A10
-A10.1. calculate the total scan time of the sequence
+B01.1. increase the flipangle to 15 degree.
+calculate the total scan time of the sequence
 A10.1. lower the recovery time after each repetition to event_time[-1,:] =  0.1 . What do you observe?
 A10.2. lower the flip angle to 5 degree.
 A10.3. find a way to get rid of transverse magnetization from the previous rep using a gradient. (spoiler or crusher gradient)
@@ -88,10 +89,10 @@ def setdevice(x):
 ## S0: define image and simulation settings::: #####################################
 sz = np.array([32,32])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
-NRep = extraMeas*sz[1]                   # number of total repetitions
+NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[1]
 T = szread + 5 + 2                               # number of events F/R/P
-NSpins = 2**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = True                     # kills transverse when above 1.5 k.-spaces
@@ -115,7 +116,9 @@ for i in range(5):
     elif i == 1 or i == 2:
         t[t < cutoff] = cutoff        
     real_phantom_resized[:,:,i] = t
-       
+    
+
+    
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
 real_phantom_resized[:,:,3] *= 1 # Tweak dB0
@@ -135,7 +138,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 0.0
+R2star = 30.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
@@ -166,40 +169,44 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
-rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[2,0,0] = 5*np.pi/180  # 90deg excitation now for every rep
-rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[3,:,0] = 10*np.pi/180  # 90deg excitation now for every rep
+rf_event[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
 
-alternate= torch.tensor([0,1])
-rf_event[3,:,1]=np.pi*alternate.repeat(NRep//2)
+rf_event[3,:,1]=torch.arange(0,50*NRep,50)*np.pi/180 
+
+def get_phase_cycler(n, dphi,flag=0):
+    out = np.cumsum(np.arange(n) * dphi)  #  from Alex (standard)
+    if flag:
+        for j in range(0,n,1):               # from Zur et al (1991)
+            out[j] = dphi/2*(j**2 +j+2)
+    out = torch.from_numpy(np.mod(out, 360).astype(np.float32))
+    return out    
+
+rf_event[3,:,1]=get_phase_cycler(NRep,117)*np.pi/180 
+
 
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
 rfsign = ((rf_event[3,:,0]) < 0).float()
-
-scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID specific
+scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #sequence specific
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
-event_time[1,0] =  3
-event_time[2,0] =  0.002*0.5  
-event_time[-1,:] =  0.002
+event_time[-1,:] =  0.01
 event_time = setdevice(event_time)
 TA = tonumpy(torch.sum(event_time))
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
 gradm_event[4,:,1] = -0.5*szread
-gradm_event[5:-2,:,1] = 1
-gradm_event[-2,:,1] = -0.5*szread # readback
-gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2  #phaseblip
-gradm_event[-2,:,0] = -gradm_event[4,:,0]            #phasebackblip
+gradm_event[5:-2,:,1] = 1.0
+gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
+gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
+gradm_event[-2,:,1] = 1.5*szread         # spoiler (even numbers sometimes give stripes, best is ~ 1.5 kspaces, for some reason 0.2 works well,too  )
 
 
-if 1: # centric 
+if 0: # centric 
     permvec= np.zeros((NRep,),dtype=int) 
     permvec[0] = 0
     for i in range(1,int(NRep/2)+1):
@@ -217,6 +224,7 @@ gradm_event = setdevice(gradm_event)
 scanner.init_gradient_tensor_holder()
 scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
+
 
 
 #############################################################################
@@ -244,17 +252,16 @@ space = np.roll(space,szread//2-1,axis=0)
 space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
-plt.subplot(3,6,13)
+plt.subplot(4,6,19)
 plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
-plt.subplot(3,6,14)
-plt.imshow(real_phantom_resized[:,:,1], interpolation='none'); plt.xlabel('T1')
-plt.subplot(3,6,15)
-plt.imshow(real_phantom_resized[:,:,2], interpolation='none'); plt.xlabel('T2')
-plt.subplot(3,6,16)
+plt.subplot(4,6,20)
 plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
-plt.subplot(3,6,17)
+
+plt.subplot(4,6,22)
+plt.imshow(np.abs(kspace), interpolation='none'); plt.xlabel('kspace')
+plt.subplot(4,6,23)
 plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
-plt.subplot(3,6,18)
+plt.subplot(4,6,24)
 mask=(np.abs(space)>0.2*np.max(np.abs(space)))
 plt.imshow(np.angle(space)*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     
