@@ -19,10 +19,19 @@ def findReplace(directory, find, replace, filePattern):
 
 #This allows you to do something like:
 
-findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","flips", "rf_event", "*.py")
-findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","grad_moms", "gradm_event", "*.py")
-findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","flips", "rf_event", "*.py")
-           
+findReplace("D:/root/Lehre/pulseqMRI/MRtwin_FAU/code/help","(scanner.NEvnt,scanner.NRep)", "(NEvnt,NRep)", "*.py")
+
+findReplace("D:/root/Lehre/pulseqMRI/MRtwin_FAU/code/help","scanner.T ", "NEvnt", "*.py")
+     
+findReplace("D:/root/Lehre/pulseqMRI/MRtwin_FAU/code/help","T,", "NEvnt,", "*.py")
+findReplace("D:/root/Lehre/pulseqMRI/MRtwin_FAU/code/help","T ", "NEvnt ", "*.py")
+findReplace("D:/root/Lehre/pulseqMRI/MRtwin_FAU/code/help","T*NRep", "NEvnt*NRep", "*.py")
+
+                
+#findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","flips", "rf_event", "*.py")
+#findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","grad_moms", "gradm_event", "*.py")
+#findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","flips", "rf_event", "*.py")
+#           
             
 #%% ############################################################################
 #also dirs

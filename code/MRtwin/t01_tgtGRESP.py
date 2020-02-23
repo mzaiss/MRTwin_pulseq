@@ -82,7 +82,7 @@ def stop():
 # define setup
 sz = np.array([12,12])                                           # image size
 NRep = sz[1]                                          # number of repetitions
-T = sz[0] + 4                                        # number of events F/R/P
+NEvnt = sz[0] + 4                                        # number of events F/R/P
 NSpins = 4**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 
@@ -147,14 +147,14 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
-adc_mask = torch.from_numpy(np.ones((T,1))).float()
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+adc_mask = torch.from_numpy(np.ones((NEvnt,1))).float()
 adc_mask[:2]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 rf_event[0,:,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 #rf_event[0,0,0] = 45*np.pi/180 
 #rf_event[0,:,1] = torch.rand(rf_event.shape[1])*90*np.pi/180
@@ -177,7 +177,7 @@ scanner.set_ADC_rot_tensor(-rf_event[0,:,1] + 0*np.pi/2 + np.pi*rfsign) #GRE/FID
 
 
 # event timing vector 
-event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 event_time[0,:] =  2e-3  + 0e-3 
 event_time[1,:] =  0.5*1e-3   # for 96
 event_time[-2,:] = 2*1e-3
@@ -189,7 +189,7 @@ TE=torch.sum(event_time[:11,1])
 
 # gradient-driver precession
 # Cartesian encoding
-gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32) 
+gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32) 
 
 gradm_event[1,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
 gradm_event[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
@@ -271,26 +271,26 @@ def init_variables():
     rf_event[0,:,:]=rf_event[0,:,:]*1e-7
     rf_event = setdevice(rf_event)
     
-    flip_mask = torch.ones((scanner.T, scanner.NRep, 2)).float()     
+    flip_mask = torch.ones((NEvnt, NRep, 2)).float()     
     flip_mask[1:,:,:] = 0
     flip_mask = setdevice(flip_mask)
     rf_event.zero_grad_mask = flip_mask
       
     event_time = targetSeq.event_time.clone()
-    #event_time = torch.from_numpy(1e-7*np.random.rand(scanner.T,scanner.NRep)).float()
+    #event_time = torch.from_numpy(1e-7*np.random.rand(NEvnt,NRep)).float()
     #event_time*=0.5
     #event_time[:,0] = 0.4*1e-3  
     #event_time[-1,:] = 0.012 # target is fully relaxed GRE (FA5), task is FLASH with TR>=12ms
     event_time = setdevice(event_time)
     
-    event_time_mask = torch.ones((scanner.T, scanner.NRep)).float()        
+    event_time_mask = torch.ones((NEvnt, NRep)).float()        
     event_time_mask[2:-2,:] = 0
     event_time_mask = setdevice(event_time_mask)
     event_time.zero_grad_mask = event_time_mask
         
     gradm_event = targetSeq.gradm_event.clone()
 
-    gradm_event_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()        
+    gradm_event_mask = torch.zeros((NEvnt, NRep, 2)).float()        
     gradm_event_mask[1,:,:] = 1
     gradm_event_mask[-2,:,:] = 1
     gradm_event_mask = setdevice(gradm_event_mask)
@@ -334,7 +334,7 @@ def phi_FRP_model(opt_params,aux_params):
     lbd_kspace = 1e1
     
     k = torch.cumsum(gradm_event, 0)
-    k = k*torch.roll(scanner.adc_mask, -1).view([T,1,1])
+    k = k*torch.roll(scanner.adc_mask, -1).view([NEvnt,1,1])
     k = k.flatten()
     mask = setdevice((torch.abs(k) > sz[0]/2))
     k = k * mask

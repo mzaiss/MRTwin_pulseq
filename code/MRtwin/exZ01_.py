@@ -8,7 +8,10 @@ sequence_class = "gre_dream"
 experiment_description = """
 """
 excercise = """
-
 Z01.1. make a spin echo EPI
-Z01.1. make two readouts from one measurement: eg. FID/STE, or STE and SE separatley as two seoparate contrasts
+Z01.2. make two readouts from one measurement: eg. FID/STE, or STE and SE separatley as two seoparate contrasts
+
+
+Z02.1. Display all Spins as a vector or many vectors
+Z02.2. Display all Spins as a vector or many vectors, and animate this during a sequence
 """

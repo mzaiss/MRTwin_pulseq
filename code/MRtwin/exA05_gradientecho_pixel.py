@@ -89,7 +89,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                      # number of total repetitions
 NRep = 4                                  # number of total repetitions
 szread=128
-T = szread + 5 + 2                               # number of events F/R/P
+NEvnt = szread + 5 + 2                               # number of events F/R/P
 NSpins = 26**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
@@ -141,7 +141,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -153,13 +153,13 @@ scanner.B1plus = setdevice(B1plus)
 ## S3: MR sequence definition ::: #####################################
 # begin sequence definition
 # allow for extra events (pulses, relaxation and spoiling) in the first five and last two events (after last readout event)
-adc_mask = torch.from_numpy(np.ones((T,1))).float()
+adc_mask = torch.from_numpy(np.ones((NEvnt,1))).float()
 adc_mask[:5]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 rf_event[3,0,0] = 90*np.pi/180  # 90deg excitation in first rep
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
@@ -169,13 +169,13 @@ rfsign = ((rf_event[3,:,0]) < 0).float()
 scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
-event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 event_time[:,0] =  0.08*1e-3
 event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
-gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 gradm_event[4,0,0] = -0.5*szread
 gradm_event[5:-2,0,0] = 1
 gradm_event[5:-2,1::2,0] = -1 

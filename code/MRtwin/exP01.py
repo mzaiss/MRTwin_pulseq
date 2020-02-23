@@ -132,7 +132,7 @@ else:
     print('condition not fulfilled x must be -2<x<0')
         
 array = np.zeros([5,5,2])  # this could be a complex image
-alter entries by for loops
+#alter entries by for loops
 for i in range(5):
     for j in range(5):
         array[i,j,0]=i  #last entry

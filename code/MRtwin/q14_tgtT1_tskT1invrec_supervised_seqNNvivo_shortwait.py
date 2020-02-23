@@ -99,7 +99,7 @@ kill_transverse = False
 sz = np.array([32,32])                                           # image size
 extraRep = 10
 NRep = extraRep*sz[1]                                   # number of repetitions
-T = sz[0] + 7                                        # number of events F/R/P
+NEvnt = sz[0] + 7                                        # number of events F/R/P
 NSpins = 20**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                               # additive Gaussian noise std
@@ -206,17 +206,17 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,T,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 # begin sequence definition
 # allow for relaxation and spoiling in the first two and last two events (after last readout event)
-adc_mask = torch.from_numpy(np.ones((T,1))).float()
+adc_mask = torch.from_numpy(np.ones((NEvnt,1))).float()
 adc_mask[:5]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 rf_event[3,:,0] = 5*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 # randomize RF phases
 measRepStep = NRep//extraRep
@@ -239,7 +239,7 @@ rfsign = ((rf_event[3,:,0]) < 0).float()
 scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
-event_time = torch.from_numpy(0.08*1e-3*np.ones((scanner.T,scanner.NRep))).float()
+event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 #TI = torch.tensor(np.arange(0,0.5,0.05))
 TI = torch.tensor([0.1,0.2,0.3,0.5,0.75,1,1.5,3,5,8])
 
@@ -262,7 +262,7 @@ TE=torch.sum(event_time[:11,1])
 
 # gradient-driver precession
 # Cartesian encoding
-gradm_event = torch.zeros((T,NRep,2), dtype=torch.float32)
+gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 
 meas_indices=np.zeros((extraRep,measRepStep))
 for i in range(0,extraRep):
@@ -618,7 +618,7 @@ def init_variables():
     #rf_event[0,:,:]=rf_event[0,:,:]*0
     rf_event = setdevice(rf_event)
     
-    flip_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()     
+    flip_mask = torch.zeros((scanner.NEvnt, scanner.NRep, 2)).float()     
     flip_mask[3,:,:] = 1
     flip_mask = setdevice(flip_mask)
     rf_event.zero_grad_mask = flip_mask
@@ -626,7 +626,7 @@ def init_variables():
     event_time = targetSeq.event_time.clone()
     event_time = setdevice(event_time)
        
-    event_time_mask = torch.zeros((scanner.T, scanner.NRep)).float()   
+    event_time_mask = torch.zeros((scanner.NEvnt, scanner.NRep)).float()   
     for j in range(0,extraRep):
         event_time_mask[2,j*measRepStep] = 1
         if j>0:
@@ -638,7 +638,7 @@ def init_variables():
         
     gradm_event = targetSeq.gradm_event.clone()
 
-    gradm_event_mask = torch.zeros((scanner.T, scanner.NRep, 2)).float()        
+    gradm_event_mask = torch.zeros((scanner.NEvnt, scanner.NRep, 2)).float()        
     gradm_event_mask = setdevice(gradm_event_mask)
     gradm_event.zero_grad_mask = gradm_event_mask
     
