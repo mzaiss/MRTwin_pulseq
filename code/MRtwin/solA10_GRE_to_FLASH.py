@@ -204,7 +204,9 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
-event_time[-1,:] =  0.01
+event_time[3,:] =  2.0*1e-3
+event_time[4,:] =  0.5*1e-3
+event_time[-2,:] =  0.01
 event_time = setdevice(event_time)
 
 # gradient-driver precession
@@ -275,3 +277,9 @@ plt.subplot(4,6,24)
 mask=(np.abs(space)>0.2*np.max(np.abs(space))).transpose()
 plt.imshow(np.angle(space).transpose()*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     
+
+
+#%%
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)

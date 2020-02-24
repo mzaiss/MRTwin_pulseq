@@ -32,7 +32,6 @@ import core.scanner
 import core.nnreco
 import core.opt_helper
 import core.target_seq_holder
-import core.FID_normscan
 import warnings
 import matplotlib.cbook
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
@@ -188,14 +187,14 @@ event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
-grad_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
-grad_event[4,:,1] = -0.5*szread
-grad_event[5:-2,:,1] = 1
-grad_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2
-grad_event = setdevice(grad_event)
+gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+gradm_event[4,:,1] = -0.5*szread
+gradm_event[5:-2,:,1] = 1
+gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2
+gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(grad_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 

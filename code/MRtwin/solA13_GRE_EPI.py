@@ -220,6 +220,7 @@ scanner.forward_fast(spins, event_time)
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
 
+
 fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
 plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
 plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
