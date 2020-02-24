@@ -358,7 +358,11 @@ class TargetSequenceHolder():
         target_array['event_times'] = event_time_numpy
         target_array['gradm_event'] = gradm_event_numpy
         target_array['kloc'] = tonumpy(self.scanner.kspace_loc)
-        target_array['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+        try:
+            target_array['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+        except:
+            pass
+            
         target_array['ROI'] = tonumpy(self.scanner.ROI_signal)
         target_array['sz'] = self.scanner.sz
         target_array['signal'] = tonumpy(self.scanner.signal)
