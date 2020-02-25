@@ -81,7 +81,7 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([8,8])                                           # image size
+sz = np.array([16,16])                                           # image size
 NRep = sz[1]                                          # number of repetitions
 NEvnt = sz[0] + 4                                        # number of events F/R/P
 NSpins = 20**2                                # number of spin sims in each voxel
@@ -408,7 +408,7 @@ def phi_FRP_model(opt_params,aux_params):
 nmb_conv_neurons_list = [2,4,2]
 
 # initialize reconstruction module
-CNN = core.nnreco.RecoConvNet_basic(spins.sz, nmb_conv_neurons_list,5,use_gpu=True,gpu_device=gpu_dev)
+CNN = core.nnreco.RecoConvNet_basic(spins.sz, nmb_conv_neurons_list,5,use_gpu=False,gpu_device=gpu_dev)
 
 opt = core.opt_helper.OPT_helper(scanner,spins,CNN,1)
 opt.set_target(tonumpy(targetSeq.target_image).reshape([sz[0],sz[1],2]))
@@ -433,10 +433,10 @@ lr_inc=np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.05, 0.05])
 query_kwargs = experiment_id, today_datestr, sequence_class
 
 import imageio 
-for i in range(7):
+for i in range(3):
     opt.custom_learning_rate = [0.01,0.01,0.1,lr_inc[i],0.01]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=20*i+5, do_vis_image=True, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later   
+    opt.train_model(training_iter=20*i+5, do_vis_image=False, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later   
 #    imageio.mimsave("current_32_rew.gif",opt.gif_array[::4],format='GIF', duration=0.06)  
 opt.train_model(training_iter=5000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 imageio.mimsave("current_32_rew.gif",opt.gif_array[::2],format='GIF', duration=0.06)  
