@@ -152,7 +152,7 @@ else:
     
     seq.plot()
     
-    seq_fn='test.seq'
+    seq_fn='out/test.seq'
     
     seq.write(seq_fn)
     append_header(seq_fn, FOV(),slice_thickness)

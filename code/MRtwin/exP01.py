@@ -118,6 +118,18 @@ array = np.ones([5,5,2]); array[:,1:-2,:]*=0  # initialize to ones, then multipl
 
 print(array[:,:,0],'\n\n',array[:,:,1],'shape=',array.shape)
 
+#%%  ravel or flatten of an array
+array = np.ones([5,3]) 
+array[:,0]=0
+array[:,2]=2
+# np.flatten('F')
+array.flatten('F')
+# this is the same as 
+np.transpose(array).flatten()
+# or
+np.transpose(array).ravel()
+# or
+np.ravel(array,order='F')
 
 #%% function definition
 array = np.ones ([5,5,2]) # lets assume this is a complex image, last dimension is just real and imaginary part
@@ -151,9 +163,22 @@ for i in range(5):
         array[i,j,1]=j  #last entry
 print(array[:,:,0],'\n\n',array[:,:,1],'shape=',array.shape)
 
-    
 
-#%% pyplot
+#%% pyplot 1
+
+array = np.ones([5,3]) 
+array[:,0]=0
+array[:,2]=2
+# np.flatten('F')
+array.flatten('F')
+
+# plot signal as a function of total time:
+plt.subplot(413); plt.ylabel('signal')
+time_axis=np.cumsum(array.flatten('F'))
+plt.plot(time_axis,array.flatten('F'),label='real')
+ax=plt.gca(); ax.grid()
+
+#%% pyplot 2
 img= np.random.rand(5,5,2)    # lets assume this is a complex image, last dimension is just real and imaginary part
 img[:,:,1]*=0.1
 
