@@ -80,8 +80,8 @@ def stop():
     raise ExecutionControl('stopped by user')
     sys.tracebacklimit = 1000
 # define setup
-sz = np.array([8,8])                                           # image size
-NRep = sz[1]                                          # number of repetitions
+sz = np.array([16,16])                                           # image size
+NRep = sz[1]    
 NEvnt = sz[0] + 4                                        # number of events F/R/P
 NSpins = 20**2                                # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -193,7 +193,7 @@ gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 
 gradm_event[1,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
 gradm_event[1,:,1] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
-gradm_event[2:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
+gradm_event[2:-2,:,0] = torch.ones(int(sz[1])).view(int(sz[1]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
 gradm_event[-2,:,0] = torch.ones(1)*sz[0]*2  # GRE/FID specific, SPOILER
 gradm_event[-2,:,1] = -gradm_event[1,:,1]      # GRE/FID specific, yblip rewinder
 gradm_event = setdevice(gradm_event)
@@ -258,9 +258,24 @@ if False: # check sanity: is target what you expect and is sequence what you exp
         
     targetSeq.print_status(True, reco=None, do_scanner_query=do_scanner_query)
         
+#%%
+# initialize scanned object
+NSpins = 4**2                                # number of spin sims in each voxel
+spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
+spins.set_system(real_phantom_resized)
+#begin nspins with R*
+R2 = 30.0
+omega = np.linspace(0+1e-5,1-1e-5,NSpins) - 0.5    # cutoff might bee needed for opt.
+#omega = np.random.rand(NSpins,NVox) - 0.5
+omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+omega*=0.9  # cutoff large freqs
+omega = R2 * np.tan ( np.pi  * omega) 
+spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
+spins.omega = setdevice(spins.omega)
+
     
 NRep_orig = NRep
-           
+
 # reset scanner class to t2o repetitions
 NRep = 2
 NEvnt = sz[0] * 2 + 4
@@ -418,7 +433,7 @@ import imageio
 for i in range(7):
     opt.custom_learning_rate = [0.01,0.01,0.1,lr_inc[i],0.01]
     print('<seq> Optimization ' + str(i+1) + ' with 10 iters starts now. lr=' +str(lr_inc[i]))
-    opt.train_model(training_iter=20*i+5, do_vis_image=True, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later   
+    opt.train_model(training_iter=20*i+5, do_vis_image=False, save_intermediary_results=True,query_scanner=do_scanner_query,query_kwargs=query_kwargs) # save_intermediary_results=1 if you want to plot them later   
 #    imageio.mimsave("current_32_rew.gif",opt.gif_array[::4],format='GIF', duration=0.06)  
 opt.train_model(training_iter=5000, do_vis_image=True, save_intermediary_results=True) # save_intermediary_results=1 if you want to plot them later
 imageio.mimsave("current_32_rew.gif",opt.gif_array[::2],format='GIF', duration=0.06)  
