@@ -32,9 +32,7 @@ from torch import optim
 import core.spins
 import core.scanner
 import core.nnreco
-import core.opt_helper
 import core.target_seq_holder
-import core.FID_normscan
 import warnings
 import matplotlib.cbook
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
@@ -260,6 +258,7 @@ if 1: # NUFFT
     
     X, Y = np.meshgrid(np.linspace(0,NCol-1,NCol) - NCol / 2, np.linspace(0,NRep-1,NRep) - NRep/2)
     grid = np.double(grid.detach().cpu().numpy())
+    grid[np.abs(grid) < 1e-5] = 0
     
     plt.subplot(336); plt.plot(grid[:,:,0].ravel('F'),grid[:,:,1].ravel('F'),'rx',markersize=3);  plt.plot(X,Y,'k.',markersize=2);
     plt.show()
@@ -271,14 +270,16 @@ if 1: # NUFFT
     kspace[np.isnan(kspace)] = 0
     
     # fftshift
-#    kspace = np.roll(kspace,NCol//2,axis=0)
-#    kspace = np.roll(kspace,NRep//2,axis=1)
+    kspace = np.roll(kspace,NCol//2,axis=0)
+    kspace = np.roll(kspace,NRep//2,axis=1)
             
     space = np.fft.ifft2(kspace)
 
 space = np.roll(space,szread//2-1,axis=0)
 space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
+
+
 
 if 0:
     scanner.adjoint()
