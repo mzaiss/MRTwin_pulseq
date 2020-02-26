@@ -331,11 +331,18 @@ class TargetSequenceHolder():
 
         return basepath
 
-    def export_to_pulseq(self, experiment_id, today_datestr, sequence_class, plot_seq=True):
+    def export_to_pulseq(self, experiment_id, today_datestr, sequence_class, plot_seq=True,single_folder=False):
         basepath = self.get_base_path(experiment_id, today_datestr)
         
-        fn_target_array = "target_arr.npy"
-        fn_pulseq = "target.seq"
+        if single_folder:
+            basepath=os.path.dirname(basepath)
+            fn_target_array = experiment_id+".npy"
+            fn_pulseq = experiment_id+".seq"
+        else:
+            fn_target_array = "target_arr.npy"
+            fn_pulseq = "target.seq"
+        
+        
         
         # overwrite protection (gets trigger if pulseq file already exists)
 #        today_datetimestr = time.strftime("%y%m%d%H%M%S")
@@ -350,30 +357,31 @@ class TargetSequenceHolder():
         event_time_numpy = np.abs(tonumpy(self.event_time))
         gradm_event_numpy = tonumpy(self.gradm_event)
         
-        # save target seq param array
-        target_array = dict()
-        target_array['adc_mask'] = tonumpy(self.scanner.adc_mask)
-        target_array['B1'] = tonumpy(self.scanner.B1)
-        target_array['rf_event'] = rf_event_numpy
-        target_array['event_times'] = event_time_numpy
-        target_array['gradm_event'] = gradm_event_numpy
-        target_array['kloc'] = tonumpy(self.scanner.kspace_loc)
-        try:
-            target_array['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
-        except:
-            pass
+        if not single_folder:
+            # save target seq param array
+            target_array = dict()
+            target_array['adc_mask'] = tonumpy(self.scanner.adc_mask)
+            target_array['B1'] = tonumpy(self.scanner.B1)
+            target_array['rf_event'] = rf_event_numpy
+            target_array['event_times'] = event_time_numpy
+            target_array['gradm_event'] = gradm_event_numpy
+            target_array['kloc'] = tonumpy(self.scanner.kspace_loc)
+            try:
+                target_array['reco'] = tonumpy(self.target_image).reshape([self.scanner.sz[0],self.scanner.sz[1],2])
+            except:
+                pass
+                
+            target_array['ROI'] = tonumpy(self.scanner.ROI_signal)
+            target_array['sz'] = self.scanner.sz
+            target_array['signal'] = tonumpy(self.scanner.signal)
+            target_array['sequence_class'] = sequence_class
             
-        target_array['ROI'] = tonumpy(self.scanner.ROI_signal)
-        target_array['sz'] = self.scanner.sz
-        target_array['signal'] = tonumpy(self.scanner.signal)
-        target_array['sequence_class'] = sequence_class
-        
-        try:
-            os.makedirs(basepath)
-            os.makedirs(os.path.join(basepath,"data"))
-        except:
-            pass
-        np.save(os.path.join(os.path.join(basepath, fn_target_array)), target_array)
+            try:
+                os.makedirs(basepath)
+                os.makedirs(os.path.join(basepath,"data"))
+            except:
+                pass
+            np.save(os.path.join(os.path.join(basepath, fn_target_array)), target_array)
         
         # save sequence
         seq_params = rf_event_numpy, event_time_numpy, gradm_event_numpy

@@ -180,7 +180,7 @@ def pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=False):
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)    
     
-    seq.add_block(make_delay(15.0))
+    seq.add_block(make_delay(5.0))
     
 
       
@@ -723,8 +723,7 @@ def pulseq_write_slBSSFP(seq_params, seq_fn, plot_seq=False):
     append_header(seq_fn, FOV(),slice_thickness)    
     
 def pulseq_write_EPI(seq_params, seq_fn, plot_seq=False):
-    raise
-    pass
+    pulseq_write_GRE_DREAM(seq_params, seq_fn, plot_seq=plot_seq)
     
 
         

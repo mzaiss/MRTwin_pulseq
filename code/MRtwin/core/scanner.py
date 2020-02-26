@@ -2780,8 +2780,8 @@ class Scanner():
                       raw = np.zeros((self.NRep,ncoils,self.NCol+heuristic_shift,2))
                       raw = raw[:,:,:(self.NCol-heuristic_shift),0] + 1j*raw[:,:,:(self.NCol-heuristic_shift),1]
                 else:
-                      raw = raw.reshape([self.NRep,ncoils,self.NCol+heuristic_shift,2])
-                      raw = raw[:,:,:(self.NCol-heuristic_shift),0] + 1j*raw[:,:,:(self.NCol-heuristic_shift),1]
+                      raw = raw.reshape([self.NRep,ncoils,self.NCol+heuristic_shift,2])                    
+                      raw = raw[:,:,:(self.NCol),0] + 1j*raw[:,:,:(self.NCol),1]
 #                      raw /= np.max(np.abs(raw))
 #                      raw /= 0.05*0.014/9
                 

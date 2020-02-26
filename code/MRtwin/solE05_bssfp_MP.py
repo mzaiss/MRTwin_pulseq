@@ -3,7 +3,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solB01_bSSFP'
+experiment_id = 'solE05_bSSFP_MP'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
@@ -184,9 +184,12 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID sp
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
+event_time[0,0] =  1e-3
+event_time[3,:] =  2e-3
+event_time[4,:] =  0.3*1e-3
+event_time[-2,:] = 0.3*1e-3
 event_time[1,0] =  3
-event_time[2,0] =  0.002*0.5  
-event_time[-1,:] =  0.002
+event_time[2,0] =  1e-3
 event_time = setdevice(event_time)
 TA = tonumpy(torch.sum(event_time))
 # gradient-driver precession
@@ -222,9 +225,17 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
-scanner.forward_fast(spins, event_time)
-
+#%%
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True,single_folder=True)
+
+scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=True)
+       
+        
+#%%
+#scanner.forward_fast(spins, event_time)
+
+#targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
 targetSeq.print_seq(plotsize=[12,9])
   
