@@ -1,0 +1,5 @@
+./out//sequences//seq200226//solA12_FLASH_MP//target.seq
+./out//sequences//seq200226//solA12_FLASH_MP//target.seq
+./out//sequences//seq200226//solA12_FLASH_MP//target.seq
+./out//sequences//seq200226//solA12_FLASH_MP//target.seq
+wait

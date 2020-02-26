@@ -32,9 +32,7 @@ from torch import optim
 import core.spins
 import core.scanner
 import core.nnreco
-import core.opt_helper
 import core.target_seq_holder
-import core.FID_normscan
 import warnings
 import matplotlib.cbook
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)

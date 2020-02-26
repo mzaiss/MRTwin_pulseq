@@ -28,7 +28,9 @@ findReplace("D:/root/Lehre/pulseqMRI/MRtwin_FAU/code/help","T ", "NEvnt ", "*.py
 findReplace("D:/root/Lehre/pulseqMRI/MRtwin_FAU/code/help","T*NRep", "NEvnt*NRep", "*.py")
 
                 
-#findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","flips", "rf_event", "*.py")
+findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","import core.opt_helper", " ", "*.py")
+findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","import core.FID_normscan", " ", "*.py")
+
 #findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","grad_moms", "gradm_event", "*.py")
 #findReplace("C:/root/Lehre/pulseqMRI/MRtwin_FAU/code/MRtwin","flips", "rf_event", "*.py")
 #           

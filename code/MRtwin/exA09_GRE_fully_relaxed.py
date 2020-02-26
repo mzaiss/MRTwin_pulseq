@@ -30,7 +30,6 @@ from torch import optim
 import core.spins
 import core.scanner
 import core.nnreco
-import core.opt_helper
 import core.target_seq_holder
 import warnings
 import matplotlib.cbook
