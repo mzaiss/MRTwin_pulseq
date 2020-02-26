@@ -2718,7 +2718,7 @@ class Scanner():
             
         os.remove(fp_lock)
             
-    def get_signal_from_real_system(self, experiment_id, today_datestr, basepath_seq_override=None, jobtype="target", iterfile=None):
+    def get_signal_from_real_system(self, experiment_id, today_datestr, basepath_seq_override=None, jobtype="target", iterfile=None,single_folder=True):
         _, basepath_seq = self.get_base_path(experiment_id, today_datestr)
         
         if basepath_seq_override is not None:
@@ -2727,7 +2727,11 @@ class Scanner():
         print('wating for TWIX file from the scanner...')
         
         if jobtype == "target":
-            fn_twix = "target.seq"
+            if single_folder:
+                basepath_seq=os.path.dirname(basepath_seq)
+                fn_twix = experiment_id+".seq"
+            else:
+                fn_twix = "target.seq"
         elif jobtype == "lastiter":
             fn_twix = "lastiter.seq"   
         elif jobtype == "iter":
@@ -2757,7 +2761,7 @@ class Scanner():
                 print("TWIX file arrived. Reading....")
                 
                 raw_file = os.path.join(basepath_seq, fn_twix)
-                ncoils = 8
+                ncoils = 20
                 
                 time.sleep(0.2)
                 
@@ -2765,7 +2769,7 @@ class Scanner():
 
                 
                 dp_twix = os.path.dirname(fnpath)
-                shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix))
+#                shutil.move(fnpath, os.path.join(dp_twix,"data",fn_twix))
                 
                 heuristic_shift = 4
                 print("raw size: {} ".format(raw.size) + "expected size: {} ".format("raw size: {} ".format(self.NRep*ncoils*(self.NCol+heuristic_shift)*2)) )
