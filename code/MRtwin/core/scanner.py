@@ -2634,14 +2634,7 @@ class Scanner():
 
         with open(os.path.join('core',pathfile),"r") as f:
             path_from_file = f.readline()
-        if platform == 'linux':
-            hostname = socket.gethostname()
-            if hostname == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron':
-                basepath = '/media/upload3t/CEST_seq/pulseq_zero'
-            else:                                                     # cluster
-                basepath = 'out'
-        else:
-            basepath = path_from_file
+        basepath = path_from_file
         basepath_seq = os.path.join(basepath, 'sequences')
         basepath_seq = os.path.join(basepath_seq, "seq" + today_datestr)
         basepath_seq = os.path.join(basepath_seq, experiment_id)
@@ -2651,10 +2644,7 @@ class Scanner():
     # interaction with real system
     def send_job_to_real_system(self, experiment_id, today_datestr, basepath_seq_override=None, jobtype="target", iterfile=None):
         basepath, basepath_seq = self.get_base_path(experiment_id, today_datestr)
-        if platform == 'linux':
-            basepath_control = '/media/upload3t/CEST_seq/pulseq_zero/control'
-        else:
-            basepath_control  = os.path.join(basepath, 'control')
+        basepath_control  = os.path.join(basepath, 'control')
         
         if basepath_seq_override is not None:
             basepath_seq = basepath_seq_override
