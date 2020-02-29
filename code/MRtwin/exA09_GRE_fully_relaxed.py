@@ -199,10 +199,16 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 
 
 #############################################################################
-## S4: MR simulation forward process ::: #####################################
+## S4A: MRTwin MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
 
+## S4B: Pulseq export and MR scan at real system ::: #####################################
+#targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
+#scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=True)
+#       
+       
 fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
 plt.subplot(411); plt.ylabel('RF, time, ADC')
 plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
