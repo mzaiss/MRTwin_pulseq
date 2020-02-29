@@ -317,14 +317,7 @@ class TargetSequenceHolder():
                 
         with open(os.path.join('core',pathfile),"r") as f:
             path_from_file = f.readline()
-        if platform == 'linux':
-            hostname = socket.gethostname()
-            if hostname == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron':
-                basepath = '/media/upload3t/CEST_seq/pulseq_zero'
-            else:                                                     # cluster
-                basepath = 'out'
-        else:
-            basepath = path_from_file
+        basepath = path_from_file
         basepath = os.path.join(basepath, 'sequences')
         basepath = os.path.join(basepath, "seq" + today_datestr)
         basepath = os.path.join(basepath, experiment_id)
@@ -342,7 +335,11 @@ class TargetSequenceHolder():
             fn_target_array = "target_arr.npy"
             fn_pulseq = "target.seq"
         
-        
+        try:
+            os.makedirs(basepath)
+            os.makedirs(os.path.join(basepath,"data"))
+        except:
+            pass
         
         # overwrite protection (gets trigger if pulseq file already exists)
 #        today_datetimestr = time.strftime("%y%m%d%H%M%S")
@@ -356,6 +353,7 @@ class TargetSequenceHolder():
         rf_event_numpy = tonumpy(self.rf_event)
         event_time_numpy = np.abs(tonumpy(self.event_time))
         gradm_event_numpy = tonumpy(self.gradm_event)
+        
         
         if not single_folder:
             # save target seq param array
@@ -375,12 +373,7 @@ class TargetSequenceHolder():
             target_array['sz'] = self.scanner.sz
             target_array['signal'] = tonumpy(self.scanner.signal)
             target_array['sequence_class'] = sequence_class
-            
-            try:
-                os.makedirs(basepath)
-                os.makedirs(os.path.join(basepath,"data"))
-            except:
-                pass
+                   
             np.save(os.path.join(os.path.join(basepath, fn_target_array)), target_array)
         
         # save sequence
