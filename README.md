@@ -50,6 +50,10 @@ Once this is set up, make the project code folder **MRTwin_pulseq/code/MRtwin** 
 
 If you want compare changed files or sample solutions you can use the tools diff, or more visually advanced Kompare or Meld.
 
+## A brief introduction in python and torch. ##
+We use python in here as it is open source and easy to debug and extend. Also with pytorch python provides a rather simple possibility of parallelization of code, auto-differentiation. \\
+If you are not familiar with python, please make sure to understand the file exP01.py from the MRTwin code, as it covers most of the used functions in the whole code and course.
+
 ## MRTwin exercises ##
 After obtaining the MRTwin package, find the main exercise files (exA0x ...) are in ./code/MRTwin. For each file you should create a copy for your solution and name it solA0x, respectively.
 The exercises are structured by sequence types:
@@ -61,8 +65,3 @@ The exercises are structured by sequence types:
  -  D : balanced SSFP
  -  E : export to real system
  -  F : undersampling and reconstruction
- 
-## A brief introduction in python and torch. ##
-We use python in here as it is open source and easy to debug and extend. Also with pytorch python provides a rather simple possibility of parallelization of code, auto-differentiation. \\
-If you are not familiar with python, please make sure to understand the file exP01.py from the MRTwin code, as it covers most of the used functions in the whole code and course.
-
