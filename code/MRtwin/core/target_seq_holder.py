@@ -257,11 +257,12 @@ class TargetSequenceHolder():
             tfull=np.arange(tfull.size)
             xlabel='event index'
 
-        fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
+        fig=plt.figure("""seq and image"""); fig.set_size_inches(plotsize); 
         plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(self.event_time))))
         plt.plot(tfull,np.tile(tonumpy(self.adc_mask),self.scanner.NRep).flatten('F'),'.',label='ADC')
         plt.plot(tfull,tonumpy(self.event_time).flatten('F'),'.',label='time')
-        plt.plot(tfull,tonumpy(self.rf_event[:,:,0]).flatten('F'),label='RF')
+#        plt.plot(tfull,tonumpy(self.rf_event[:,:,0]).flatten('F'),'.',label='RF')
+        plt.stem(tfull, tonumpy(self.rf_event[:,:,0]).flatten('F'),'r',markerfmt ='ro',label='RF')
         major_ticks = np.arange(0, self.scanner.T*self.scanner.NRep, self.scanner.T) # this adds ticks at the correct position szread
         ax=plt.gca(); ax.set_xticks(tfull[major_ticks]); ax.grid()
         plt.legend()

@@ -3,7 +3,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solD02_radialssfp'
+experiment_id = 'exD02_radialssfp'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
@@ -201,27 +201,6 @@ gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2  #phaseblip
 gradm_event[-2,:,0] = -gradm_event[4,:,0]            #phasebackblip
 
 gradm_event = setdevice(gradm_event)
-
-if True:
-    gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32) 
-    gradm_event[4,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
-    #grad_moms[1,:,1] = 0*torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
-    gradm_event[5:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
-    
-    for rep in range(NRep):
-        alpha = torch.tensor(rep * (1.0/(NRep)) * np.pi)
-        rotomat = torch.zeros((2,2)).float()
-        rotomat[0,0] = torch.cos(alpha)
-        rotomat[0,1] = -torch.sin(alpha)
-        rotomat[1,0] = torch.sin(alpha)
-        rotomat[1,1] = torch.cos(alpha)
-        
-        # rotate grid
-        gradm_event[4,rep,:] = (torch.matmul(rotomat,gradm_event[4,rep,:].unsqueeze(1))).squeeze()
-        gradm_event[5:-2,rep,:] = (torch.matmul(rotomat.unsqueeze(0),gradm_event[5:-2,rep,:].unsqueeze(2))).squeeze()
-    
-    gradm_event[-2,:,:] = gradm_event[4,:,:]     # balancing
-    gradm_event = setdevice(gradm_event)
 
 
 

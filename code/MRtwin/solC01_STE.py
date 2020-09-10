@@ -6,7 +6,7 @@ Created on Tue Jan 29 14:38:26 2019
 experiment_id = 'solC01_STE'
 sequence_class = "gre_dream"
 experiment_description = """
-SE or 1 D imaging / spectroscopy
+stimulated echo
 """
 excercise = """
 started from A02_spinecho
@@ -26,7 +26,7 @@ Do you still see the echo? prolong even further, what is the "decay time" of thi
 
 C01.5. read  http://mriquestions.com/stimulated-echoes.html  
         Try to generate all 5 echoes mentioned there. Identify  A, B, C, D, E
-C01.6. Try to defined the different echo times in your code, TE_SE, TE_STE
+C01.6. Try to define the different echo times in your code, TE_SE, TE_STE
         Move the STE after the SE, or before the SE. Move them to overlap perfectly
 C01.7. Add one gradient event to kill the spin echo in the third repetition
 C01.8. Add two gradient events to only have the STE left in the third rep.
@@ -149,7 +149,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star =250.0
+R2star = 250.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs

@@ -9,10 +9,10 @@ experiment_description = """
 FID or 1 D imaging / spectroscopy
 """
 excercise = """
-A01.1. alter flipangle rf_event[3,0,0], find flip angle for max signal, guess function signal(flip_angle) ~= ...
+A01.1. alter flipangle rf_event[3,0,0], find flip angle for max signal, guess the function signal(flip_angle) ~= ...
 A01.2  real_phantom_resized[:,:,3] += 1000 # Tweak dB0  do this to see lab frame movement, then 0 again.
 A01.4. set flip to 90 and alter number of spins: How many spins are at least needed to get good approximation of NSpins=Inf.
-A01.5. alter phase and adc rot
+A01.5. alter rf phase and adc rot
 A01.6. alter event_time
 A01.7. uncomment FITTING BLOCK, fit signal, alter R2star, where does the deviation come from?
 
@@ -25,6 +25,7 @@ import numpy as np
 import scipy
 import scipy.io
 from  scipy import ndimage
+from  scipy import optimize
 import torch
 import cv2
 import matplotlib.pyplot as plt
@@ -89,7 +90,7 @@ NRep = extraMeas*sz[1]                      # number of total repetitions
 NRep = 1                                    # number of total repetitions
 szread=128
 NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 24**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -190,7 +191,13 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward(spins, event_time)
-  
+
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
+
+# do it yourself: sequence and signal plotting  
 fig=plt.figure("""signals""")
 ax1=plt.subplot(131)
 ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label='real')
@@ -199,8 +206,25 @@ plt.title('signal')
 plt.legend()
 plt.ion()
 
-fig.set_size_inches(64, 7)
 plt.show()
+
+# do it yourself: sequence and signal plotting 
+#fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
+#plt.subplot(311); plt.title('seq: RF, time, ADC')
+#plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
+#plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
+#plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
+#plt.legend()
+#plt.subplot(312); plt.title('seq: gradients')
+#plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
+#plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
+#plt.legend()
+#plt.subplot(313); plt.title('signal')
+#plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
+#plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
+#plt.legend()
+#plt.show()
+
                         
 #%%  FITTING BLOCK
 #t=np.cumsum(tonumpy(event_time).transpose().ravel())

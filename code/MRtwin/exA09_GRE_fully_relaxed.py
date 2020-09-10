@@ -11,7 +11,7 @@ experiment_description = """
 excercise = """
 A09.1. plot the k-space as an image
 A09.2. excite only certain k space lines with 90 degree, other rf_event to 0
-A09.3. try different flip angles.
+A09.3. try different flip angles ( add noise to make effects visible, e.g. noise_std = 100*1e-3 ).
 A09.4. try different phantoms.
 A09.5. try to prolong the echo time, what do you observe?
 """
@@ -209,25 +209,15 @@ scanner.forward_fast(spins, event_time)
 #scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=True)
 #       
        
-fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
-plt.subplot(411); plt.ylabel('RF, time, ADC')
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-major_ticks = np.arange(0, NEvnt*NRep, NEvnt) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(412); plt.ylabel('gradients')
-plt.plot(tonumpy(grad_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(grad_event[:,:,1]).flatten('F'),label='gy')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(413); plt.ylabel('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
+
+# S4B: Pulseq export and MR scan at real system ::: #####################################
+#targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
+#scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=True)
+   
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################

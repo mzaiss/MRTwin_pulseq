@@ -3,29 +3,15 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solA10_GRE_to FLASH'
+experiment_id = 'solA11_FLASH_reordering'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
 """
 excercise = """
-The current sequence has a very long scan time.
-A10.1. calculate the total scan time of the sequence
-A10.1. lower the recovery time after each repetition to event_time[-1,:] =  0.1 . 
-    What do you observe?
-    Whats the shortest time to still have a good image?   
-A10.2. lower the flip angle to 5 degree.
-    What do you observe?
-    whats now the shortest time to still have a good image? (This is also called "Long TR spoiling")
-A10.3. Turn off all phase gradients and look at the signals. 
-    Do you see additional echoes? Where are they originating from? 
-    Try to find a way to get rid of transverse magnetization from the previous rep using the rf phase (RF spoiling)
-A10.4. find a way to get rid of transverse magnetization from the previous rep using a gradient. (gradient spoiling, spoiler or crusher gradient)
-    can you now go even shorter with the event times? how short?
-A10.5.  combine both gradient and RF spoiling
-A10.6.  Include a phase backblip to balance all phase gradients
-
-Now you have generated the famous FLASH sequence.
+sometimes it is useful to acquire the center k-space first
+play with sim03_permute.py to realize centric reordered phase encoding
+to have the FFT working the same permutation has to be done with the raw k-space
 
 """
 #%%
@@ -54,7 +40,7 @@ reload(core.scanner)
 double_precision = False
 do_scanner_query = False
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 if sys.platform != 'linux':
@@ -226,7 +212,7 @@ permvec=permvec+NRep//2     # centric out reordering
 
 #permvec=np.arange(0,NRep,1)  # this eleiminates the permutation again
 #permvec=np.arange(NRep-1,-1,-1)  # inverse linear reordering
-#permvec=np.random.permutation(NRep) # inverse linear reordering
+#permvec=np.random.permutation(NRep) # random reordering
 
 gradm_event[4,:,0]=gradm_event[4,permvec,0]
 gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
@@ -242,31 +228,18 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
 
-fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
-plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-major_ticks = np.arange(0, NEvnt*NRep, T) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(412); plt.ylabel('gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(413); plt.ylabel('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+targetSeq.print_seq_pic(True, plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9],time_axis=1)   
+
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
+kspace_adc=spectrum
 inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
 spectrum=spectrum[:,inverse_perm]
 #spectrum[:,permvec]=spectrum
@@ -283,7 +256,8 @@ plt.subplot(4,6,19)
 plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
 plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
-
+plt.subplot(4,6,21)
+plt.imshow(np.abs(kspace_adc).transpose(), interpolation='none'); plt.xlabel('kspace_adc')
 plt.subplot(4,6,22)
 plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)

@@ -94,11 +94,12 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([12,12])                      # image size
+sz = np.array([24,24])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
 NRep = 1                                  # number of total repetitions
 szread=128
+szread=sz[0]
 NEvnt = szread + 5 + 2                               # number of events F/R/P
 NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
@@ -112,18 +113,23 @@ NVox = sz[0]*szread
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
-real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-real_phantom_resized[6,6,:]=np.array([1.0, 1, 0.1, 0,0])
-real_phantom_resized[2,3,:]=np.array([0.5,    1, 0.1, 0,0])
-
 ## load phantom from file
 #cutoff = 1e-12
 #real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+##real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 #real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-#real_phantom_resized[6,7,:]=np.array([1, 1, 0.1, 0,0])
-#real_phantom_resized[4,3:5,:]=np.array([0.5, 1, 0.1, 0,0]) # two pixels make two frquencies visible
+#for i in range(5):
+#    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_NEAREST)
+#    if i == 0:
+#        t[t < 0] = 0
+#    elif i == 1 or i == 2:
+#        t[t < cutoff] = cutoff        
+#    real_phantom_resized[:,:,i] = t
+    
+real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
+real_phantom_resized[6,7,:]=np.array([1, 1, 0.1, 0,0])
+real_phantom_resized[4,3:5,:]=np.array([0.5, 1, 0.1, 0,0]) # two pixels make two frquencies visible
 
 spins.set_system(real_phantom_resized)
 
@@ -204,21 +210,10 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
   
-fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
-plt.subplot(311); plt.title('seq: RF, time, ADC')
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-plt.legend()
-plt.subplot(312); plt.title('seq: gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-plt.legend()
-plt.subplot(313); plt.title('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-plt.legend()
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
 
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################

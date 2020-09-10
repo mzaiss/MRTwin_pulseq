@@ -3,20 +3,15 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solD02_radialssfp'
+experiment_id = 'solF01_radialssfp'
 sequence_class = "gre_dream"
 experiment_description = """
 2 D imaging
 """
 excercise = """
-Try to sample the k-space not cartesian, but with radial spokes
----
----
----
-to
-\|/
----
-/|\
+F01.1. play with reco parameters
+F01.2. use the pattern given by the radial sampling as sampling pattern for the reco
+F01.3. optimize reco params for this pattern and differet undersamplings (NReps)
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -29,6 +24,7 @@ from  scipy import ndimage
 import scipy.interpolate
 import torch
 import cv2
+import skimage
 import matplotlib.pyplot as plt
 from torch import optim
 import core.spins
@@ -37,6 +33,8 @@ import core.nnreco
 import core.target_seq_holder
 import warnings
 import matplotlib.cbook
+import pywt
+from skimage.restoration import denoise_tv_chambolle
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
 from importlib import reload
@@ -45,7 +43,7 @@ reload(core.scanner)
 double_precision = False
 do_scanner_query = False
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 if sys.platform != 'linux':
@@ -85,15 +83,45 @@ def setdevice(x):
         x = x.cuda(gpu_dev)    
     return x 
 
+def shrink(coeff, epsilon):
+	shrink_values = (abs(coeff) < epsilon) 
+	high_values = coeff >= epsilon
+	low_values = coeff <= -epsilon
+	coeff[shrink_values] = 0
+	coeff[high_values] -= epsilon
+	coeff[low_values] += epsilon
+
+def waveletShrinkage(current, epsilon):
+	# Compute Wavelet decomposition
+	cA, (cH, cV, cD)  = pywt.dwt2(current, 'Haar')
+	#Shrink
+	shrink(cA, epsilon)
+	shrink(cH, epsilon)
+	shrink(cV, epsilon)
+	shrink(cD, epsilon)
+	wavelet = cA, (cH, cV, cD)
+	# return inverse WT
+	return pywt.idwt2(wavelet, 'Haar')
+	
+
+def updateData(k_space, pattern, current, step):
+	# go to k-space
+	update = np.fft.ifft2(np.fft.fftshift(current))
+	# compute difference
+	update = k_space - (update * pattern)
+	# return to image space
+	update = np.fft.fftshift(np.fft.fft2(update))
+	update = current + (step * update)
+	return update
+
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([32,32])                      # image size
+sz = np.array([64,64])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 16
 szread=sz[1]
 NEvnt = szread + 5 + 2                          # number of events F/R/P
-NSpins = 16**2                              # number of spin sims in each voxel
+NSpins = 4**2                              # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = True                      # kills transverse when above 1.5 k.-spaces
@@ -106,8 +134,8 @@ NVox = sz[0]*szread
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
 cutoff = 1e-12
-real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
@@ -220,7 +248,7 @@ if True:
         gradm_event[4,rep,:] = (torch.matmul(rotomat,gradm_event[4,rep,:].unsqueeze(1))).squeeze()
         gradm_event[5:-2,rep,:] = (torch.matmul(rotomat.unsqueeze(0),gradm_event[5:-2,rep,:].unsqueeze(2))).squeeze()
     
-    gradm_event[-2,:,:] = gradm_event[4,:,:]     # balancing
+    gradm_event[-2,:,:] = gradm_event[4,:,:]      # GRE/FID specific, SPOILER
     gradm_event = setdevice(gradm_event)
 
 
@@ -238,6 +266,7 @@ scanner.forward_fast(spins, event_time)
 
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9])
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
@@ -273,6 +302,7 @@ if 1: # NUFFT
     kspace[np.isnan(kspace)] = 0
     
     # fftshift
+    kspace_unroll = kspace
     kspace = np.roll(kspace,NCol//2,axis=0)
     kspace = np.roll(kspace,NRep//2,axis=1)
             
@@ -289,15 +319,8 @@ if 0:
     space = scanner.reco.clone().cpu().numpy().reshape([sz[0],sz[1],2])
     space = magimg(space)
 
-
 if 0: 
-    genalpha = 2*1e-2
-    
-    adc_idx = np.where(scanner.adc_mask.cpu().numpy())[0]
-    A = scanner.G_adj[adc_idx,:,:,:2,:2].permute([2,3,0,1,4]).contiguous().view([scanner.NVox*2,adc_idx.size*scanner.NRep*2]).permute([1,0])
-    AtA = torch.matmul(A.permute([1,0]),A)
-            
-    
+    genalpha = 2*1e-2      
     scanner.generalized_adjoint(alpha=genalpha,nmb_iter=100)
     space = scanner.reco.clone().cpu().numpy().reshape([sz[0],sz[1],2])
     space = magimg(space)
@@ -311,9 +334,70 @@ plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.x
 plt.subplot(4,6,21)
 plt.imshow(np.abs(spectrum_adc).transpose(), interpolation='none'); plt.xlabel('spectrum')
 plt.subplot(4,6,22)
-plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')
+plt.imshow(np.abs(kspace_unroll).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
 plt.imshow(np.abs(space).transpose(), interpolation='none'); plt.xlabel('mag_img')
 plt.subplot(4,6,24)
 plt.imshow(np.angle(space).transpose(), interpolation='none'); plt.xlabel('phase_img')
 plt.show()                       
+
+kspace_orig = kspace
+
+#%%
+np.random.seed(0)
+recon = (np.fft.fftshift(np.fft.fft2(kspace_orig)))
+pattern = np.random.random_sample(kspace.shape)
+percent = 0.60
+low_values_indices = pattern <= percent  # Where values are low
+high_values_indices = pattern > percent  # Where values are high
+pattern[low_values_indices] = 0  # All low values set to 0
+pattern[high_values_indices] = 1  # All high values set to 1
+margin = 10
+pattern[sz[0]//2-margin:sz[0]//2+margin,sz[0]//2-margin:sz[0]//2+margin] = 1
+pattern = np.fft.fftshift(pattern)
+
+kspace = kspace_orig * pattern
+
+
+
+current = np.zeros(kspace.size).reshape(kspace.shape)
+current_shrink = np.zeros(kspace.size).reshape(kspace.shape)
+first = updateData(kspace, pattern, current, 1)
+early = first
+early_shrink = first
+
+#%%
+current_shrink=first
+
+i = 0
+while i < 3000:
+	current = updateData(kspace, pattern, current_shrink, 0.1)
+	#current_shrink = current
+#	current_shrink = waveletShrinkage(current, .2)
+	current_shrink = denoise_tv_chambolle(abs(current), 0.1, 2.e-5, 10)
+	i = i + 1
+#current = updateData(kspace, current, 0.1)
+
+# todo:
+# - implement with conjugate transpose
+# - create smaller phantom to speed computation time up
+
+pattern_vis = np.fft.fftshift(pattern * 256)
+
+fig=plt.figure(dpi=90)
+plt.subplot(321)
+plt.set_cmap(plt.gray())
+plt.imshow(abs(recon))
+plt.subplot(322)
+plt.set_cmap(plt.gray())
+plt.imshow(abs(pattern_vis))
+plt.subplot(323)
+plt.set_cmap(plt.gray())
+plt.imshow(abs(early))
+plt.subplot(325)
+plt.set_cmap(plt.gray())
+plt.imshow(abs(current_shrink))
+plt.subplot(324)
+plt.set_cmap(plt.gray())
+plt.imshow(np.log(abs(np.fft.fftshift(kspace_orig))))
+plt.show()

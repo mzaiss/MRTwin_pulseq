@@ -9,12 +9,14 @@ experiment_description = """
 SE or 1 D imaging / spectroscopy
 """
 excercise = """
-C02.1. This is starts from Co1, which is relatively slow. We want to generate a so called turbo spin echo (TSE), or Rapid Aquisition relaxation enhanced (RARE)
+C02.1. This is starts from B01, which is relatively slow. We want to generate a so called turbo spin echo (TSE), or Rapid Aquisition relaxation enhanced (RARE)
         The idea is similar to the GRE EPI, we can also reuse magnetization after the first repetetion. try to do so, by using now RF events instead of gradients only.
         First try to get another echo in the second repetition, without a fresh 90° pulse. remove phase encoding gradients for testings. Do you need the rewinder gradient?
-C02.2. Once you get an echo in the second repetition, you have to decrease the event_times to have enough signal, repeat to get echoes in all repetitions.
+C02.2. Once you get an echo in the second repetition, you have to decrease the event_times to have enough signal, repeat to get echoes in all repetitions. set sequence class to RARE for correct k-space display
 C02.3. what is the actual echo time now, if unsure compare to C01 contrast for certain echo time.
 C02.4. Try reordering of the sequence, e.g. centric reordering, how does this affect the contrast, the image? Wjat is now the actual "echoe time"
+C02.5. Test the sequence in the case of B1 inhomogeneity: e.g. B1plus[:] = 0.8
+C02.6. To remove the stimulated echoes, move further out in k-space with the rewinder and back before read
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -87,7 +89,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[0]
 NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 1*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -148,7 +150,7 @@ scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,u
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
 B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
-B1plus[:] = 1
+B1plus[:] = 0.8
 scanner.B1plus = setdevice(B1plus)
 
 #############################################################################
@@ -175,19 +177,28 @@ scanner.set_ADC_rot_tensor(-rf_event[1,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
-TE=torch.sum(event_time[:,0])
-event_time[2,0] =  TE/2- 2*0.08*1e-3
+#event_time[4,:] =0.01
+TE=torch.sum(event_time[3:,0])
+event_time[2,:] =  (TE-torch.sum(event_time[1:3,0]))/2
+event_time[2,1:] =  0
+event_time[-1,:] =  0
 event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
-gradm_event[3,0,1] = -1.0*szread
-gradm_event[4,:,1] = 0.5*szread
-gradm_event[5:-2,:,1] = 1
+spoilg=szread*1.5
+gradm_event[2,0,1] = 0.5*szread + spoilg   # prewinder 
+
 gradm_event[4,:,0] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
-gradm_event[-2,:,0] = -gradm_event[4,:,0]
-gradm_event[-2,:,1] = 0.5*szread
+gradm_event[4,:,1] = spoilg   # spoiler
+
+gradm_event[5:-2,:,1] = 1 # read
+
+gradm_event[-2,:,0] = -gradm_event[4,:,0]   #rewind phase
+gradm_event[-2,:,1] = spoilg   # spoiler
+
+
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -203,7 +214,7 @@ scanner.forward_fast(spins, event_time)
 
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
-targetSeq.print_seq(plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################

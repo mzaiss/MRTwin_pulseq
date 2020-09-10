@@ -26,6 +26,7 @@ import numpy as np
 import scipy
 import scipy.io
 from  scipy import ndimage
+from scipy.optimize import curve_fit
 import torch
 import cv2
 import matplotlib.pyplot as plt
@@ -195,6 +196,11 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward(spins, event_time)
   
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)     
+      
 fig=plt.figure("""signals""")
 ax1=plt.subplot(131)
 ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label='real')
@@ -203,31 +209,30 @@ plt.title('signal')
 plt.legend()
 plt.ion()
 
-fig.set_size_inches(64, 7)
+
 plt.show()
                         
-#%% FITTING BLOCK
-#tfull=np.cumsum(tonumpy(event_time).transpose().ravel())
-#yfull=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
-#idx=tonumpy(scanner.signal[0,:,:,0,0]).transpose().argmax(1)
-#idx=idx + np.linspace(0,(NRep-1)*len(event_time[:,0]),NRep,dtype=np.int64)
-#t=tfull[idx]
-#y=yfull[idx]
-#def fit_func(t, a, R,c):
-#    return a*np.exp(-R*t) + c   
-#
-#p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
-#print(p[0][1])
-#
-#fig=plt.figure("""fit""")
-#ax1=plt.subplot(131)
-#ax=plt.plot(tfull,yfull,label='fulldata')
-#ax=plt.plot(t,y,label='data')
-#plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
-#plt.title('fit')
-#plt.legend()
-#plt.ion()
-#
-#fig.set_size_inches(64, 7)
-#plt.show()
+#%%  FITTING BLOCK
+tfull=np.cumsum(tonumpy(event_time).transpose().ravel())
+yfull=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
+idx=tonumpy(scanner.signal[0,:,:,0,0]).transpose().argmax(1)
+idx=idx + np.linspace(0,(NRep-1)*len(event_time[:,0]),NRep,dtype=np.int64)
+t=tfull[idx]
+y=yfull[idx]
+def fit_func(t, a, R,c):
+    return a*np.exp(-R*t) + c   
+
+p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
+print(p[0][1])
+
+fig=plt.figure("""fit""")
+ax1=plt.subplot(131)
+ax=plt.plot(tfull,yfull,label='fulldata')
+ax=plt.plot(t,y,label='data')
+plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
+plt.title('fit')
+plt.legend()
+plt.ion()
+
+plt.show()
             

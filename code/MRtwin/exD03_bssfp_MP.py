@@ -11,7 +11,7 @@ experiment_description = """
 excercise = """
 Start from your solution of D02.
 
-D03.1  try different pahntoms,  manualy increase the B0 inhomogeneity until you see the stopping bands.
+D03.1  try different phantoms,  manualy increase the B0 inhomogeneity until you see the stopping bands.
 
 D03.2  put a preparation inversion pulse before the whole image readout
         try different inversion times and dirrenet phantoms.

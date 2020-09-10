@@ -3,7 +3,7 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'exA04_gradient_echo'
+experiment_id = 'exA05_gradientecho_pixel'
 sequence_class = "gre_dream"
 experiment_description = """
 GRE or 1 D imaging / spectroscopy
@@ -105,8 +105,8 @@ cutoff = 1e-12
 #real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-real_phantom_resized[6,6,:]=np.array([1, 1, 0.1, 0,0])
-#real_phantom_resized[7,7,:]=np.array([0.25, 1, 0.1, 0,0])
+real_phantom_resized[10,6,:]=np.array([1, 1, 0.1, 0,1])
+#real_phantom_resized[9,9,:]=np.array([0.25, 1, 0.1, 0,1])
     
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
@@ -189,21 +189,12 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward(spins, event_time)
-  
-fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
-plt.subplot(311); plt.title('seq: RF, time, ADC')
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-plt.legend()
-plt.subplot(312); plt.title('seq: gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-plt.legend()
-plt.subplot(313); plt.title('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-plt.legend()
-plt.show()
+
+
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+#targetSeq.print_seq(plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
                         
             

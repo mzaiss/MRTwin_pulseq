@@ -18,12 +18,12 @@ B01.1. As before let us decrease the recovery time. This time make it very short
 		In the image you now clearly see the artifact. 
         
 B01.2. set sz to 12 12. set szread to 64, NRep =4. Nspins =26**2. 
-		to see the echoes, remove all eenc gradients. and increase R2star to 1000.
+		to see the echoes, remove all enc gradients. and increase R2star to 1000.
         Observe change when having long or short event_time[-1,:]
 
-B01.3. To find out if spin echoes or stimulkated echoes are involved. Play out RF pulses only in 3 repetitions. make the last RF pulse of these three an 90 degree or 180 degree pulse. 
+B01.3. To find out if spin echoes or stimulated echoes are involved. Play out RF pulses only in 3 repetitions. make the last RF pulse of these three an 90 degree or 180 degree pulse. 
 	Then you should see the echoes
-B01.4. You shoudk have observed that the echoes actually are at the same time as the FID. 
+B01.4. You should have observed that the echoes actually are at the same time as the FID. 
 		If you play with the event time after he 90 deg pulse this should become evenen more obvious. 
 		If the echoes are at the same positions, why do we see artifacts?
 		add back the read gradients. 
@@ -213,7 +213,7 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
-scanner.forward_fast(spins, event_time)
+scanner.forward(spins, event_time)
 
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
@@ -225,8 +225,8 @@ targetSeq.print_seq(plotsize=[12,9])
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
 spectrum_adc= spectrum
-inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
-spectrum=spectrum[:,inverse_perm]
+#inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
+#spectrum=spectrum[:,inverse_perm]
 kspace=spectrum
 space = np.zeros_like(spectrum)
 spectrum = np.roll(spectrum,szread//2,axis=0)

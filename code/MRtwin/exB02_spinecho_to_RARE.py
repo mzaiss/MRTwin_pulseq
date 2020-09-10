@@ -4,7 +4,7 @@ Created on Tue Jan 29 14:38:26 2019
 
 """
 experiment_id = 'exB02_spinecho_to_RARE'
-sequence_class = "se"
+sequence_class = "RARE"
 experiment_description = """
 SE or 1 D imaging / spectroscopy
 """
@@ -15,6 +15,8 @@ C02.1. This is starts from B01, which is relatively slow. We want to generate a 
 C02.2. Once you get an echo in the second repetition, you have to decrease the event_times to have enough signal, repeat to get echoes in all repetitions. set sequence class to RARE for correct k-space display
 C02.3. what is the actual echo time now, if unsure compare to C01 contrast for certain echo time.
 C02.4. Try reordering of the sequence, e.g. centric reordering, how does this affect the contrast, the image? Wjat is now the actual "echoe time"
+C02.5. Test the sequence in the case of B1 inhomogeneity: e.g. B1plus[:] = 0.8
+C02.6. To remove the stimulated echoes, move further out in k-space with the rewinder and back before read
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -162,8 +164,8 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
-rf_event[1,:,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-rf_event[1,:,1] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[1,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[1,0,1] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 rf_event[3,:,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
@@ -174,17 +176,27 @@ scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
+#event_time[4,:] =0.01
 TE=torch.sum(event_time[3:,0])
 event_time[2,:] =  (TE-torch.sum(event_time[1:3,0]))/2
-event_time[-1,:] =  0.5
+event_time[2,1:] =  0
+event_time[-1,:] =  0
 event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
-gradm_event[2,:,1] = 0.5*szread
-gradm_event[5:-2,:,1] = 1
-gradm_event[2,:,0] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
+gradm_event[2,0,1] = 0.5*szread + szread*1.6   # read
+
+gradm_event[4,:,0] = torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding blip in second event block
+gradm_event[4,:,1] = szread*0.5   # spoiler
+
+gradm_event[5:-2,:,1] = 1 # read
+
+gradm_event[-2,:,0] = -gradm_event[4,:,0]   #rewind phase
+gradm_event[-2,:,1] = szread*0.5   # spoiler
+
+
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -195,12 +207,12 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
-scanner.forward_fast(spins, event_time)
+scanner.forward(spins, event_time)
   
 
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
-targetSeq.print_seq(plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################

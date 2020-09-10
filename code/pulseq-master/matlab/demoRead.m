@@ -10,7 +10,7 @@
 % A sequence can be loaded from the open MR file format using the |read|
 % method.
 seq=mr.Sequence();
-[seq_file, path] = uigetfile('*seq');
+[seq_file, path] = uigetfile('*.seq');
 seq.read(fullfile(path,seq_file));
 seq.plot();
 % seq.read('../examples/gre.seq');

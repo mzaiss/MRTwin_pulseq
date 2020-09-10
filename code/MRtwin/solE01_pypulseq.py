@@ -63,6 +63,9 @@ else:
    
 # save pulseq definition
 MAXSLEW = 140
+    deltak = 1.0 / FOV()
+    # gradm_event_numpy = deltak*gradm_event_numpy_input  # this is required to adjust for FOV
+    
 kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
 system = Opts(kwargs_for_opts)
 seq = Sequence(system)  

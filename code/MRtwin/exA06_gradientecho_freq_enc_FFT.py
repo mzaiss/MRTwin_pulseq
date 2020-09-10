@@ -24,6 +24,7 @@ A06.4. compare your result to the upsampled phantom:
 
 A06.5. what happens if you change y to x gradient encoding
 A06.6. what happens if you use both x and y gradients?
+A06.7. decrease szread.
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -199,21 +200,12 @@ scanner.init_signal()
 scanner.forward(spins, event_time)
 
   
-fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
-plt.subplot(311); plt.title('seq: RF, time, ADC')
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-plt.legend()
-plt.subplot(312); plt.title('seq: gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-plt.legend()
-plt.subplot(313); plt.title('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-plt.legend()
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+#targetSeq.print_seq(plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
+
 
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################

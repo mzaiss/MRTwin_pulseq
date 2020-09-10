@@ -150,7 +150,7 @@ real_phantom_resized[:,:,4] *= 1 # Tweak rB1
 
 spins.set_system(real_phantom_resized)
 
-if 0:
+if 1:
     plt.figure("""phantom""")
     param=['PD','T1','T2','dB0','rB1']
     for i in range(5):

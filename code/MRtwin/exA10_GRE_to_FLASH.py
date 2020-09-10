@@ -17,7 +17,8 @@ A10.1. lower the recovery time after each repetition to event_time[-1,:] =  0.1 
 A10.2. lower the flip angle to 5 degree.
     What do you observe?
     whats now the shortest time to still have a good image? (This is also called "Long TR spoiling")
-A10.3. Turn off all phase gradients and look at the signals. Do you see additional echoes? Where are they originating from?
+A10.3. Turn off all phase gradients and look at the signals. 
+    Do you see additional echoes? Where are they originating from? 
     Try to find a way to get rid of transverse magnetization from the previous rep using the rf phase (RF spoiling)
 A10.4. find a way to get rid of transverse magnetization from the previous rep using a gradient. (gradient spoiling, spoiler or crusher gradient)
     can you now go even shorter with the event times? how short?
@@ -53,7 +54,7 @@ reload(core.scanner)
 double_precision = False
 do_scanner_query = False
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 if sys.platform != 'linux':
@@ -190,6 +191,14 @@ event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 event_time[-1,:] =  5
 event_time = setdevice(event_time)
 
+# define sequence timings, TE/TR/TA
+TA = tonumpy(torch.sum(event_time))
+TR = tonumpy(torch.sum(event_time[:,0]))
+idx_ex = int(3)
+idx_echo= int(5 + (NEvnt-7)/2)
+TE = tonumpy(torch.sum(event_time[idx_ex:idx_echo,0]))
+
+
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
@@ -208,27 +217,17 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
+#scanner.forward_fast(spins, event_time, kill_transverse=True)
 
-fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
-plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(12345.0))
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-major_ticks = np.arange(0, NEvnt*NRep, NEvnt) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(412); plt.ylabel('gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(413); plt.ylabel('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
   
+# S4B: Pulseq export and MR scan at real system ::: #####################################
+#targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
+#scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=True)
+   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
 
@@ -251,7 +250,9 @@ plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.x
 plt.subplot(4,6,22)
 plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
-plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
+ax = plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
+fig =plt.gcf()
+fig.colorbar(ax) 
 plt.subplot(4,6,24)
 mask=(np.abs(space)>0.2*np.max(np.abs(space))).transpose()
 plt.imshow(np.angle(space).transpose()*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')

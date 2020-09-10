@@ -84,7 +84,7 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([16,16])                      # image size
+sz = np.array([32,32])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[0]
@@ -177,7 +177,17 @@ scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 event_time[:,0] =  0.04*1e-3
+
+idx_echo= int(5 + (NEvnt-7)/2)
+TE2_2 = event_time[3:idx_echo,0].sum()
+
+#event_time[2,:] = TE2_2 - 0.08*1e-3*2
+TE2_1 = event_time[1:3,0].sum() 
 event_time = setdevice(event_time)
+
+TA = tonumpy(torch.sum(event_time))
+TR = tonumpy(torch.sum(event_time[:,0]))
+TE = TE2_1 + TE2_2
 
 # gradient-driver precession
 # Cartesian encoding
@@ -197,14 +207,14 @@ scanner.forward(spins, event_time)
 
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
-targetSeq.print_seq(plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9],time_axis=1)     
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
-
+kspace = spectrum
 
 space = np.zeros_like(spectrum)
 spectrum = np.roll(spectrum,szread//2,axis=0)
@@ -219,7 +229,7 @@ plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.x
 plt.subplot(4,6,20)
 plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,22)
-plt.imshow(np.abs(spectrum).transpose(), interpolation='none'); plt.xlabel('kspace')
+plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
 plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
 plt.subplot(4,6,24)

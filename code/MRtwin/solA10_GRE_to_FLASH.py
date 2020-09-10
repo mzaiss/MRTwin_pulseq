@@ -54,7 +54,7 @@ reload(core.scanner)
 double_precision = False
 do_scanner_query = False
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 if sys.platform != 'linux':
@@ -103,7 +103,7 @@ szread=sz[1]
 NEvnt = szread + 5 + 2                               # number of events F/R/P
 NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
-noise_std = 0*100*1e-3                        # additive Gaussian noise std
+noise_std = 0*100*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
 import time; today_datestr = time.strftime('%y%m%d')
 NVox = sz[0]*szread
@@ -147,7 +147,7 @@ if 0:
     plt.show()
    
 #begin nspins with R2* = 1/T2*
-R2star = 0.0
+R2star = 30.0
 omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
 omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
 omega*=0.99 # cutoff large freqs
@@ -207,6 +207,14 @@ event_time[4,:] =  0.5*1e-3
 event_time[-2,:] =  0.01
 event_time = setdevice(event_time)
 
+# define sequence timings, TE/TR/TA
+TA = tonumpy(torch.sum(event_time))
+TR = tonumpy(torch.sum(event_time[:,0]))
+idx_ex = int(3)
+idx_echo= int(5 + (NEvnt-7)/2)
+TE = tonumpy(torch.sum(event_time[idx_ex:idx_echo,0]))
+
+
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
@@ -227,27 +235,17 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
+#scanner.forward_fast(spins, event_time, kill_transverse=True)
 
-fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
-plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-major_ticks = np.arange(0, NEvnt*NRep, NEvnt) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(412); plt.ylabel('gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(413); plt.ylabel('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
   
+# S4B: Pulseq export and MR scan at real system ::: #####################################
+#targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
+#scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=True)
+   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
 
@@ -270,14 +268,10 @@ plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.x
 plt.subplot(4,6,22)
 plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
-plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
+ax = plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
+fig =plt.gcf()
+fig.colorbar(ax) 
 plt.subplot(4,6,24)
 mask=(np.abs(space)>0.2*np.max(np.abs(space))).transpose()
 plt.imshow(np.angle(space).transpose()*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     
-
-
-#%%
-targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
-targetSeq.print_seq_pic(True,plotsize=[12,9])
-targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)

@@ -1,13 +1,19 @@
+from scipy import signal
+
 samplepoints=112
 func=np.zeros((samplepoints,))
 func[40:70]=1
+
+#func = signal.gaussian(samplepoints, std=5)
+#func = np.sin(0.1*np.arange(1,samplepoints,1)) + 0.25*np.sin(0.5*np.arange(1,samplepoints,1))
+
 #func = np.roll(func,samplepoints//2+11,axis=0)
 
 FFT_func = np.fft.ifft(func)
 FFT_FFT_func = np.fft.fft(FFT_func)
 
 plt.subplot(321); plt.title('func')
-plt.plot(np.abs(func))
+plt.plot(np.real(func))
 
 plt.subplot(323); plt.title('ifft(func)')
 plt.plot(np.abs(FFT_func))

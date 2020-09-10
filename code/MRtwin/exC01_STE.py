@@ -26,7 +26,7 @@ Do you still see the echo? prolong even further, what is the "decay time" of thi
 
 C01.5. read  http://mriquestions.com/stimulated-echoes.html  
         Try to generate all 5 echoes mentioned there. Identify  A, B, C, D, E
-C01.6. Try to defined the different echo times in your code, TE_SE, TE_STE
+C01.6. Try to define the different echo times in your code, TE_SE, TE_STE
         Move the STE after the SE, or before the SE. Move them to overlap perfectly
 C01.7. Add one gradient event to kill the spin echo in the third repetition
 C01.8. Add two gradient events to only have the STE left in the third rep.
@@ -182,7 +182,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 rf_event[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 rf_event[3,0,1] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
-rf_event[3,1:,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[3,1:,0] = 120*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(rf_event)
@@ -193,11 +193,15 @@ scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 event_time[:,0] =  0.04*1e-3
+event_time[:,1] =  0.06*1e-3
+#event_time[-1,1] =  0.5
 event_time = setdevice(event_time)
 
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+#gradm_event[-1,0,0] =  20
+gradm_event[4,1,0] =  20
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()

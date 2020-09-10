@@ -10,16 +10,11 @@ experiment_description = """
 """
 excercise = """
 The current sequence is the FLASH sequence.
-A12.1. add an inversion pulse in the very first event. Add a certain recoery time in the second event.
-A12.2.  play with these two
+A12.1. add an inversion pulse in the very first event. Add a certain recoery time in the second event. If its not an inversion pulse you might need a spoiler gradient.
+A12.2. play with these two
 A12.3. can you achieve a dark CSF? Thats a FLAIR
 A12.4. can you achieve a dark CSF adn dark WM? Thats a DIR: http://mriquestions.com/double-ir.html
 A12.5. try this for higher resolution, 
-
-
-
-
-
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -47,7 +42,7 @@ reload(core.scanner)
 double_precision = False
 do_scanner_query = False
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
 if sys.platform != 'linux':
@@ -89,7 +84,7 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([64,64])                      # image size
+sz = np.array([32,32])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[1]
@@ -173,7 +168,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
 rf_event[2,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[3,:,0] = 15*np.pi/180  # 90deg excitation now for every rep
+rf_event[3,:,0] = 5*np.pi/180  # 5deg excitation now for every rep
 
 rf_event[3,:,1]=torch.arange(0,50*NRep,50)*np.pi/180 
 
@@ -198,6 +193,7 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 event_time[-1,:] =  0.01
+
 event_time[1,0] =  3.4
 event_time[2,0] =  0.45
 event_time = setdevice(event_time)
@@ -239,26 +235,14 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
 
-fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
-plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-major_ticks = np.arange(0, NEvnt*NRep, NEvnt) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(412); plt.ylabel('gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(413); plt.ylabel('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
   
+#targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True,single_folder=True)
+#scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=True)
+
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
 

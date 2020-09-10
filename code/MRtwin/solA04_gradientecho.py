@@ -197,15 +197,10 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward(spins, event_time)
   
-fig=plt.figure("""signals""")
-ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel(),label='imag')
-plt.title('signal')
-plt.legend()
-plt.ion()
-
-fig.set_size_inches(64, 7)
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
                         
 #%% FITTING BLOCK
 tfull=np.cumsum(tonumpy(event_time).transpose().ravel())

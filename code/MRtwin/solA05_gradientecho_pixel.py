@@ -204,5 +204,11 @@ plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
 plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
 plt.legend()
 plt.show()
+
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+#targetSeq.print_seq(plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
                         
             

@@ -228,7 +228,7 @@ scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=Tr
 targetSeq.print_seq_pic(True,plotsize=[12,9])
 
 
-fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
+fig=plt.figure("""seq and image"""); 
 plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
 plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
 plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')

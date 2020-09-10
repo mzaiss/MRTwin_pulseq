@@ -9,12 +9,13 @@ experiment_description = """
 2 D imaging
 """
 excercise = """
-This starts from A10
-A10.1. calculate the total scan time of the sequence
-A10.1. lower the recovery time after each repetition to event_time[-1,:] =  0.1 . What do you observe?
-A10.2. lower the flip angle to 5 degree.
-A10.3. find a way to get rid of transverse magnetization from the previous rep using a gradient. (spoiler or crusher gradient)
-A10.4. remove the spoiler gradient. find a way to get rid of transverse magnetization from the previous rep using the rf phase
+Start from your solution of D02.
+
+D03.1  try different phantoms,  manualy increase the B0 inhomogeneity until you see the stopping bands.
+
+D03.2  put a preparation inversion pulse before the whole image readout
+        try different inversion times and dirrenet phantoms.
+        You can also tra a saturatio pulse (90 degree) but then you ned a strng gradient spoiler after that.
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -244,16 +245,16 @@ space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
 plt.subplot(3,6,13)
-plt.imshow(real_phantom_resized[:,:,0], interpolation='none'); plt.xlabel('PD')
+plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(3,6,14)
-plt.imshow(real_phantom_resized[:,:,1], interpolation='none'); plt.xlabel('T1')
+plt.imshow(real_phantom_resized[:,:,1].transpose(), interpolation='none'); plt.xlabel('T1')
 plt.subplot(3,6,15)
-plt.imshow(real_phantom_resized[:,:,2], interpolation='none'); plt.xlabel('T2')
+plt.imshow(real_phantom_resized[:,:,2].transpose(), interpolation='none'); plt.xlabel('T2')
 plt.subplot(3,6,16)
-plt.imshow(real_phantom_resized[:,:,3], interpolation='none'); plt.xlabel('dB0')
+plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(3,6,17)
-plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
+plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
 plt.subplot(3,6,18)
-mask=(np.abs(space)>0.2*np.max(np.abs(space)))
-plt.imshow(np.angle(space)*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
+mask=(np.abs(space)>0.2*np.max(np.abs(space))).transpose()
+plt.imshow(np.angle(space).transpose()*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     

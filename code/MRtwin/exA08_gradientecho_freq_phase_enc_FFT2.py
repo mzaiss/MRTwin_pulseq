@@ -197,6 +197,7 @@ event_time = setdevice(event_time)
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 gradm_event[4,:,1] = -0.5*szread
 gradm_event[5:-2,:,1] = 1
+#gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
@@ -210,21 +211,11 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
   
-fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
-plt.subplot(311); plt.title('seq: RF, time, ADC')
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-plt.legend()
-plt.subplot(312); plt.title('seq: gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-plt.legend()
-plt.subplot(313); plt.title('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-plt.legend()
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
+
 
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
@@ -254,7 +245,7 @@ plt.plot(np.imag(space.flatten('F')))
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
             
 plt.subplot(337)
-plt.imshow(real_phantom_resized[:,:,0], interpolation='none')
+plt.imshow(np.flipud(np.fliplr(real_phantom_resized[:,:,0])), interpolation='none')
 
         
 plt.subplot(338)

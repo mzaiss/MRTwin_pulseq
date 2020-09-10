@@ -18,4 +18,7 @@ Z01.7. t2 weighting/mapping (TE or t2prep)
 
 Z02.1. Display all Spins as a vector or many vectors
 Z02.2. Display all Spins as a vector or many vectors, and animate this during a sequence
+
+
 """
+

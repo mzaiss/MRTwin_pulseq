@@ -3,14 +3,14 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'solB01_EPI'
+experiment_id = 'solA13_GRE_EPI'
 sequence_class = "epi"
 experiment_description = """
 2 D imaging
 """
 excercise = """
 This is  currenty a FLASH sequence like  A10
-B01.1. remove all rf_events exept for the very first one, make this 90°, remove all y gradients, remove all rf_phases
+B01.1. remove all rf_events exept for the very first one, make this 90°, remove all phase gradients, remove all rf_phases
         Now, there should be only an echo in the very first repetition. 
 B01.2. Think of a way to get back again some magnetization in the second repetition without using an additional rf event, but a gradient.
 B01.3. If the last task was successful, do the same trick for all repetitions. Decrease the even_times until you see an echo in each repetition.
@@ -130,7 +130,7 @@ for i in range(5):
 
 real_phantom_resized[:,:,1] *= 1 # Tweak T1
 real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] *= 2 # Tweak dB0
+real_phantom_resized[:,:,3] *= 4 # Tweak dB0
 real_phantom_resized[:,:,4] *= 1 # Tweak rB1
 
 spins.set_system(real_phantom_resized)
@@ -194,14 +194,16 @@ event_time = setdevice(event_time)
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
-gradm_event[4,0,0] = -0.5*szread
-gradm_event[4,0,1] =  -0.5*NRep 
-#gradm_event[-1,::2,1] = 1.0
-gradm_event[4,1::2,1] = -1.0
-gradm_event[4,2::2,1] = +1.0
-gradm_event[5:-2,::2,1] = 1.0
-gradm_event[5:-2,1::2,1] = -1.0
-gradm_event[4,1:,0] = 1 #phase blib
+gradm_event[4,0,0] = -0.5*szread    # first rewinder in read
+gradm_event[4,0,1] =  -0.5*NRep     # first rewinder in phase
+
+gradm_event[4,1:,0] = 1             #phase blibs
+gradm_event[5:-2,::2,1] = 1.0       #adc  for even lines
+gradm_event[5:-2,1::2,1] = -1.0     #adc for odd lines
+
+gradm_event[4,1::2,1] = -1.0        #adjust adc start before odd lines
+gradm_event[4,2::2,1] = +1.0        #adjust adc start before even lines
+
 
 gradm_event = setdevice(gradm_event)
 
@@ -215,29 +217,11 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
 
+# sequence and signal plotting
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
 
-
-fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
-plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-major_ticks = np.arange(0, NEvnt*NRep, NEvnt) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(412); plt.ylabel('gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(413); plt.ylabel('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.show()
+targetSeq.print_seq(plotsize=[12,9],time_axis=1)   
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
@@ -261,8 +245,7 @@ space = np.fft.ifft2(spectrum)
 space = np.roll(space,szread//2-1,axis=0)
 space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
-
-   
+       
 plt.subplot(4,6,19)
 plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
@@ -273,6 +256,6 @@ plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace
 plt.subplot(4,6,23)
 plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
 plt.subplot(4,6,24)
-mask=(np.abs(space)>0.2*np.max(np.abs(space)))
-plt.imshow(np.angle(space).transpose()*mask.transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
+mask=(np.abs(space)>0.2*np.max(np.abs(space))).transpose()
+plt.imshow(np.angle(space).transpose()*mask, interpolation='none',aspect = sz[0]/szread); plt.xlabel('phase_img')
 plt.show()                     

@@ -12,7 +12,7 @@ excercise = """
 C01.1. This is starts from A02, repeat the spin echo sequence. What is TE and TE/2
 C01.2. Speed up: set NRep to 4. We want to generate a gradient echo at the same time point as the spin echo.
 C01.3. test what happens when TE_GRE and TE_SE do not match.
-C01.4. as in GRE, make every repetition the same (rewinder, TE, same echo), add relaxation time so that all echoes have the same intensity
+C01.4. set NREp to sz[1]. as in GRE, make every repetition the same (rewinder, TE, same echo), add relaxation time so that all echoes have the same intensity
 C01.5. has the spin echo the correct sign? How does the 180 degree pulse act on the k-space location?
 C01.6. add phase encoding to generate an image.
 C01.7. alter the echo time TE
@@ -175,11 +175,22 @@ rfsign = ((rf_event[3,:,0]) < 0).float()
 scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 
-event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
-TE=torch.sum(event_time[3:,0])
-event_time[2,:] =  (TE-torch.sum(event_time[1:3,0]))/2
-event_time[-1,:] =  0.5
+event_time = torch.from_numpy(0.08*8*1e-3*np.ones((NEvnt,NRep))).float()
+
+idx_echo= int(5 + (NEvnt-7)/2)
+TE2_2 = event_time[3:idx_echo,0].sum()
+
+event_time[2,:] = TE2_2 - 0.08*1e-3*2
+TE2_1 = event_time[1:3,0].sum() 
+
+event_time[-1,:] =  5
 event_time = setdevice(event_time)
+
+
+TA = tonumpy(torch.sum(event_time))
+TR = tonumpy(torch.sum(event_time[:,0]))
+TE = TE2_1 + TE2_2
+
 
 # gradient-driver precession
 # Cartesian encoding
@@ -202,14 +213,14 @@ scanner.forward_fast(spins, event_time)
 
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
-targetSeq.print_seq(plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9],time_axis=1)     
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
 
 spectrum = tonumpy(scanner.signal[0,adc_mask.flatten()!=0,:,:2,0].clone()) 
 spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex numpy array
-
+kspace = spectrum
 
 space = np.zeros_like(spectrum)
 spectrum = np.roll(spectrum,szread//2,axis=0)
@@ -224,7 +235,7 @@ plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.x
 plt.subplot(4,6,20)
 plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,22)
-plt.imshow(np.abs(spectrum), interpolation='none'); plt.xlabel('kspace')
+plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')
 plt.subplot(4,6,23)
 plt.imshow(np.abs(space).transpose(), interpolation='none',aspect = sz[0]/szread); plt.xlabel('mag_img')
 plt.subplot(4,6,24)

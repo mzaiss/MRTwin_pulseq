@@ -10,8 +10,8 @@ FID or 1 D imaging / spectroscopy
 """
 excercise = """
 A03.1. increase Nreps to 8
-A03.2. add a T1 recovery time (Trec) of 1 s at the end of the readout phase (in last action), alter Trec
-A03.3. add flip event to create fresh FID signals for each acquisition 
+A03.2. add a T1 recovery time (Trec) of 1 s at the end of the readout phase (in last action)
+A03.3. add flip event to create fresh FID signals for each acquisition, alter Trec
 A03.4. cover a full range of different Trec in one measurement from 0.1 to 3 s
 A03.5. uncomment FITTING BLOCK, fit signal, what is the recovery rate of the envelope, alter T1
 """
@@ -23,6 +23,7 @@ import numpy as np
 import scipy
 import scipy.io
 from  scipy import ndimage
+from  scipy import optimize
 import torch
 import cv2
 import matplotlib.pyplot as plt
@@ -191,16 +192,11 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward(spins, event_time)
   
-fig=plt.figure("""signals""")
-ax1=plt.subplot(131)
-ax=plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel(),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).transpose().ravel(),label='imag')
-plt.title('signal')
-plt.legend()
-plt.ion()
-
-fig.set_size_inches(64, 7)
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9])
+#targetSeq.print_seq(plotsize=[12,9], time_axis=1)
                         
 #%% FITTING BLOCK
 #tfull=np.cumsum(tonumpy(event_time).transpose().ravel())
@@ -209,6 +205,8 @@ plt.show()
 #idx=idx + np.linspace(0,(NRep-1)*len(event_time[:,0]),NRep,dtype=np.int64)
 #t=tfull[idx]
 #y=yfull[idx]
+#t=t[2:]
+#y=y[2:]
 #def fit_func(t, a, R,c):
 #    return a*np.exp(-R*t) + c   
 #

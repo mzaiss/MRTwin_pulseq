@@ -3,14 +3,14 @@ Created on Tue Jan 29 14:38:26 2019
 @author: mzaiss
 
 """
-experiment_id = 'exB01_EPI'
-sequence_class = "gre_dream"
+experiment_id = 'exA13_GRE_EPI'
+sequence_class = "epi"
 experiment_description = """
 2 D imaging
 """
 excercise = """
 This is  currenty a FLASH sequence like  A10
-B01.1. remove all rf_events exept for the very first one, make this 90°, remove all y gradients, remove all rf_phases
+B01.1. remove all rf_events exept for the very first one, make this 90°, remove all phase gradients, remove all rf_phases
         Now, there should be only an echo in the very first repetition. 
 B01.2. Think of a way to get back again some magnetization in the second repetition without using an additional rf event, but a gradient.
 B01.3. If the last task was successful, do the same trick for all repetitions. Decrease the even_times until you see an echo in each repetition.
@@ -95,7 +95,7 @@ def setdevice(x):
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([32,32])                      # image size
+sz = np.array([16,16])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[1]
@@ -224,28 +224,11 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
 
+# sequence and signal plotting
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
 
-fig=plt.figure("""seq and image"""); fig.set_size_inches(60, 9); 
-plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(event_time))))
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-major_ticks = np.arange(0, NEvnt*NRep, NEvnt) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(412); plt.ylabel('gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.subplot(413); plt.ylabel('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-plt.legend()
-plt.show()
+targetSeq.print_seq(plotsize=[12,9],time_axis=1)   
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
@@ -255,9 +238,7 @@ spectrum = spectrum[:,:,0]+spectrum[:,:,1]*1j # get all ADC signals as complex n
 #inverse_perm = np.arange(len(permvec))[np.argsort(permvec)]
 #spectrum=spectrum[:,inverse_perm]
 #spectrum[:,permvec]=spectrum
-plt.subplot(413); plt.ylabel('signal')
-plt.plot(np.real(spectrum).flatten('F'),label='real')
-plt.plot(spectrum.imag.flatten('F'),label='imag')
+
 
 kspace=spectrum
 spectrum = np.roll(spectrum,szread//2,axis=0)

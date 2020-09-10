@@ -73,9 +73,17 @@ else:
     system = Opts(kwargs_for_opts)
     seq = Sequence(system)    
     
-    seq.add_block(make_delay(5.0))
+    seq.add_block(make_delay(0.5))
     
     NRep=16
+    
+    
+    kwargs_for_block = {"flip_angle": 180.0, "system": system, "duration": 1e-3, "phase_offset": 0.0}
+    rf = make_block_pulse(kwargs_for_block, 1)            
+    seq.add_block(rf)  
+        
+    seq.add_block(make_delay(0.5))
+        
 
     for rep in range(NRep):
         
@@ -104,21 +112,16 @@ else:
                     
         ###############################
         ###  line acquisition, later this is NEvnt(5:end-2)
-        
-        gx_gradmom = 8
+        gx_gradmom = 16
         kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": toK(gx_gradmom), "flat_time": 1e-3}
         gx = make_trapezoid(kwargs_for_gx)    
-        
-        gy_gradmom = 0  # only readout in x for now
-        kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": gy_gradmom, "flat_time": 1e-3}
-        gy = make_trapezoid(kwargs_for_gy)
-        
+               
         kwargs_for_adc = {"num_samples": 16, "duration": gx.flat_time, "delay": (gx.rise_time), "phase_offset": rf.phase_offset - np.pi/4}
         adc = makeadc(kwargs_for_adc)    
         
         # dont play zero grads (cant even do FID otherwise)
-        if np.abs(gx_gradmom) > 0 or np.abs(gy_gradmom) > 0:
-            seq.add_block(gx,gy,adc)
+        if np.abs(gx_gradmom) > 0:
+            seq.add_block(gx,adc)
         else:
             seq.add_block(adc)
         
@@ -137,7 +140,7 @@ else:
         ###############################
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
         
-        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": toK(8.0), "duration": 1e-3}
+        kwargs_for_gxpost = {"channel": 'x', "system": system, "area": toK(24.0), "duration": 1e-3}
         gx_post = make_trapezoid(kwargs_for_gxpost)  
         
         kwargs_for_gypost = {"channel": 'y', "system": system, "area": toK(-(rep-NRep/2)), "duration": 1e-3}

@@ -15,11 +15,11 @@ A07.1. set Nrep = 12
 A07.2  create a loop over NRep to generate  the fourier transform for every rep. Check if it is always identical.
 A07.3. now remove the frequency encoding gradients, you should get a constant signal
 A07.4. now we add phase encoding gradients, they are not played out during the ADC, but before like a rewinder.
-        give each repetition a different phase encoding gradient moment.(comment out the FFNEvnt part) 
+        give each repetition a different phase encoding gradient moment.(comment out the FFT part) 
         Now the signal is still constant in each repetition, but alters from repetion to repetition.
         To understand more you can try to do the same in A05  
-A07.5. increase NRep to 128, what do you observe?  (set szread = 12)   
-A07.6. Perform the fourier transfor along the other axis, the NRep axis, loop over szread.     
+A07.5. increase NRep to 128, what do you observe?  (set szread = 12)
+A07.6. Perform the fourier transfor along the other axis, the NRep axis, loop over szread. ( phase encoding grads must increaese linearly for this to work)     
 A07.7. compare your result to the upsampled phantom:
     
         plt.subplot(313); plt.title('phantom projection')
@@ -103,10 +103,10 @@ def setdevice(x):
 sz = np.array([12,12])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 12                                  # number of total repetitions
+NRep = sz[1]  *10                    # number of total repetitions
 szread=12
 NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 24**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -204,21 +204,10 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 scanner.init_signal()
 scanner.forward_fast(spins, event_time)
   
-fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
-plt.subplot(311); plt.title('seq: RF, time, ADC')
-plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
-plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
-plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
-plt.legend()
-plt.subplot(312); plt.title('seq: gradients')
-plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
-plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
-plt.legend()
-plt.subplot(313); plt.title('signal')
-plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
-plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
-plt.legend()
-plt.show()
+# sequence and signal plotting
+targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
+#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)
 
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
