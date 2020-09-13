@@ -162,11 +162,11 @@ class Scanner():
             if dim == torch.floor(dim):
                 xv, yv = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
                 # this generates an anti-symmetric distribution in x
-                Rx1= torch.randn(torch.Size([dim.int()/2,dim.int()]))*off
+                Rx1= torch.randn(torch.Size([torch.floor_divide(dim.int(),2),dim.int()]))*off
                 Rx2=-torch.flip(Rx1, [0])
                 Rx= torch.cat((Rx1, Rx2),0)
                 # this generates an anti-symmetric distribution in y
-                Ry1= torch.randn(torch.Size([dim.int(),dim.int()/2]))*off
+                Ry1= torch.randn(torch.Size([dim.int(),torch.floor_divide(dim.int(),2)]))*off
                 Ry2=-torch.flip(Ry1, [1])
                 Ry= torch.cat((Ry1, Ry2),1)
                             
@@ -1033,8 +1033,8 @@ class Scanner():
         if do_dummy_scans == False:
             spins.set_initial_magnetization()
         self.reco = 0
-        
-        half_read = np.int(torch.sum(self.adc_mask != 0) / 2)
+       
+        half_read = np.int(torch.floor_divide(torch.sum(self.adc_mask != 0) ,2))
         
         PD0_mask = spins.PD0_mask.flatten()
         PD0_mask[:] = True
