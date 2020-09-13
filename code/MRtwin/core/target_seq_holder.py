@@ -252,6 +252,8 @@ class TargetSequenceHolder():
     def print_seq(self, plotsize=[20,2],time_axis=0):
         
         tfull=np.cumsum(tonumpy(self.event_time).transpose().ravel())
+        tfull=np.insert(tfull, 0, 0)
+        tfull=tfull[:-1]
         xlabel='time [s]'
         normg= 1/tonumpy(self.event_time).transpose().ravel() 
         normg[np.isnan(normg)] = 0
