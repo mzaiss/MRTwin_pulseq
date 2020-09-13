@@ -253,9 +253,14 @@ class TargetSequenceHolder():
         
         tfull=np.cumsum(tonumpy(self.event_time).transpose().ravel())
         xlabel='time [s]'
+        normg= 1/tonumpy(self.event_time).transpose().ravel() 
+        normg[np.isnan(normg)] = 0
+        normg[np.isinf(normg)] = 0
+        
         if time_axis==0:
             tfull=np.arange(tfull.size)
             xlabel='event index'
+            normg=1
 
         fig=plt.figure("""seq and image"""); fig.set_size_inches(plotsize); 
         plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(self.event_time))))
@@ -267,8 +272,11 @@ class TargetSequenceHolder():
         ax=plt.gca(); ax.set_xticks(tfull[major_ticks]); ax.grid()
         plt.legend()
         plt.subplot(412); plt.ylabel('gradients')
-        plt.plot(tfull,tonumpy(self.gradm_event[:,:,0]).flatten('F'),label='gx')
-        plt.plot(tfull,tonumpy(self.gradm_event[:,:,1]).flatten('F'),label='gy')
+        #plt.plot(tfull,tonumpy(self.gradm_event[:,:,0]).flatten('F'),label='gx')
+        #plt.plot(tfull,tonumpy(self.gradm_event[:,:,1]).flatten('F'),label='gy')
+        
+        plt.step(tfull, normg*tonumpy(self.gradm_event[:,:,0]).flatten('F'),label='gx', where='mid')
+        plt.step(tfull,normg*tonumpy(self.gradm_event[:,:,1]).flatten('F'),label='gy', where='mid')
         ax=plt.gca(); ax.set_xticks(tfull[major_ticks]); ax.grid()
         plt.legend()
         plt.subplot(413); plt.ylabel('signal')

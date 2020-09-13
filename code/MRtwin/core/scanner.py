@@ -2861,7 +2861,7 @@ class Scanner_fast(Scanner):
             k=torch.cumsum(temp,0)
         
         if sequence_class.lower() == "rare":
-            refocusing_pulse_action_idx = 1
+            refocusing_pulse_action_idx = 3
             kloc = 0
             for r in range(self.NRep):
                 for t in range(self.T):
@@ -2871,7 +2871,7 @@ class Scanner_fast(Scanner):
                     k[t,r,:] = kloc
                     
         if sequence_class.lower() == "se":
-            refocusing_pulse_action_idx = 1
+            refocusing_pulse_action_idx = 3
             for r in range(self.NRep):
                 kloc = 0
                 for t in range(self.T):
