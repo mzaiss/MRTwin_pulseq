@@ -29,6 +29,11 @@ In addition to python some extension packages are required like Pytorch. install
 
 You can also run file code/MRTwin/exP01.py to test versions.
 
+## Starting Spyder at your own PC ##
+
+Copy the folder **MRTwin_pulseq** to a folder on your local PC.
+Run spyder from the anaconda environment.
+
 ## Starting Spyder in the FAU-CIP pool ##
 All project file will be in the folder 
 
@@ -39,6 +44,8 @@ Copy the folder **MRTwin_pulseq** to your home folder.
 To start spyder run the following commands in a terminal:
  1. module load python
  2. spyder
+
+## General Settings ##
 
 To have plots as separate window, go to Tools->Preferences. Then on the rider IPythonKonsole go to Graphics and choose for the graphics backend: Automatic. 
 
