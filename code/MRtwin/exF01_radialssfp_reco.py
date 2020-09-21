@@ -9,9 +9,12 @@ experiment_description = """
 2 D imaging
 """
 excercise = """
-F01.1. play with reco parameters
-F01.2. use the pattern given by the radial sampling as sampling pattern for the reco
-F01.3. optimize reco params for this pattern and differet undersamplings (NReps)
+F01.1 Try to use the CS aproaches for the Cartesian undersampled data
+        For this just use the code as is and play with the undersampling pattern in the CS reconstruction part S6
+        How many points can be excluded? (perecent value and magin)
+F01.2 Try to use the CS approaches for the radial undersampled data, 
+    for this properly implement a turbo factor and apply NUFFT interpolation of the k-space
+    and the unersampling pattern of the radial trajectory must be given to the CS algorithm
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -34,6 +37,8 @@ import core.target_seq_holder
 import warnings
 import matplotlib.cbook
 import pywt
+import pyconrad
+from pyconrad import setup_pyconrad, java_float_dtype, JArray, JDouble, ClassGetter
 from skimage.restoration import denoise_tv_chambolle
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
@@ -83,42 +88,15 @@ def setdevice(x):
         x = x.cuda(gpu_dev)    
     return x 
 
-def shrink(coeff, epsilon):
-	shrink_values = (abs(coeff) < epsilon) 
-	high_values = coeff >= epsilon
-	low_values = coeff <= -epsilon
-	coeff[shrink_values] = 0
-	coeff[high_values] -= epsilon
-	coeff[low_values] += epsilon
-
-def waveletShrinkage(current, epsilon):
-	# Compute Wavelet decomposition
-	cA, (cH, cV, cD)  = pywt.dwt2(current, 'Haar')
-	#Shrink
-	shrink(cA, epsilon)
-	shrink(cH, epsilon)
-	shrink(cV, epsilon)
-	shrink(cD, epsilon)
-	wavelet = cA, (cH, cV, cD)
-	# return inverse WT
-	return pywt.idwt2(wavelet, 'Haar')
-	
-
-def updateData(k_space, pattern, current, step):
-	# go to k-space
-	update = np.fft.ifft2(np.fft.fftshift(current))
-	# compute difference
-	update = k_space - (update * pattern)
-	# return to image space
-	update = np.fft.fftshift(np.fft.fft2(update))
-	update = current + (step * update)
-	return update
 
 #############################################################################
 ## S0: define image and simulation settings::: #####################################
-sz = np.array([64,64])                      # image size
+sz = np.array([48,48])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
+turbo=1
+NRep = int(NRep/turbo)
+
 szread=sz[1]
 NEvnt = szread + 5 + 2                          # number of events F/R/P
 NSpins = 4**2                              # number of spin sims in each voxel
@@ -134,8 +112,8 @@ NVox = sz[0]*szread
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
 cutoff = 1e-12
-#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
 real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
@@ -197,9 +175,9 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 # RF events: rf_event and phases
 rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[2,0,0] = 10*np.pi/180  # 90deg excitation now for every rep
+rf_event[2,0,0] = 5*np.pi/180  # 90deg excitation now for every rep
 rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[3,:,0] = 20*np.pi/180  # 90deg excitation now for every rep
+rf_event[3,:,0] = 10*np.pi/180  # 90deg excitation now for every rep
 
 alternate= torch.tensor([0,1])
 rf_event[3,:,1]=np.pi*alternate.repeat(NRep//2)
@@ -230,11 +208,12 @@ gradm_event[-2,:,0] = -gradm_event[4,:,0]            #phasebackblip
 
 gradm_event = setdevice(gradm_event)
 
-if True:
+if False: # radial trajectory?
     gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32) 
     gradm_event[4,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
     #grad_moms[1,:,1] = 0*torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
     gradm_event[5:-2,:,0] = torch.ones(int(sz[0])).view(int(sz[0]),1).repeat([1,NRep]) # ADC open, readout, freq encoding
+    
     
     for rep in range(NRep):
         alpha = torch.tensor(rep * (1.0/(NRep)) * np.pi)
@@ -266,7 +245,7 @@ scanner.forward_fast(spins, event_time)
 
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
-targetSeq.print_seq(plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9],time_axis=1)
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
@@ -288,7 +267,10 @@ if 1: # NUFFT
     grid = scanner.kspace_loc[adc_idx,:,:]
     NCol=adc_idx.size
     
-    X, Y = np.meshgrid(np.linspace(0,NCol-1,NCol) - NCol / 2, np.linspace(0,NRep-1,NRep) - NRep/2)
+    NRep_grid = int(NRep*turbo)
+
+    
+    X, Y = np.meshgrid(np.linspace(0,NCol-1,NCol) - NCol / 2, np.linspace(0,NRep_grid-1,NRep_grid) - NRep_grid/2)
     grid = np.double(grid.detach().cpu().numpy())
     grid[np.abs(grid) < 1e-5] = 0
     
@@ -304,12 +286,12 @@ if 1: # NUFFT
     # fftshift
     kspace_unroll = kspace
     kspace = np.roll(kspace,NCol//2,axis=0)
-    kspace = np.roll(kspace,NRep//2,axis=1)
+    kspace = np.roll(kspace,NRep_grid//2,axis=1)
             
     space = np.fft.ifft2(kspace)
 
 space = np.roll(space,szread//2-1,axis=0)
-space = np.roll(space,NRep//2-1,axis=1)
+space = np.roll(space,NRep_grid//2-1,axis=1)
 space = np.flip(space,(0,1))
 
 
@@ -343,38 +325,68 @@ plt.show()
 
 kspace_orig = kspace
 
+#%% ############################################################################
+## S6: compressed sensing MR reconstruction of undersampled signal ::: #####################################
+
+def shrink(coeff, epsilon):
+	shrink_values = (abs(coeff) < epsilon) 
+	high_values = coeff >= epsilon
+	low_values = coeff <= -epsilon
+	coeff[shrink_values] = 0
+	coeff[high_values] -= epsilon
+	coeff[low_values] += epsilon
+
+def waveletShrinkage(current, epsilon):
+	# Compute Wavelet decomposition
+	cA, (cH, cV, cD)  = pywt.dwt2(current, 'Haar')
+	#Shrink
+	shrink(cA, epsilon)
+	shrink(cH, epsilon)
+	shrink(cV, epsilon)
+	shrink(cD, epsilon)
+	wavelet = cA, (cH, cV, cD)
+	# return inverse WT
+	return pywt.idwt2(wavelet, 'Haar')
+	
+
+def updateData(k_space, pattern, current, step):
+	# go to k-space
+	update = np.fft.ifft2(np.fft.fftshift(current))
+	# compute difference
+	update = k_space - (update * pattern)
+	# return to image space
+	update = np.fft.fftshift(np.fft.fft2(update))
+	update = current + (step * update)
+	return update
+
 #%%
 np.random.seed(0)
 recon = (np.fft.fftshift(np.fft.fft2(kspace_orig)))
 pattern = np.random.random_sample(kspace.shape)
-percent = 0.60
+percent = 0.75  # this is the data that is *not* measured
 low_values_indices = pattern <= percent  # Where values are low
 high_values_indices = pattern > percent  # Where values are high
 pattern[low_values_indices] = 0  # All low values set to 0
 pattern[high_values_indices] = 1  # All high values set to 1
-margin = 10
+margin = 2
 pattern[sz[0]//2-margin:sz[0]//2+margin,sz[0]//2-margin:sz[0]//2+margin] = 1
 pattern = np.fft.fftshift(pattern)
 
-kspace = kspace_orig * pattern
-
-
+kspace = kspace_orig * pattern # patern  important for update data, so must be adjusted to radial kspace
 
 current = np.zeros(kspace.size).reshape(kspace.shape)
 current_shrink = np.zeros(kspace.size).reshape(kspace.shape)
 first = updateData(kspace, pattern, current, 1)
 early = first
 early_shrink = first
-
-#%%
 current_shrink=first
 
 i = 0
 while i < 3000:
 	current = updateData(kspace, pattern, current_shrink, 0.1)
 	#current_shrink = current
-#	current_shrink = waveletShrinkage(current, .2)
-	current_shrink = denoise_tv_chambolle(abs(current), 0.1, 2.e-5, 10)
+	#current_shrink = waveletShrinkage(current, .5)
+	current_shrink = denoise_tv_chambolle(abs(current), 0.1, 2.e-5, 100)
 	i = i + 1
 #current = updateData(kspace, current, 0.1)
 
@@ -387,17 +399,20 @@ pattern_vis = np.fft.fftshift(pattern * 256)
 fig=plt.figure(dpi=90)
 plt.subplot(321)
 plt.set_cmap(plt.gray())
-plt.imshow(abs(recon))
+plt.imshow(abs(recon)); plt.ylabel('recon')
 plt.subplot(322)
 plt.set_cmap(plt.gray())
-plt.imshow(abs(pattern_vis))
+plt.imshow(abs(pattern_vis)); plt.ylabel('pattern_vis')
 plt.subplot(323)
 plt.set_cmap(plt.gray())
-plt.imshow(abs(early))
+plt.imshow(abs(early)); plt.ylabel('early')
 plt.subplot(325)
 plt.set_cmap(plt.gray())
-plt.imshow(abs(current_shrink))
+plt.imshow(abs(current_shrink)) ; plt.ylabel('final recon')
 plt.subplot(324)
 plt.set_cmap(plt.gray())
-plt.imshow(np.log(abs(np.fft.fftshift(kspace_orig))))
+plt.imshow(np.log(1+abs(np.fft.fftshift(kspace_orig)))); plt.ylabel('kspace')
+plt.subplot(326)
+plt.set_cmap(plt.gray())
+plt.imshow(np.log(1+abs(np.fft.fftshift((kspace))))); plt.ylabel('kspace*pattern')
 plt.show()
