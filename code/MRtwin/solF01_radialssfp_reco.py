@@ -37,8 +37,6 @@ import core.target_seq_holder
 import warnings
 import matplotlib.cbook
 import pywt
-import pyconrad
-from pyconrad import setup_pyconrad, java_float_dtype, JArray, JDouble, ClassGetter
 from skimage.restoration import denoise_tv_chambolle
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
@@ -94,7 +92,7 @@ def setdevice(x):
 sz = np.array([48,48])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-turbo=1
+turbo=4
 NRep = int(NRep/turbo)
 
 szread=sz[1]
@@ -208,7 +206,7 @@ gradm_event[-2,:,0] = -gradm_event[4,:,0]            #phasebackblip
 
 gradm_event = setdevice(gradm_event)
 
-if False: # radial trajectory?
+if True: # radial trajectory?
     gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32) 
     gradm_event[4,:,0] = -sz[0]/2         # GRE/FID specific, rewinder in second event block
     #grad_moms[1,:,1] = 0*torch.linspace(-int(sz[1]/2),int(sz[1]/2-1),int(NRep))  # phase encoding in second event block
@@ -279,6 +277,18 @@ if 1: # NUFFT
     
     spectrum_resampled_x = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), np.real(kspace[:,:]).ravel(), (X, Y), method='cubic')
     spectrum_resampled_y = scipy.interpolate.griddata((grid[:,:,0].ravel(), grid[:,:,1].ravel()), np.imag(kspace[:,:]).ravel(), (X, Y), method='cubic')
+    
+    pattern_resampled=np.zeros([sz[0],sz[1]])
+    np.round(grid)
+    
+    # k-space sampling pattern needed for the CS algorithms
+    gridx=grid[:,:,0].ravel()
+    gridy=grid[:,:,1].ravel()
+    for ii in range(len(gridx)):
+        pattern_resampled[int(gridx[ii]),int(gridy[ii])]=1
+    plt.imshow(pattern_resampled)
+    plt.show()
+    # end sampling pattern
 
     kspace=spectrum_resampled_x+1j*spectrum_resampled_y
     kspace[np.isnan(kspace)] = 0
@@ -363,16 +373,20 @@ def updateData(k_space, pattern, current, step):
 np.random.seed(0)
 recon = (np.fft.fftshift(np.fft.fft2(kspace_orig)))
 pattern = np.random.random_sample(kspace.shape)
-percent = 0.75  # this is the data that is *not* measured
+percent = 0.8  # this is the data that is *not* measured
 low_values_indices = pattern <= percent  # Where values are low
 high_values_indices = pattern > percent  # Where values are high
 pattern[low_values_indices] = 0  # All low values set to 0
 pattern[high_values_indices] = 1  # All high values set to 1
-margin = 2
+margin = 4
 pattern[sz[0]//2-margin:sz[0]//2+margin,sz[0]//2-margin:sz[0]//2+margin] = 1
 pattern = np.fft.fftshift(pattern)
 
-kspace = kspace_orig * pattern # pattern  important for update data, so must be adjusted to radial kspace
+pattern=pattern_resampled  # this is from the real acquisition
+
+kspace = kspace_orig *pattern_resampled
+
+np.sum(pattern>0)/np.sum(pattern>=0)  # percentage of used data
 
 current = np.zeros(kspace.size).reshape(kspace.shape)
 current_shrink = np.zeros(kspace.size).reshape(kspace.shape)
