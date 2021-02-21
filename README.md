@@ -22,9 +22,9 @@ In addition to python some extension packages are required like Pytorch. install
 
 **Versions that were tested**
 
- -  torch.__version__  : '1.3.0'
- -  np.__version__ 	 : '1.18.1'
- -  scipy.__version__: '1.4.1'
+ -  torch.__version__  : '1.3.0'   and  '1.7.0'
+ -  np.__version__ 	 : '1.18.1'    and  '1.19.2'
+ -  scipy.__version__: '1.4.1'     and  '1.5.2'
  -   matplotlib.__version__: '3.1.1'
 
 You can also run file code/MRTwin/exP01.py to test versions.
