@@ -4,7 +4,7 @@ Created on Tue Jan 29 14:38:26 2019
 
 """
 experiment_id = 'exA05_gradientecho_pixel'
-sequence_class = "gre_dream"
+sequence_class = "super"
 experiment_description = """
 GRE or 1 D imaging / spectroscopy
 """
@@ -12,11 +12,12 @@ excercise = """
 this file starts from solA04. we want now to have the same echo in every repetition
 A05.1. have the same rf_event, event times and gradmoms for every repetition, add recover time in last action as in A03
 A05.2. what is the recover time needed to have same echo amplitudes? is there a general rule for this? 
-A05.3. alter the position of the pixel in the image in line 110. what do you observe?
-A05.4. set a second pixel (activate line 111). What do you observe?
-A05.5. try [8,:,:] and [:,8,:] in line 110. what do you observe?
+A05.3. alter the position of the pixel in the image. what do you observe?
+A05.4. set a second pixel. What do you observe?
+A05.5. try transposition [4,:,:] and [:,4,:]. what do you observe?
 A05.6. instead of x gradient use a y gradient moment gradmom[:,:,1]
 """
+print(excercise)
 #%%
 #matplotlib.pyplot.close(fig=None)
 #%%
@@ -85,67 +86,53 @@ def setdevice(x):
 sz = np.array([12,12])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 4                                  # number of total repetitions
+NRep = 8                                  # number of total repetitions
 szread=128
 NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
 import time; today_datestr = time.strftime('%y%m%d')
-NVox = sz[0]*szread
+NVox = sz[0]*sz[1]
 
 #############################################################################
 ## S1: Init spin system and phantom::: #####################################
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
-cutoff = 1e-12
-#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+# either (i) load phantom (third dimension: PD, T1 T2 dB0 rB1)
+phantom = spins.get_phantom(sz[0],sz[1],type='object1')  # type='object1' or 'brain1'
 
-real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-real_phantom_resized[10,6,:]=np.array([1, 1, 0.1, 0,1])
-#real_phantom_resized[9,9,:]=np.array([0.25, 1, 0.1, 0,1])
-    
-real_phantom_resized[:,:,1] *= 1 # Tweak T1
-real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] += 0 # Tweak dB0
-real_phantom_resized[:,:,4] *= 1 # Tweak rB1
+# or (ii) set phantom  manually to single pixel phantom
+phantom = np.zeros((sz[0],sz[1],5), dtype=np.float32); 
+phantom[3,3,:]=np.array([1, 1, 0.1, 0, 1]) # pixel 1,  third dimension: PD, T1 T2 dB0 rB1
+#phantom[4,4,:]=np.array([0.5, 1, 0.1, 0, 1]) # pixel 2, 
 
-spins.set_system(real_phantom_resized)
+# adjust phantom
+phantom[:,:,1] *= 1 # Tweak T1
+phantom[:,:,2] *= 1 # Tweak T2
+phantom[:,:,3] += 0 # Tweak dB0
+phantom[:,:,4] *= 1 # Tweak rB1
 
-if 1:
-    plt.figure("""phantom""")
-    param=['PD','T1','T2','dB0','rB1']
+if 1: # switch on for plot
+    plt.figure("""phantom"""); plt.clf();  param=['PD','T1 [s]','T2 [s]','dB0 [Hz]','rB1 [rel.]']
     for i in range(5):
         plt.subplot(151+i), plt.title(param[i])
-        ax=plt.imshow(real_phantom_resized[:,:,i], interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax) 
-    fig.set_size_inches(18, 3)
-    plt.show()
-   
-#begin nspins with R2* = 1/T2*
-R2star = 30.0
-omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
-omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
-omega*=0.99 # cutoff large freqs
-omega = R2star * np.tan ( np.pi  * omega)
-spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
-spins.omega = setdevice(spins.omega)
+        ax=plt.imshow(phantom[:,:,i], interpolation='none')
+        fig = plt.gcf(); fig.colorbar(ax) 
+    fig.set_size_inches(18, 3); plt.show()
+
+spins.set_system(phantom,R2dash=30.0)  # set phantom variables with overall constant R2' = 1/T2'  (R2*=R2+R2')
+
 ## end of S1: Init spin system and phantom ::: #####################################
 
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
-
-B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
-B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
-B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
-B1plus[:] = 1
-scanner.B1plus = setdevice(B1plus)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+#scanner.set_B1plus(phantom[:,:,4])  # use as defined in phantom
+scanner.set_B1plus(1)                 # overwrite with homogeneous excitation       
 
 #############################################################################
 ## S3: MR sequence definition ::: #####################################

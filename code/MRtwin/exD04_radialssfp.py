@@ -4,7 +4,7 @@ Created on Tue Jan 29 14:38:26 2019
 
 """
 experiment_id = 'exD02_radialssfp'
-sequence_class = "gre_dream"
+sequence_class = "super"
 experiment_description = """
 2 D imaging
 """
@@ -90,7 +90,7 @@ def setdevice(x):
 sz = np.array([32,32])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 16
+NRep = 32
 szread=sz[1]
 NEvnt = szread + 5 + 2                          # number of events F/R/P
 NSpins = 16**2                              # number of spin sims in each voxel
@@ -149,7 +149,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -167,14 +167,14 @@ adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
 rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
 rf_event[2,0,0] = 10*np.pi/180  # 90deg excitation now for every rep
 rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
 rf_event[3,:,0] = 20*np.pi/180  # 90deg excitation now for every rep
-
 alternate= torch.tensor([0,1])
 rf_event[3,:,1]=np.pi*alternate.repeat(NRep//2)
+rf_event[3,:,3] = 1
 
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
@@ -205,7 +205,7 @@ gradm_event = setdevice(gradm_event)
 
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor_super(gradm_event,rf_event)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 

@@ -4,17 +4,19 @@ Created on Tue Jan 29 14:38:26 2019
 
 """
 experiment_id = 'exA09_GRE_fully_relaxed'
-sequence_class = "gre_dream"
+sequence_class = "super"
 experiment_description = """
 2 D imaging
 """
 excercise = """
-A09.1. plot the k-space as an image
+A09.1. plot the k-space as an image,  plot the k-space trajectory with print_seq_pic, you need to define a excitation pulse for that rf_event[x,y,3]=1 
 A09.2. excite only certain k space lines with 90 degree, other rf_event to 0
 A09.3. try different flip angles ( add noise to make effects visible, e.g. noise_std = 100*1e-3 ).
 A09.4. try different phantoms.
 A09.5. try to prolong the echo time, what do you observe?
 """
+
+print(excercise)
 #%%
 #matplotlib.pyplot.close(fig=None)
 #%%
@@ -88,7 +90,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                      # number of total repetitions
 szread=sz[1]
 NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 4**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -100,59 +102,37 @@ NVox = sz[0]*szread
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
-cutoff = 1e-12
-#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+# either (i) load phantom (third dimension: PD, T1 T2 dB0 rB1)
+phantom = spins.get_phantom(sz[0],sz[1],type='object1')  # type='object1' or 'brain1'
 
-real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-for i in range(5):
-    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
-    if i == 0:
-        t[t < 0] = 0
-    elif i == 1 or i == 2:
-        t[t < cutoff] = cutoff        
-    real_phantom_resized[:,:,i] = t
-    
+# or (ii) set phantom  manually to single pixel phantom
+#phantom = np.zeros((sz[0],sz[1],5), dtype=np.float32); 
+#phantom[1,1,:]=np.array([1, 1, 0.1, 0, 1]) # third dimension: PD, T1 T2 dB0 rB1
 
-    
-real_phantom_resized[:,:,1] *= 1 # Tweak T1
-real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] *= 3 # Tweak dB0
-real_phantom_resized[:,:,4] *= 1 # Tweak rB1
+# adjust phantom
+phantom[:,:,1] *= 1 # Tweak T1
+phantom[:,:,2] *= 1 # Tweak T2
+phantom[:,:,3] += 0 # Tweak dB0
+phantom[:,:,4] *= 1 # Tweak rB1
 
-spins.set_system(real_phantom_resized)
-
-if 0:
-    plt.figure("""phantom""")
-    param=['PD','T1','T2','dB0','rB1']
+if 1: # switch on for plot
+    plt.figure("""phantom"""); plt.clf();  param=['PD','T1 [s]','T2 [s]','dB0 [Hz]','rB1 [rel.]']
     for i in range(5):
         plt.subplot(151+i), plt.title(param[i])
-        ax=plt.imshow(real_phantom_resized[:,:,i], interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax) 
-    fig.set_size_inches(18, 3)
-    plt.show()
-   
-#begin nspins with R2* = 1/T2*
-R2star = 30.0
-omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
-omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
-omega*=0.99 # cutoff large freqs
-omega = R2star * np.tan ( np.pi  * omega)
-spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
-spins.omega = setdevice(spins.omega)
+        ax=plt.imshow(phantom[:,:,i], interpolation='none')
+        fig = plt.gcf(); fig.colorbar(ax) 
+    fig.set_size_inches(18, 3); plt.show()
+
+spins.set_system(phantom,R2dash=30.0)  # set phantom variables with overall constant R2' = 1/T2'  (R2*=R2+R2')
+
 ## end of S1: Init spin system and phantom ::: #####################################
 
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
-
-B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
-B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
-B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
-B1plus[:] = 1
-scanner.B1plus = setdevice(B1plus)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+#scanner.set_B1plus(phantom[:,:,4])  # use as defined in phantom
+scanner.set_B1plus(1)               # overwrite with homogeneous excitation
 
 #############################################################################
 ## S3: MR sequence definition ::: #####################################
@@ -163,14 +143,15 @@ adc_mask[:5]  = 0
 adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
-# RF events: rf_event and phases
-rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+# RF events: rf_event and phases (and  frequency and k-usage)
+rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
 rf_event[3,16,0] = 0*np.pi/180  # 90deg excitation
 #rf_event[3,17,0] = 90*np.pi/180  # 90deg excitation 
 #rf_event[3,15,0] = 90*np.pi/180  # 90deg excitation 
 #rf_event[3,15:25,0] = 90*np.pi/180  # 90deg excitation 
 #rf_event[3,10:30,0] = 90*np.pi/180  # 90deg excitation 
 rf_event[3,:,0] = 90*np.pi/180  # 90deg excitation 
+rf_event[3,:,3] = 1 #% this sets the  flag for a excitation pulse ( for correct k-space plot and pulseq export)
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(rf_event)
@@ -193,7 +174,7 @@ gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor_super(gradm_event,rf_event)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 
@@ -205,13 +186,13 @@ scanner.forward_fast(spins, event_time)
 
 ## S4B: Pulseq export and MR scan at real system ::: #####################################
 #targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
-#targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
+#targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True,single_folder=True)
 #scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=True)
 #       
        
 # sequence and signal plotting
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
-#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq_pic(True,plotsize=[12,9])
 targetSeq.print_seq(plotsize=[12,9], time_axis=1)
 
 # S4B: Pulseq export and MR scan at real system ::: #####################################
@@ -234,9 +215,9 @@ space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
+plt.imshow(phantom[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
+plt.imshow(phantom[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,21) # plot the kspace as an image, lowest ferquency should be in the center
 
 

@@ -19,6 +19,7 @@ from core.pulseq_exporter import pulseq_write_RARE
 from core.pulseq_exporter import pulseq_write_BSSFP
 from core.pulseq_exporter import pulseq_write_slBSSFP
 from core.pulseq_exporter import pulseq_write_EPI
+from core.pulseq_exporter import pulseq_write_super
 # target images / sequence parameters holder
 # torch to numpy
 def tonumpy(x):
@@ -62,7 +63,8 @@ class TargetSequenceHolder():
         if do_vis_image:
             
             recoimg= (tonumpy(self.target_image).reshape([self.sz[0],self.sz[1],2]))
-            recoimg_phase = tonumpy(self.PD0_mask)*phaseimg(recoimg)
+            #recoimg_phase = tonumpy(self.PD0_mask)*phaseimg(recoimg) # FG: PD0_mask has zeros inside phantom?!
+            recoimg_phase = phaseimg(recoimg)
     
             # clear previous figure stack            
             plt.clf()            
@@ -233,15 +235,24 @@ class TargetSequenceHolder():
             fig = plt.gcf();fig.colorbar(ax)
             
             
-            if kplot:  #k-space plot             
-                plt.subplot(339) ; plt.title('k-space loc.')               
-                kx= tonumpy(self.scanner.kspace_loc[:,:,0])
-                ky= tonumpy(self.scanner.kspace_loc[:,:,1])
-                color=cm.rainbow(np.linspace(0,1,kx.shape[1]))
-                for i in range(kx.shape[1]):
-                    plt.plot(kx[:,i],ky[:,i],c=color[i])
-                plt.plot(kx[(tonumpy(self.adc_mask)).nonzero()[0],:],ky[(tonumpy(self.adc_mask)).nonzero()[0],:],'r.',markersize=0.75)
-                plt.xlabel('k_x')
+            if kplot:  #k-space plot  
+                if self.rf_event.size(2)>2: # excitation indices can be only calculated from flips(:,:,3)    
+                    exitation_indices = tonumpy(self.rf_event[:,:,3]).flatten('F')  # find excitation indices, here the k-space gets set to zero, and the 
+                    exitation_indices = np.where(exitation_indices)[0]              # to index
+                    NEX=int(exitation_indices.shape[0])  # how many ecitations
+                    
+                   
+                    kx= tonumpy(self.scanner.kspace_loc[:,:,0])  # kx position
+                    ky= tonumpy(self.scanner.kspace_loc[:,:,1])  # ky position
+                    kxf = np.split(kx.flatten('F'), exitation_indices+1, axis=0) # kx flattened and splitted by excitation indices
+                    kyf = np.split(ky.flatten('F'), exitation_indices+1, axis=0) # ky flattened and splitted by excitation indices
+    
+                    plt.subplot(339) ; plt.title('k-space loc.') 
+                    color=cm.rainbow(np.linspace(0,1,NEX+1))
+                    for i in range(NEX+1):
+                        plt.plot(kxf[i],kyf[i],c=color[i])
+                    plt.plot(kx[(tonumpy(self.adc_mask)).nonzero()[0],:],ky[(tonumpy(self.adc_mask)).nonzero()[0],:],'r.',markersize=0.75)
+                    plt.xlabel('k_x')
           
             fig = plt.gcf();  
             plt.ion()
@@ -253,7 +264,7 @@ class TargetSequenceHolder():
         
         tfull=np.cumsum(tonumpy(self.event_time).transpose().ravel())
         tfull=np.insert(tfull, 0, 0)
-        tfull=tfull[:-1]
+        tfull=tfull[:-1] #this corrects for the index shift due to cumsum
         xlabel='time [s]'
         normg= 1/tonumpy(self.event_time).transpose().ravel() 
         normg[np.isnan(normg)] = 0
@@ -265,15 +276,16 @@ class TargetSequenceHolder():
             normg=1
 
         fig=plt.figure("""seq and image"""); fig.set_size_inches(plotsize); 
-        plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(self.event_time))))
+        ax1=plt.subplot(411); plt.ylabel('RF, time, ADC'); plt.title("Total acquisition time ={:.2} s".format(tonumpy(torch.sum(self.event_time))))
         plt.plot(tfull,np.tile(tonumpy(self.adc_mask),self.scanner.NRep).flatten('F'),'.',label='ADC')
         plt.plot(tfull,tonumpy(self.event_time).flatten('F'),'.',label='time')
+        
 #        plt.plot(tfull,tonumpy(self.rf_event[:,:,0]).flatten('F'),'.',label='RF')
-        plt.stem(tfull, tonumpy(self.rf_event[:,:,0]).flatten('F'),'r',markerfmt ='ro',label='RF')
+        plt.stem(tfull, tonumpy(self.rf_event[:,:,0]).flatten('F'),'r',markerfmt ='ro',label='RF',use_line_collection=True)
         major_ticks = np.arange(0, self.scanner.T*self.scanner.NRep, self.scanner.T) # this adds ticks at the correct position szread
         ax=plt.gca(); ax.set_xticks(tfull[major_ticks]); ax.grid()
         plt.legend()
-        plt.subplot(412); plt.ylabel('gradients')
+        plt.subplot(412, sharex=ax1); plt.ylabel('gradients')
         #plt.plot(tfull,tonumpy(self.gradm_event[:,:,0]).flatten('F'),label='gx')
         #plt.plot(tfull,tonumpy(self.gradm_event[:,:,1]).flatten('F'),label='gy')
         
@@ -281,7 +293,7 @@ class TargetSequenceHolder():
         plt.step(tfull,normg*tonumpy(self.gradm_event[:,:,1]).flatten('F'),label='gy', where='mid')
         ax=plt.gca(); ax.set_xticks(tfull[major_ticks]); ax.grid()
         plt.legend()
-        plt.subplot(413); plt.ylabel('signal')
+        plt.subplot(413, sharex=ax1); plt.ylabel('signal')
         plt.plot(tfull,tonumpy(self.scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
         plt.plot(tfull,tonumpy(self.scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
         plt.xlabel(xlabel)
@@ -328,7 +340,14 @@ class TargetSequenceHolder():
                 
         with open(os.path.join('core',pathfile),"r") as f:
             path_from_file = f.readline()
-        basepath = path_from_file
+        if platform == 'linux' and (socket.gethostname() == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron'):
+            hostname = socket.gethostname()
+            if hostname == 'vaal' or hostname == 'madeira4' or hostname == 'gadgetron':
+                basepath = '/media/upload3t/CEST_seq/pulseq_zero'
+            else:                                                     # cluster
+                basepath = 'out'
+        else:
+            basepath = path_from_file
         basepath = os.path.join(basepath, 'sequences')
         basepath = os.path.join(basepath, "seq" + today_datestr)
         basepath = os.path.join(basepath, experiment_id)
@@ -404,6 +423,10 @@ class TargetSequenceHolder():
             pulseq_write_slBSSFP(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         elif sequence_class.lower() == "epi":
             pulseq_write_EPI(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
+        elif sequence_class.lower() == "super":
+            seq_params = rf_event_numpy, event_time_numpy, gradm_event_numpy, self.scanner.adc_mask.detach().cpu().numpy()
+            print('run super exporter')
+            pulseq_write_super(seq_params, os.path.join(basepath, fn_pulseq), plot_seq=plot_seq)
         
         
         

@@ -131,7 +131,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -190,11 +190,11 @@ dim = setdevice(torch.sqrt(torch.tensor(NSpins).float()))
 off = 1 / dim
 if dim == torch.floor(dim):
     xv, yv = torch.meshgrid([torch.linspace(-1+off,1-off,dim.int()), torch.linspace(-1+off,1-off,dim.int())])
-    Rx1= torch.randn(torch.Size([dim.int()/2,dim.int()]))*off
+    Rx1= torch.randn(torch.Size([dim.int()//2,dim.int()]))*off
     Rx2=-torch.flip(Rx1, [0])
     Rx= torch.cat((Rx1, Rx2),0)
     
-    Ry1= torch.randn(torch.Size([dim.int(),dim.int()/2]))*off
+    Ry1= torch.randn(torch.Size([dim.int(),dim.int()//2]))*off
     Ry2=-torch.flip(Ry1, [1])
     Ry= torch.cat((Ry1, Ry2),1)
                 

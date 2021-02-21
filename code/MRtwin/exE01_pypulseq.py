@@ -9,18 +9,16 @@ import scipy.io as sio
 from math import pi,ceil, sqrt, pow
 import sys
 
-sys.path.append("../")
-from pypulseq.sequence import Sequence
+sys.path.append("../scannerloop_libs")
+from pypulseq.Sequence.sequence import Sequence
 from pypulseq.calc_duration import calc_duration
-from pypulseq.make_adc import makeadc
+from pypulseq.make_adc import make_adc
 from pypulseq.make_delay import make_delay
-from pypulseq.make_sinc import make_sinc_pulse
-from pypulseq.make_trap import make_trapezoid
-from pypulseq.make_block import make_block_pulse
+from pypulseq.make_sinc_pulse import make_sinc_pulse
+from pypulseq.make_trap_pulse import make_trapezoid
+from pypulseq.make_block_pulse import make_block_pulse
 from pypulseq.opts import Opts
 
-# for trap and sinc
-from pypulseq.holder import Holder
 
 def append_header(seq_fn, FOV,slice_thickness):
     # append version and definitions
@@ -69,8 +67,8 @@ else:
     deltak = 1.0 / FOV()
     # gradm_event_numpy = deltak*gradm_event_numpy_input  # this is required to adjust for FOV
     
-    kwargs_for_opts = {"rf_ring_down_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
-    system = Opts(kwargs_for_opts)
+    kwargs_for_opts = {"rf_ringdown_time": 20e-6, "rf_dead_time": 100e-6, "adc_dead_time": 20e-6, "max_grad": 36, "grad_unit": "mT/m", "max_slew": MAXSLEW, "slew_unit": "T/m/s"}
+    system = Opts(**kwargs_for_opts)
     seq = Sequence(system)    
     
     seq.add_block(make_delay(0.5))
@@ -79,7 +77,7 @@ else:
     
     
     kwargs_for_block = {"flip_angle": 180.0, "system": system, "duration": 1e-3, "phase_offset": 0.0}
-    rf = make_block_pulse(kwargs_for_block, 1)            
+    rf,_ = make_block_pulse(**kwargs_for_block)            
     seq.add_block(rf)  
         
     seq.add_block(make_delay(0.5))
@@ -91,33 +89,33 @@ else:
         ### first action excitation pulse
 
         kwargs_for_block = {"flip_angle": 90.0, "system": system, "duration": 1e-3, "phase_offset": 0.0}
-        rf = make_block_pulse(kwargs_for_block, 1)            
+        rf,_ = make_block_pulse(**kwargs_for_block)            
         seq.add_block(rf)  
         seq.add_block(make_delay(1e-4))
 
 ##slice selective        
-#        kwargs_for_sinc = {"flip_angle": 90.0, "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": rf_event_numpy[idx_T,rep,1]}
-#        rf, gz, gzr = make_sinc_pulse(kwargs_for_sinc, 3)
-#        seq.add_block(rf, gz)
-#        seq.add_block(gzr)            
-#        RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
+        # kwargs_for_sinc = {"flip_angle": 90.0, "system": system, "duration": 1e-3, "slice_thickness": slice_thickness, "apodization": 0.5, "time_bw_product": 4, "phase_offset": 0}
+        # rf, gz, gzr = make_sinc_pulse(**kwargs_for_sinc)
+        # seq.add_block(rf, gz)
+        # seq.add_block(gzr)            
+        # RFdur = gz.rise_time + gz.flat_time + gz.fall_time + gzr.rise_time + gzr.flat_time + gzr.fall_time
             
         ### second action rewinder gradient
         kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": toK(-8.0), "flat_time": 1e-3}
-        gxpre = make_trapezoid(kwargs_for_gx)    
+        gxpre = make_trapezoid(**kwargs_for_gx)    
         
         kwargs_for_gy = {"channel": 'y', "system": system, "flat_area": toK(rep-NRep/2), "flat_time": 1e-3}
-        gypre = make_trapezoid(kwargs_for_gy)    
+        gypre = make_trapezoid(**kwargs_for_gy)    
         seq.add_block(gxpre,gypre) 
                     
         ###############################
         ###  line acquisition, later this is NEvnt(5:end-2)
         gx_gradmom = 16
         kwargs_for_gx = {"channel": 'x', "system": system, "flat_area": toK(gx_gradmom), "flat_time": 1e-3}
-        gx = make_trapezoid(kwargs_for_gx)    
+        gx = make_trapezoid(**kwargs_for_gx)    
                
         kwargs_for_adc = {"num_samples": 16, "duration": gx.flat_time, "delay": (gx.rise_time), "phase_offset": rf.phase_offset - np.pi/4}
-        adc = makeadc(kwargs_for_adc)    
+        adc = make_adc(**kwargs_for_adc)    
         
         # dont play zero grads (cant even do FID otherwise)
         if np.abs(gx_gradmom) > 0:
@@ -141,10 +139,10 @@ else:
         ###     second last extra event  T(end)  # adjusted also for fallramps of ADC
         
         kwargs_for_gxpost = {"channel": 'x', "system": system, "area": toK(24.0), "duration": 1e-3}
-        gx_post = make_trapezoid(kwargs_for_gxpost)  
+        gx_post = make_trapezoid(**kwargs_for_gxpost)  
         
         kwargs_for_gypost = {"channel": 'y', "system": system, "area": toK(-(rep-NRep/2)), "duration": 1e-3}
-        gy_post = make_trapezoid(kwargs_for_gypost)  
+        gy_post = make_trapezoid(**kwargs_for_gypost)  
         
         seq.add_block(gx_post, gy_post)
         

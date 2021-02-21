@@ -4,7 +4,7 @@ Created on Tue Jan 29 14:38:26 2019
 
 """
 experiment_id = 'solA12_FLASH_MP_1'
-sequence_class = "gre_dream"
+sequence_class = "super"
 experiment_description = """
 2 D imaging
 """
@@ -152,7 +152,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -170,12 +170,13 @@ adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
+deg=np.pi/180
 rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
 rf_event[2,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[3,:,0] = 15*np.pi/180  # 90deg excitation now for every rep
 
-rf_event[3,:,1]=torch.arange(0,50*NRep,50)*np.pi/180 
+rf_event[3,:,0] = 15*deg;   rf_event[3,:,1]=torch.arange(0,50*NRep,50)*deg;     rf_event[3,:,3] = 1
+
 
 def get_phase_cycler(n, dphi,flag=0):
     out = np.cumsum(np.arange(n) * dphi)  #  from Alex (standard)
@@ -197,6 +198,7 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
+event_time[0,0] =  1e-3
 event_time[3,:] =  0.01
 event_time[4,:] =  0.01
 event_time[-2,:] =  0.01
@@ -232,7 +234,7 @@ gradm_event[4,:,0]=gradm_event[4,permvec,0]
 gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor_super(gradm_event,rf_event)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 

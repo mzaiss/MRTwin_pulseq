@@ -4,7 +4,7 @@ Created on Tue Jan 29 14:38:26 2019
 
 """
 experiment_id = 'solE04_spinecho_to_RARE'
-sequence_class = "gre_dream"
+sequence_class = "super"
 experiment_description = """
 SE or 1 D imaging / spectroscopy
 """
@@ -143,7 +143,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -161,11 +161,14 @@ adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
 rf_event[0,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 rf_event[0,0,1] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[0,0,3] = 1 
 
 rf_event[1,:,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
+rf_event[1,:,3] = 1
+
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(rf_event)
@@ -177,7 +180,7 @@ scanner.set_ADC_rot_tensor(-rf_event[1,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 TE=torch.sum(event_time[:,0])
 event_time[0,0] =  2*1e-3
-event_time[1,:] =  3*1e-3
+event_time[1,:] =  2*1e-3
 event_time[3,:] =  0.3*1e-3
 event_time[-2,:] = 0.3*1e-3
 event_time[2,0] =  TE/2- 2*0.08*1e-3
@@ -195,7 +198,7 @@ gradm_event[-2,:,1] = 0.5*szread
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor_super(gradm_event,rf_event)  # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 

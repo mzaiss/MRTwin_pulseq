@@ -4,7 +4,7 @@ Created on Tue Jan 29 14:38:26 2019
 
 """
 experiment_id = 'solF01_radialssfp'
-sequence_class = "gre_dream"
+sequence_class = "super"
 experiment_description = """
 2 D imaging
 """
@@ -14,7 +14,7 @@ F01.1 Try to use the CS aproaches for the Cartesian undersampled data
         How many points can be excluded? (perecent value and magin)
 F01.2 Try to use the CS approaches for the radial undersampled data, 
     for this properly implement a turbo factor and apply NUFFT interpolation of the k-space
-    and the unersampling pattern of the radial trajectory must be given to the CS algorithm
+    and the undersampling pattern of the radial trajectory must be given to the CS algorithm
 """
 #%%
 #matplotlib.pyplot.close(fig=None)
@@ -37,8 +37,8 @@ import core.target_seq_holder
 import warnings
 import matplotlib.cbook
 import pywt
-import pyconrad
-from pyconrad import setup_pyconrad, java_float_dtype, JArray, JDouble, ClassGetter
+#import pyconrad
+#from pyconrad import setup_pyconrad, java_float_dtype, JArray, JDouble, ClassGetter
 from skimage.restoration import denoise_tv_chambolle
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
@@ -155,7 +155,7 @@ spins.omega = setdevice(spins.omega)
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
-scanner = core.scanner.Scanner_fast(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
+scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
 B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
@@ -173,7 +173,7 @@ adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
 rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
 rf_event[2,0,0] = 5*np.pi/180  # 90deg excitation now for every rep
 rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
@@ -181,6 +181,7 @@ rf_event[3,:,0] = 10*np.pi/180  # 90deg excitation now for every rep
 
 alternate= torch.tensor([0,1])
 rf_event[3,:,1]=np.pi*alternate.repeat(NRep//2)
+rf_event[3,:,3]=1
 
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
