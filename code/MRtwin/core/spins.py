@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-import cv2
+import torchvision
 import scipy
 import scipy.io
 from  scipy import ndimage
@@ -58,6 +58,33 @@ class SpinSystem():
             elif i == 1 or i == 2:
                 t[t < cutoff] = cutoff        
             real_phantom_resized[:,:,i] = t
+            
+        if plot==True:
+            plt.figure("""phantom""")
+            param=['PD','T1','T2','dB0','rB1']
+            for i in range(5):
+                plt.subplot(151+i), plt.title(param[i])
+                ax=plt.imshow(real_phantom_resized[:,:,i], interpolation='none')
+                fig = plt.gcf()
+                fig.colorbar(ax) 
+            fig.set_size_inches(18, 3)
+            plt.show()
+            
+        return real_phantom_resized
+
+    def get_phantom_torch(self,szx,szy,type='object1',interpolation=3, plot=False): # type='object1'
+        if type=='object1':
+            real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
+        elif type=='brain1':
+            real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+        
+        real_phantom_resized = torch.from_numpy(real_phantom.transpose(2,0,1))
+        real_phantom_resized = torchvision.transforms.Resize((szx,szy),interpolation=3)(real_phantom_resized)
+        cutoff = 1e-12
+        real_phantom_resized[0,real_phantom_resized[0]<0]=0
+        real_phantom_resized[1,real_phantom_resized[1]<cutoff]=cutoff
+        real_phantom_resized[2,real_phantom_resized[2]<cutoff]=cutoff
+        real_phantom_resized = real_phantom_resized.detach().cpu().numpy().transpose(1,2,0)
             
         if plot==True:
             plt.figure("""phantom""")
