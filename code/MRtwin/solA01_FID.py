@@ -17,6 +17,7 @@ A01.6. alter event_time
 A01.7. uncomment FITTING BLOCK, fit signal, alter R2star, where does the deviation come from?
 
 """
+print(excercise)
 #%%
 #matplotlib.pyplot.close(fig=None)
 #%%
@@ -45,12 +46,9 @@ reload(core.scanner)
 double_precision = False
 do_scanner_query = False
 
-use_gpu = 1
+use_gpu = 0
 gpu_dev = 0
 
-if sys.platform != 'linux':
-    use_gpu = 0
-    gpu_dev = 0
 print(experiment_id)    
 print('use_gpu = ' +str(use_gpu)) 
 
@@ -102,67 +100,44 @@ NVox = sz[0]*sz[1]
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
-cutoff = 1e-12
-#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-#real_phantom = scipy.io.loadmat('../data/data/numerical_brain_cropped.mat')['cropped_brain']
-real_phantom = np.zeros((128,128,5), dtype=np.float32); 
-real_phantom[64:80,64:80,:]=np.array([1, 1, 0.1, 0,1])
+# either (i) load phantom (third dimension: PD, T1 T2 dB0 rB1)
+phantom = spins.get_phantom(sz[0],sz[1],type='object1')  # type='object1' or 'brain1'
 
-real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-for i in range(5):
-    t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_NEAREST)
-    if i == 0:
-        t[t < 0] = 0
-    elif i == 1 or i == 2:
-        t[t < cutoff] = cutoff        
-    real_phantom_resized[:,:,i] = t
-    
-real_phantom_resized[:,:,1] *= 1 # Tweak T1
-real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] += 0 # Tweak dB0
-real_phantom_resized[:,:,4] *= 1 # Tweak rB1
+# or (ii) set phantom  manually
+phantom = np.zeros((sz[0],sz[1],5), dtype=np.float32); 
+phantom[1,1,:]=np.array([1, 1, 0.1, 0, 1]) # third dimension: PD, T1 T2 dB0 rB1
 
-spins.set_system(real_phantom_resized)
+# adjust phantom
+phantom[:,:,1] *= 1 # Tweak T1
+phantom[:,:,2] *= 1 # Tweak T2
+phantom[:,:,3] += 0 # Tweak dB0
+phantom[:,:,4] *= 1 # Tweak rB1
 
-plt.figure("""phantom""")
-param=['PD','T1','T2','dB0','rB1']
-for i in range(5):
-    plt.subplot(151+i), plt.title(param[i])
-    ax=plt.imshow(real_phantom_resized[:,:,i], interpolation='none')
-    fig = plt.gcf()
-    fig.colorbar(ax) 
-fig.set_size_inches(18, 3)
-plt.show()
-   
-#begin nspins with R2* = 1/T2*
-R2star = 250.0
-omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
-omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
-omega*=0.99 # cutoff large freqs
-omega = R2star * np.tan ( np.pi  * omega)
-spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
-spins.omega = setdevice(spins.omega)
+if 1: # switch on for plot
+    plt.figure("""phantom"""); plt.clf();  param=['PD','T1 [s]','T2 [s]','dB0 [Hz]','rB1 [rel.]']
+    for i in range(5):
+        plt.subplot(151+i), plt.title(param[i])
+        ax=plt.imshow(phantom[:,:,i], interpolation='none')
+        fig = plt.gcf(); fig.colorbar(ax) 
+    fig.set_size_inches(18, 3); plt.show()
+
+spins.set_system(phantom,R2dash=250.0)  # set phantom variables with overall constant R2' = 1/T2'  (R2*=R2+R2')
+
 ## end of S1: Init spin system and phantom ::: #####################################
-
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
 scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
-
-B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
-B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
-B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
-B1plus[:] = 1
-scanner.B1plus = setdevice(B1plus)
+#scanner.set_B1plus(phantom[:,:,4])  # use as defined in phantom
+scanner.set_B1plus(1)               # overwriet with homogeneous excitation
 
 #############################################################################
 ## S3: MR sequence definition ::: #####################################
 # begin sequence definition
 # allow for extra events (pulses, relaxation and spoiling) in the first five and last two events (after last readout event)
-adc_mask = torch.from_numpy(np.ones((NEvnt,1))).float()
-adc_mask[:5]  = 0
-adc_mask[-2:] = 0
-scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
+adc_mask = torch.from_numpy(np.zeros((NEvnt,1))).float()
+adc_mask[5:-2]  = 1  # acqire data from event 5 to -2
+scanner.set_adc_mask(adc_mask)
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
@@ -170,7 +145,8 @@ rf_event[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 
 rf_event = setdevice(rf_event)  
 scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
-rfsign = ((rf_event[3,:,0]) < 0).float()
+# we want that the ADC phase follows the rf phase
+rfsign = ((rf_event[3,:,0]) < 0).float() # translate neg flips to pos flips with 180 deg phase shift.
 scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 

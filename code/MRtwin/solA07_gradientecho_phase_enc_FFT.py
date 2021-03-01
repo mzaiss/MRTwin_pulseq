@@ -32,6 +32,7 @@ A07.8. what happens if you change y to x gradient encoding
 A07.9. what happens if you use both x and y gradients?
 A07.10. decrease NRep.
 """
+print(excercise)
 #%%
 #matplotlib.pyplot.close(fig=None)
 #%%
@@ -118,47 +119,38 @@ NVox = sz[0]*szread
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
 
-cutoff = 1e-12
-#real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
-#real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
+# either (i) load phantom (third dimension: PD, T1 T2 dB0 rB1)
+phantom = spins.get_phantom(sz[0],sz[1],type='object1')  # type='object1' or 'brain1'
 
-real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
-real_phantom_resized[6,7,:]=np.array([1, 1, 0.1, 0,0])
-real_phantom_resized[4,3:5,:]=np.array([0.5, 1, 0.1, 0,0]) # two pixels make two frquencies visible
+# or (ii) set phantom  manually to single pixel phantom
+phantom = np.zeros((sz[0],sz[1],5), dtype=np.float32); 
+phantom[6,7,:]=np.array([1, 1, 0.1, 0,0])  # pixel 1,  third dimension: PD, T1 T2 dB0 rB1
+phantom[4,3:5,:]=np.array([0.5, 1, 0.1, 0,0]) # position 2 (two pixels)
 
-spins.set_system(real_phantom_resized)
 
-if 1:
-    plt.figure("""phantom""")
-    param=['PD','T1','T2','dB0','rB1']
+# adjust phantom
+phantom[:,:,1] *= 1 # Tweak T1
+phantom[:,:,2] *= 1 # Tweak T2
+phantom[:,:,3] += 0 # Tweak dB0
+phantom[:,:,4] *= 1 # Tweak rB1
+
+if 1: # switch on for plot
+    plt.figure("""phantom"""); plt.clf();  param=['PD','T1 [s]','T2 [s]','dB0 [Hz]','rB1 [rel.]']
     for i in range(5):
         plt.subplot(151+i), plt.title(param[i])
-        ax=plt.imshow(real_phantom_resized[:,:,i], interpolation='none')
-        fig = plt.gcf()
-        fig.colorbar(ax) 
-    fig.set_size_inches(18, 3)
-    plt.show()
-   
-#begin nspins with R2* = 1/T2*
-R2star = 30.0
-omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
-omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
-omega*=0.99 # cutoff large freqs
-omega = R2star * np.tan ( np.pi  * omega)
-spins.omega = torch.from_numpy(omega.reshape([NSpins,NVox])).float()
-spins.omega = setdevice(spins.omega)
-## end of S1: Init spin system and phantom ::: #####################################
+        ax=plt.imshow(phantom[:,:,i], interpolation='none')
+        fig = plt.gcf(); fig.colorbar(ax) 
+    fig.set_size_inches(18, 3); plt.show()
 
+spins.set_system(phantom,R2dash=30.0)  # set phantom variables with overall constant R2' = 1/T2'  (R2*=R2+R2')
+
+## end of S1: Init spin system and phantom ::: #####################################
 
 #############################################################################
 ## S2: Init scanner system ::: #####################################
 scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
-
-B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
-B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
-B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
-B1plus[:] = 1
-scanner.B1plus = setdevice(B1plus)
+#scanner.set_B1plus(phantom[:,:,4])  # use as defined in phantom
+scanner.set_B1plus(1)                # overwrite with homogeneous excitation       
 
 #############################################################################
 ## S3: MR sequence definition ::: #####################################
