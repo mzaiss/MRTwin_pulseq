@@ -12,9 +12,9 @@ excercise = """
 this file starts from solA04. we want now to have the same echo in every repetition
 A05.1. have the same rf_event, event times and gradmoms for every repetition, add recover time in last action as in A03
 A05.2. what is the recover time needed to have same echo amplitudes? is there a general rule for this? 
-A05.3. alter the position of the pixel in the image. what do you observe?
-A05.4. set a second pixel. What do you observe?
-A05.5. try transposition [4,:,:] and [:,4,:]. what do you observe?
+A05.3. alter the position of the pixel in the image in line 110. what do you observe?
+A05.4. set a second pixel (activate line 111). What do you observe?
+A05.5. try [8,:,:] and [:,8,:] in line 110. what do you observe?
 A05.6. instead of x gradient use a y gradient moment gradmom[:,:,1]
 """
 #%%
@@ -174,6 +174,22 @@ scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 scanner.forward(spins, event_time)
+  
+fig=plt.figure("""seq and signal"""); fig.set_size_inches(64, 7)
+plt.subplot(311); plt.title('seq: RF, time, ADC')
+plt.plot(np.tile(tonumpy(adc_mask),NRep).flatten('F'),'.',label='ADC')
+plt.plot(tonumpy(event_time).flatten('F'),'.',label='time')
+plt.plot(tonumpy(rf_event[:,:,0]).flatten('F'),label='RF')
+plt.legend()
+plt.subplot(312); plt.title('seq: gradients')
+plt.plot(tonumpy(gradm_event[:,:,0]).flatten('F'),label='gx')
+plt.plot(tonumpy(gradm_event[:,:,1]).flatten('F'),label='gy')
+plt.legend()
+plt.subplot(313); plt.title('signal')
+plt.plot(tonumpy(scanner.signal[0,:,:,0,0]).flatten('F'),label='real')
+plt.plot(tonumpy(scanner.signal[0,:,:,1,0]).flatten('F'),label='imag')
+plt.legend()
+plt.show()
 
 # sequence and signal plotting
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)

@@ -106,7 +106,7 @@ spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=do
 # either (i) load phantom (third dimension: PD, T1 T2 dB0 rB1)
 phantom = spins.get_phantom(sz[0],sz[1],type='object1')  # type='object1' or 'brain1'
 
-# or (ii) set phantom  manually to single pixel phantom
+# or (ii) set phantom  manually
 phantom = np.zeros((sz[0],sz[1],5), dtype=np.float32); 
 phantom[1,1,:]=np.array([1, 1, 0.1, 0, 1]) # third dimension: PD, T1 T2 dB0 rB1
 
@@ -122,18 +122,17 @@ if 1: # switch on for plot
         plt.subplot(151+i), plt.title(param[i])
         ax=plt.imshow(phantom[:,:,i], interpolation='none')
         fig = plt.gcf(); fig.colorbar(ax) 
-    fig.set_size_inches(12, 2); plt.show()
+    fig.set_size_inches(18, 3); plt.show()
 
 spins.set_system(phantom,R2dash=250.0)  # set phantom variables with overall constant R2' = 1/T2'  (R2*=R2+R2')
 
 ## end of S1: Init spin system and phantom ::: #####################################
 
-
 #############################################################################
 ## S2: Init scanner system ::: #####################################
 scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 #scanner.set_B1plus(phantom[:,:,4])  # use as defined in phantom
-scanner.set_B1plus(1)                # overwrite with homogeneous excitation 
+scanner.set_B1plus(1)               # overwriet with homogeneous excitation
 
 #############################################################################
 ## S3: MR sequence definition ::: #####################################
@@ -179,7 +178,7 @@ scanner.forward(spins, event_time)
 # sequence and signal plotting
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 #targetSeq.print_seq_pic(True,plotsize=[12,9])
-targetSeq.print_seq(plotsize=[12,9], time_axis=1)     
+# targetSeq.print_seq(plotsize=[12,9], time_axis=1)     
       
 fig=plt.figure("""signals""")
 ax1=plt.subplot(131)

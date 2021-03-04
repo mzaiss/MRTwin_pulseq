@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torchvision
+import cv2
 import scipy
 import scipy.io
 from  scipy import ndimage
@@ -72,7 +73,7 @@ class SpinSystem():
             
         return real_phantom_resized
 
-    def get_phantom_torch(self,szx,szy,type='object1',interpolation=3, plot=False): # type='object1'
+    def get_phantom_torch(self,szx,szy,type='object1',interpolation=cv2.INTER_CUBIC, plot=False): # type='object1'
         if type=='object1':
             real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
         elif type=='brain1':

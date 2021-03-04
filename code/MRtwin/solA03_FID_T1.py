@@ -15,6 +15,7 @@ A03.3. add flip event to create fresh FID signals for each acquisition
 A03.4. cover a full range of different Trec in one measurement from 0.1 to 3 s
 A03.5. uncomment FITTING BLOCK, fit signal, what is the recovery rate of the envelope, alter T1
 """
+print(excercise)
 #%%
 #matplotlib.pyplot.close(fig=None)
 #%%

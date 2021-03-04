@@ -1100,15 +1100,15 @@ def pulseq_write_EPI(seq_params, seq_fn, plot_seq=False):
         
 def append_header(seq_fn, FOV,slice_thickness):
     # append version and definitions
-    with open(r"\\141.67.249.47\MRTransfer\mrzero_src\.git\ORIG_HEAD") as file:
-        git_version = file.read()    
+    # with open(r"\\141.67.249.47\MRTransfer\mrzero_src\.git\ORIG_HEAD") as file:
+    #     git_version = file.read()    
     with open(seq_fn, 'r') as fin:
         lines = fin.read().splitlines(True)
 
     updated_lines = []
     updated_lines.append("# Pulseq sequence file\n")
     updated_lines.append("# Created by MRIzero/IMR/GPI pulseq converter\n")
-    updated_lines.append('# MRZero Version: 0.5, git hash: ' + git_version)
+    # updated_lines.append('# MRZero Version: 0.5, git hash: ' + git_version)
     updated_lines.append("# experiment_id: "+seq_fn.split('\\')[-2]+"\n")
     updated_lines.append('#' + seq_fn + "\n")
     updated_lines.append("\n")

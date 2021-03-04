@@ -17,7 +17,6 @@ A01.6. alter event_time
 A01.7. uncomment FITTING BLOCK, fit signal, alter R2star, where does the deviation come from?
 
 """
-print(excercise)
 #%%
 #matplotlib.pyplot.close(fig=None)
 #%%
@@ -46,9 +45,12 @@ reload(core.scanner)
 double_precision = False
 do_scanner_query = False
 
-use_gpu = 0
+use_gpu = 1
 gpu_dev = 0
 
+if sys.platform != 'linux':
+    use_gpu = 0
+    gpu_dev = 0
 print(experiment_id)    
 print('use_gpu = ' +str(use_gpu)) 
 
@@ -135,9 +137,10 @@ scanner.set_B1plus(1)               # overwriet with homogeneous excitation
 ## S3: MR sequence definition ::: #####################################
 # begin sequence definition
 # allow for extra events (pulses, relaxation and spoiling) in the first five and last two events (after last readout event)
-adc_mask = torch.from_numpy(np.zeros((NEvnt,1))).float()
-adc_mask[5:-2]  = 1  # acqire data from event 5 to -2
-scanner.set_adc_mask(adc_mask)
+adc_mask = torch.from_numpy(np.ones((NEvnt,1))).float()
+adc_mask[:5]  = 0
+adc_mask[-2:] = 0
+scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
@@ -145,8 +148,7 @@ rf_event[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 
 rf_event = setdevice(rf_event)  
 scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
-# we want that the ADC phase follows the rf phase
-rfsign = ((rf_event[3,:,0]) < 0).float() # translate neg flips to pos flips with 180 deg phase shift.
+rfsign = ((rf_event[3,:,0]) < 0).float()
 scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
 
 # event timing vector 

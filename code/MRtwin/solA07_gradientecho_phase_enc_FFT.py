@@ -127,6 +127,7 @@ phantom = np.zeros((sz[0],sz[1],5), dtype=np.float32);
 phantom[6,7,:]=np.array([1, 1, 0.1, 0,0])  # pixel 1,  third dimension: PD, T1 T2 dB0 rB1
 phantom[4,3:5,:]=np.array([0.5, 1, 0.1, 0,0]) # position 2 (two pixels)
 
+spins.set_system(real_phantom_resized)
 
 # adjust phantom
 phantom[:,:,1] *= 1 # Tweak T1
