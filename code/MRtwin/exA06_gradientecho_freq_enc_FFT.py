@@ -17,7 +17,7 @@ A06.3. to separate different frequencies, perform a fourier transform of the sig
 A06.4. compare your result to the upsampled phantom:
     
         plt.subplot(313); plt.title('phantom projection')
-        t = cv2.resize(real_phantom_resized[:,:,0], dsize=(sz[0],szread), interpolation=cv2.INTER_NEAREST)
+        t = cv2.resize(phantom[:,:,0], dsize=(sz[0],szread), interpolation=cv2.INTER_NEAREST)
         t=np.flipud(np.roll(t,-szread//sz[1]//2+1,0))  # this is needed due to the oversampling of the phantom, szread>sz
         plt.plot(np.sum(t,axis=1).flatten('F'),label='real')
         plt.show()  

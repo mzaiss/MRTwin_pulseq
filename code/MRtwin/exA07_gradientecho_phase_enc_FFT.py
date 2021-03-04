@@ -23,7 +23,7 @@ A07.6. Perform the fourier transfor along the other axis, the NRep axis, loop ov
 A07.7. compare your result to the upsampled phantom:
     
         plt.subplot(313); plt.title('phantom projection')
-        t = cv2.resize(real_phantom_resized[:,:,0], dsize=(NRep,sz[1]), interpolation=cv2.INTER_NEAREST)
+        t = cv2.resize(phantom[:,:,0], dsize=(NRep,sz[1]), interpolation=cv2.INTER_NEAREST)
         t=np.fliplr(np.roll(t,-NRep//sz[1]//2+1,1))  # this is needed due to the oversampling of the phantom, szread>sz
         plt.plot(np.sum(t,axis=0).flatten('F'),label='proj0')  
         plt.show()   

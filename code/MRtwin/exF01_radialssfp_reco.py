@@ -121,7 +121,7 @@ phantom = spins.get_phantom(sz[0],sz[1],type='object1')  # type='object1' or 'br
 # adjust phantom
 phantom[:,:,1] *= 1 # Tweak T1
 phantom[:,:,2] *= 1 # Tweak T2
-phantom[:,:,3] += 0 # Tweak dB0
+phantom[:,:,3] *= 0 # Tweak dB0
 phantom[:,:,4] *= 1 # Tweak rB1
 
 if 1: # switch on for plot
@@ -291,9 +291,9 @@ if 0:
 targetSeq.print_seq(plotsize=[12,9])
       
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
+plt.imshow(phantom[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
+plt.imshow(phantom[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,21)
 plt.imshow(np.abs(spectrum_adc).transpose(), interpolation='none'); plt.xlabel('spectrum')
 plt.subplot(4,6,22)
@@ -344,12 +344,12 @@ def updateData(k_space, pattern, current, step):
 np.random.seed(0)
 recon = (np.fft.fftshift(np.fft.fft2(kspace_orig)))
 pattern = np.random.random_sample(kspace.shape)
-percent = 0.75  # this is the data that is *not* measured
+percent = 0.65  # this is the data that is *not* measured
 low_values_indices = pattern <= percent  # Where values are low
 high_values_indices = pattern > percent  # Where values are high
 pattern[low_values_indices] = 0  # All low values set to 0
 pattern[high_values_indices] = 1  # All high values set to 1
-margin = 2
+margin = 5
 pattern[sz[0]//2-margin:sz[0]//2+margin,sz[0]//2-margin:sz[0]//2+margin] = 1
 pattern = np.fft.fftshift(pattern)
 

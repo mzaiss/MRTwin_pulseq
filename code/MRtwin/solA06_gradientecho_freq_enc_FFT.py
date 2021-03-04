@@ -17,7 +17,7 @@ A06.3. to separate different frequencies, perform a fourier transform of the sig
 A06.4. compare your result to the upsampled phantom:
     
         plt.subplot(313); plt.title('phantom projection')
-        t = cv2.resize(real_phantom_resized[:,:,0], dsize=(sz[0],szread), interpolation=cv2.INTER_NEAREST)
+        t = cv2.resize(phantom[:,:,0], dsize=(sz[0],szread), interpolation=cv2.INTER_NEAREST)
         t=np.flipud(np.roll(t,-szread//sz[1]//2+1,0))  # this is needed due to the oversampling of the phantom, szread>sz
         plt.plot(np.sum(t,axis=1).flatten('F'),label='real')
         plt.show()  
@@ -122,7 +122,7 @@ phantom = np.zeros((sz[0],sz[1],5), dtype=np.float32);
 phantom[6,7,:]=np.array([1, 1, 0.1, 0,0])  # pixel 1,  third dimension: PD, T1 T2 dB0 rB1
 phantom[4,3:5,:]=np.array([0.5, 1, 0.1, 0,0]) # position 2 (two pixels)
 
-spins.set_system(real_phantom_resized)
+spins.set_system(phantom)
 
 # adjust phantom
 phantom[:,:,1] *= 1 # Tweak T1
@@ -226,13 +226,13 @@ plt.plot(np.imag(space.flatten('F')))
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
 
 plt.subplot(313); plt.title('phantom projection')
-t = cv2.resize(real_phantom_resized[:,:,0], dsize=(sz[0],szread), interpolation=cv2.INTER_NEAREST)
+t = cv2.resize(phantom[:,:,0], dsize=(sz[0],szread), interpolation=cv2.INTER_NEAREST)
 t=np.flipud(np.roll(t,-szread//sz[1]//2+1,0))  # this is needed due to the oversampling of the phantom, szread>sz
 plt.plot(np.sum(t,axis=1).flatten('F'),label='proj1')
 plt.show()    
 
 #plt.subplot(313); plt.title('phantom projection')
-#t = cv2.resize(real_phantom_resized[:,:,0], dsize=(szread,sz[1]), interpolation=cv2.INTER_NEAREST)
+#t = cv2.resize(phantom[:,:,0], dsize=(szread,sz[1]), interpolation=cv2.INTER_NEAREST)
 #t=np.fliplr(np.roll(t,-szread//sz[1]//2+1,1))  # this is needed due to the oversampling of the phantom, szread>sz
 #plt.plot(np.sum(t,axis=0).flatten('F'),label='proj0')  
 #plt.show()               

@@ -215,9 +215,9 @@ space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
+plt.imshow(phantom[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
+plt.imshow(phantom[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,21)# plot the kspace as an image, lowest ferquency should be in the center
 plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('k-space')
 #plt.subplot(3,6,22)

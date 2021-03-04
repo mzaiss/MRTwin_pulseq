@@ -285,9 +285,9 @@ if 0:
 targetSeq.print_seq(plotsize=[12,9])
       
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
+plt.imshow(phantom[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
+plt.imshow(phantom[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,21)
 plt.imshow(np.abs(spectrum_adc).transpose(), interpolation='none'); plt.xlabel('spectrum')
 plt.subplot(4,6,22)

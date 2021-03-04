@@ -228,7 +228,7 @@ plt.plot(np.imag(space.flatten('F')))
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
             
 plt.subplot(337)
-plt.imshow(np.flipud(np.fliplr(real_phantom_resized[:,:,0])), interpolation='none')
+plt.imshow(np.flipud(np.fliplr(phantom[:,:,0])), interpolation='none')
 
 space = np.fft.ifft2(spectrum)
 space = np.roll(space,szread//2-1,axis=0)

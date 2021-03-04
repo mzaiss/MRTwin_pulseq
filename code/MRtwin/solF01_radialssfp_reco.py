@@ -92,7 +92,7 @@ def setdevice(x):
 sz = np.array([48,48])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-turbo=8
+turbo=4
 NRep = int(NRep/turbo)
 
 szread=sz[1]
@@ -119,7 +119,7 @@ phantom = spins.get_phantom(sz[0],sz[1],type='object1')  # type='object1' or 'br
 # adjust phantom
 phantom[:,:,1] *= 1 # Tweak T1
 phantom[:,:,2] *= 1 # Tweak T2
-phantom[:,:,3] += 0 # Tweak dB0
+phantom[:,:,3] *= 0 # Tweak dB0
 phantom[:,:,4] *= 1 # Tweak rB1
 
 if 1: # switch on for plot
@@ -152,10 +152,9 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
-rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[2,0,0] = 5*np.pi/180  # 90deg excitation now for every rep
-rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[3,:,0] = 10*np.pi/180  # 90deg excitation now for every rep
+rf_event[2,0,0] = 2.5*np.pi/180  # 90deg excitation now for every rep
+rf_event[2,0,1] = 180*np.pi/180  # 180 deg phase
+rf_event[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
 
 alternate= torch.tensor([0,1])
 rf_event[3,:,1]=np.pi*alternate.repeat(NRep//2)
@@ -171,9 +170,8 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID sp
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
-event_time[1,0] =  3
-event_time[2,0] =  0.002*0.5  
-event_time[-1,:] =  0.002
+event_time[2,0] =  0.0002*0.5  
+event_time[-1,:] =  0.0002
 event_time = setdevice(event_time)
 TA = tonumpy(torch.sum(event_time))
 # gradient-driver precession
@@ -301,9 +299,9 @@ if 0:
 targetSeq.print_seq(plotsize=[12,9])
       
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
+plt.imshow(phantom[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
+plt.imshow(phantom[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 plt.subplot(4,6,21)
 plt.imshow(np.abs(spectrum_adc).transpose(), interpolation='none'); plt.xlabel('spectrum')
 plt.subplot(4,6,22)
@@ -314,7 +312,7 @@ plt.subplot(4,6,24)
 plt.imshow(np.angle(space).transpose(), interpolation='none'); plt.xlabel('phase_img')
 plt.show()                       
 
-kspace_orig = kspace
+kspace_nufft = kspace
 
 #%% ############################################################################
 ## S6: compressed sensing MR reconstruction of undersampled signal ::: #####################################
@@ -352,7 +350,7 @@ def updateData(k_space, pattern, current, step):
 
 #%%
 np.random.seed(0)
-recon = (np.fft.fftshift(np.fft.fft2(kspace_orig)))
+recon_nufft = (np.fft.fftshift(np.fft.fft2(kspace_nufft)))
 pattern = np.random.random_sample(kspace.shape)
 percent = 0.8  # this is the data that is *not* measured
 low_values_indices = pattern <= percent  # Where values are low
@@ -365,7 +363,7 @@ pattern = np.fft.fftshift(pattern)
 
 pattern=pattern_resampled  # this is from the real acquisition
 
-kspace = kspace_orig *pattern_resampled
+kspace = kspace_nufft *pattern_resampled
 
 np.sum(pattern>0)/np.sum(pattern>=0)  # percentage of used data
 
@@ -394,7 +392,7 @@ pattern_vis = np.fft.fftshift(pattern * 256)
 fig=plt.figure(dpi=90)
 plt.subplot(321)
 plt.set_cmap(plt.gray())
-plt.imshow(abs(recon)); plt.ylabel('recon')
+plt.imshow(abs(recon_nufft)); plt.ylabel('recon_nufft')
 plt.subplot(322)
 plt.set_cmap(plt.gray())
 plt.imshow(abs(pattern_vis)); plt.ylabel('pattern_vis')
@@ -406,7 +404,7 @@ plt.set_cmap(plt.gray())
 plt.imshow(abs(current_shrink)) ; plt.ylabel('final recon')
 plt.subplot(324)
 plt.set_cmap(plt.gray())
-plt.imshow(np.log(1+abs(np.fft.fftshift(kspace_orig)))); plt.ylabel('kspace')
+plt.imshow(np.log(1+abs(np.fft.fftshift(kspace_nufft)))); plt.ylabel('kspace_nufft')
 plt.subplot(326)
 plt.set_cmap(plt.gray())
 plt.imshow(np.log(1+abs(np.fft.fftshift((kspace))))); plt.ylabel('kspace*pattern')

@@ -117,30 +117,30 @@ cutoff = 1e-12
 #real_phantom = scipy.io.loadmat('../../data/phantom2D.mat')['phantom_2D']
 real_phantom = scipy.io.loadmat('../../data/numerical_brain_cropped.mat')['cropped_brain']
 
-real_phantom_resized = np.zeros((sz[0],sz[1],5), dtype=np.float32)
+phantom = np.zeros((sz[0],sz[1],5), dtype=np.float32)
 for i in range(5):
     t = cv2.resize(real_phantom[:,:,i], dsize=(sz[0],sz[1]), interpolation=cv2.INTER_CUBIC)
     if i == 0:
         t[t < 0] = 0
     elif i == 1 or i == 2:
         t[t < cutoff] = cutoff        
-    real_phantom_resized[:,:,i] = t
+    phantom[:,:,i] = t
     
 
     
-real_phantom_resized[:,:,1] *= 1 # Tweak T1
-real_phantom_resized[:,:,2] *= 1 # Tweak T2
-real_phantom_resized[:,:,3] *= 1 # Tweak dB0
-real_phantom_resized[:,:,4] *= 1 # Tweak rB1
+phantom[:,:,1] *= 1 # Tweak T1
+phantom[:,:,2] *= 1 # Tweak T2
+phantom[:,:,3] *= 1 # Tweak dB0
+phantom[:,:,4] *= 1 # Tweak rB1
 
-spins.set_system(real_phantom_resized)
+spins.set_system(phantom)
 
 if 0:
     plt.figure("""phantom""")
     param=['PD','T1','T2','dB0','rB1']
     for i in range(5):
         plt.subplot(151+i), plt.title(param[i])
-        ax=plt.imshow(real_phantom_resized[:,:,i], interpolation='none')
+        ax=plt.imshow(phantom[:,:,i], interpolation='none')
         fig = plt.gcf()
         fig.colorbar(ax) 
     fig.set_size_inches(18, 3)
@@ -162,7 +162,7 @@ spins.omega = setdevice(spins.omega)
 scanner = core.scanner.Scanner(sz,NVox,NSpins,NRep,NEvnt,NCoils,noise_std,use_gpu+gpu_dev,double_precision=double_precision)
 
 B1plus = torch.zeros((scanner.NCoils,1,scanner.NVox,1,1), dtype=torch.float32)
-B1plus[:,0,:,0,0] = torch.from_numpy(real_phantom_resized[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
+B1plus[:,0,:,0,0] = torch.from_numpy(phantom[:,:,4].reshape([scanner.NCoils, scanner.NVox]))
 B1plus[B1plus == 0] = 1    # set b1+ to one, where we dont have phantom measurements
 B1plus[:] = 1
 scanner.B1plus = setdevice(B1plus)
@@ -267,9 +267,9 @@ space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
+plt.imshow(phantom[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
+plt.imshow(phantom[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 
 plt.subplot(4,6,22)
 plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')

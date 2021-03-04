@@ -115,7 +115,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                   # number of total repetitions
 szread=sz[1]
 NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 16**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = True                     # kills transverse when above 1.5 k.-spaces
@@ -198,8 +198,8 @@ gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 gradm_event[4,:,1] = -0.5*szread
 gradm_event[5:-2,:,1] = 1
 gradm_event[-2,:,1] = -0.5*szread # readback
-#gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2  #phaseblip
-#gradm_event[-2,:,0] = -gradm_event[4,:,0]            #phasebackblip
+gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2  #phaseblip
+gradm_event[-2,:,0] = -gradm_event[4,:,0]            #phasebackblip
 
 
 
@@ -250,9 +250,9 @@ space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
+plt.imshow(phantom[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
+plt.imshow(phantom[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 
 plt.subplot(4,6,21)
 plt.imshow(np.abs(spectrum_adc).transpose(), interpolation='none'); plt.xlabel('spectrum/signal')

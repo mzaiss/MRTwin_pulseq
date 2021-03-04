@@ -181,9 +181,9 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
-event_time[3,:] =  2.0*1e-3
-event_time[4,:] =  0.5*1e-3
-event_time[-2,:] =  0.01
+#event_time[3,:] =  2.0*1e-3
+#event_time[4,:] =  0.5*1e-3
+#event_time[-2,:] =  0.01
 event_time = setdevice(event_time)
 
 # define sequence timings, TE/TR/TA
@@ -240,9 +240,9 @@ space = np.roll(space,NRep//2-1,axis=1)
 space = np.flip(space,(0,1))
        
 plt.subplot(4,6,19)
-plt.imshow(real_phantom_resized[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
+plt.imshow(phantom[:,:,0].transpose(), interpolation='none'); plt.xlabel('PD')
 plt.subplot(4,6,20)
-plt.imshow(real_phantom_resized[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
+plt.imshow(phantom[:,:,3].transpose(), interpolation='none'); plt.xlabel('dB0')
 
 plt.subplot(4,6,22)
 plt.imshow(np.abs(kspace).transpose(), interpolation='none'); plt.xlabel('kspace')
