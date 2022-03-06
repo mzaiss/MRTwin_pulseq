@@ -375,12 +375,20 @@ early_shrink = first
 current_shrink=first
 
 i = 0
-while i < 3000:
-	current = updateData(kspace, pattern, current_shrink, 0.1)
-	#current_shrink = current
-	#current_shrink = waveletShrinkage(current, .5)
-	current_shrink = denoise_tv_chambolle(abs(current), 0.1, 2.e-5, 100)
-	i = i + 1
+while i < 300:
+    current = updateData(kspace, pattern, current_shrink, 0.1)
+    #current_shrink = current
+    
+    if 0:
+        # set the threshold for haar_wavelet
+        m = np.sort(abs(current.ravel()))
+        ndx = np.floor(len(m) * 0.01 / 100).astype(int)
+        th = m[ndx]
+        # th = 0.0105    
+        current_shrink = waveletShrinkage(abs(current),th)
+    else:
+        current_shrink = denoise_tv_chambolle(abs(current), 0.1, 2.e-5, 100)
+    i = i + 1
 #current = updateData(kspace, current, 0.1)
 
 # todo:

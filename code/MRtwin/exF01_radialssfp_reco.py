@@ -37,8 +37,6 @@ import core.target_seq_holder
 import warnings
 import matplotlib.cbook
 import pywt
-#import pyconrad
-
 from skimage.restoration import denoise_tv_chambolle
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
@@ -154,10 +152,9 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
-rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[2,0,0] = 5*np.pi/180  # 90deg excitation now for every rep
-rf_event[2,0,1] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[3,:,0] = 10*np.pi/180  # 90deg excitation now for every rep
+rf_event[2,0,0] = 2.5*np.pi/180  # 90deg excitation now for every rep
+rf_event[2,0,1] = 180*np.pi/180  # 180 deg phase
+rf_event[3,:,0] = 5*np.pi/180  # 90deg excitation now for every rep
 
 alternate= torch.tensor([0,1])
 rf_event[3,:,1]=np.pi*alternate.repeat(NRep//2)
@@ -173,9 +170,8 @@ scanner.set_ADC_rot_tensor(-rf_event[3,:,1]+ np.pi/2 + np.pi*rfsign) #GRE/FID sp
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
-event_time[1,0] =  3
-event_time[2,0] =  0.002*0.5  
-event_time[-1,:] =  0.002
+event_time[2,0] =  0.0002*0.5  
+event_time[-1,:] =  0.0002
 event_time = setdevice(event_time)
 TA = tonumpy(torch.sum(event_time))
 # gradient-driver precession
@@ -214,7 +210,7 @@ if False: # radial trajectory?
 
 
 scanner.init_gradient_tensor_holder()
-scanner.set_gradient_precession_tensor(gradm_event,sequence_class)  # refocusing=False for GRE/FID, adjust for higher echoes
+scanner.set_gradient_precession_tensor_super(gradm_event,rf_event)   # refocusing=False for GRE/FID, adjust for higher echoes
 ## end S3: MR sequence definition ::: #####################################
 
 
@@ -338,18 +334,18 @@ def updateData(k_space, pattern, current, step):
 	# return to image space
 	update = np.fft.fftshift(np.fft.fft2(update))
 	update = current + (step * update)
-	return update
+	return abs(update)
 
 #%%
 np.random.seed(0)
 recon = (np.fft.fftshift(np.fft.fft2(kspace_orig)))
 pattern = np.random.random_sample(kspace.shape)
-percent = 0.65  # this is the data that is *not* measured
+percent = 0.6  # this is the data that is *not* measured
 low_values_indices = pattern <= percent  # Where values are low
 high_values_indices = pattern > percent  # Where values are high
 pattern[low_values_indices] = 0  # All low values set to 0
 pattern[high_values_indices] = 1  # All high values set to 1
-margin = 5
+margin = 4
 pattern[sz[0]//2-margin:sz[0]//2+margin,sz[0]//2-margin:sz[0]//2+margin] = 1
 pattern = np.fft.fftshift(pattern)
 
@@ -364,11 +360,19 @@ current_shrink=first
 
 i = 0
 while i < 3000:
-	current = updateData(kspace, pattern, current_shrink, 0.1)
-	#current_shrink = current
-	#current_shrink = waveletShrinkage(current, .5)
-	current_shrink = denoise_tv_chambolle(abs(current), 0.1, 2.e-5, 100)
-	i = i + 1
+    current = updateData(kspace, pattern, current_shrink, 0.1)
+    #current_shrink = current
+    
+    if 0:
+        # set the threshold for haar_wavelet
+        m = np.sort(abs(current.ravel()))
+        ndx = np.floor(len(m) * 0.01 / 100).astype(int)
+        th = m[ndx]
+        # th = 0.0105    
+        current_shrink = waveletShrinkage(abs(current),th)
+    else:
+        current_shrink = denoise_tv_chambolle(abs(current), 0.1, 2.e-5, 100)
+    i = i + 1
 #current = updateData(kspace, current, 0.1)
 
 # todo:
