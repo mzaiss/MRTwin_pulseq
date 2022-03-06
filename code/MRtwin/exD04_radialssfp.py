@@ -90,7 +90,7 @@ def setdevice(x):
 sz = np.array([32,32])                      # image size
 extraMeas = 1                               # number of measurmenets/ separate scans
 NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 32
+NRep = 16
 szread=sz[1]
 NEvnt = szread + 5 + 2                          # number of events F/R/P
 NSpins = 16**2                              # number of spin sims in each voxel
@@ -218,7 +218,7 @@ if 1: # NUFFT
     grid = scanner.kspace_loc[adc_idx,:,:]
     NCol=adc_idx.size
     
-    X, Y = np.meshgrid(np.linspace(0,NCol-1,NCol) - NCol / 2, np.linspace(0,NRep-1,NRep) - NRep/2)
+    X, Y = np.meshgrid(np.linspace(0,NCol-1,NCol) - NCol / 2, np.linspace(0,sz[0]-1,sz[0]) - sz[0]/2)
     grid = np.double(grid.detach().cpu().numpy())
     grid[np.abs(grid) < 1e-5] = 0
     
