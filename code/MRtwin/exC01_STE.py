@@ -137,7 +137,7 @@ if 1: # switch on for plot
         fig = plt.gcf(); fig.colorbar(ax) 
     fig.set_size_inches(18, 3); plt.show()
 
-spins.set_system(phantom,R2dash=30.0)  # set phantom variables with overall constant R2' = 1/T2'  (R2*=R2+R2')
+spins.set_system(phantom,R2dash=300.0)  # set phantom variables with overall constant R2' = 1/T2'  (R2*=R2+R2')
 
 ## end of S1: Init spin system and phantom ::: #####################################
 
@@ -179,8 +179,8 @@ event_time = setdevice(event_time)
 # gradient-driver precession
 # Cartesian encoding
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
-#gradm_event[-1,0,0] =  20
-gradm_event[4,1,0] =  20
+# gradm_event[-1,0,0] =  20
+# gradm_event[4,1,0] =  20
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()
