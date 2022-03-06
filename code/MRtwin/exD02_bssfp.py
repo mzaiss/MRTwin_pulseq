@@ -115,7 +115,7 @@ extraMeas = 1                               # number of measurmenets/ separate s
 NRep = extraMeas*sz[1]                   # number of total repetitions
 szread=sz[1]
 NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 26**2                               # number of spin sims in each voxel
+NSpins = 18**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = True                     # kills transverse when above 1.5 k.-spaces
@@ -199,7 +199,7 @@ if 0: # centric
     permvec[0] = 0
     for i in range(1,int(NRep/2)+1):
         permvec[i*2-1] = (-i)
-        if i < NRep/2:
+        if i < NRep//2:
             permvec[i*2] = i
     permvec=permvec+NRep//2     # centric out reordering
     gradm_event[4,:,0]=gradm_event[4,permvec,0]
@@ -221,7 +221,7 @@ scanner.forward_fast(spins, event_time)
 
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
-targetSeq.print_seq(plotsize=[12,9])
+targetSeq.print_seq(plotsize=[12,9], time_axis=0)
   
 #%% ############################################################################
 ## S5: MR reconstruction of signal ::: #####################################
