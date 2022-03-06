@@ -110,21 +110,6 @@ NVox = sz[0]*szread
 
 
 #############################################################################
-## S0: define image and simulation settings::: #####################################
-sz = np.array([12,12])                      # image size
-extraMeas = 1                               # number of measurmenets/ separate scans
-NRep = extraMeas*sz[1]                      # number of total repetitions
-NRep = 8                                  # number of total repetitions
-szread=128
-NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 16**2                               # number of spin sims in each voxel
-NCoils = 1                                  # number of receive coil elements
-noise_std = 0*1e-3                          # additive Gaussian noise std
-kill_transverse = False                     #
-import time; today_datestr = time.strftime('%y%m%d')
-NVox = sz[0]*sz[1]
-
-#############################################################################
 ## S1: Init spin system and phantom::: #####################################
 # initialize scanned object
 spins = core.spins.SpinSystem(sz,NVox,NSpins,use_gpu+gpu_dev,double_precision=double_precision)
@@ -212,7 +197,7 @@ scanner.forward(spins, event_time)
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 #targetSeq.print_seq_pic(True,plotsize=[12,9])
 #targetSeq.print_seq(plotsize=[12,9])
-targetSeq.print_seq(plotsize=[12,9], time_axis=1)
+targetSeq.print_seq(plotsize=[12,9], time_axis=0)
 
 
 #%% ############################################################################
