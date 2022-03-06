@@ -29,7 +29,7 @@ import scipy.io
 from  scipy import ndimage
 from scipy.optimize import curve_fit
 import torch
-import cv2
+
 import matplotlib.pyplot as plt
 from torch import optim
 import core.spins
@@ -138,7 +138,15 @@ scanner.set_B1plus(1)                # overwrite with homogeneous excitation
 
 #############################################################################
 ## S3: MR sequence definition ::: #####################################
-# begin sequence definition
+# begin sequence definition 
+# short docu:
+# adc_mask , shape: [Nevent] : tensor indicating in which events signal is acquired
+# scanner.set_ADC_rot_tensor , shape: [NRep] : tensor of phase of ADC in each repetition
+# all following tensors have at least one entry for every event in each repetition [NEvent,Nrep,X]
+# rf_event, shape [NEvent,NRep,4] : tensor of radiofrequency events with 3rd dim: [0:flip angle, 1:phase angle, 2:frequency, 3: usage (0:global,1:excite/2:refocus)]
+# event_time, shape [NEvent,NRep] : tensor of event_times in s
+# gradm_event, shape [NEvent,NRep,2] : tensor of gradient moment events with 3rd dim: [0: gradient in x, 1:gradient in y]
+
 # allow for extra events (pulses, relaxation and spoiling) in the first five and last two events (after last readout event)
 adc_mask = torch.from_numpy(np.ones((NEvnt,1))).float()
 adc_mask[:5]  = 0
@@ -146,7 +154,7 @@ adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
 rf_event[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
@@ -191,27 +199,27 @@ plt.ion()
 
 plt.show()
                         
-#%%  FITTING BLOCK
-tfull=np.cumsum(tonumpy(event_time).transpose().ravel())
-yfull=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
-idx=tonumpy(scanner.signal[0,:,:,0,0]).transpose().argmax(1)
-idx=idx + np.linspace(0,(NRep-1)*len(event_time[:,0]),NRep,dtype=np.int64)
-t=tfull[idx]
-y=yfull[idx]
-def fit_func(t, a, R,c):
-    return a*np.exp(-R*t) + c   
+# #%%  FITTING BLOCK
+# tfull=np.cumsum(tonumpy(event_time).transpose().ravel())
+# yfull=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
+# idx=tonumpy(scanner.signal[0,:,:,0,0]).transpose().argmax(1)
+# idx=idx + np.linspace(0,(NRep-1)*len(event_time[:,0]),NRep,dtype=np.int64)
+# t=tfull[idx]
+# y=yfull[idx]
+# def fit_func(t, a, R,c):
+#     return a*np.exp(-R*t) + c   
 
-p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
-print(p[0][1])
+# p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
+# print(p[0][1])
 
-fig=plt.figure("""fit""")
-ax1=plt.subplot(131)
-ax=plt.plot(tfull,yfull,label='fulldata')
-ax=plt.plot(t,y,label='data')
-plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
-plt.title('fit')
-plt.legend()
-plt.ion()
+# fig=plt.figure("""fit""")
+# ax1=plt.subplot(131)
+# ax=plt.plot(tfull,yfull,label='fulldata')
+# ax=plt.plot(t,y,label='data')
+# plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
+# plt.title('fit')
+# plt.legend()
+# plt.ion()
 
-plt.show()
+# plt.show()
             

@@ -10,7 +10,6 @@ Python is free to download and is available on all types of operating systems. W
 In addition to python some extension packages are required like Pytorch. install them by using the following commands  
 						
 
- - pip install opencv-python
  -pip install termcolor
  -pip install nevergrad
  -for pytorch find your correct command here: https://pytorch.org/   

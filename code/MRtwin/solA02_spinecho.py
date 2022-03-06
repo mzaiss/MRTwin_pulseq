@@ -28,7 +28,7 @@ import scipy.io
 from  scipy import ndimage
 from scipy.optimize import curve_fit
 import torch
-import cv2
+
 import matplotlib.pyplot as plt
 from torch import optim
 import core.spins
@@ -136,7 +136,15 @@ scanner.set_B1plus(1)               # overwriet with homogeneous excitation
 
 #############################################################################
 ## S3: MR sequence definition ::: #####################################
-# begin sequence definition
+# begin sequence definition 
+# short docu:
+# adc_mask , shape: [Nevent] : tensor indicating in which events signal is acquired
+# scanner.set_ADC_rot_tensor , shape: [NRep] : tensor of phase of ADC in each repetition
+# all following tensors have at least one entry for every event in each repetition [NEvent,Nrep,X]
+# rf_event, shape [NEvent,NRep,4] : tensor of radiofrequency events with 3rd dim: [0:flip angle, 1:phase angle, 2:frequency, 3: usage (0:global,1:excite/2:refocus)]
+# event_time, shape [NEvent,NRep] : tensor of event_times in s
+# gradm_event, shape [NEvent,NRep,2] : tensor of gradient moment events with 3rd dim: [0: gradient in x, 1:gradient in y]
+
 # allow for extra events (pulses, relaxation and spoiling) in the first five and last two events (after last readout event)
 adc_mask = torch.from_numpy(np.ones((NEvnt,1))).float()
 adc_mask[:5]  = 0
@@ -144,7 +152,7 @@ adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
 rf_event[3,0,0] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 rf_event[3,0,1] = 90*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 
 rf_event[3,1:,0] = 180*np.pi/180  # GRE/FID specific, GRE preparation part 1 : 90 degree excitation 

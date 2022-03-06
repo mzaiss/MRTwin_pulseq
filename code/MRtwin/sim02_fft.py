@@ -6,7 +6,7 @@ import scipy
 import scipy.io
 from  scipy import ndimage
 import torch
-import cv2
+
 import matplotlib.pyplot as plt
 from torch import optim
 import core.spins
