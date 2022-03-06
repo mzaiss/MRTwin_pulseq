@@ -214,11 +214,14 @@ space = np.zeros_like(spectrum)
 spectrum = np.roll(spectrum,szread//2,axis=0)
 spectrum = np.roll(spectrum,NRep//2,axis=1)
 
-for i in range(0,NRep):
-    space[:,i] = np.fft.ifft(spectrum[:,i])
+if 1:
+	for i in range(0,NRep):
+	    space[:,i] = np.fft.ifft(spectrum[:,i])
     
-for i in range(0,szread):
-    space[i,:] = np.fft.ifft(space[i,:])
+	for i in range(0,szread):
+	    space[i,:] = np.fft.ifft(space[i,:])
+else
+	space=np.fft.ifft2(spectrum)
 # fftshift
 space= np.roll(space,szread//2-1,axis=0)
 space = np.roll(space,NRep//2-1,axis=1)

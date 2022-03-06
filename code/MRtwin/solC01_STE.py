@@ -104,7 +104,7 @@ NRep = extraMeas*sz[1]                      # number of total repetitions
 NRep = 3                                    # number of total repetitions
 szread=128
 NEvnt = szread + 5 + 2                               # number of events F/R/P
-NSpins = 36**2                               # number of spin sims in each voxel
+NSpins = 24**2                               # number of spin sims in each voxel
 NCoils = 1                                  # number of receive coil elements
 noise_std = 0*1e-3                          # additive Gaussian noise std
 kill_transverse = False                     #
@@ -173,7 +173,7 @@ scanner.set_ADC_rot_tensor(-rf_event[3,0,1] + np.pi/2 + np.pi*rfsign) #GRE/FID s
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
 event_time[:,0] =  0.04*1e-3
-event_time[:,1] =  0.06*1e-3
+event_time[:,1] =  0.16*1e-3
 event_time*=5
 #event_time[-1,1] =  1.5
 event_time = setdevice(event_time)
@@ -183,7 +183,7 @@ event_time = setdevice(event_time)
 gradm_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
 #gradm_event[-1,1] =  10  # this kills the SE in rep 3
 gradm_event[-1,0,0] =  20 # this kills the STE in rep 3
-gradm_event[-1,1,0] =  20 # this kills the STE in rep 3
+# gradm_event[4,2,0] =  20 
 gradm_event = setdevice(gradm_event)
 
 scanner.init_gradient_tensor_holder()

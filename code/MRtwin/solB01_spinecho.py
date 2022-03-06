@@ -143,7 +143,7 @@ adc_mask[-2:] = 0
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 
 # RF events: rf_event and phases
-rf_event = torch.zeros((NEvnt,NRep,2), dtype=torch.float32)
+rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
 rf_event[1,:,0] = 90*np.pi/180 
 rf_event[1,:,1] = 90*np.pi/180  
 rf_event[1,:,3] = 1

@@ -8,17 +8,19 @@ sequence_class = "gre_dream"
 experiment_description = """
 """
 excercise = """
+Friday - 
+
 Z01.1. make a spin echo EPI
-Z01.2. make two readouts from one measurement: eg. FID/STE, or STE and SE separatley as two seoparate contrasts
+Z01.2. make two readouts from one measurement: eg. FID/STE, or STE and SE separatley as two separate contrasts (DREAM)
 Z01.3. diffusion
 Z01.4. b0 mapping  (phase maps)
 Z01.5. b1 mapping  (cosine fit)
 Z01.6. t1 mapping  (invrec)
 Z01.7. t2 weighting/mapping (TE or t2prep)
+Z01.8. ZigZag / silent EPI
+Z01.9. Spiral readout
+Z01.10  FISP - PSIF  - bssfp
 
 Z02.1. Display all Spins as a vector or many vectors
 Z02.2. Display all Spins as a vector or many vectors, and animate this during a sequence
-
-
-"""
 

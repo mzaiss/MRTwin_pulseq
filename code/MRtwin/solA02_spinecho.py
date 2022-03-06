@@ -178,7 +178,7 @@ scanner.forward(spins, event_time)
 # sequence and signal plotting
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 #targetSeq.print_seq_pic(True,plotsize=[12,9])
-# targetSeq.print_seq(plotsize=[12,9], time_axis=1)     
+targetSeq.print_seq(plotsize=[12,9], time_axis=1)     
       
 fig=plt.figure("""signals""")
 ax1=plt.subplot(131)

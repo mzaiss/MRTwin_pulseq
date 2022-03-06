@@ -151,9 +151,7 @@ scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
 rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
 deg=np.pi/180
 rf_event[0,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
-rf_event[2,0,0] = 180*np.pi/180  # 90deg excitation now for every rep
-
-rf_event[3,:,0] = 15*deg;   rf_event[3,:,1]=torch.arange(0,50*NRep,50)*deg;     rf_event[3,:,3] = 1
+rf_event[3,:,0] = 5*deg;   rf_event[3,:,1]=torch.arange(0,50*NRep,50)*deg;     rf_event[3,:,3] = 1
 
 
 def get_phase_cycler(n, dphi,flag=0):
@@ -216,14 +214,12 @@ scanner.set_gradient_precession_tensor_super(gradm_event,rf_event)  # refocusing
 ## end S3: MR sequence definition ::: #####################################
 
 
-
 #############################################################################
 ## S4: MR simulation forward process ::: #####################################
 scanner.init_signal()
 #%%
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True,single_folder=True)
-
 scanner.get_signal_from_real_system(experiment_id,today_datestr,single_folder=True)
        
         

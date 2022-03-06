@@ -185,6 +185,9 @@ gradm_event[5:-2,:,1] = 1.0
 gradm_event[4,:,0] = torch.arange(0,NRep,1)-NRep/2 #phase blib
 gradm_event[-2,:,0] = -gradm_event[4,:,0]  # phase backblip
 gradm_event[-2,:,1] = 1.5*szread         # spoiler (even numbers sometimes give stripes, best is ~ 1.5 kspaces, for some reason 0.2 works well,too  )
+
+# gradm_event[1,0,1] = -1.5*szread  # extra crushers after prep pulses
+# gradm_event[2,0,1] = 1.5*szread
 gradm_event = setdevice(gradm_event)
 
 # centric 

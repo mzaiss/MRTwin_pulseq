@@ -56,7 +56,7 @@ print(experiment_id)
 
 # formatting ( express variables as string)
 #https://pyformat.info/
-formatted_string="f={:.2}*exp(-{:.2}*t)+{}".format(5.0, 7.1,'constant')
+formatted_string="f={:.4}*exp(-{:.2}*t)+{}".format(5.001, 7.1,'constant')
 print(formatted_string)
 
 #%% numpy , library for many mathematical function
@@ -232,7 +232,7 @@ plt.figure("""phantom""")
 param=['PD','T1','T2','dB0','rB1']
 for i in range(5):
     plt.subplot(151+i), plt.title(param[i])
-    ax=plt.imshow(phantom[:,:,i], interpolation='none')
+    ax=plt.imshow(brain_phantom[:,:,i], interpolation='none')
     fig = plt.gcf()
     fig.colorbar(ax) 
 fig.set_size_inches(18, 3)
@@ -247,7 +247,7 @@ plt.show()
 import torch
 double_precision = False
 use_gpu = 0
-gpu_dev = 0 
+gpu_dev = 0
 
 # device setup
 def setdevice(x):
@@ -259,7 +259,7 @@ def setdevice(x):
         x = x.cuda(gpu_dev)    
     return x 
 
-A=torch.zeros(5)
+A=torch.zeros([5,5])
 setdevice(A)
 
 #%%  torch and numpy
@@ -312,6 +312,7 @@ array[0,::2,0]=np.ones(2) # aim: fill every second column with vlue given by lin
 A=np.linspace(0,1,5)
 B= torch.arange(0,5,1)
 
+B*torch.from_numpy(A)
 B*A
 
 

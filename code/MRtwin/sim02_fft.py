@@ -1,8 +1,24 @@
 from scipy import signal
+import numpy as np
+import os, sys
+import numpy as np
+import scipy
+import scipy.io
+from  scipy import ndimage
+import torch
+import cv2
+import matplotlib.pyplot as plt
+from torch import optim
+import core.spins
+import core.scanner
+import core.nnreco
+import core.target_seq_holder
+import warnings
+import matplotlib.cbook
 
 samplepoints=112
 func=np.zeros((samplepoints,))
-func[40:70]=1
+func[35:65]=1
 
 #func = signal.gaussian(samplepoints, std=5)
 #func = np.sin(0.1*np.arange(1,samplepoints,1)) + 0.25*np.sin(0.5*np.arange(1,samplepoints,1))

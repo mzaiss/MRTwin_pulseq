@@ -193,6 +193,7 @@ idx_ex = int(3)
 idx_echo= int(5 + (NEvnt-7)/2)
 TE = tonumpy(torch.sum(event_time[idx_ex:idx_echo,0]))
 
+ernstangle = np.arccos(np.exp(-TR/1.0))/np.pi*180 
 
 # gradient-driver precession
 # Cartesian encoding
@@ -218,7 +219,7 @@ scanner.forward_fast(spins, event_time)
 
 # sequence and signal plotting
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
-#targetSeq.print_seq_pic(True,plotsize=[12,9])
+targetSeq.print_seq_pic(True,plotsize=[12,9])
 targetSeq.print_seq(plotsize=[12,9], time_axis=1)
   
 # S4B: Pulseq export and MR scan at real system ::: #####################################

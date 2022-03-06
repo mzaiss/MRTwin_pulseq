@@ -251,7 +251,7 @@ class TargetSequenceHolder():
                     color=cm.rainbow(np.linspace(0,1,NEX+1))
                     for i in range(NEX+1):
                         plt.plot(kxf[i],kyf[i],c=color[i])
-                    plt.plot(kx[(tonumpy(self.adc_mask)).nonzero()[0],:],ky[(tonumpy(self.adc_mask)).nonzero()[0],:],'r.',markersize=0.75)
+                    plt.plot(kx[(tonumpy(self.adc_mask)).nonzero()[0],:],ky[(tonumpy(self.adc_mask)).nonzero()[0],:],'k.',markersize=1.5)
                     plt.xlabel('k_x')
           
             fig = plt.gcf();  
