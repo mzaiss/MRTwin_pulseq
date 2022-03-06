@@ -477,7 +477,7 @@ class Scanner():
         self.F[:,:,0,2,2] += 1  
         
     # rotate ADC phase to conform phase of the excitation
-    def set_ADC_rot_tensor(self,input_phase):
+    def set_adc_phase_tensor(self,input_phase):
         AF = torch.zeros((self.NRep,3,3))
         
         AF[:,0,0] = torch.cos(input_phase)

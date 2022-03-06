@@ -22,14 +22,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 # to test if all your versions are fine, tested before were
-#torch.__version__  : '1.3.0'
-#np.__version__ 	 : '1.18.1'
-#scipy.__version__: '1.4.1'
-#matplotlib.__version__: '3.1.1'
-print('torch.__version__ :',torch.__version__, '; tested 1.3.0' )
-print('np.__version__ :',np.__version__ , '; tested 1.18.1' )
-print('scipy.__version__:',scipy.__version__, '; tested 1.4.1' )
-print('matplotlib.__version__ :',matplotlib.__version__, '; tested 3.1.1' )
+print('your ', 'torch.__version__ :',torch.__version__, '; tested 1.6.0' )
+print('your ','np.__version__ :',np.__version__ , '; tested 1.21.5' )
+print('your ','scipy.__version__:',scipy.__version__, '; tested 1.7.3' )
+print('your ','matplotlib.__version__ :',matplotlib.__version__, '; tested 3.5.1' )
 	
 
 #%% variables (int, float, bool)

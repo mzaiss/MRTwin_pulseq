@@ -136,7 +136,7 @@ scanner.set_B1plus(1)               # overwrite with homogeneous excitation
 # begin sequence definition 
 # short docu:
 # adc_mask , shape: [Nevent] : tensor indicating in which events signal is acquired
-# scanner.set_ADC_rot_tensor , shape: [NRep] : tensor of phase of ADC in each repetition
+# adc_phase , shape: [NRep] : tensor of phase of ADC in each repetition
 # all following tensors have at least one entry for every event in each repetition [NEvent,Nrep,X]
 # rf_event, shape [NEvent,NRep,4] : tensor of radiofrequency events with 3rd dim: [0:flip angle, 1:phase angle, 2:frequency, 3: usage (0:global,1:excite/2:refocus)]
 # event_time, shape [NEvent,NRep] : tensor of event_times in s
@@ -146,7 +146,9 @@ scanner.set_B1plus(1)               # overwrite with homogeneous excitation
 adc_mask = torch.from_numpy(np.ones((NEvnt,1))).float()
 adc_mask[:5]  = 0
 adc_mask[-2:] = 0
+adc_phase = torch.zeros(NRep, dtype=torch.float32)
 scanner.set_adc_mask(adc_mask=setdevice(adc_mask))
+scanner.set_adc_phase_tensor(adc_phase) 
 
 # RF events: rf_event and phases
 rf_event = torch.zeros((NEvnt,NRep,4), dtype=torch.float32)
@@ -170,8 +172,10 @@ rf_event = setdevice(rf_event)
 scanner.init_flip_tensor_holder()    
 scanner.set_flip_tensor_withB1plus(rf_event)
 # rotate ADC according to excitation phase
-rfsign = ((rf_event[3,:,0]) < 0).float()
-scanner.set_ADC_rot_tensor(-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign) #GRE/FID specific
+rfsign = ((rf_event[3,:,0]) < 0).float() # translate neg flips to pos flips with 180 deg phase shift.
+# re-adjust adc_phase
+adc_phase=-rf_event[3,:,1] + np.pi/2 + np.pi*rfsign  #GRE/FID specific
+scanner.set_adc_phase_tensor(adc_phase) 
 
 # event timing vector 
 event_time = torch.from_numpy(0.08*1e-3*np.ones((NEvnt,NRep))).float()
