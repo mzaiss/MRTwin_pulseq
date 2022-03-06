@@ -202,7 +202,7 @@ scanner.forward_fast(spins, event_time)
 # sequence and signal plotting
 targetSeq = core.target_seq_holder.TargetSequenceHolder(rf_event,event_time,gradm_event,scanner,spins,scanner.signal)
 targetSeq.print_seq_pic(True,plotsize=[12,9])
-targetSeq.print_seq(plotsize=[12,9], time_axis=1)
+targetSeq.print_seq(plotsize=[12,9], time_axis=0)
   
 # S4B: Pulseq export and MR scan at real system ::: #####################################
 #targetSeq.export_to_pulseq(experiment_id,today_datestr,sequence_class,plot_seq=True)
