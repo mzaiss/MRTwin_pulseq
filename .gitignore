@@ -1,16 +1,33 @@
+codes/GradOpt_python/out/
 
-codes/scannerloop_libs/pypulseq/__pycache__/
+codes/GradOpt_python/new_core/pre_pass/target/
 
-codes/GradOpt_python/core/__pycache__/
+codes/GradOpt_python/brainweb/subject*
+codes/GradOpt_python/brainweb/output/
 
-codes/GradOpt_python/auxutil/__pycache__/
+__pycache__/
 
 codes/GradOpt_python/core/pathfile_local.txt
 
+documentation/html/
 
-
-
-
-codes/scannerloop_libs/pypulseq/Sequence/__pycache__/
+.vscode/
 
 *.gif
+
+codes/GradOpt_python/mprofile_20200810162439.dat
+
+codes/GradOpt_python/mprofile_20200810163332.dat
+
+codes/GradOpt_python/mprofile_20200810163527.dat
+
+codes/GradOpt_python/CIFAR10/cifar-10-batches-py/
+
+codes/GradOpt_python/models/
+
+codes/GradOpt_python/CIFAR10/cifar-10-python.tar.gz
+
+codes/GradOpt_python/dAutomap_T1.pt
+codes/GradOpt_python/new_core/pre_pass/Cargo.lock
+
+codes/GradOpt_python/brainweb/output3/
