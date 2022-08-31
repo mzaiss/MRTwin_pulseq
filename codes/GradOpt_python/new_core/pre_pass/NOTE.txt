@@ -1,0 +1,10 @@
+To use this rust crate in python:
+
+Prerequesites:
+ - Install Rustup: https://www.rust-lang.org/learn/get-started (Rust tools)
+ - pip install maturin (Rust crate -> Python package)
+
+Build:
+ - Run "maturin build -o ./wheels/ --interpreter python" in the same directory as this NOTE.txt
+ - Run "pip install wheels/pre_pass-0.2.0-cp37-abi3-win_amd64.whl --force-reinstall"
+   This will make the module available globally (In any .py: "import pre_pass")

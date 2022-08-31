@@ -1,0 +1,17 @@
+The pulseq 1.4.0 file specification is more specific in many details, the most
+important being the exact timing of events (e.g. ADC sample timing).
+
+Additionally it adds time shapes, which means it is possible to have different
+time resolutions for different shapes, even varying resolution within a single
+shape (e.g. long adiabatic pulses don't need to blow up the file size anymore).
+
+The pypulseq library does not support 1.4.0 yet.
+
+This library implements the minimum functionality to export sequences to pulseq
+1.4.0 .seq files. Where the specification is ambiguous, it adheres to what the
+Siemens interpreter excpects.
+Contrary to the (py)pulseq framework, pulseq_exporter does not implement any of
+the additional helper functions that are not required for exporting and are not
+part of the file specification (but it contains some common pulse shapes).
+This library is not meant for writing sequences but only for exporting them,
+e.g. to be used in conjunction with MRzero's sequence definitions.
