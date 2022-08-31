@@ -1,4 +1,4 @@
-# MRTwin_pulseq   (c) M.Zaiss 2022 - allrights reserved
+# MRTwin_pulseq
 
 # MRTwin sequence programming and simulation framework #
 MRTwin is part of a larger project for automatic sequence programming. Still all sequences can also be coded manually and simulated using the included Bloch simulation. 
@@ -29,7 +29,7 @@ In addition to python some extension packages are required like Pytorch. install
  pip install wheels/pre_pass-0.2.0-cp37-abi3-win_amd64.whl
 
  On Linux:
- pre_pass-0.2.0-cp37-abi3-manylinux_2_27_x86_64
+ pip install pre_pass-0.2.0-cp37-abi3-manylinux_2_27_x86_64
 ```
 
 If not already installed you also need numpy, scipy and matplotlib
