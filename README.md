@@ -1,4 +1,4 @@
-# MRTwin_pulseq
+# MRTwin_pulseq   (c) M.Zaiss 2022 - allrights reserved
 
 # MRTwin sequence programming and simulation framework #
 MRTwin is part of a larger project for automatic sequence programming. Still all sequences can also be coded manually and simulated using the included Bloch simulation. 

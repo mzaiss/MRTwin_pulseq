@@ -90,6 +90,8 @@ if 0:
 seq.set_definition('FOV', [fov, fov, slice_thickness])
 seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
+seq.write('out/' + experiment_id +'.seq')
+
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 from new_core.sim_data import SimData
@@ -98,12 +100,13 @@ from new_core.sim_data import SimData
 if 1:
     obj_p = SimData.load('../data/phantom2D.mat')
     obj_p = SimData.load('../data/numerical_brain_cropped.mat')
+    obj_p = obj_p.resize(64,64,1)
 else:
 # or (ii) set phantom  manually to a pixel phantom
     obj_p = torch.zeros((sz[0],sz[1],5)); 
     
-    obj_p[7,25,:]=torch.tensor([1, 1, 0.1, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
-    obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
+    obj_p[7,25,:]=torch.tensor([1, 1, 0.1, 0.1, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
+    obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1,0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
     
     obj_p=obj_p.permute(2,0,1)[:,:,:,None]
     obj_p= SimData(obj_p[0,:],obj_p[0,:],obj_p[0,:],obj_p[0,:],obj_p[0,:]*0,torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),normalize_B0_B1= False)
@@ -115,7 +118,7 @@ obj_p.plot_sim_data()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
-signal, _= sim_external(obj=obj_p, reco_sz=sz[0],plot_seq_k=[0,1])
+signal, _= sim_external(obj=obj_p,plot_seq_k=[0,1])
 # plot the result into the ADC subplot
 sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
 sp_adc.plot(t_adc,np.abs(signal.numpy()))
