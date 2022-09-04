@@ -363,11 +363,10 @@ def plot_kspace_trajectory(seq: sequence.Sequence,
         plt.grid()
 
     plt.show()
-# TODO: This is specific to GRE-like sequences, make it more general!
-def get_signal_from_real_system(path, seq):
-    NRep = len(seq)
-    NCol = torch.count_nonzero(seq[1].adc_usage).item()
 
+
+# TODO: This is specific to GRE-like sequences, make it more general!
+def get_signal_from_real_system(path, NRep, NCol):
     print('waiting for TWIX file from the scanner... ' + path)
     done_flag = False
     while not done_flag:    

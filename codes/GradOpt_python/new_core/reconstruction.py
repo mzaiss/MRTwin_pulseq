@@ -7,7 +7,7 @@ import numpy as np
 import time
 from . import util
 from auxutil.cg_batch import cg_batch
-import torchkbnufft as tkbn
+# import torchkbnufft as tkbn
 
 
 def reconstruct(signal: torch.Tensor,

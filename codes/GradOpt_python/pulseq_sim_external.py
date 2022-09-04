@@ -16,7 +16,7 @@ from new_core.reconstruction import reconstruct
 util.use_gpu = False
 
 
-def sim_external(object_sz=32,reco_sz=0, plot_seq_k=(0,0), obj=0,dB0=0):   
+def sim_external(object_sz=32,reco_sz=0, plot_seq_k=(0,0), obj=0,dB0=0,M_threshold=1e-3):   
     #  Load a pulseq file
     
     # NOTE
@@ -102,16 +102,14 @@ def sim_external(object_sz=32,reco_sz=0, plot_seq_k=(0,0), obj=0,dB0=0):
 
     data=obj        
        
-    # data.T2dash = torch.abs(data.T2dash)
-    data.T2dash[:] = 30e-3
     
     pre_pass_settings = (
         data.shape.tolist(),
         float(torch.mean(data.T1)),
         float(torch.mean(data.T2)),
         float(torch.mean(data.T2dash)),
-        200,  # Number of states (+ and z) simulated in pre-pass
-        1e-3,  # Minimum magnetisation of states in pre-pass
+        1000,  # Number of states (+ and z) simulated in pre-pass
+        M_threshold,  # Minimum magnetisation of states in pre-pass
     )
     
     graph = pre_pass.compute_graph(seq, *pre_pass_settings)
