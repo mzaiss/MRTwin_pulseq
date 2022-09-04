@@ -25,6 +25,7 @@ plt.plot(np.abs(FFT_FFT_func))
 plt.plot(np.imag(FFT_FFT_func))
 # fftshift
 func_echolike = np.roll(FFT_func,samplepoints//2,0)
+# func_echolike = np.fft.fftshift(FFT_func,0)
 
 plt.subplot(322); plt.title('func_echolike')
 plt.plot(np.abs(func_echolike))

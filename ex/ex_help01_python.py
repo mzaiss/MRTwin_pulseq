@@ -20,6 +20,7 @@ import torch
 from torch import optim
 import matplotlib
 import matplotlib.pyplot as plt
+import pre_pass   # if this does drop an error, read again the readme.
 
 # to test if all your versions are fine, tested before were
 #torch.__version__  : '1.10.2'
@@ -163,6 +164,16 @@ for i in range(5):
         array[i,j,1]=j  #last entry
 print(array[:,:,0],'\n\n',array[:,:,1],'shape=',array.shape)
 
+
+#%% print values
+
+c=10
+d=1.03
+
+print("The value of c is {} \n The vaue of d is  {}!".format(c,d))
+
+a = np.ones([5,3]) 
+print("The value of a is \n {} \n and its shape is {}".format(a,a.shape))
 
 #%% pyplot 1
 

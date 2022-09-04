@@ -1,4 +1,4 @@
-experiment_id = 'exA08_GRE_2D_fully_relaxed'
+experiment_id = 'exB05_GRE_2D_fully_relaxed'
 
 # %% S0. SETUP env
 import sys,os
@@ -46,7 +46,7 @@ Nread = 48    # frequency encoding steps/samples
 Nphase = 48    # phase encoding steps/samples
 
 # Define rf events
-rf1, _,_ = make_sinc_pulse(flip_angle=90.0 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf1, _,_ = make_sinc_pulse(flip_angle=10 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
 
 rf0, _,_ = make_sinc_pulse(flip_angle=0.001* math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
 # rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
@@ -61,7 +61,7 @@ gx_pre = make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system=sy
 # ======
 for ii in range(-Nphase//2, Nphase//2):  # e.g. -64:63
     seq.add_block(make_delay(1))
-    if np.abs(ii)>5:   #tutorial1:   # (2)   if np.mod(ii,2)==1:    #(3) np.abs(ii)==30:   with high FA
+    if np.abs(ii)>44:   #tutorial1:   # (2)   if np.mod(ii,2)==1:    #(3) np.abs(ii)==30:   with high FA
         seq.add_block(rf0)  # add rf0 with zero flip_angle 
     else:
         seq.add_block(rf1)  # add rf1 with 90° flip_angle 
@@ -125,6 +125,9 @@ sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
 sp_adc.plot(t_adc,np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
 
+# additional noise as simulation is perfect
+z = 1e-4*np.random.randn(signal.shape[0], 2).view(np.complex128) 
+signal+=z
 # %% S6: MR IMAGE RECON of signal ::: #####################################
 fig=plt.figure(); # fig.clf()
 plt.subplot(411); plt.title('ADC signal')

@@ -1,4 +1,4 @@
-experiment_id = 'exA08_GRE_2D_fully_relaxed'
+experiment_id = 'exA05_incoherent_echo_train'
 
 # %% S0. SETUP env
 import sys,os
@@ -41,35 +41,33 @@ seq = Sequence()
 # Define FOV and resolution
 fov = 1000e-3 
 slice_thickness=8e-3
-sz=(48,48)   # spin system size / resolution
-Nread = 48    # frequency encoding steps/samples
-Nphase = 48    # phase encoding steps/samples
+
+Nread = 128    # frequency encoding steps/samples
+Nphase = 32    # phase encoding steps/samples
 
 # Define rf events
-rf1, _,_ = make_sinc_pulse(flip_angle=90.0 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf1, _,_ = make_sinc_pulse(flip_angle=60* math.pi / 180, phase_offset=90* math.pi / 180,duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf2, _,_ = make_sinc_pulse(flip_angle=120* math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
 
-rf0, _,_ = make_sinc_pulse(flip_angle=0.001* math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
-# rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=10e-3, system=system)
-adc = make_adc(num_samples=Nread, duration=10e-3, phase_offset=0*np.pi/180,delay=gx.rise_time, system=system)
-gx_pre = make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system=system)
+adc = make_adc(num_samples=Nread, duration=20e-3, phase_offset=90*np.pi/180,delay=5*1e-4, system=system)
+adc0 = make_adc(num_samples=Nread, duration=8e-3, phase_offset=90*np.pi/180,delay=5*1e-4, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
-for ii in range(-Nphase//2, Nphase//2):  # e.g. -64:63
-    seq.add_block(make_delay(1))
-    if np.abs(ii)>5:   #tutorial1:   # (2)   if np.mod(ii,2)==1:    #(3) np.abs(ii)==30:   with high FA
-        seq.add_block(rf0)  # add rf0 with zero flip_angle 
-    else:
-        seq.add_block(rf1)  # add rf1 with 90° flip_angle 
-    gp= make_trapezoid(channel='y', area=ii, duration=5e-3, system=system)
-    seq.add_block(gx_pre,gp)
-    seq.add_block(adc,gx)
-    if ii<Nphase-1:
-        seq.add_block(make_delay(10))
+
+seq.add_block(rf1)
+seq.add_block(adc0)
+
+for ii in range(-Nphase//2, Nphase//2-1):  # e.g. -64:63
+    seq.add_block(rf2)
+    seq.add_block(make_delay(5e-3))
+    seq.add_block(adc)
+    seq.add_block(make_delay(1e-3))
+    
+
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
@@ -85,17 +83,15 @@ sp_adc,t_adc =seq.plot(clear=False)
 if 0:
     sp_adc,t_adc =seq.plot(clear=True)
 
-
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
 seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
 seq.write('out/' + experiment_id +'.seq')
 
-
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 from new_core.sim_data import SimData
-
+sz=(64,64)   # spin system size / resolution
 # (i) load a phantom object from file
 if 1:
     obj_p = SimData.load('../data/phantom2D.mat')
@@ -115,11 +111,16 @@ else:
     
 # manipulate obj and plot it
 obj_p.B0*=1;
+obj_p.T2dash*=0.05;
+obj_p.T2 *=100;
+# obj_p.T1 *=100;
+# obj_p.B1[:]=1
+# obj_p.B1[:]=obj_p.B1[:]
 obj_p.plot_sim_data()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
-signal, _= sim_external(obj=obj_p,plot_seq_k=[0,1])
+signal, _= sim_external(obj=obj_p,plot_seq_k=[0,1], M_threshold=-1e-3)
 # plot the result into the ADC subplot
 sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
 sp_adc.plot(t_adc,np.abs(signal.numpy()))
