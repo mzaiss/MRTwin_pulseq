@@ -1,4 +1,4 @@
-experiment_id = 'exB01_gradient_echo_pixel'
+experiment_id = 'exA02_SpinEcho'
 
 # %% S0. SETUP env
 import sys,os
@@ -39,32 +39,30 @@ system = Opts(max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s', rf
 seq = Sequence()
 
 # Define FOV and resolution
-fov = (1000-3 )
+fov = 1000e-3 
 Nread = 128
 Nphase = 1
 slice_thickness = 8e-3  # slice
 
 # Define rf events
-rf1, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf1, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, delay=0,system=system)
 # rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
+rf2, _,_ = make_sinc_pulse(flip_angle=180 * math.pi / 180, duration=1e-3,phase_offset=90* math.pi / 180, slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
 
 # Define other gradients and ADC events
-adc = make_adc(num_samples=Nread, duration=20e-3, phase_offset=0*np.pi/180,system=system)
-gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=20e-3, system=system)
-gx_pre = make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=system)
+adc = make_adc(num_samples=Nread, duration=20e-3, phase_offset=0*np.pi/180,delay=0,system=system)
+
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
+seq.add_block(rf1)
+seq.add_block(make_delay(0.010-rf1.delay-rf2.delay))
+seq.add_block(rf2)
+seq.add_block(adc)
 
-for ii in range(0,Nphase):
-    seq.add_block(make_delay(0.011-rf1.delay-gx_pre.rise_time*2-gx_pre.flat_time))
-    seq.add_block(rf1)
-    seq.add_block(gx_pre)
-    seq.add_block(adc,gx)
-    if ii<Nphase-1:
-        seq.add_block(make_delay(0.5))
-        
+
+
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
@@ -95,16 +93,13 @@ sz=[64,64]
 if 0:
     obj_p = SimData.load('../data/phantom2D.mat')
     obj_p = SimData.load('../data/numerical_brain_cropped.mat')
-    obj_p.T2dash[:] = 30e-3
     obj_p = obj_p.resize(sz[0],sz[1],1)
 else:
 # or (ii) set phantom  manually to a pixel phantom
     obj_p = torch.zeros((sz[0],sz[1],6)); 
     
-    obj_p[30,60,:]=torch.tensor([1, 1, 0.1, 30e-3, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
+    obj_p[24,24,:]=torch.tensor([1, 3, 0.5, 30e-3, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
     # obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1,0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
-    
-    # obj_p[np.random.randint(64),np.random.randint(64),:]=torch.tensor([1, 1, 0.1, 30e-3, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
     
     obj_p=obj_p.permute(2,0,1)[:,:,:,None]
     obj_p= SimData(obj_p[0,:],obj_p[1,:],obj_p[2,:],obj_p[3,:],obj_p[4,:],obj_p[5,:]*torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),normalize_B0_B1= False)

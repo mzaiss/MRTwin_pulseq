@@ -9,7 +9,7 @@ c1=r'codes'; c2=r'codes\GradOpt_python'; c3=r'codes\scannerloop_libs' #  add req
 sys.path += [rf'{mpath}\{c1}',rf'{mpath}\{c2}',rf'{mpath}\{c3}']
 
 ## imports for simulation
-from codes.GradOpt_python.pulseq_sim_external import sim_external
+from GradOpt_python.pulseq_sim_external import sim_external
 from GradOpt_python.new_core.util import plot_kspace_trajectory
 import math
 import numpy as np
@@ -162,7 +162,7 @@ from new_core import util
 PD = util.to_full(obj_p.PD, obj_p.mask).squeeze(0)
 B0 = util.to_full(obj_p.B0, obj_p.mask).squeeze(0)
 plt.subplot(348); plt.title('phantom PD')
-plt.imshow(PD)
+plt.imshow(np.squeeze(PD))
 plt.subplot(3,4,12); plt.title('phantom B0')
-plt.imshow(B0)
+plt.imshow(np.squeeze(B0))
 

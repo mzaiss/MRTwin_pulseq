@@ -9,7 +9,7 @@ c1=r'codes'; c2=r'codes\GradOpt_python'; c3=r'codes\scannerloop_libs' #  add req
 sys.path += [rf'{mpath}\{c1}',rf'{mpath}\{c2}',rf'{mpath}\{c3}']
 
 ## imports for simulation
-from codes.GradOpt_python.pulseq_sim_external import sim_external
+from GradOpt_python.pulseq_sim_external import sim_external
 from GradOpt_python.new_core.util import plot_kspace_trajectory
 import math
 import numpy as np

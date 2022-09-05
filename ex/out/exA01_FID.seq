@@ -13,17 +13,15 @@ Name gre
 # Format of blocks:
 #  #  D RF  GX  GY  GZ ADC
 [BLOCKS]
-1  0  1   0   0   0  0
-2  1  0   0   0   0  0
-3  0  2   0   0   0  0
-4  0  0   0   0   0  1
+1  1  0   0   0   0  0
+2  0  1   0   0   0  0
+3  0  0   0   0   0  1
 
 # Format of RF events:
 # id amplitude mag_id phase_id delay freq phase
 # ..        Hz   ....     ....    us   Hz   rad
 [RF]
 1      987.456 1 2 500 0 0
-2      1974.91 1 2 500 0 1.5708
 
 # Format of ADC events:
 # id num dwell delay freq phase
@@ -34,7 +32,7 @@ Name gre
 # Format of delays:
 # id delay (us)
 [DELAYS]
-1 9000
+1 10500
 
 # Sequence Shapes
 [SHAPES]
