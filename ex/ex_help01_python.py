@@ -10,6 +10,11 @@ Created on Sun Feb  9 12:56:54 2020
 # run single current line F9  (or marked commands)
 # restart kernel CTRL + . in console
 
+# for automatic plotting sometimes this is needed:
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
+
 #%% these are imports: libraries used in the script later.
 import os, sys
 import numpy as np
@@ -299,30 +304,29 @@ print(tonumpy(D), type(tonumpy(D)),'This is again a numpy array')
 #%% exercises:  fix the followig codes ( currently they will throw and error)
 
 #%% exercise
-array = np.zeros(5,5)  # aim : generate 5x5 matrix if zeroes
+array = np.zeros([5,5])  # aim : generate 5x5 matrix if zeroes
 print(array,'shape=',array.shape)
 
 #%% exercise
-array = np.linspace(0,5,1) #  aim: generate array [0,1,2,3,4,5]
+array = np.linspace(0,5,6) #  aim: generate array [0,1,2,3,4,5]
 print(array,'shape=',array.shape)
 
 #%% exercise
-array =  np.arange(0,5,5) #  aim: generate array [0,1,2,3,4,5]
+array =  np.arange(0,6,1) #  aim: generate array [0,1,2,3,4,5]
 print(array,'shape=',array.shape)
 
 #%% exercise
-array = np.zeros([5,5,2])  
-array[:,5,1]=3.0  # aim: we want the last column of the array all filled with 3.0
+array = np.zeros([5,5])  
+array[:,4]=3.0  # aim: we want the last column of the array all filled with 3.0
 print(array,'shape=',array.shape)
 
 #%% exercise
 array = np.zeros([5,5,2])
-array[0,::2,0]=np.ones(2) # aim: fill every second column with vlue given by linspace
+array[0,::3,0]=np.ones(2) # aim: fill every second column with vlue given by linspace
 
 #%% exercise, fix this code
 A=np.linspace(0,1,5)
 B= torch.arange(0,5,1)
 
 B*A
-
 

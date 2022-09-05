@@ -5,7 +5,6 @@ import os
 import time
 import torch
 import numpy as np
-import cv2
 import matplotlib.pyplot as plt
 import io
 from . import sequence
@@ -94,7 +93,7 @@ def to_full(sparse: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         The full tensor that has the same shape as ``mask`` and contains the
         data of ``sparse``.
     """
-    if mask.count_nonzero() != sparse.shape[-1]:
+    if np.count_nonzero(mask) != sparse.shape[-1]:
         raise ValueError(
             f"mask requires {mask.count_nonzero()} elements, "
             f"but sparse contains {sparse.shape[-1]}."

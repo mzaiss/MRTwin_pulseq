@@ -79,7 +79,7 @@ class SimData:
 
         self.PD_threshold = PD_threshold
         self.mask = PD > PD_threshold
-        self.voxel_count = int(torch.count_nonzero(self.mask))
+        self.voxel_count = int(np.count_nonzero(self.mask))
         # TODO: maybe change shape to tuple of ints
         self.shape = util.set_device(torch.Tensor(list(PD.shape)))
 

@@ -50,9 +50,7 @@ slice_thickness = 8e-3  # slice
 # ======
 # CONSTRUCT SEQUENCE
 # ======
-seq.add_block(make_delay(1.0))
-
-
+seq.add_block(make_delay(0.01))
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
@@ -89,7 +87,7 @@ else:
 # or (ii) set phantom  manually to a pixel phantom
     obj_p = torch.zeros((sz[0],sz[1],6)); 
     
-    obj_p[24,24,:]=torch.tensor([1, 3, 0.5, 30e-3, 1000, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
+    obj_p[24,24,:]=torch.tensor([1, 3, 0.5, 30e-3, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
     # obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1,0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
     
     obj_p=obj_p.permute(2,0,1)[:,:,:,None]

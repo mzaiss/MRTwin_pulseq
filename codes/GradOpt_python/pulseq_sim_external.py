@@ -2,13 +2,11 @@
 from __future__ import annotations
 import torch
 import numpy as np
-from pulseq_loader import intermediate, PulseqFile, plot_file, Adc, Spoiler
+from pulseq_loader.__init__ import intermediate, PulseqFile, plot_file, Adc, Spoiler
 from new_core.sequence import Sequence, PulseUsage
 from new_core.util import plot_kspace_trajectory
 from new_core import util
 import matplotlib.pyplot as plt
-from new_core.sim_data import SimData
-import torchvision
 import pre_pass
 from new_core.pdg_main_pass import execute_graph
 from new_core.reconstruction import reconstruct

@@ -47,16 +47,19 @@ rf, _,_ = make_sinc_pulse(flip_angle=90.0 * math.pi / 180, duration=1e-3,slice_t
 # rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-gx = make_trapezoid(channel='x', flat_area=10, flat_time=20e-3, system=system)
-adc = make_adc(num_samples=10, duration=20e-3, phase_offset=0*np.pi/180,delay=gx.rise_time, system=system)
+gx = make_trapezoid(channel='y', area=8, duration=1e-3, system=system)
+adc = make_adc(num_samples=128, duration=20e-3, phase_offset=0*np.pi/180, system=system)
 gx_pre = make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system=system)
 del15=make_delay(0.015)
 
+seq.add_block(del15)
 seq.add_block(rf)
 seq.add_block(gx_pre)
 seq.add_block(adc,gx)
 seq.add_block(del15)
 
+ 
+seq.plot()
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
 if ok:
