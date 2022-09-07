@@ -12,6 +12,7 @@ codes/GradOpt_python/core/pathfile_local.txt
 documentation/html/
 
 .vscode/
+ex/out
 
 *.gif
 
