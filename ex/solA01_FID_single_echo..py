@@ -55,7 +55,9 @@ gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=2e-3, system=system)
 # ======
 # CONSTRUCT SEQUENCE
 # ======
-seq.add_block(make_delay(0.011-rf1.delay))
+del1=make_delay(0.012  - calc_duration(rf1) - rf1.ringdown_time)
+
+seq.add_block(del1)
 seq.add_block(rf1)
 seq.add_block(adc)
 

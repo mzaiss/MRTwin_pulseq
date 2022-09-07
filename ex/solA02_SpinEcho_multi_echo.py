@@ -99,7 +99,7 @@ else:
 # or (ii) set phantom  manually to a pixel phantom
     obj_p = torch.zeros((sz[0],sz[1],6)); 
     
-    obj_p[24,24,:]=torch.tensor([1, 3, 0.5, 30e-3, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
+    obj_p[24,24,:]=torch.tensor([1, 3, 0.5, 30e-3, 1000, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
     # obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1,0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
     
     obj_p=obj_p.permute(2,0,1)[:,:,:,None]
@@ -117,3 +117,36 @@ signal, _= sim_external(obj=obj_p,plot_seq_k=[0,0])
 sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
 sp_adc.plot(t_adc,np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
+
+
+plt.plot(t_adc,np.abs(signal.numpy()))
+plt.plot(,np.)
+
+import scipy
+import scipy.io
+from  scipy import ndimage
+from scipy.optimize import curve_fit 
+
+#%%  FITTING BLOCK - work in progress
+tfull=np.cumsum(tonumpy(event_time).transpose().ravel())
+yfull=tonumpy(scanner.signal[0,:,:,0,0]).transpose().ravel()
+idx=tonumpy(scanner.signal[0,:,:,0,0]).transpose().argmax(1)
+idx=idx + np.linspace(0,(NRep-1)*len(event_time[:,0]),NRep,dtype=np.int64)
+t=t_adc[63::128]
+y=abs(signal[63::128].numpy())
+def fit_func(t, a, R,c):
+    return a*np.exp(-R*t) + c   
+
+p=scipy.optimize.curve_fit(fit_func,t,y,p0=(np.mean(y), 1,np.min(y)))
+print(p[0][1])
+
+fig=plt.figure("""fit""")
+ax1=plt.subplot(131)
+ax=plt.plot(tfull,yfull,label='fulldata')
+ax=plt.plot(t,y,label='data')
+plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
+plt.title('fit')
+plt.legend()
+plt.ion()
+
+plt.show()
