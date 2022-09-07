@@ -17,6 +17,9 @@ Name gre
 2  0  1   0   0   0  0
 3  0  0   1   0   0  0
 4  0  0   2   0   0  1
+5  0  0   3   0   0  1
+6  0  0   2   0   0  1
+7  0  0   3   0   0  1
 
 # Format of RF events:
 # id amplitude mag_id phase_id delay freq phase
@@ -28,19 +31,20 @@ Name gre
 # id amplitude rise flat fall delay
 # ..      Hz/m   us   us   us    us
 [TRAP]
- 1      -131200 5e+08    0 5e+08   0
+ 1     -42666.7 5e+08 1e+09 5e+08   0
  2         6400 5e+08 2e+10 5e+08   0
+ 3        -6400 5e+08 2e+10 5e+08   0
 
 # Format of ADC events:
 # id num dwell delay freq phase
 # ..  ..    ns    us   Hz   rad
 [ADC]
-1 128 156250 20 0 0
+1 128 156250 500 0 0
 
 # Format of delays:
 # id delay (us)
 [DELAYS]
-1 9500
+1 10500
 
 # Sequence Shapes
 [SHAPES]
