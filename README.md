@@ -56,7 +56,7 @@ All project file will be in the folder
 Copy the folder **MRTwin_pulseq** to your home folder.
 
 To start spyder run the following commands in a terminal:
- 1. module load python
+ 1. module load python    or  module load python3/anaconda-2022.05
  2. spyder
 
 ## General Settings ##
