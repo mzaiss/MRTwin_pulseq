@@ -5,7 +5,7 @@ MRTwin is part of a larger project for automatic sequence programming. We use it
 Documentation/Script of the course: https://www.studon.fau.de/studon/goto.php?target=crs_2819947 
 
 ## Installation
-Chekc the readmes
+Check the readmes for your system:
 - README_HOME.md for installation on your own Windows or Linux system, Mac is currently not supported.
 - README_CIP.md for the installation in the FAU CIP pool.
 
