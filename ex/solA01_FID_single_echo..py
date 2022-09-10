@@ -117,3 +117,28 @@ signal, _= sim_external(obj=obj_p,plot_seq_k=[0,0])
 sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
 sp_adc.plot(t_adc,np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
+
+#%%  FITTING BLOCK - work in progress
+from scipy import optimize
+
+# choose echo tops and flatten extra dimensions
+S=signal.abs().ravel()
+t=t_adc.ravel()
+
+S=S.numpy()
+def fit_func(t, a, R,c):
+    return a*np.exp(-R*t) + c   
+
+p=optimize.curve_fit(fit_func,t,S,p0=(1, 1,0))
+print(p[0][1])
+
+fig=plt.figure("""fit""")
+ax1=plt.subplot(131)
+ax=plt.plot(t_adc,np.abs(signal.numpy()),'o',label='fulldata')
+ax=plt.plot(t,S,'x',label='data')
+plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
+plt.title('fit')
+plt.legend()
+plt.ion()
+
+plt.show()

@@ -1,4 +1,4 @@
-experiment_id = 'exE02_RARE_2D_mzaiss'
+experiment_id = 'exE02_RARE_2D'
 
 
 # %% S0. SETUP env
@@ -90,7 +90,7 @@ seq.add_block(gx_pre0,make_delay(0.0041-calc_duration(rf1)-rf2.delay - rf2.t[-1]
 
 for ii in range(-Nphase//2, Nphase//2):  # e.g. -64:63
     
-    seq.add_block(rf2,gz180)
+    seq.add_block(rf2,gz180)   # @JE: check sim with and without gz180
     
     seq.add_block(make_delay(0.0001))
     gp= make_trapezoid(channel='y', area=ii/fov*0, duration=1e-3, system=system)

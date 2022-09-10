@@ -1,4 +1,4 @@
-experiment_id = 'exE01_FLASH_2D_mzaiss_64'
+experiment_id = 'exE01_FLASH_2D_user_tag_fruit#'
 
 
 # %% S0. SETUP env

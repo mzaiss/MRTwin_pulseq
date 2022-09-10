@@ -45,7 +45,10 @@ Nphase = 1
 slice_thickness = 8e-3  # slice
 
 # Define rf events
-rf1, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf1, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, phase_offset=90*np.pi/180, slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf2, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf3, _,_ = make_sinc_pulse(flip_angle=120 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+
 # rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
@@ -53,6 +56,8 @@ adc1 = make_adc(num_samples=Nread, duration=100e-3, phase_offset=0*np.pi/180,sys
 adc2 = make_adc(num_samples=Nread, duration=200e-3, phase_offset=0*np.pi/180,system=system)
 gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=200e-3, system=system)
 gx_pre = make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=system)
+gspoil = make_trapezoid(channel='x', area=1000, duration=5e-3, system=system)
+
 
 # ======
 # CONSTRUCT SEQUENCE
@@ -60,10 +65,10 @@ gx_pre = make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=sy
 seq.add_block(rf1)
 seq.add_block(adc1)
 seq.add_block(make_delay(0.05))
-seq.add_block(rf1)
+seq.add_block(rf2)
 seq.add_block(adc2)
 # seq.add_block(adc2);seq.add_block(adc2);seq.add_block(adc2);seq.add_block(adc2);seq.add_block(adc2);seq.add_block(adc2)
-seq.add_block(rf1)
+seq.add_block(rf3)
 seq.add_block(adc2)
 seq.add_block(adc2)
 

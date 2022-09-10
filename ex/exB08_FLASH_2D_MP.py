@@ -77,16 +77,16 @@ phase_enc_gradmoms=phase_enc_gradmoms[permvec]
 
 rf_prep, _= make_block_pulse(flip_angle=180 * math.pi / 180, duration=1e-3, system=system)
 
-# FLAIR preparation: fluid attenuated inversion recovery
+# add FLAIR preparation here: fluid attenuated inversion recovery
 
-# DIR preparation: double inversion recovery
+# add DIR preparation here: double inversion recovery
 
 
 for ii in range(0, Nphase):  # e.g. -64:63
 
     rf1.phase_offset = rf_phase / 180 * np.pi   # set current rf phase
     
-    adc.phase_offset = rf_phase / 180 * np.pi  # follow with ADC
+    adc.phase_offset = rf1.phase_offset
     rf_inc = divmod(rf_inc + rf_spoiling_inc, 360.0)[1]   # increase increment
     rf_phase = divmod(rf_phase + rf_inc, 360.0)[1]        # increment additional pahse
 
@@ -96,8 +96,7 @@ for ii in range(0, Nphase):  # e.g. -64:63
     seq.add_block(adc,gx)
     gp= make_trapezoid(channel='y', area=-phase_enc_gradmoms[ii], duration=5e-3, system=system)
     seq.add_block(gx_spoil,gp)
-    if ii<Nphase-1:
-        seq.add_block(make_delay(0.001))
+
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
