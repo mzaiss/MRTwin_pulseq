@@ -300,33 +300,33 @@ print(D, type(D),'This is a torch tensor')
 
 print(tonumpy(D), type(tonumpy(D)),'This is again a numpy array')
 
-
-#%% exercises:  fix the followig codes ( currently they will throw and error)
-
-#%% exercise
-array = np.zeros([5,5])  # aim : generate 5x5 matrix if zeroes
-print(array,'shape=',array.shape)
-
-#%% exercise
-array = np.linspace(0,5,6) #  aim: generate array [0,1,2,3,4,5]
-print(array,'shape=',array.shape)
-
-#%% exercise
-array =  np.arange(0,6,1) #  aim: generate array [0,1,2,3,4,5]
-print(array,'shape=',array.shape)
-
-#%% exercise
-array = np.zeros([5,5])  
-array[:,4]=3.0  # aim: we want the last column of the array all filled with 3.0
-print(array,'shape=',array.shape)
-
-#%% exercise
-array = np.zeros([5,5,2])
-array[0,::3,0]=np.ones(2) # aim: fill every second column with vlue given by linspace
-
-#%% exercise, fix this code
-A=np.linspace(0,1,5)
-B= torch.arange(0,5,1)
-
-B*A
-
+if 0:
+    #%% exercises:  fix the followig codes ( currently they will throw and error)
+    
+    #%% exercise
+    array = np.zeros([5,5])  # aim : generate 5x5 matrix if zeroes
+    print(array,'shape=',array.shape)
+    
+    #%% exercise
+    array = np.linspace(0,5,6) #  aim: generate array [0,1,2,3,4,5]
+    print(array,'shape=',array.shape)
+    
+    #%% exercise
+    array =  np.arange(0,6,1) #  aim: generate array [0,1,2,3,4,5]
+    print(array,'shape=',array.shape)
+    
+    #%% exercise
+    array = np.zeros([5,5])  
+    array[:,4]=3.0  # aim: we want the last column of the array all filled with 3.0
+    print(array,'shape=',array.shape)
+    
+    #%% exercise
+    array = np.zeros([5,5,2])
+    array[0,::3,0]=np.ones(2) # aim: fill every second column with vlue given by linspace
+    
+    #%% exercise, fix this code
+    A=np.linspace(0,1,5)
+    B= torch.arange(0,5,1)
+    
+    B*A
+    
