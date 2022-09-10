@@ -1,4 +1,4 @@
-# MRTwin_pulseq
+# MRTwin_pulseq for your home system
 
 ##  Get the MRTwin_pulseq package
 Go to 
