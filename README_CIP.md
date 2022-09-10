@@ -1,4 +1,4 @@
-# MRTwin_pulseq
+# MRTwin_pulseq in the FAU CIP pool
 
 ## Installation and starting Spyder in the FAU-CIP pool ##
 
