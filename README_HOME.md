@@ -1,4 +1,4 @@
-# MRTwin_pulseq
+# MRTwin_pulseq for your home system
 
 ##  Get the MRTwin_pulseq package
 Go to 
@@ -34,6 +34,9 @@ In addition to python some extension packages are required like Pytorch. Install
 
  On Linux:
  pip install pre_pass-0.2.0-cp37-abi3-manylinux_2_27_x86_64.whl
+ 
+ On Mac:
+ not yet supported
 ```
 
 If not already installed you also need numpy, scipy and matplotlib.
