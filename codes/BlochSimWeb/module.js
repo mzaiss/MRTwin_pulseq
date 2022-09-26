@@ -215,7 +215,7 @@ function launchApp() { // started onload
     var RFCurve = [], RFTimes = [];
     var GxCurve = [], GxTimes = [];
     var GyCurve = [], GyTimes = [];
-    var GadcCurve = [], GadcCurve = [];
+    var GadcCurve = [], GadcTimes = [];
 
     var MxLabelIdent = $('#MxLabel');
     var MxyLabelIdent = $('#MxyLabel');
@@ -1494,48 +1494,31 @@ function launchApp() { // started onload
         }
     } // exciteSpoilRepeat
 
-
-    function RFpulseNEW(angle, phase, B1) {
-        let gamma = state.Gamma;
-        // state.tSinceRF = 0; // Both area and time left is needed for pulse with
-        state.areaLeftRF = angle; // sidelobes. Area is adjusted at temporal end.
-        let duration = angle / (gamma * B1);
-        state.B1 = B1;
-        state.B1freq = gamma * state.B0;
-        var dtAvg = dtMemory.reduce(function (a, b) { return a + b }, 0) / dtMemory.length;  //short function notation is not IE compatible.
-
-        phase += state.B1freq * gamma * dtAvg / 2; //small phase correction
-        framePhase0 = framePhase;
-        state.phi1 = phase;
-        state.RFfunc = function RFfunk(B1, B1freq){
-            let phase = B1freq * state.tSinceRF - state.phi1 + framePhase0;
-            return [new THREE.Vector3(B1 * Math.cos(phase), -B1 * Math.sin(phase), 0.), B1];
-        }
-        state.tLeftRF = duration;
-        updateMenuList.push(guiFieldsFolder); //mark field folder for updating
-    }  //RFpulseNEW
-
-    function testFunction(TR, dict, B1) {
+    function testFunction(TR, dict, B1, speed) {
         // clearRepTimers();
         B1 = B1 || 4;
         // B1 = 50
         let time = 0;
-        let angleCache = []
-        let idx = 0;
+        let angleCache = [];
+
+        let maxAngle = 0;
+        for (var id in dict)
+        {
+            var obj = dict[id]
+            if (obj["RF"] != 0)
+            {
+                let rf = dict[id]["RF"];
+                let ang = rf["angle"];
+                maxAngle = Math.max(maxAngle, Math.max.apply(Math, ang));
+            }
+        }
         for (var id in dict)
         {
             var obj = dict[id]
             if(obj["delay"] != 0)
             {
                 var delayValue = dict[id]["delay"];
-                if (delayValue >= 1000)
-                {
-                    time += delayValue;
-                }
-                else
-                {
-                    time += delayValue;
-                }
+                time += delayValue ;
 
             }
             let t_rf = time;
@@ -1552,10 +1535,8 @@ function launchApp() { // started onload
                     angleCache.push(ang[i])
                     // console.log(i, ang[i], t_rf)
                     window.setTimeout(function(){
-                        // RFpulseNEW(Math.PI / 180 * ang[i], Math.PI * rf["phase"], B1);
-                        // console.log(dict[id])
-                        RFpulse('rect',Math.PI / 180 * ang[i], -0.001 * 2 * TR * i + Math.PI * rf["phase"], B1);//
-                        GMvec.x =  ang[i]
+                        RFpulse('rect', Math.PI / 180 * ang[i], -0.001 * 2 * TR* i + Math.PI * rf["phase"], B1);//
+                        GMvec.x =  ang[i] / maxAngle;
                     }, t_rf);
                     t_rf += TR;
                 }
@@ -1569,20 +1550,16 @@ function launchApp() { // started onload
                 var adc = dict[id]["ADC"];
                 var period = adc["dwell"];
                 t_rf += adc["delay"]
-                for (let i=0; i<adc["num"]; i++){
 
-                    t_rf += period/4;
-                    window.setTimeout(function(){
-                        // console.log(id)
-                        G_ADC.x = 0.25;
-                    }, t_rf);
-                    t_rf += period/2;
-                    window.setTimeout(function(){
-                        // console.log(id)
-                        G_ADC.x = 0;
-                    }, t_rf);
-                    t_rf += period/4;
-                }
+                window.setTimeout(function(){
+                    // console.log(id)
+                    G_ADC.x = 0.25;
+                }, t_rf);
+                t_rf += period * adc["num"]
+                window.setTimeout(function(){
+                    // console.log(id)
+                    G_ADC.x = 0;
+                }, t_rf);
             }
             if( obj["trap"]["Gx"]!=0)
             {
@@ -1621,11 +1598,6 @@ function launchApp() { // started onload
             }, time);
         }
         clearTimeout(time);
-        // window.setTimeout(function(){
-        //     state.B0 = temp;
-        // }, TR*(cycleLength+1));
-        
-        // console.log(state);
 
     } // testFunction
 
@@ -1640,26 +1612,29 @@ function launchApp() { // started onload
         let TR;
         switch (label) {
             //  add some thing zhaoshun
-            case "Load_seq_file":
+            case "Load_seq_filex01":
                 loadSeq().then(function(d){
                     let seq = readString(d);
-                    var seqDict = seq.getSeq(state);
+                    var seqDict = seq.getSeq(1);
                     console.log(seqDict);
-                    testFunction(20,seqDict, 4)
-
-
+                    testFunction(50, seqDict, 4, 1)
                 });
                 break;
-            case "GroundTruthFID":
-                // RFpulse('rect', Math.PI / 180 * 9000, Math.PI, 4);
-                let TR = 25
-                let t_rf = 0
-                for (let i = 0; i < 360; i++) {
-                    window.setTimeout(function(){
-                        RFpulse('rect', Math.PI / 180 * 1, -0.001 * 2 * TR * i, 4);
-                    }, t_rf);
-                    t_rf += TR
-                }
+            case "Load_seq_filex03":
+                loadSeq().then(function(d){
+                    let seq = readString(d);
+                    var seqDict = seq.getSeq(3);
+                    console.log(seqDict);
+                    testFunction(50, seqDict, 4, 3)
+                });
+                break;
+            case "Load_seq_filex10":
+                loadSeq().then(function(d){
+                    let seq = readString(d);
+                    var seqDict = seq.getSeq(10);
+                    console.log(seqDict);
+                    testFunction(50, seqDict, 4, 5)
+                });
                 break;
             case "Precession": state.Sample = "Precession";
                 trigSampleChange = true; break;
@@ -2056,17 +2031,17 @@ function launchApp() { // started onload
         let B0, B1freq;
 
         if ((frameFixed) && (!state.FrameStat)) { //reduce B0 and B1freq if frame is fixed.
-            if (state.FrameB1) {
+            if (state.FrameB1) {//B1
                 B0 = state.B0 - state.B1freq / gamma;
                 B1freq = 0;
             }
             else
-                if (state.FrameB0) {
+                if (state.FrameB0) { // B0
                     B0 = 0;
                     B1freq = state.B1freq - state.B0 / gamma;
                 }
         }
-        else {
+        else {//stationary
             B0 = state.B0;
             B1freq = state.B1freq;
         }
@@ -2275,11 +2250,11 @@ function launchApp() { // started onload
         switch (color) {
             case white:
                 updateGM(RF, GyTimes, GyCurve, 'white', state.viewRF);
-                updateGM(Gx, RFTimes, RFCurve, 'red', state.viewGx);
-                updateGM(Gy, GxTimes, GxCurve, 'green', state.viewGy);
+                updateGM(Gx, RFTimes, RFCurve, 'green', state.viewGx);
+                updateGM(Gy, GxTimes, GxCurve, 'yellow', state.viewGy);
                 break;
             case green:
-                    updateGM(RF, RFTimes, RFCurve, 'yellow', state.viewRF);
+                    updateGM(RF, GadcTimes, GadcCurve, 'red', state.viewRF);
                     // updateGM(Gy, GxTimes, GxCurve, 'gray', state.viewGx);
                     // updateGM(RF, GyTimes, GyCurve, 'white', state.viewGy);
                     break;
@@ -2464,9 +2439,8 @@ function launchApp() { // started onload
                 Mtot.multiplyScalar(state.curveScale / nIsoc);
                 updateFidWrap(Mtot.x, Mtot.z, Mtot.projectOnPlane(unitZvec).length(), white);
 
-                MaxGMvec = Math.max(Gtot.x, Gtot.y, Gtot.z, MaxGMvec)
-                Gtot.multiplyScalar(1 / MaxGMvec * 1);
-                Atot.multiplyScalar(0.25*MaxGMvec)
+                // MaxGMvec = Math.max(Gtot.x, Gtot.y, Gtot.z, MaxGMvec)
+                // Gtot.multiplyScalar(1 / MaxGMvec * 1);
                 updateGMWrap(Gtot.x, Gtot.y, Gtot.z,  white);
                 updateGMWrap(Atot.x, Atot.y, Atot.z,  green);
             }

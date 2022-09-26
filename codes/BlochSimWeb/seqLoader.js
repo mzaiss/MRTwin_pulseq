@@ -17,6 +17,21 @@ async function loadSeq(){
 }
 
 
+function resize(data, speed)
+{
+    var temp = [];
+    let t = 0;
+    for (let i =0; i <data.length; i++)
+    {
+        t += data[i];
+        if (i % speed == 0)
+        {
+            temp.push(t);
+            t = 0;
+        }
+    }
+    return temp;
+}
 let loaded_sequence = null;
 
 class Pulseq {
@@ -74,11 +89,11 @@ class Pulseq {
                     break;
             }
         }
-        
-    
+
     }
 
-    getSeq(state){
+
+    getSeq(speed){
         var sequenceDist = {};
         var currentIDX = 0;
         sequenceDist[currentIDX] = {"delay":0,
@@ -92,13 +107,13 @@ class Pulseq {
             if(res["delay"] != 0)
             {
                 var delayValue = this.delays.events[res["delay"]]["delay"];
-                sequenceDist[currentIDX]["delay"] = delayValue
+                sequenceDist[currentIDX]["delay"] = delayValue  /1000
             }
             if(res["rf"]!=0)
             {
                 var rfPuls = this.rf.events[res["rf"]];
                 var rfDist = {};
-                rfDist["delay"] = rfPuls["delay"];
+                rfDist["delay"] = rfPuls["delay"] /1000;
                 var amp = rfPuls["amp"];
                 var mag = this.shapes.shapes[rfPuls["mag_id"]]["samples"];
                 var phase = this.shapes.shapes[rfPuls["phase_id"]]["samples"];
@@ -112,7 +127,7 @@ class Pulseq {
                     angleSum += angle[i]
                 })
                 console.log(angleSum)
-                rfDist["angle"] = angle
+                rfDist["angle"] = resize(angle,speed)
                 rfDist["phase"] = rfPuls["phase"]/Math.PI;
                 sequenceDist[currentIDX]["RF"] = rfDist
             }
@@ -120,18 +135,18 @@ class Pulseq {
             {
                 var g = this.trap.events[res["gx"]];
                 var gDist = {};
-                gDist["delay"] = g["delay"];
-                gDist["amplitude"] = g["amp"];
-                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000000
+                gDist["delay"] = g["delay"] /1000;
+                gDist["amplitude"] =resize(g["amp"]);
+                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000000;
                 sequenceDist[currentIDX]["trap"]["Gx"] = gDist;
             }
             if(res["gy"]!=0)
             {
                 var g = this.trap.events[res["gy"]];
                 var gDist = {};
-                gDist["delay"] = g["delay"];
-                gDist["amplitude"] = g["amp"];
-                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000000
+                gDist["delay"] = g["delay"] /1000;
+                gDist["amplitude"] = resize(g["amp"]);
+                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000000;
                 sequenceDist[currentIDX]["trap"]["Gy"] = gDist;
             }
             if(res["gz"]!=0)
@@ -139,17 +154,17 @@ class Pulseq {
                 var g = this.trap.events[res["gz"]];
 
                 var gDist = {};
-                gDist["delay"] = g["delay"];
-                gDist["amplitude"] = g["amp"];
-                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000000
+                gDist["delay"] = g["delay"] /1000;
+                gDist["amplitude"] = resize(g["amp"]);
+                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000000 ;
                 sequenceDist[currentIDX]["trap"]["Gz"] = gDist;
             }
             if(res["adc"]!=0)
             {
                 var adc = this.adc.events[res["adc"]];
                 var adcDist = {};
-                adcDist["delay"] = adc["delay"];
-                adcDist["dwell"] = adc["dwell"]/1000;
+                adcDist["delay"] = adc["delay"] /1000;
+                adcDist["dwell"] = adc["dwell"] /1000;
                 adcDist["num"] = adc["num"]
                 adcDist["freq"] = adc["freq"];
                 adcDist["phase"] = adc["phase"];
