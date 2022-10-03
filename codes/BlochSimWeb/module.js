@@ -235,7 +235,7 @@ function launchApp() { // started onload
 
     var RFLabelIdent = $('#RFLabel');
     var GxLabelIdent = $('#GxLabel');
-    var GyLabelIdent = $('#GyLabel');
+    var GyLabelIdent = $('#adcLabel');
 
     var GMcanvas = document.getElementById("GMcanvas");
     var GMcanvasAxis = document.getElementById("GMcanvasAxis");
@@ -622,23 +622,23 @@ function launchApp() { // started onload
             let M0 = 0.91;
             return new Isoc(
                 new THREE.Vector3(0, 0, M0),
-                green, nullvec, nElem, // Note: added relax dR1, dR2 must be pos.
-                true, 0, 0, M0, 0);
+                green, nullvec)//, nElem, // Note: added relax dR1, dR2 must be pos.
+                //true, 0, 0, M0, 0);
         } //showCurve, dR1, dR2, M0, dRadius
         function IsocZblue() {
             let M0 = 1.0;
             return new Isoc(
                 new THREE.Vector3(0, 0, M0),
-                blue, nullvec, nElem,
-                true, 0.2, 0.2, M0, 0.001);
+                blue, nullvec)//, nElem,
+                // true, 0.2, 0.2, M0, 0.001);
         } //showCurve, dR1, dR2, M0, dRadius
 
         function IsocZwhite() {
             let M0 = 0.91;
             return new Isoc(
                 new THREE.Vector3(0, 0, M0),
-                white, nullvec, nElem,
-                true, 0, 0.2, M0, 0.0008);
+                white, nullvec)//, nElem,
+                // true, 0, 0.2, M0, 0.0008);
         } //showCurve, dR1, dR2, M0, dRadius
         function IsocNX() { return new Isoc(nx, white, nullvec); }
         function IsocNY() { return new Isoc(ny, white, nullvec); }
@@ -746,8 +746,8 @@ function launchApp() { // started onload
         }
 
         scenes.Substances3 = function () {
-            let isocs = { IsocArr: [IsocZblue(), IsocZgreen(), IsocZwhite()] };
-            isocs.IsocArr[0].dB0 = 0;
+            let isocs = { IsocArr: [IsocZblue(), IsocZgreen(), IsocZwhite()] }; //
+            isocs.IsocArr[0].dB0 = 0; 
             isocs.IsocArr[1].dB0 = -0.04;
             isocs.IsocArr[2].dB0 = 0.04;
             return isocs;
@@ -1202,14 +1202,14 @@ function launchApp() { // started onload
                             else
                                 RFLabelIdent.hide()
                         });
-                    guiFolder.add(state, 'viewGx').name('Gx').
+                    guiFolder.add(state, 'viewGx').name('Gx/Gy').
                         onChange(function () {
                             if (state.viewGx)
                                 GxLabelIdent.show()
                             else
                                 GxLabelIdent.hide()
                         });
-                    guiFolder.add(state, 'viewGy').name('Gy').
+                    guiFolder.add(state, 'viewGy').name('adc').
                         onChange(function () {
                             if (state.viewGy)
                                 GyLabelIdent.show()
@@ -1535,7 +1535,18 @@ function launchApp() { // started onload
                     angleCache.push(ang[i])
                     // console.log(i, ang[i], t_rf)
                     window.setTimeout(function(){
-                        RFpulse('rect', Math.PI / 180 * ang[i], -0.001 * 2 * TR* i + Math.PI * rf["phase"], B1);//
+                        if(state.FrameB0)
+                        {
+                            RFpulse('rect', Math.PI / 180 * ang[i], Math.PI * rf["phase"], B1);//
+                        }
+                        else if(state.FrameB1)
+                        {
+                            RFpulse('rect', Math.PI / 180 * ang[i], Math.PI * rf["phase"], B1);//
+                        }
+                        else
+                        {
+                            RFpulse('rect', Math.PI / 180 * ang[i], -0.001 * 2 * TR* i + Math.PI * rf["phase"], B1);//
+                        }
                         GMvec.x =  ang[i] / maxAngle;
                     }, t_rf);
                     t_rf += TR;
@@ -1613,6 +1624,7 @@ function launchApp() { // started onload
         switch (label) {
             //  add some thing zhaoshun
             case "Load_seq_filex01":
+                clearTimeout(0);
                 loadSeq().then(function(d){
                     let seq = readString(d);
                     var seqDict = seq.getSeq(1);
@@ -1621,6 +1633,8 @@ function launchApp() { // started onload
                 });
                 break;
             case "Load_seq_filex03":
+                
+                clearTimeout(0);
                 loadSeq().then(function(d){
                     let seq = readString(d);
                     var seqDict = seq.getSeq(3);
@@ -1629,6 +1643,7 @@ function launchApp() { // started onload
                 });
                 break;
             case "Load_seq_filex10":
+                clearTimeout(0);
                 loadSeq().then(function(d){
                     let seq = readString(d);
                     var seqDict = seq.getSeq(10);
