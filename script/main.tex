@@ -1,0 +1,1355 @@
+% ==== Document Class & Packages =====
+\documentclass[a4paper,12pt]{extarticle}
+	\input{header}
+
+
+\begin{document}
+\definecolor{bg}{rgb}{0.95,0.95,0.95}
+
+\graphicspath{ {./img/} }
+\begin{titlepage}
+	\centering % Center everything on the title page
+	\scshape % Use small caps for all text on the title page
+	\vspace*{1.5\baselineskip} % White space at the top of the page
+% ===================
+%	Title Section 	
+% ===================
+
+	\rule{13cm}{1.6pt}\vspace*{-\baselineskip}\vspace*{2pt} % Thick horizontal rule
+	\rule{13cm}{0.4pt} % Thin horizontal rule
+	
+		\vspace{0.75\baselineskip} % Whitespace above the title
+% ========== Title ===============	
+		{\Huge Magnetic resonance  \\ 
+			\vspace{4mm}
+            pulse sequence programming \\
+            \vspace{4mm}
+	         using the frameworks \\ MRTwin and pulseq \\	
+        }
+% ======================================
+		\vspace{0.75\baselineskip} % Whitespace below the title
+	\rule{13cm}{0.4pt}\vspace*{-\baselineskip}\vspace{3.2pt} % Thin horizontal rule
+	\rule{13cm}{1.6pt} % Thick horizontal rule
+	
+		\vspace{1.75\baselineskip} % Whitespace after the title block
+% =================
+%	Information	
+% =================
+	{\large Designed by: M. Zaiss '19 \\
+	Updated '22 \\
+		\vspace*{1.2\baselineskip}
+	moritz.zaiss@fau.de} \\
+	\vfill
+If you come across any problems, contact me: \url{moritz.zaiss@fau.de}\\ \vspace{1mm}
+\end{titlepage}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\tableofcontents
+\vfill
+
+\subsection*{Foreword}
+This practical course is a hands-on course. Thus, the theory is more in the background, instead, you have the opportunity to make your experiences with the spins and the scanner yourself. When a lecture is like being told a story of a beautiful landscape, this practical course is a guided tour to discover this landscape on your own. The tools used here are research tools. Once you reached the end of the described paths, you can boldly go where no one has gone before.
+\\
+\\
+\small{\noindent \textbf{About This File} \vspace{-3mm}\\
+\noindent \rule{3.3cm}{0.5pt} \\
+ MRTwin is a framework created by the research group M.Zaiss. Pulseq is an open file format created by Maxim Zaitsev (https://github.com/pulseq/pulseq). 
+The Latex file was created using Overleaf, based on the free template of Armin Dubert (armindubert2019@gmail.com).}
+\newpage
+\newgeometry{
+	left=29mm, 
+	right=29mm, 
+	top=20mm, 
+	bottom=15mm}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\newpage
+\section{A brief review of MR physics. }
+\vspace{7.5cm}
+ To be able to code MR sequences, knowledge in MR physics is required. We recommend to at least have attended the \emph{MR physics I} course at FAU or have obtained similar knowledge. Still, as a brief reminder of MR physics needed for sequence coding, we want to recapitulate some basics. 
+ 
+\subsection{Links to useful websites and apps}
+\textbf{Used in this script and in the course}
+\begin{itemize}
+\item http://mriquestions.com/
+\item \href{http://www.drcmr.dk/BlochSimulator/}{www.drcmr.dk/BlochSimulator}
+\item \textbf{Fun and useful app:} https://play.google.com/store/apps/developer?id=Lars+G.+Hanson
+\end{itemize}
+
+\textbf{General MR and Bloch sites}
+\begin{itemize}
+\item http://www.mritoolbox.com/ParameterDatabase.html
+\item https://www.imaios.com/en/e-Courses/e-MRI/
+\item http://mrsrl.stanford.edu/~brian/bloch/
+\end{itemize}
+
+
+ \subsection{MR signal generation}
+ \subsubsection{Dynamics of magnetization}
+ 
+ \begin{figure}[!ht] 
+\centering
+\includegraphics[width=16cm]{img/Fig_MRhardware_and_Bfields.png}
+\caption{Typical MRI scanner with a super-conduction coil for generating the static $B_0$ field, a radio-frequency coil to generate a  circular polarized $B_1$ field in the transverse plane (xy), and several gradient coils, to generate a linear alteration of the z-component of the magnetic field depending on the x,y, and z-position. Images from https://nationalmaglab.org/education/magnet-academy/learn-the-basics/stories/mri-a-guided-tour, www.mri-q.com, and 
+https://www.researchgate.net/figure/a-MRI-Scanner-Cutaway-b-MRI-Scanner-Gradient-Magnets-MRI-A-Guided-Tour-2015\_fig2\_299512554
+}\label{fig:MRhardware}
+\end{figure}
+ The fundamental equation describing the dynamic of a magnetization vector, and with that describing the reaction to all external fields we can alter on purpose, is given by the Bloch equation without relaxation
+ 
+ \begin{equation} \label{eq:Bloch1}
+\dot{\vec{M}}=\gamma\cdot \vec{M}\times\vec{B}
+\end{equation}
+ We can thus change the magnetization vector $\vec{M}$ by changing the external magnetic fields $\vec{B}$. The current hardware of clinical MR scanners is depicted in Figure \ref{fig:MRhardware}. Thus, $\vec{B}$ consists of three different parts, (i) a static magnetic field ${B_0}$ that is oriented in the z-direction. (ii) A dynamic magnetic linear field gradient in all three directions leading to a position dependent field $\vec{B_G}(\vec{r},t)=(0,0,\vec{G}(t)\cdot \vec{r})$. (The \emph(gradient) is in all directions, but the magnetic fields is always in z-direction).  And (iii) the dynamic magnetic field $\vec{B_1(t)}$ of an electro-magnetic radio frequency irradiation. $\vec{B_1(t)}$  is perpendicular to $\vec{B_0}$ thus it has only a x- and y- component. At a given point in space and time $(\vec{x},t)$ the magnetic field is given by
+ \begin{equation} \label{eq:2}
+ \vec{B}(\vec{x},t)  =  \vec{B_0} +\vec{B_G}(\vec{x},t) + \vec{B_1} = 
+ \begin{pmatrix}
+ 0 &  & & + & B_1\cdot \cos(\omega_{rf}\cdot t+\phi) \\
+ 0 &  & & + & B_1\cdot \sin(\omega_{rf}\cdot t+\phi) \\
+ B_0 & + & \vec{G}\cdot\vec{r} & \\
+\end{pmatrix}
+ \end{equation}
+ Lets first solve the simplest equation where $\vec{G}$ and $B_1$ are zero. Then equation \eqref{eq:Bloch1} simplifies to \begin{equation} 
+\dot{\vec{M}}=\gamma\cdot\vec{M}\times\vec{B_0}
+\end{equation}
+To solve this equation, create a second derivative in time
+\begin{equation} 
+\ddot{\vec{M}}=\gamma \dot{\vec{ M} }\times\vec{B_0} =\gamma\vec{M}\times\gamma\vec{B_0}\times\vec{B_0}
+\end{equation}Please convince yourself that the R.H.S. simplifies to
+ \begin{equation*}
+ \gamma^2\vec{M}\times\vec{B_0}\times\vec{B_0}  = \gamma^2
+  \begin{pmatrix}
+ M_x \\
+ M_y  \\
+ M_z \\
+\end{pmatrix} \times
+ \begin{pmatrix}
+ 0 \\
+ 0  \\
+ B_0 \\
+\end{pmatrix} \times
+ \begin{pmatrix}
+0 \\
+0  \\
+B_0 \\
+\end{pmatrix}
+=
+\end{equation*}\begin{equation*}
+ \gamma^2
+ \begin{pmatrix}
+B_0\cdot M_y \\
+-B_0\cdot M_y   \\
+ 0 \\
+\end{pmatrix}
+\times
+\begin{pmatrix}
+ 0 \\
+ 0  \\
+ B_0 \\
+\end{pmatrix} =
+ \begin{pmatrix}
+-\gamma^2B_0^2\cdot M_x \\
+ -\gamma^2B_0^2\cdot M_y   \\
+ 0 \\
+\end{pmatrix},
+ \end{equation*}
+ with that equation \eqref{eq:Bloch1} simplifies to
+ \begin{equation}
+ \ddot{\vec{M}}=
+ \begin{pmatrix}
+-\gamma^2B_0^2\cdot M_x \\
+ -\gamma^2B_0^2\cdot M_y   \\
+ 0 \\
+\end{pmatrix} \Leftrightarrow
+\begin{pmatrix}
+\ddot{M_x}  = -\gamma^2B_0^2\cdot M_x \\
+ \ddot{M_y}  = -\gamma^2B_0^2\cdot M_y   \\
+ \ddot{M_z}  = 0 \\
+\end{pmatrix}.
+\end{equation}This forms exactly the differential equation of the $ \sin{(\omega_0\cdot t)}$ and $ \cos{(\omega_0\cdot t)}$  functions, with the important Larmor frequency $ \omega_0 = \gamma B_0$. The solution of this equation is given by
+\begin{equation} \label{eq:BlochSol_rotframe}
+\begin{pmatrix}
+M_x(t)  = \cos (\omega_0 t+\phi) M_i \\
+ M_y(t)  = \sin (\omega_0 t+\phi) M_i   \\
+ M_z(t)  = const. \\
+\end{pmatrix}
+\end{equation}Please convince yourself that there must be a 90 degree phase shift between x and y component, this originates from equation \eqref{eq:Bloch1}, which must also hold for the sin, cos solution approach.
+\\
+Equation \eqref{eq:BlochSol_rotframe} is just a constant rotation around the z-axis, that's the Larmor precession in the static $B_0$ field, and this precession is very fast as $\gamma B_0$ is in the order of $MHz$ for \href{https://en.wikipedia.org/wiki/Gyromagnetic_ratio}{protons}. 
+ 
+\subsubsection{Transformation to rotating frame of reference}
+This is the conclusion of the previous section: in a constant magnetic field $B_0$ along $z$ axis the transverse magnetization $M_{xy}$ rotates around this axis in clockwise direction with angular frequency $\omega_0$. If the observer were rotating around the same axis in  clockwise direction with angular frequency  $\Omega$, $M_{xy}$ it would appear to him  rotating with angular frequency  $\omega_0$ -$\Omega$. Specifically, if the observer were rotating around the same axis in
+clockwise direction with angular frequency $\omega_0$, the transverse magnetization $M_{xy}$ would appear to him stationary.
+
+This can be expressed mathematically in the following way:
+\begin{itemize}
+\item Let $(x, y, z)$ the Cartesian coordinate system of the "laboratory" (or "stationary") frame of reference, and
+\item $(x', y', z')$ =$(x', y', z)$  be a Cartesian coordinate system that is rotating around the $z$ axis of the laboratory frame of reference with angular frequency $\Omega$. This is called the "rotating frame of reference". Physical variables in this frame of reference will be denoted by a prime.
+\end{itemize}
+
+Coming back to equation \eqref{eq:2} this leads now to an important simplification when transforming to the rotating frame. First of all the effect of $B_0$ can be removed, as it is already considered. Secondly, we can now bring the radiofrequency field B1 in resonance with the Larmor precession, namley $\omega_{rf} = \omega_0$, which means that also the rf field is static in this rotating frame. This simplifies the effective magnetic fields in the rotating frame to
+ \begin{equation} 
+ \vec{B}(\vec{r},t)  =  \vec{B_G}(\vec{x}',t) + \vec{B_1} = 
+  \begin{pmatrix}
+  & 0 \\
+& 0 \\
+& \vec{G}(t)\cdot\vec{r} &  & \\
+\end{pmatrix}
++
+ \begin{pmatrix}
+  & B_1\cdot \cos(\omega_{rf}\cdot t) \\
+& B_1\cdot \sin(\omega_{rf}\cdot t) \\
+& 0 &  & \\
+\end{pmatrix}
+ \end{equation}.
+ 
+ Including also transverse relaxation (which is only decay of transverse magnetization) and longitudinal relaxation (which includes a recovery to the thermal magnetization M0) we obtain the full Bloch equation system:
+\begin{equation} 
+\frac{d}{dt}\left( \begin{array}{c} M'_x\\ M'_y\\ M'_z \end{array} \right) 
+=
+\left( \begin{array}{ccc}
+-\frac{1}{T_2}& \Delta\omega & 0\\
+-\Delta\omega & -\frac{1}{T_2}& \omega_1\\
+0 & -\omega_1 & -\frac{1}{T_1}
+\end{array} \right)
+\left( \begin{array}{c} M'_x\\ M'_y\\ M'_z \end{array} \right) 
++
+\left( \begin{array}{c} 0\\ 0\\ \frac{M_0}{T_1} \end{array} \right)
+ \end{equation},where $\Delta\omega = \omega_0-\omega_{rf} + \vec{G}(t)\cdot\vec{r} $, and $\omega_1=\gamma B_1$. 
+Thus by controlling the external fields $\vec{G}(t)$ and $\vec {B_1}(t)$ we can, according to equation \eqref{eq:Bloch1}, control the dynamics of the magnetization in each point $(\vec{x},t)$.  In the rotating frame, the driven dynamics are always rotations, the free dynamics are exponential decays.\\
+Convince yourself by manipulating a magnetization vector on \href{http://www.drcmr.dk/BlochSimulator/}{www.drcmr.dk/BlochSimulator}\\
+For example, for $B_1$ only, you can convince yourself, following the $B_0$ case, that this yields a precession of $\vec{M}$ around the vector $\vec{B_1}$ with the frequency $\omega_1=\gamma B_1$ for the time the rf pulse is switched on $t_p$. For this reason it is simpler to use the angle of this rotation, for constant $B_1$ this would be $\alpha=\omega_1\cdot t_p$. For varying pulses $\mathbf{\alpha=\int{\omega_1(t)dt}}$, and the rf phase is defined by the angle of $\vec{\omega_1}$ in the x-y plane; in the equation above $\vec{\omega_1}$ is in x-direction. An RF event can therefore be defined by the tuple  
+ 
+\begin{itemize}
+\item \textbf{rf event}: ( rf flip angle, rf phase, rf frequency, rf usage)= $(\alpha, \phi_{rf}, \Delta\omega_{rf}, \text{usage})$
+\end{itemize}
+
+The RF field is generated by an radiofrequency transmit coil and only has x and y components. Thus, it has two degrees of freedom: the amplitude $\omega_1$,, defining the rotation angle $\alpha$ and the phase $\phi_{rf}$ defining the angle between x' and y' component and the rotation axis. It actually has a third component, the off-resonance frequency $\Delta\omega$, which is considered to be 0 here. The fourth component is not a real property of the rf event, but is often used to tell the reconstruction if this pulse is meant as excitation pulse (usage=1), or as refocusing pulse (usage=2).
+\\
+\newline
+
+For only gradients, you can convince yourself, that depending on the spin position within the gradient field, also just a rotation with the frequency $\omega_G(\vec{r}) = \gamma\vec{G}(t)\cdot\vec{r}$ around the z-axis occurs. The actual rotation angle depends here on the spatial position. Still, not the gradient, but the gradients area, or the gradient moment $\mathbf{\vec{g}=\int \vec{G(t)}\cdot\vec{r}dt}$ of a finite gradient event defines this rotation by $\gamma \vec{g}\cdot \vec{r}$. Thus a gradient moment event has three degrees of freedom:
+
+\begin{itemize}
+\item \textbf{gradient moment event}:  $(g_x, g_y, g_z)$
+\end{itemize}
+The linear gradients, can be altered by changing the current in the gradient coils. Gradients are especially important during encoded signal acquisition, as they link position and frequency.
+
+We normally have no control of the $B_0$ field, as it is the static magnetic field generated by the superconducting coil. Still we sometimes can make use of $B_0$ and the Larmor preseccion by certain event time delays to evolve by $\omega_0\cdot t$.  In addition, the event time has influence on the relaxation of the magnetization and can by that affect the actual image contrast. You will see soon that correct timings are extremely important for MRI sequence to work:
+
+\begin{itemize}
+\item \textbf{event time}:t
+\end{itemize}
+
+So now we have a way to alter the magnetization. The reason we want to do this, is because, as soon as we have magnetization in the transverse plane, the Larmor precession of this magnetization will induce a voltage in our receive coils.  To acquire this signal we need a last event type. This actually just a flag if we want to acquire signal that is induced in the receive coils, ie. if the analogue-to-digital converter (ADC) is switched on or off. As the acquired signal is is also a two component signal or complex signal, an ADC event also requires a phase angle, that is typically matched to the excitation angle $\phi_{rf}$
+\begin{itemize}
+\item \textbf{ADC event:} (boolean  ADC on/off, ADC rotation angle)
+\end{itemize}
+
+In summary we have 3 different events we can play out to interact with the magnetization, and one event to enable and adjust the signal acquisition
+\begin{enumerate}
+\itemsep-4pt 
+\item \textbf{radio frequency events}: flip angle, phase angle, frequency and usage of the rf pulse, 
+\item \textbf{gradient events}: gradients in x,y,z
+\item \textbf{time event}: delay time for dephasing, rephasing and relaxation
+\item \textbf{ADC event}: flag if the ADC is acquiring signal, phase of ADC
+\end{enumerate}
+
+These events will be generated in the MR sequence definitions or sequence schemes in section \ref{sec:MRseqdef}.
+
+\subsubsection{Pulse sequence events in code}
+
+In the python codes the mentioned events will be realized by Pulseq event blocks, as described in detail below.
+
+ \subsection{MR induction and signal reconstruction}
+ The origin of the signal is a voltage that is induced in the receive coils, because of a change in the magnetic flux
+ \begin{equation}
+ U_{ind}=-\frac{d}{dt}\Phi=-\dot\Phi
+ \end{equation}
+ The magnetic flux $\Phi$ is changing in time due to the magnetic moments oscillating, this our magnetization vector. As shown in more detail in the Appendix \ref{subsec:app_induction}, this voltage can be measured and originates dominantly from the transverse magnetization:
+ 
+\begin{equation}
+signal\sim\frac{d}{dt}\int d^{3}r[M_{x}(\vec{r},t)+M_{y}(\vec{r},t)]
+\end{equation}
+We can now use equation \eqref{eq:Bloch1} to calculate the actual signal. With this, we already have understood where the signal comes from, however, this signal is homogeneous over the field-of-view; we have no spatial encoding yet. 
+ The basic recipe for a spatial encoding is that we have transverse relaxation $M_{xy}(\vec{r})$,  and an ADC event running, \emph{and in addition a linear gradient}. Then from all excited spin over the whole field-of-view we will receive a summed up complex signal s(t) in the receive coils  
+ 
+ \begin{equation} \label{eq:signal}
+     s(t) = \int_{\vec{r}}M_{xy}(\vec{r})\cdot \exp\left(-i\gamma\cdot \vec{r}\cdot \int \vec{G}(t)dt\right) d^3r
+ \end{equation}
+ 
+There is not really a complex voltage measured, this is just a mathematical trick. Of course each coils receives their own real signal:   
+\begin{equation}
+ s_x(t) = \int_{\vec{r}} M_{x}(\vec{r})\cdot \cos(\gamma\cdot\vec{r}\cdot \vec{g}) d^3r \\
+ s_y(t) = \int_{\vec{r}} M_{y}(\vec{r})\cdot \sin(\gamma\cdot \vec{r}\cdot \vec{g}) d^3r \\
+ \end{equation}
+ But because these are always 90 degree phase shifted they fulfill the relation of a combined complex number $M_{xy}=M_x+i\cdot M_y$. Thus, we do not measure the spin density, we actually measure the sum of the transverse magnetization in each voxel. If using the exp depiction of this complex number, we will measure a magnitude and a phase of this magnetization state.
+ 
+So back to eq. \eqref{eq:signal}, if we now use a new variable $\vec{k}(t)=\vec{g}(t)\frac{\gamma}{2\pi}$we obtain something that looks exactly like a Fourier transformation from the real space to the spatial frequency space, or k-space.
+ \begin{equation} \label{eq:signal_kspace}
+    s(t)=  s(\vec{k}(t)) = \int_{\vec{r}} M_{xy}(\vec{r})\cdot\exp(-i2\pi\vec{r}\cdot \vec{k}) d^3r
+ \end{equation}Thus, the signal for a given gradient moment g, or k, is  actually just exactly the Fourier transform of the  excited transverse magnetization. 
+ As the Fourier transform is invert-able, the inverse Fourier transform of the signal acquired at a full k-space grid will generate an image of the transverse magnetization.
+ 
+\begin{equation} \label{eq:signaltoimg}
+   M_{xy}(\vec{r})=  \int_{\vec{k}} s(\vec{k})\cdot \exp(-i2\pi\vec{r}\cdot \vec{k}) d^3k
+ \end{equation} 
+ 
+ To look what happens during encoding run the  \href{http://www.drcmr.dk/BlochSimulator/}{www.drcmr.dk/BlochSimulator} using the mode PLANE, GX=2, GY=3, 90-hard; on the right you will see the sum of all $M_{xy}$ which is the received signal of \eqref{eq:signal}.
+ 
+ 
+ \textbf{With equations \eqref{eq:BlochSol_rotframe}, \eqref{eq:signal_kspace}, and \eqref{eq:signaltoimg} we have everything to generate an MR image: (i) we know how to create transverse magnetization by rf events, (ii) we know how to spatially encode it using gradient events, and (iii) we know how to interpret it to generate an image.}
+  \newpage
+ 
+\subsection{MR sequence definition} \label{sec:MRseqdef}
+An MRI sequence is a particular time scheme of radio frequency pulses and pulsed field gradients, resulting in a particular image appearance. It is a time table of exactly the defined building blocks, RF events, gradient events, and receive or ADC events. One typical depiction of MR sequence is the sequence scheme, as depicted for a spin echo sequence in Figure \ref{fig:MRsequence_SE}. This is a compact form of depiction as it shows one block that gets repeated after TR (repetition time), however not everything is exactly the same in each repetition as shown by the green block which shows various phase encoding steps for each repetition. A different type of scheme is shown in Figure \ref{fig:MRsequence_GRE}, which shows a whole gradient-echo sequence with every TR/repetition one after the other. Here every event, including the event time, is plotted as a function of an event index. One could also plot all events as function of the event time. This depiction is typically used also by vendors, as every single event played out con be checked and debugged.
+
+\begin{figure}[!ht] 
+\centering
+\includegraphics[width=10cm]{img/MRI_2DFT_SE_PulseSequence.png}
+\caption{An MR sequence (spin echo). Taken under creative commons license from https:\textbackslash\textbackslash commons.wikimedia.org/wiki/File:MRI\_2DFT\_SE\_PulseSequence.png } \label{fig:MRsequence_SE}
+\end{figure}
+
+\begin{figure}[!ht] 
+\centering
+\includegraphics[width=11cm]{img/seq_FLASH.png}
+\caption{An MR sequence scheme (gradient echo, 12x12). }
+\label{fig:MRsequence_GRE}
+\end{figure}
+ In addition to the gradient moments, also the k-space locations that are visited during the sequence are plotted. This is simply given by the cumulative sum of the gradient moments in x and y after each excitation and is called the k-space trajectory of a sequence. In the case of Figure \ref{fig:MRsequence_pic_GRE}, the color code of the k-space line acquisition show that this is a centric-reordered sequence, which first acquires center k-space lines and then outer k-space lines. 
+
+\begin{figure}[!ht] 
+\centering
+\includegraphics[width=6cm]{img/seq_k_traj_GRE.png}
+\caption{An MR sequence scheme as picture (gradient echo,12x12 ). This is the same sequence as in Figure \ref{fig:MRsequence_GRE}. In addition to the events, also the k-space trajectory is given (bottom-right). This reflects the cumulative sum of played out gradient moments and the coverage of the acquired k-space. Full-coverage is necessary for FFT.     } \label{fig:MRsequence_pic_GRE}
+\end{figure}
+
+
+
+
+\newpage
+
+\section{MRTwin sequence programming and simulation framework}
+\vspace{7.5cm}
+MRTwin is part of a larger project for automatic sequence programming. Still all sequences can also be coded manually and simulated using the included Bloch simulation. 
+The next sections give a short overview over the coding and simulation environment MRTwin.
+
+\subsection{Downloading Python, Pytorch and Spyder}
+(This part is not necessary in the CIP pool at FAU, as it is already installed, skip to  section \ref{sec:spyder_cip}).
+			Python is free to download and is available on all types of operating systems. We recommend to install Anaconda. For Linux see https://docs.anaconda.com/anaconda/install/linux/. For windows see https://www.anaconda.com/distribution/windows . 
+			In addition to python some extension packages are required like Pytorch. install them by using the commands  as given in the readme and follow the readme instructions carefully:
+			 \href{https://github.com/mzaiss/MRTwin_pulseq}{https://github.com/mzaiss/MRTwin\_pulseq}
+
+In the folder ./ex you find all exercises. 
+To check you python skills and also test the versions of the installed packages you can run the file \textbf{./ex/ex\_help01\_python.py} to test versions.
+
+\subsection{Usage on your own PC}
+Download all the code files from github \href{https://github.com/mzaiss/MRTwin_pulseq}{https://github.com/mzaiss/MRTwin\_pulseq}   and copy them to your project folder.
+I strongly recommend sypder as editor, as all test were done in this environment.
+Start spyder.
+To have plots as separate window, which is important as we add lines subsequently to some plots, go to Tools->Preferences. Then on the rider \emph{IPythonKonsole} go to \emph{Graphics} and choose for the graphics backend: Automatic. 
+
+\textbf{Then you have to close and restart spyder.}
+
+I recommend to switch the layout to matlab layout. Go to View->Layouts -> Matlab Layout or Rstudio Layout.
+
+Once this is set up, make the project code folder \emph{MRTwin\_pulseq/code/MRtwin} your current folder and work directory in spyder. 
+\textbf{Version control}
+To compare your changes to the original files or to a solution we need a difference tool. On windows to you can use \href{https://winmerge.org/}{Winmerge} or \href{https://tortoisegit.org/}{Tortoise} for Unix Systems see the next section for the FAU-CIP pool.
+
+\subsection{Usage in the FAU-CIP pool}\label{sec:spyder_cip}
+All project files will be in the folder \\
+\emph{/Proj/ciptmp/zaissmz}
+\\
+Copy the folder \emph{MRTwin\_pulseq} to your home folder.
+
+To start spyder run the following commands in a terminal:
+\begin{enumerate}
+\item module load python
+\item spyder
+\end{enumerate}
+
+I strongly recommend sypder as editor, as all test were done in this environment.
+Start spyder.
+To have plots as separate window, which is important as we add lines subsequently to some plots, go to Tools->Preferences. Then on the rider \emph{IPythonKonsole} go to \emph{Graphics} and choose for the graphics backend: Automatic.
+
+\textbf{Then you have to close and restart spyder.}
+
+I recommend to switch the layout to matlab layout. Go to View->Layouts -> Matlab Layout or Rstudio Layout.
+
+Once this is set up, make the project code folder \emph{MRTwin\_pulseq/ex/} your current folder and work directory in spyder. 
+
+\subsubsection{Version control}
+If you want compare changed files or sample solutions you can use the tools \emph{diff}, or more visually advanced \emph{Kompare} or \emph{Meld}. This can be very helpful for debugging.
+To find out what you altered in the whole project you can use git:
+\begin{itemize}
+\item git diff --name-only  (shows only the file names of files you changed)
+\item git diff (shows completely report what you changed in each file of the project, press q to leave)
+\item git difftool --tool kompare ( calls kompare for each changed file one after the other)
+\end{itemize}
+Find more useful commands in Readme\_CIP.md
+(On windows machines this can be done using the tool TortoiseGit.)
+
+\subsection{A brief introduction in python and torch. }
+We use python in here as it is open source and easy to debug and extend. Also with pytorch python provides a rather simple possibility of parallelization of code, auto-differentiation. \\
+If you are not familiar with python, please make sure to understand the file \textbf{ex\_help01\_python.py} from the MRTwin code, as it covers most of the used functions in the whole code and course.
+
+\subsection{MRTwin code}
+After obtaining the MRTwin package, you should see the folder \textbf{ex} in the main folder.
+The main exercise files (exA0x ...) are in this folder \textbf{MRTwin\_pulseq/ex} or \textbf{./ex}, \textbf{which will always be the work directory in the following} 
+
+We follow some exercises of the package for this tutorial.
+
+\subsection{exA08 - a first taste of MR imaging}
+Before going through the code section by section, let us quickly generate a first image. Open the source file \textbf{exA08\_GRE\_2D\_fully\_relaxed.py}. This is a gradient echo imaging sequence, where everything is set up except all excitation flip angles are zero. When you run this script as it is you should see the plot as in Figure \ref{fig:exA08_1}
+
+\begin{figure}[!ht] 
+\centering
+\includegraphics[width=16cm]{img/exA08_1.PNG}
+\caption{Output from exA08. On the right hand side you see the MR sequence schemes (SubFigure 1: ADC, RF amplitue, and RF phase, and SubFigure 2: gradient events). SubFigure 3 shows the Input for scanner -proton density (PD), relaxation times and field inhomogeneity. Subfigure 4 shows the acquired MR signal, the acquired k-space, the MR images - magnitude image and phase image. The images look quite blurry, we will fix this now. }\label{fig:exA08_1}
+\end{figure}
+
+Then search in this file for the term 'tutorial1'. You will find the following code, which defines as gradient echo MRI sequence
+
+\begin{minted}{python}
+# ======
+# CONSTRUCT SEQUENCE
+# ======
+for ii in range(-Nphase//2, Nphase//2):  # e.g. -64:63
+    seq.add_block(make_delay(1))
+    if np.abs(ii)>1:   #tutorial1:   # (2)   if np.mod(ii,2)==1:    
+        seq.add_block(rf0)
+    else:
+        seq.add_block(rf1)
+    gp= make_trapezoid(channel='y', area=ii, duration=5e-3, system=system)
+    seq.add_block(gx_pre,gp)
+    seq.add_block(adc,gx)
+    if ii<Nphase-1:
+        seq.add_block(make_delay(10))
+\end{minted}
+
+The line \mintinline{python}{np.abs(ii)>1} excites only magnetization at the k-space center (lines -1,0 and +1), which leads to a blurry image. Change this to \mintinline{python}{np.abs(ii)>5} or \mintinline{python}{np.abs(ii)==30}  to excite different or more lines and observe the effect on the images.
+
+
+With more and more lines, you should see the image formation as depicted in Figure \ref{fig:exA09_2}.
+
+\begin{figure}[!ht] 
+\centering
+\includegraphics[width=9cm]{img/exA08_2.PNG}
+\caption{Output from exA08, when more and more lines are excited.} \label{fig:exA09_2}
+\end{figure}
+
+\newpage 
+
+\subsection{Overview over MR Twin simulation file}
+
+To get an overview of the whole framework, the file exA08\_GRE\_2D\_fully\_relaxed.py is explained here section by section. In the very beginning the \emph{experiment\_id} is defined which should always be a copy of the current filename, to both filename and experiment id, add your last name after copying the exercise file. 
+
+\subsubsection{Section S0}
+The first section S0 sets up the environment with required paths and python libraries that are loaded. As well as some classes of MRTwin for for simulation and if course the python pulseq package pypulseq for generating pulseq files.
+NOTE: if you want to go to definitions quickly (CTRL-click), you have to add the included paths ('./codes, ./codes/GradOpt\_python, ./codes/scannerloop\_libs)  again in your spyder path manually in the menu (Tools/PYTHONPATH):
+
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+# %% S0. SETUP env
+import sys,os
+os.chdir(os.path.abspath(os.path.dirname(__file__)))  #  makes the ex folder your working directory
+sys.path.append(os.path.dirname(os.getcwd()))         #  add required folders to path
+mpath=os.path.dirname(os.getcwd())
+c1=r'codes'; c2=r'codes\GradOpt_python'; c3=r'codes\scannerloop_libs' #  add required folders to path
+sys.path += [rf'{mpath}\{c1}',rf'{mpath}\{c2}',rf'{mpath}\{c3}']
+
+## imports for simulation
+from codes.GradOpt_python.pulseq_sim_external import sim_external
+from GradOpt_python.new_core.util import plot_kspace_trajectory
+import math
+import numpy as np
+import torch
+from matplotlib import pyplot as plt
+
+## imports for pypulseq
+from pypulseq.Sequence.sequence import Sequence
+from pypulseq.calc_duration import calc_duration
+from pypulseq.make_adc import make_adc
+from pypulseq.make_delay import make_delay
+from pypulseq.make_sinc_pulse import make_sinc_pulse
+from pypulseq.make_trap_pulse import make_trapezoid
+from pypulseq.make_block_pulse import make_block_pulse
+from pypulseq.make_extended_trapezoid import make_extended_trapezoid
+from pypulseq.make_arbitrary_grad import make_arbitrary_grad
+from pypulseq.opts import Opts
+\end{minted}
+
+\subsubsection{Section S1}
+In Section S1 the scanner system for Pulseq is defined.
+Here we have several physical limits of our real MR scanner, such as maximum gradient amplitude, maximum slew rate of the gradients. This is necessary to calculate gradient and rf events that can be played out by real hardware.
+
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+# %% S1. SETUP sys
+
+## choose the scanner limits
+system = Opts(max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s', rf_ringdown_time=20e-6,
+                 rf_dead_time=100e-6, adc_dead_time=20e-6,grad_raster_time=50*10e-6)
+\end{minted}
+
+\subsubsection{Section S2}
+In Section S2 the Pulseq sequence is defined. After some variable definitions you find the basic 4 building blocks as mentioned above:
+\begin{itemize}
+\item RF events - realized by the functions \emph{make\_sinc\_pulse}, \emph{make\_block\_pulse}
+\item gradient events - realized by the function \emph{make\_trapezoid}
+\item delays - realized by the function \emph{make\_delay}
+\item ADC events  - realized by the function \emph{make\_adc}
+\end{itemize}
+
+They are added to the sequence by the code \mintinline{python}{seq.add_block(gx_pre,gp)}
+
+
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+# %% S2. DEFINE the sequence 
+seq = Sequence()
+
+# Define FOV and resolution
+fov = 1000e-3 
+slice_thickness=8e-3
+sz=(48,48)   # spin system size / resolution
+Nread = 48    # frequency encoding steps/samples
+Nphase = 48    # phase encoding steps/samples
+
+# Define rf events
+rf1, _,_ = make_sinc_pulse(flip_angle=90.0 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+
+rf0, _,_ = make_sinc_pulse(flip_angle=0.001* math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+# rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
+
+# Define other gradients and ADC events
+gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=10e-3, system=system)
+adc = make_adc(num_samples=Nread, duration=10e-3, phase_offset=0*np.pi/180,delay=gx.rise_time, system=system)
+gx_pre = make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system=system)
+
+# ======
+# CONSTRUCT SEQUENCE
+# ======
+for ii in range(-Nphase//2, Nphase//2):  # e.g. -64:63
+    seq.add_block(make_delay(1))
+    if np.abs(ii)>5:   #tutorial1:   # (2)   if np.mod(ii,2)==1:    #(3) np.abs(ii)==30:   with high FA
+        seq.add_block(rf0)  # add rf0 with zero flip_angle 
+    else:
+        seq.add_block(rf1)  # add rf1 with 90° flip_angle 
+    gp= make_trapezoid(channel='y', area=ii, duration=5e-3, system=system)
+    seq.add_block(gx_pre,gp)
+    seq.add_block(adc,gx)
+    if ii<Nphase-1:
+        seq.add_block(make_delay(10))
+\end{minted}
+
+\subsubsection{Section S3}
+Here the sequence is checked, the sequence schemes are plotted and the sequence is exported as .seq-file called 'external.seq'
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+# %% S3. CHECK, PLOT and WRITE the sequence  as .seq
+ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
+if ok:
+    print('Timing check passed successfully')
+else:
+    print('Timing check failed. Error listing follows:')
+    [print(e) for e in error_report]
+
+# PLOT sequence
+sp_adc,t_adc =seq.plot(clear=False)
+#   
+if 0:
+    sp_adc,t_adc =seq.plot(clear=True)
+
+
+# Prepare the sequence output for the scanner
+seq.set_definition('FOV', [fov, fov, slice_thickness])
+seq.set_definition('Name', 'gre')
+seq.write('out/external.seq')
+\end{minted}
+
+
+\subsubsection{Section S4}
+In section S1 the spin system is initialized. Two different predefined virtual objects can be loaded, an 2D model solution phantom \emph{phantom2d.mat} and a brain phantom. This will be resized then to the resolution given by \emph{sz}.  \\
+As a second option, a self defined phantom can be defined pixel-wise.
+Finally, the parameters can still be manipulated and are plotted.
+
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+ # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
+from new_core.sim_data import SimData
+
+# (i) load a phantom object from file
+if 1:
+    obj_p = SimData.load('../data/phantom2D.mat')
+    obj_p = SimData.load('../data/numerical_brain_cropped.mat')
+else:
+# or (ii) set phantom  manually to a pixel phantom
+    obj_p = torch.zeros((sz[0],sz[1],5)); 
+    
+    obj_p[7,25,:]=torch.tensor([1, 1, 0.1, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
+    obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
+    
+    obj_p=obj_p.permute(2,0,1)[:,:,:,None]
+    obj_p= SimData(obj_p[0,:],obj_p[0,:],obj_p[0,:],obj_p[0,:],obj_p[0,:]*0,torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),normalize_B0_B1= False)
+    obj_p = obj_p.resize(sz[0],sz[1],1)
+    
+# manipulate obj and plot it
+obj_p.B0*=1;
+obj_p.plot_sim_data()
+
+
+\end{minted}
+
+\subsubsection{S5: Run the simulation}
+The next section runs the simulation using the seq-file ex/out/external.seq and  the just defined phantom object obj\_p and plots the signal into the pulseq sequence schemes in the ADC plot.
+
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+# %% S5: SIMULATE  the external.seq file and add acquired signal to ADC plot
+signal, _= sim_external(obj=obj_p, reco_sz=sz[0],plot_seq_k=[0,1])
+# plot the result into the ADC subplot
+sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
+sp_adc.plot(t_adc,np.abs(signal.numpy()))
+
+\end{minted}
+
+\subsubsection{S5b: Case of real MR scan}
+The external.seq file can also be directly executed at a real MR scanner, giving back teh same complex signal.
+
+\subsubsection{S6: MR image reconstruction}
+Here the signal is rearranged and processed.
+Correctly ordered and shifted to form the complex k-space, the signal can be directly Fourier transformed using a FFT to image domain.
+The complex image is plotted as magnitude and phase image.
+
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+# %% S6: MR IMAGE RECON of signal ::: #####################################
+fig=plt.figure(); # fig.clf()
+plt.subplot(411); plt.title('ADC signal')
+spectrum=torch.reshape((signal),(Nphase,Nread)).clone().t()
+kspace=spectrum
+plt.plot(torch.real(signal),label='real')
+plt.plot(torch.imag(signal),label='imag')
+
+
+major_ticks = np.arange(0, Nphase*Nread, Nread) # this adds ticks at the correct position szread
+ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+
+space = torch.zeros_like(spectrum)
+
+# fftshift
+spectrum=torch.fft.fftshift(spectrum,0); spectrum=torch.fft.fftshift(spectrum,1)
+#FFT
+space = torch.fft.ifft2(spectrum)
+# fftshift
+space=torch.fft.ifftshift(space,0); space=torch.fft.ifftshift(space,1)
+
+
+plt.subplot(345); plt.title('k-space')
+plt.imshow(np.abs(kspace.numpy()))
+plt.subplot(349); plt.title('k-space_r')
+plt.imshow(np.log(np.abs(kspace.numpy())))
+
+plt.subplot(346); plt.title('FFT-magnitude')
+plt.imshow(np.abs(space.numpy())); plt.colorbar()
+plt.subplot(3,4,10); plt.title('FFT-phase')
+plt.imshow(np.angle(space.numpy()),vmin=-np.pi,vmax=np.pi); plt.colorbar()
+
+\end{minted}
+
+
+\section{Application at real MRI scanner - Introduction of pulseq}
+\vspace{7.5cm}
+	Pulseq is an open source framework for the development and execution of magnetic resonance (MR) pulse sequences for imaging and spectroscopy. In summary, MRI sequence can be programmed directly in MATLAB or Python and executed on real hardware.
+    A central contribution of the pulseq project is an open file format to compactly describe MR sequences suitable for execution on an MRI scanner. The detailed file specification can be obtained on http://pulseq.github.io/.
+    For this practical course we use a  python implementation of the \emph{pulseq} file generator, as well as the  high level notation\emph{MRTwin} also implemented in python.  
+
+\subsection{Pulseq interpreter at real scanner (IDEA Siemens)}
+            If you received the sequence files, copy both .so and .dll files into the sequence folder on the MR scanner or in your IDEA environment (C:\textbackslash Medcom\textbackslash MriCustomer\textbackslash seq). The .seq files have to be placed in the subfolder "seq/pulseq".
+            To access the sequence from the MR scanner, you need the pulseq interpreter running. Navigate to Dot Cockpit -> Program Editor -> Browse -> Default -> Sequence Region -> Customer Sequences -> Default. Now insert the pulseq sequence to any protocol. Run this protocol and it will automatically read the pulseq file "external.seq" in "seq/pulseq".
+            
+\subsection{Python and pulseq Files}
+			For generation of pulseq files that are readable by an MR scanner we run python scripts (extension .py). From python sometimes data files are called to load virtual MR objects as matrices (extension .npy or.mat). When the python files run sucessfully, pulseq files are created (extension .seq). For example, an acceptable file name might be myfile.seq. 
+            The .seq files have to be placed in the subfolder (C:\textbackslash Medcom\textbackslash MriCustomer\textbackslash seq\textbackslash pulseq). The pulseq interpreter always searches for the seq file external.seq. Thus to run one specific file you have to rename it to this very name, external.seq.
+ 
+ 
+\subsection{ Pulseq standard}
+Gradient and RF events are exactly the events you will find in the BLOCKS of the pulseq file format. Every block consists of a delay block (D) , an RF event block (RF), and a gradient event block for each direction (GX, GY, GZ). In addition to the gradient and RF events, an analog to digital converter event (ADC) can be played out. An ADC event will not alter the magnetization, this is just an event to steer when we actually want to acquire signals of the moving magnetization vectors in our receive coils. One of the simplest MR experiments thus would be the following,  an RF event for exiting some magnetization, and a subsequent ADC event to acquire the excited signal: 
+\begin{lstlisting}
+# Format of blocks:
+##  D RF  GX  GY  GZ ADC
+[BLOCKS]
+1  0  1   0   0   0  0
+2  0  0   0   0   0  1
+\end{lstlisting}
+
+In the simplest case the RF event is a block pulse of constant amplitude, with no phase and no off-resonance. In the pulseq format the Rf and ADC events would look like this:
+\begin{lstlisting}
+# Format of RF events:
+# id amplitude magid phaseid delay freq phase
+# ..        Hz   ....     ....    us   Hz   rad
+[RF]
+1         2500 1 2 0 0 0
+
+# Format of ADC events:
+# id num dwell delay freq phase
+# ..  ..    ns    us   Hz   rad
+[ADC]
+1  64  50000   0 0 0
+\end{lstlisting}
+The ADC event has here 64 samples. 
+
+Some events can be played out simultaneously within the same block, e.g. a gradient event for encoding and the ADC event, or a RF and gradient event for spatial selective excitation. Others are forbidden, like ADC event during an RF event. This would then lead to signal distortions as the acquired signal is governed by the played out Rf field and not by the MR signal. However, at most MR systems this is just not possible to run.
+
+
+\textbf{In summary}, an MR sequence is a sequence of gradient and RF events played out subsequently. With these events and some delays in-between we can completely control the dynamic of the magnetization vectors in each voxel and then acquire an encoded signal using an ADC event. Collecting enough ADCs with different encoding then allows for subsequent image reconstruction.
+
+\newpage
+\section{Overview of basic sequences}
+\vspace{7.5cm}
+
+\subsection{FID}
+The free-induction decay (FID) sequence consists of a 90° excitation pulse and a subsequent readout. The observed signal decay, given by
+\begin{equation}
+\label{eq:FID}
+s(t)=s_0\cdot e^{-R_2^*\cdot t}
+\end{equation}
+, is dominated by intravoxel inhomogeneity dephasing $R_2'$ with additional contribution of spin-spin relaxation rate $R_2$.
+\begin{equation}
+R_2^*=R_2'+R_2
+\end{equation}The signal $s$ is a complex number and the complex phase of $s_0$ depends on two phase angles:
+\begin{enumerate}
+\item the RF excitation pulse phase $\phi$
+\item the ADC phase factor $\phi_{adc}$
+\end{enumerate}
+Depending on these phases the signal will be real or imaginary or complex. To get a real signal one should match excitation and ADC rotation angle $\phi_{adc}=\phi+const.$ The constant can depend on the coil and also on the standard rf excitation phase, eg. x' or y'.
+
+The FID as given in equation \eqref{eq:FID} shows the case in the rotating frame of reference, which is the standard case also in the simulation. By adding a strong $B_0$ inhomogeneity we can emulate being in the lab frame or in an off-resonant frame. Then the general form of the FID can be observed, which is a damped oscillation:
+\begin{equation}
+\label{eq:FIDlab}
+s(t)=s_0\cdot e^{-i\cdot w_0\cdot t}\cdot e^{-R_2^*\cdot t}
+\end{equation}The oscillation frequency is given by the $B_0$-inhomogeneity for our emulated case, or the Larmor frequency for the lab frame of reference. This oscillation is necessary to generate the alternating magnetic field and by that induce a voltage in the receive coils (see section \ref{subsec:app_induction}), thus the name free induction decay.
+
+If the excitation flip angle is not 90°, the rotating frame equation \eqref{eq:FID} changes to
+\begin{equation}
+\label{eq:FIDalpha}
+s(t)=s_0\cdot \sin(\alpha)\cdot e^{-R_2^*\cdot t}
+\end{equation}
+\subsubsection{Simulation details}
+The $R_2'$ dynamic cannot be simply simulated by adding a factor $\exp{(-R_2'\cdot t)}$ otherwise all information about the intra-voxel dephasing state would be lost. Thus, a sum of the signal of many spins or iso-chromats is used to mimick the intra-voxel behavior.
+To get the observed mono-exponential decay these isochromats have slightly different off-resonance frequencies following the distribution $R_2'=\tan{(\pi\cdot X)}$, where X is uniformly distributed between -0.5 and 0.5. In the code this is realized by 
+\begin{minted}{python}
+R2dash = 30.0
+omega = np.linspace(0,1,NSpins) - 0.5   # cutoff might bee needed for opt.
+omega = np.expand_dims(omega[:],1).repeat(NVox, axis=1)
+omega*=0.99 # cutoff large freqs
+omega = R2dash * np.tan ( np.pi  * omega)
+\end{minted}
+In vivo this distribution is similar, yet many spins per voxel are available. The simulation requires enough iso-chromats for each voxel to reach similar convergence. However for numerical stability some low populated high-frequency states were cut-off.
+
+Note: This is not the current implementation of the simulation, as we use an Extended-Phase-Graph approach (https://doi.org/10.1002/jmri.24619). However, the same dephasing effect is modeled there as well.
+
+\subsubsection{FID with T1 recovery}
+
+After a 90° pulse the z-component of the magnetization $m_z$ is zero. After that it recovers from this initial state $m_i$ with the spin-lattice recovery rate R1 towards the thermal equilibrium $m_0$
+\begin{equation}
+\label{eq:T1_rec}
+m_z(t)= (m_i-m_0)\cdot e^{-R_1\cdot t } +m_0
+\end{equation}If  90 ° excitations are played out repeatedly, for subsequent excitations  only the z-magnetization after this recovery is available. This leads to the signal equation for the second FID:
+\begin{equation}
+\label{eq:FID_T1}
+s(t)=[(\cos(\alpha)-m_0)\cdot e^{-R_1\cdot t } +m_0]\cdot \sin(\alpha)\cdot e^{-R_2^*\cdot t}
+\end{equation}This leads to the fact that (i) this timing and the flip angle can be optimized to have the most signal acquisition per unit time (google Ernst Angle), and (ii) that the R1 relaxation rate can be measured by such an experiment.
+
+
+
+\subsection{Spin Echo}
+The spin echo (SE) sequence consist of a 90° excitation and a 180° refocusing pulse. The 180° pulse inverts all the dephased magnetization and thus reverses the $R_2'$ decay until a so-called echo is formed. Figure \ref{fig:SE_hahn}  shows the runners analogy of the spin echo and an animation of this phenomenon can be found \href{https://blog.ismrm.org/2017/06/06/dwe-part-2/}{here}.  
+
+\begin{figure}[!ht] 
+\centering
+\includegraphics[width=8cm]{img/SE_run.png}
+\caption{Erwin Hahn’s famous spin echo analogy on the cover of Physics Today. The first bang reflects the 90° excitation, the second bang reflects the 180° refocusing pulse.} \label{fig:SE_hahn}
+\end{figure}
+The observed signal is a combination of the FID behavior and the formation of an echo. The hull of this signal is given by the residual R2-decay that cannot be reversed. 
+\begin{equation}
+\label{eq:SE}
+\hat{s}(t)=s_0\cdot  e^{-R_2\cdot t}
+\end{equation}
+The faster dynamic is FID-and reversed-FID-like.
+The echo will form exactly when the time after the 180° pulse is the same as the time between the 90° and the 180° pulse. With the definition of the echo time TE as the time from the excitation til the echo forms. The 180° pulse must occur after $\frac{TE}{2}$.
+
+The RF phase of both the excitation and the refocusing pulse have a direct effect on the phase of the echo. Using a 90° phase shift of the excitation pulse yields same phase of FID and echoes and also reflects the very stable CPMG implementation.
+
+
+
+\subsection{GRE}
+The gradient echo (GRE) sequence consists of an excitation pulse followed by a dephasing gradient and subsequent rephasing gradient during the readout.
+A gradient means that we have an additional linear frequency distribution within each and between different voxels. Similar to the previously described $R_2'$ decay this results in an additional dephasing and a signal decay even faster than $R_2^*$ during the first magnetic field gradient. By an inversed gradient this decay can be inverted an a gradient echo occurs.
+This time the hull of this echo is given by the FID decay, thus the size of the echo is $\propto e^{-R_2^*\cdot t}$.
+The gradient echo is now independent of the timing and occurs when the sum of all gradient moments is zero.
+TE at  $\sum G\cdot t=0$; for constant gradient:s TE at $t_{dephase}=t_{rephase}$.
+
+\subsubsection{Gradient encoding and k-space}
+A closer look to a two pixel gradient echo reveals that we can separate two pixels by their frequencies they send during the readout rephasing gradient. And these frequency contributions can be separated from the signal by using an FFT.
+This brought us to the general concept of FFT reconstruction and that in MRI we measure directly points in the k-space and the k-space coordinates are determined by the gradient experienced by the transverse magnetization (compare eqns. \eqref{eq:signal_kspace} and \eqref{eq:signaltoimg}). The gradient moment used as input in the simulation is directly linked to the k-space coordinate.
+\begin{itemize}
+\item after a 90° excitation k=0
+\item k=cumsum(grad\_moments), this allows free movement in k-space for rewinder or phase encoding or spoiling.
+\item a 180° pulse inverts all rotations made: k=-k
+\end{itemize}
+By these operations we can play out gradients in such a way that the k-space is equidistantly and fully covered ready for a two-dimensional FFT. If gradients are not played out in linear order (centric reordering or EPI zig-zag) another reordering of the k-space must be performed before FFT. Undersampled k-spaces can also be reconstructed as discussed in the radial imaging part below.
+
+\subsection{Slice selection}
+The simulation is completely 2D thus we don't need slice selection here. However in a real system we need to encode also the third dimension. One way to do this is directly be the selection of the excited volume using slice selection gradients. This means that an RF pulse of since shape with a certain bandwidth is played out during a slice selection gradient, thus only the magnetization in a certain frequency window, or slice, is excited. Thus after such a pulse the problem is again two dimensional and equivalent to our simulation. For more details see here: \href{http://mriquestions.com/slice-selective-excitation.html}{http://mriquestions.com/slice-selective-excitation.html}
+
+\subsection{GRE imaging}
+With the encoded signal and the FFT reconstruction we can now generate a full GRE MRI sequence. The fully relaxed gradient echo sequence consists several repetitions of the following building block: 
+\begin{itemize}
+\item 90° excitation
+\item rewinder and phase encoding gradient 
+\end{itemize}
+\begin{itemize}
+\item frequency encoding gradient
+\item relaxation delay
+\end{itemize}
+This is repeated for all different phase encoding until the k-space is filled and the sequence schemes were already shown in the beginning in Figures \ref{fig:MRsequence_GRE} and \ref{fig:MRsequence_pic_GRE} for centric reordered GRE.
+
+\subsection{FLASH - fast low angle shot}
+As seen above, reducing the relaxation delay will reduce the signal of the next excitation, thus the GRE sequence with 90° excitation cannot be played out too fast without loosing signal. One way to "save" z-magnetization for later excitations is using lower flip angles - instead of 90° only 5°-20°. This allows to reduce the TR further, but it also leads to interference with "old" transverse magnetization of a previous excitations. This old transverse magnetization experienced different gradients and thus is differently encoded. There is two ways to resolve this, either take care of the encoding of this magnetization, which we will do in a later exercise, or to get rid of residual transverse magnetization by so called \textbf{spoiling}.
+
+\begin{itemize}
+\item \textbf{Long relaxation spoiling.}  When TR>>T2*, the transverse magnetization will naturally decay to zero by the end of the cycle.  Thus any gradient echo sequence using TR values of several hundred milliseconds or longer will be "naturally" spoiled. 
+\item \textbf{Gradient spoiling}.  In this method spoiling is performed by applying the slice-select (and sometimes readout) gradients with variable amplitudes at the end of each cycle just before the next RF pulse.  The strength of the spoiler gradient is varied linearly or semi-randomly from view to view. 
+\item \textbf{RF-spoiling.}  Here the RF phase  is changed according to a predefined formula from cycle to cycle. Using a completely randomized pattern of phase changes is not ideal in that unintended spin clustering may occur and the degree of spoiling may change from one interval to the next. A superior method is to increment the phase quadratically using a recursive formula. 
+\end{itemize}
+In both theory and practice, RF-spoiling is superior to gradient spoiling because it does not generate eddy currents and is spatially invariant.  Both are used to overcome the time-consuming relaxation spoiling.
+This list was adjusted from \href{http://mriquestions.com/spoiling---what-and-how.html}{http://mriquestions.com/spoiling---what-and-how.html} where more details can be found.
+
+Thus to generate the fast FLASH sequence the GRE scheme is slightly changed. The FLASH sequence consists of several repetitions of the following building block: 
+\begin{itemize}
+\item 5° excitation ( or another low angle close to the Ernst Angle) with quadratically increasing phase 
+\item rewinder and phase encoding gradient 
+\item frequency encoding gradient
+\item spoiler gradient with minimal relaxation delay
+\end{itemize}
+The FLASH sequence allows for TR below 5 ms and thus fast 2D and 3D imaging of decent resolution.
+
+\subsection{GRE EPI}
+Echo planar imaging is just a repeated usage of the gradient echo principle for the same transverse magnetization. The GRE-EPI sequence consists of only one 90° excitation, prewinder, and then subsequent gradient echo readouts of alternating polarity and small phase encoding blips in between. Thus, excited transverse magnetization is re-used again and again to sample to full k-space. As the signal decay is fast, the whole sequence must be fast, but this is also now possible as all other RF events are not needed. 
+EPI is one of the fastest MRI readouts with 2D imaging acquisition in the 10-100 ms range.
+A SE-EPI is also possible, but is a homework exercise.
+
+\subsection{Spin echo imaging}
+As shown above, the GRE signal decays with $R_2^*$ . Quite a lot of signal can be retrieved by employing a refocusing pulse so that a spin echo is measured which only decays with $R_2$.
+However for spatial encoding we still need a gradient echo, a spin echo (SE) sequence combines both echoes to occur at the same time. The basic SE sequence consists of a 90° excitation pulse, followed by a gradient prewinder. It is called prewinder here as it has the same polarity as the readout gradient. The "rewinding" is not done by the subsequent 180° refocusing pulse which induces the spin echo, and at the same time brings us from k to -k. To have the SE and the GRE at the same time (or in other words the SE in the k-space center), both echo time conditions as described above must be full-filled.
+
+\begin{itemize}
+\item 90° excitation with 90° phase 
+\item prewinder k/2
+\item 180° refocusing pulse
+\item phase encoding gradient 
+\item frequency encoding gradient
+\item long relaxation delay 
+\end{itemize}
+
+\subsection{Turbo spin echo imaging}
+Similar as the EPI also the SE can be accelerated by reusing transverse magnetization.
+Outgoing from the SE sequence, this is realized by additional 180° pulses in each repetition that refocus the same spin echo again and again. This first seems simple as the 180° generate the rewinding directly. However, repeated coherent RF pulses lead to higher echoes when RF excitation is imperfect, which is almost always the case in real scanners due to B1 field inhomogeneities. This leads to partial excitation of 180° refocusing pulse and vice versa, as well as stimulated echoes. To remove them gradients are used to move these echoes further out in k-space. The turbo spin echo (TSE) looks then like this:
+\begin{enumerate}
+\item 90° excitation with 90° phase 
+\item prewinder k/2 + additional read gradient moment k
+\item  180° refocusing pulse
+\item  phase encoding gradient + additional gradient moment k
+\item frequency encoding gradient + ADC
+\item phase encoding gradient inverted + additional read gradient moment k
+\item  back to 3 
+\end{enumerate}
+
+
+Steps 3-7 are repeated for all phase encoding steps.
+
+
+
+\subsection{balanced SSFP imaging}
+In both fast imaging techniques FLASH and TSE we had additional spoiler gradients to remove higher echoes from past excitation. However, this is all magnetization that yields signal for the MR image. The driven equilibrium, TRUFI or bSSFP sequence uses all the magnetization to generate signal. The problem of different encodings is solved by balancing the gradients, that means that all gradient moments add up to zero at each TR and we are back in the k-space center after each TR. The timing must be such that the spin echoes and gradient echoes match and the RF phases of the excitation pulses are alternating so that the spin echo and gradient echo  have the same polarity. Furthermore, an $\alpha/2$ pulse is used to catalyze the steady state that builds up during the balanced steady-state free precession (bSSFP) sequence.
+
+
+\begin{enumerate}
+\item $\alpha/2=10$° pre-pulse and TR/2 delay
+\item $\alpha$ pulse with 180° phase increment
+\item prewinder gradient (read and phase)
+\item readout gradient + ADC
+\item rewinder gradient (read and phase) to k=0
+\item back to 2.
+\end{enumerate}
+2.-7. is repeated until all phase encoding steps are covered.
+
+
+\subsubsection{bSSFP links}
+\begin{itemize}
+\item \href{https://www.uio.no/studier/emner/matnat/fys/FYS-KJM4740/v10/undervisningsmateriale/forelesninger-ppts/FYS-KJM_4740_Chap5-6_100406_print.pdf}{forelesninger pdf} 
+\item \href{http://mriquestions.com/what-is-ssfp.html}{mriquestions.com SSFP}
+\item \href{http://mriquestions.com/4-or-more-rf-pulses.html}{http://mriquestions.com/4-or-more-rf-pulses.html}
+\end{itemize}
+\clearpage 
+\newpage
+
+
+\section{Exercises}
+\vspace{7.5cm}
+The exercises are structured by sequence types:
+\begin{itemize}
+\item A : basic echoes 
+\item B : GRE encoding
+\item C : spin echo and RARE
+\item D : balanced SSFP
+\item E : export to real system
+\item F : undersampling and reconstruction
+\item help : some helper files for coding
+\end{itemize}
+
+\subsection{ex\_help01\_python}
+This file gives a quick overview over python, numpy, torch and plotting commands that are often used.
+At the end of the file some exercises with wrong code or code that doesn't run is given for you to fix.
+It is also helpful file to check weather all required packages are installed. 
+\subsection{ex\_help02\_pypylseq}
+This file gives a quick overview over pypulseq and how to load and plot .seq-files, and how to generate basic sequence objects with pypulseq and write a seq file.
+
+\newpage
+\subsection{ex01\_FID}
+This is  the simplest MR sequence that just consits of an ADC event and an rf excitation.
+
+\begin{enumerate}
+
+\item 	Add an rf and an adc event and observe the signal in the ADC plot. Why do we see only a decay and not a damped oscillation?  Try to have the ADC at 12 ms, use calc\_duration to get the duration of the RF pulse.
+ % answerbox	\\ Answer/Result: \\ \framebox[\textwidth]{\rule{0pt}{50pt}}
+		
+\item 	alter the flip angle (FA) and find the flip angle for max. signal S, guess the function S(FA).
+	%	\\ Answer/Result: signal(FA)\\ \framebox[\textwidth]{\rule{0pt}{80pt}}
+		
+		
+\item  Search for the B0 inhomogeneity if the object (obj\_p.B0). In the on-resonant case this is 0. By changing the value (e.g. obj\_p.B0 +=100) you can mimic the laboratory frame dynamic. 
+%		\\ Answer/Result:  Plot of the max. FID in the lab frame and in the rotating frame\\ \framebox[\textwidth]{\rule{0pt}{80pt}}
+\begin{figure}[H] 
+\centering
+\includegraphics[width=10cm]{img/exA1_FID.png}
+\caption{An FID in the on-resonant rotating frame (green) and in an off-resonant frame, eg. the lab fram (orange/blue). } \label{fig:exA4_STE}
+\end{figure}
+
+
+\item  Is the decay of the FID given by T1,T2,or T2*? Add more ADC blocks. When is the signal approximately 0?  Estimate the numerical value of the decay rate R (or relaxation time T=1/R) of the FID signal.
+	%	\\ Answer/Result: \\ \framebox[\textwidth]{\rule{0pt}{80pt}}
+
+\item  Alter the rf phase offset and adc phase offset. What do you observe? What is the most general condition to get a real positive signal?
+	%	\\ Answer/Result: \\ \framebox[\textwidth]{\rule{0pt}{80pt}}
+		
+\item  Add different delays between rf and adc, try different adc durations. What is the best timing for highest FID signal?
+
+\item  (Bonus): use scipy.optimize.curve\_fit to fit the FID signal and find the exact value of the decay rate. Alter the relaxation times of the pixel phantom to find out what T2* or R2* is.
+%		\\ Answer/Result:  Plot of the fit and relation R2*=  \\ \framebox[\textwidth]{\rule{0pt}{80pt}}
+
+\item Save the current file with the suffix \_single\_echo
+	
+\item  	Repeat the FID sequence multiple times, add a T1 recovery time delay (Trec) of 1 s after each ADC. Why is the first signal higher than all the others?
+
+\item 	alter the recovery time delay Trec, when do you achieve equal signal in all ADCs / the highest signal?
+
+\item	Cover a range of different Trec in one measurement from 0.1 to 3 s. What is the recovery rate R or recovery time T? T1,T2,or T2*?  
+
+\item Save the current file with the suffix \_multi\_echo
+
+\end{enumerate}
+
+\newpage
+\subsection{exA02\_spinecho}
+
+\begin{enumerate}
+\item  	This ex starts from the single FID. Add a delay of a few ms between the rf and the adc.
+		Add a further rf event to create an echo in the ADC (starting at 12 ms). Which flip angle generates the highest echo?
+\item  	try to find a way so that the echo forms in the middle of the ADC. What is the general rule for the echo position in time?
+\item  	Try to adjust rf phase offset / adc phase offset to get (i) a real and negative echo, (ii) a real and positive echo.
+
+\item Save the current file with the suffix \_single\_echo
+
+\item  	Add more ADCs and refocusing rf pulses to retrieve the spin echo in every ADC. What is the numerical vakue of the decay rate of the echo top?  IS this T1, T2  or T2*?
+
+\item	(Bonus): use scipy.optimize.curve\_fit to fit the maximum SE signal in every ADC and find the exact value of the decay rate. Alter the relaxation times of the pixel phantom to find out what the decay rate is.
+	%	\\ Answer/Result:  Plot of the fit \\ \framebox[\textwidth]{\rule{0pt}{80pt}}
+
+\item Save the current file with the suffix \_multi\_echo
+
+\end{enumerate}
+
+\subsection{exA03\_gradient\_echo}
+
+\begin{enumerate}
+\item 	This starts again from the FID example. Now add a gradient to the ADC block with the same duration. What do you observe when altering the gradient area from zero to higher values?
+\item 	Use a gradient area that equals the number of sampling points. Add a second ADC and try now to recover the decayed signal without using an additional RF event, but an additional gradient.
+\item	What is the condition to get the gradient echo in the center of the second acquisition phase?
+\item 	Add a short gradient before the first ADC, what changes?
+\item 	Remove the last ADC and its gradient. Can you generate a gradient echo which is centered directly in the single ADC block (starting at 12 ms)?
+
+\item Save the current file with the suffix \_single\_echo
+
+%# multi echo
+\item generate a whole train of gradient echoes after one excitation
+\item	(Bonus): use scipy.optimize.curve\_fit to fit the maximum GRE signal in every ADC and find the exact value of the decay rate. Alter the relaxation times of the pixel phantom to find out what the decay rate is.
+
+\item Save the current file with the suffix \_multi\_echo
+
+\end{enumerate}
+
+
+\subsection{Bonus: FID - SE - GRE}
+\begin{figure}[H] 
+\centering
+\includegraphics[width=12cm]{img/exA_FID_SE_GRE.png}
+\caption{The first 3 exercises (single\_echo) with the right timing are shown here in the same plot. Recreate this figure (ADC starts at 12 ms). Identify the FID, SE and GRE in the plot. What can you conclude form their relative sizes? } \label{fig:exA_FID_SE_GRE}
+\end{figure}
+
+\subsection{exA04\_STE}
+stimulated echo.
+This is a sequence with three rf-pulses. 
+Run the sequence and  investigate the signal. There is the FID signal and 4 additional echoes. Can you explain all of them? Use the alteration described in the following to track down the origin.
+
+\begin{figure}[H] 
+\centering
+\includegraphics[width=15cm]{img/exA4_STE_3pulses_5echoes.png}
+\caption{A sequence with three 90 degree pulses generates 5 echoes. } \label{fig:exA4_STE}
+\end{figure}
+
+
+\begin{enumerate}
+
+\item  	Try altering the flipangle to a 90, 90 90 scheme, and a 90, 180, 180 scheme, or 90, 120, 120 scheme. is this a spin echo? what is its TE, where was this excited?
+
+\item 	Try adding delays to study the origin of the echoes. (prolong the second block by 1.5s)
+\item 	Try adding gradients in the first ADC, does it affect the echoes in the last ADC?. 
+\item 	read  http://mriquestions.com/stimulated-echoes.html  and identify  A, B, C, D, E
+
+\item  	Try to define the different echo times in your code, TE\_SE, TE\_STE
+        Move the STE after the SE, or before the SE. Move them to overlap perfectly
+\item 	Add one gradient event to kill the spin echo in the third repetition
+\item  	Add two gradient events to only have the STE left in the third rep.
+
+\end{enumerate}
+
+\subsection{exA05\_incoherent\_echo\_train}
+This is a sequence with one 60 and many 120 degree rf-pulses. The distance between the first two pulses is different than between all others. Also the ADc is not centered between the pulses. The spin system here was manipulated for short T2* and long T2 for better visibility of the echoes.
+\begin{enumerate}
+
+\item Convince yourself that this leads to many echoes that add up almost chaotically, and that the ADC center gets always a different intensity. 
+\item Add a small random time deviation e.g.\\
+\mintinline{python}{seq.add_block(make_delay(np.random.randint(5)*1e-3))} \\
+which makes the sequence even more incoherent. Observe the echo train and convince yourself that after few pulses, this gets chaotic.
+\end{enumerate}
+
+\begin{figure}[H] 
+\centering
+\includegraphics[width=14cm]{img/exA5_incoherent_echoes.png}
+\caption{Incoherent echo train as described by exA05.2} \label{fig:exA05_incoheren_echoes}
+\end{figure}
+
+If you want to understand such echo trains you should read about \emph{phase graphs}:\\
+https://doi.org/10.1002/cmr.1820030302\\
+https://doi.org/10.1002/jmri.24619 
+
+\newpage
+\subsection{exB01\_gradientecho\_pixel}
+This file starts from A03. 
+\begin{enumerate}
+\item  Alter the position of the pixel in the phantom (obj\_p). Here you can now make the most important observation for encoding. What do you observe in the signal when you move the pixel from the center to the edge?
+\item  Why is only the movement of the pixel in one dimension affecting the signal?
+\item  Instead of x gradient use a y gradient! 
+\item  Create a random pixel position using   \\ obj\_p[np.random.randint(64),np.random.randint(64),:]=torch.tensor([1, 1, 0.1, 30e-3, 0, 1]). \\Can you estimate where the pixel is solely by looking at the signal with x and y encoding?
+\begin{figure}[H] 
+\centering
+\includegraphics[width=14cm]{img/exB01_gradient_echo_pixel.png}
+\caption{GREs of a pixel phantom. Left: x-gradient-echo, right: y-gradient-echo. Where is the pixel?} \label{fig:exB01_GRE_pixel}
+\end{figure}
+
+\item  Make a second pixel. What do you observe now?
+\end{enumerate}
+\subsection{exB02\_gradient\_echo\_freq\_enc}
+This file starts from B01. We want now to create the 1D - Fourier transform of the signal to get a 1D image. This is also called frequency encoding.
+\begin{enumerate}
+\item This file has now a reconstruction section S6, go though this section and understand what plots are created. To separate different frequencies, perform a fourier transform of the signal. Learn from ex\_help03\_fft.py
+\item Compare your result to the upsampled phantom projection given at the end of the file.
+\item What happens if you change y to x gradient encoding?
+\item What happens if you use both x and y gradients simultaneously?
+\item What happens if you alter the number of Nread samples? 
+
+\item (Bonus) Repeat the whole sequence multiple times. Run a for loop to FFT every repetition in the same manner.
+
+\end{enumerate}
+
+\subsection{exB03\_gradient\_echo\_phase\_enc}
+
+This file starts from B01. We want now to create the 1D - fourier transform of the signal in the phase direction to get a 1D image.
+This is also called phase encoding. \\
+For this we need multiple phase encoding steps, thus we need multiple repetitions of our gradient echo sequence. The number of repetition steps is equal to the number of phase encoding steps, which is why we call this number Nphase.
+\begin{enumerate}
+\item  Use the same rf and gradient blocks in every repetition, add a recovery time at the end of each repetition.
+\item  What is the recovery time needed to have same echo amplitudes? is there a general rule for this? 
+\item  Set Nphase = 12 and comment out the frequency encoding gradients, you should get an approximately constant signal in every repetition.
+\item Now add phase encoding gradients in y-direction; they are not played out during the ADC, but before, like a re-winder. Give each repetition a different phase encoding gradient moment. Now you should see an echo along the repetition dimension or phase encoding dimension. Try to center the echo again.
+
+\item As every repetition has Nread samples, create a loop over Nread to generate the Fourier transform along Nphase, or every sampling point in read direction. Compare your result to the upsampled phantom:
+    
+\item Increase Nphase, what do you observe?  (You can reduce Nread to accelerate the simulation)
+
+\item What happens if you change y to x gradient encoding
+\item what happens if you use both x and y gradients?
+\end{enumerate}
+
+\subsection{exB04\_gradient\_echo\_freqphase\_2D}
+This file starts from B03 and combines B02 and B03.
+We want now to have both frequency and phase encoding simultaneously,
+to be able to create the 2D - Fourier transform of the signal,
+and to get a 2D image with full encoding.
+
+\begin{enumerate}
+\item  Outgoing from the phase encoding exercise, we can again activate the frequency encoding gradients (in x) in addition to the phase encoding gradients (in y). Instead of the projection of the phantom you should now see additional gradient echoes in each phase encoding step.
+\item To have full encoding you now have to Fourier transform a second time, once a loop over Nread and FFT along Nphase, and once a loop over Nphase  and an FFT over Nread. If you got this right, your plot will show the profiles along x of the phantom at each phase encoding position in y.
+\item Plot the result as an image, \\plt.imshow()  or \\ plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/Nread)
+
+\item The two Fourier transforms can be concatenated using np.fft.ifft2. 
+\item Set the read and phase encoding steps to 64. Change the phantom to 2D phantom, or brain 
+\item Use plt.imshow() to show the magnitude image (np.abs), and the phase image (np.angle); if the phase has wraps or chekckerboard, check your fftshift. As we reshaped the signal into (Nphase,Nread), but phase encoding is typically in y, we might need a transpose to get the correct image orientation as the phantom. Compare with the phantom plots!
+\end{enumerate}
+Now you have your first fully encoded MR image!
+
+
+\subsection{exB05\_GRE\_2D\_fully\_relaxed}
+This file is a cleaned up version of the solution to exB04.
+\begin{enumerate}
+\item Plot the k-space as an image. Use abs(kspace) and log(abs(kspace). Plot the k-space trajectory with (signal, \_= sim\_external(obj=obj\_p,\emph{plot\_seq\_k=[0,1]})).
+\item Now, excite only certain k-space lines with 90 degree, set other rf flip angle close to 0.
+\item What happens if you only excite every second line?
+
+\item With different settings, try different phantoms. What is the meaning of the angle or phase image?
+\item Select again all k-space lines. At the end of section S5, noise is added to the simulated signal. Lower the flip angles to see what the lowest reasonable flip angle is. 
+\item Prolong the echo time, what do you observe in magnitude and phase images?
+\end{enumerate}
+
+\subsection{exB06\_GRE\_to\_FLASH\_2D}
+The current sequence has a very long scan time.
+\begin{enumerate}
+\item Check the total scan time of the sequence in the plot. Where do we loose most time?
+\item Lower the recovery time after each repetition to 0.1 s.  
+    What do you observe?
+    What is the shortest time to still have a good image?   
+\item Lower the excitation flip angle to 5 degree.
+    What do you observe?
+    What is now the shortest time to still have a good image? (This is also called "Long TR spoiling") Read more here: \href{http://mriquestions.com/spoiling---what-and-how.html}{http://mriquestions.com/spoiling---what-and-how.html}.
+\item Turn off all phase gradients and look at the signals. 
+    Do you see additional non-centered echoes when you reduce TR? Where are they originating from? 
+\item Find a way to get rid of transverse magnetization from the previous rep using a gradient. (gradient spoiling, spoiler or crusher gradient)
+    can you now go even shorter with the event times? How short?    
+
+\item Another artifact can arise from the fact that we always flip the magnetization in the same direction in each repetition. Implement an altered rf phase in each repetition (RF spoiling / RF cycling)
+
+\item  Include a phase backblip to balance all phase gradients, so the endpoint of all k-space trajectory is the same. 
+
+\item How fast can you now go without artifacts? Calculate the speedup compare to the fully relaxed solution.
+\end{enumerate}
+
+With combined gradient and RF spoiling, you have generated the famous FLASH sequence.
+
+\subsection{exB07\_FLASH\_2D\_reordering}
+Sometimes it is useful to acquire the center k-space first.
+Play with ex\_help04\_permute.py to realize centric reordered phase encoding.
+To have the FFT working the same permutation has to be done with the raw k-space
+
+\subsection{exB08\_FLASH\_2D\_MP}
+The current sequence is the FLASH sequence.
+\begin{enumerate}
+\item  Add an inversion pulse before the sequence. Add a certain recovery time after this pulse. If it's not an 180 degree pulse you might need a spoiler gradient.
+\item  Play with these two properties flipangle and recovery time.
+\item  Can you achieve a dark CSF? That's a FLAIR
+\item  Can you achieve a dark CSF and dark WM? That is a DIR: http://mriquestions.com/double-ir.html
+\end{enumerate}
+
+\begin{figure}[H] 
+\centering
+\includegraphics[width=15cm]{img/exB08_FLASH_MP.png}
+\caption{A centric FLASH with FLAIR and DIR magentization preparation.} \label{fig:exB08_FLASh_MP}
+\end{figure}
+
+
+\subsection{exB09\_GRE\_EPI}
+This is  currently a FLASH sequence like B08.
+\begin{enumerate}
+\item remove all RF events except for the very first one, make this 90°, remove all phase encoding gradients, remove all rf phases
+        Now, there should be only one echo in the very first repetition. 
+\item Think of a way to get back again some magnetization in the second repetition without using an additional rf event, but a gradient.
+\item If the last task was successful, do the same trick for all repetitions. You are fighting against T2* decay, thus, your sequence must be fast. Speed-up the sequence until you see an echo in every repetition.
+\item Find a strategy to cover the full k-space again, by adding phase encoding-gradients. Large gradients require more time, you need to find a strategy with small gradients.
+
+\item If your image looks weird, you might have forgotten something. We saw such ghosts before, when every second line was missing. Analyse carefully the k-space trajectory plot. What is written in your ADC signal?
+Check ex\_help05\_reverse to find a solution.
+\item The image can still show a ghost. This is a so called N/2 ghost. See \href{http://mriquestions.com/nyquist-n2-ghosts.html}{mriquestions.com N/2 ghost} for more info. However, here in the simulation it should be possible to remove it completely. Carefully analyse you ADC trajectory.
+\item  Now you have an echo-planar imaging sequence, EPI, one of the fastest MRI sequences. While its speed is amazing, it also has some drawbacks: 
+        Try increasing the B0 inhomogeneity (obj\_p.B0*=2;) 
+        Try to prolong the event times. What do you observe? Can you explain this?
+\item (Bonus) You could save even more time with Extended Trapezoidal gradients. Try out make\_extended\_trapezoid. 
+\end{enumerate}
+
+\subsection{exC01\_spinecho\_2D}
+\begin{enumerate}
+\item This is starts from A02. What is TE and TE/2? What is TR? Add code to calculate both.
+\item We want to generate a gradient echo at the same time point as the spin echo. So add the frequency encoding gradients accordingly.
+
+\item Add a recovery event add the end, and repeat the SE for Nphase times. Add frequency encoding and check that all echoes have the same intensity. 
+
+\item Investigate the k-space trajectory plot carefully: What is the effect of the 180 degree pulse on the k-space location? Considering this, add the  phase encoding gradients correctly to generate an image.
+\item Alter the echo time TE, you should see the T2w of the SE MRI. For long enough TE you should see only brain liquor.
+\item Decrease the repetition time TR, what is the shortest total acquisition time (TA) you can go with still good quality?
+
+\end{enumerate}
+
+\subsection{exC02\_spinecho\_to\_RARE\_2D}
+This is starts from C01, which is relatively slow. We want to generate a so called turbo spin echo (TSE), or Rapid Aquisition relaxation enhanced (RARE). \\
+The idea is similar to the GRE EPI, we can also reuse the transverse magnetization after the first acquisition.
+\begin{enumerate}
+\item  Try to do so, by using now RF events instead of gradients only. First try to get another echo in the second repetition, without a fresh 90° pulse. Remove gradients for testings. 
+
+\item Once you get an echo in the second repetition, repeat to get echoes in all repetitions. As you fight against T2-decay you must be again fast. Do all echoes have the same sign?
+
+\item Add back the frequency encoding gradients. What is needed to have the same gradient echo in all repetitions? Do you need the rewinder gradient? If all echos look proper, add back the phase encoding to get RARE MR imaging.
+
+\item Most probably you still have imaging artefacts. As for the RARE the timing is very important, thus check again that the echo time TE/2 from center of the 90 to the center of the first 180 pulse, and the TE between the center of the 180 pulses match exactly, and that you have the ADC centered around the TE. The function calculate\_duration can help. Some events have have a rise-time or delay times that need to e considered.
+
+\item Try reordering of the sequence, e.g. centric reordering, how does this affect the contrast, the image? 
+
+\item What is the effective echo time for centric or linear reordering?
+
+\item Instead of 90-180 try a 30-90 scheme. Check the signals without phase encoding again. Do you see additional echoes? \\
+
+\item To remove the higher echoes, move further out in k-space with the rewinder and back before the readout. Your k-space trajectory must look like this: < = >
+
+
+
+\end{enumerate}
+
+\subsection{exD01\_bSSFP\_2D}
+This starts from B05 which was the fully relaxed GRE sequence. 
+flip angle was set to 5 degree
+\begin{enumerate}
+
+\item As before let us decrease the recovery time. This time make it very short.You should observe an image with artifacts when going from 5 to 0.002 s. Last time we tried to get rid of higher echoes. This time we want to understand them better.
+				
+\item We saw in exA04 (stimulated echo) that gradients act on certain echoes, and older echoes contain their complete gradient history. Thus, echoes can be at the same time point, but can have a different encoding as their transverse magnetization saw different gradients. This can actually be observed in the k-space plot: do you see the additional intensity at the edge of the k-space.
+
+\item  In the second repetition, the FID or GRE signal starts at k=0, then the rewinder and readout is applied. At which k-space location does the spin echo start?How can you realize that also the spin echo starts at k=0 at the beginning of the second repetition?
+\item You might still see some artifacts, especially in the phase. This is because the spin echo and the FID will have a different phase. To correct this you must alter the rf phase in every cycle. 
+
+\item Now you have a balance ssfp sequence!  If you switch of the gradients again, you will see that it oscillates in the beginning: This can be solved using  a prep-pulse, a so called alpha/2 pulse with the correct timing.
+
+\item try different phantoms,  manually increase the B0 inhomogeneity until you see the stopping bands.
+
+\item  Is there any stimulated echo?
+
+\item If all timing and prep is correct, you can also try centric reordering.
+
+\end{enumerate}
+
+
+\subsection{exD02\_radialssfp}
+\begin{enumerate}
+\item Try to sample the k-space not Cartesian, but with radial spokes
+\end{enumerate}
+
+\subsection{exE01\_FLASH\_2D}
+Instead of simulating, we will now send the sequence file to a real MRI scanner.
+Thus you can add in section S5 the following lines:
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+from new_core import util
+signal = util.get_signal_from_real_system('out/' + experiment_id +'.seq.dat', Nphase, Nread)
+\end{minted}
+
+Now you have to manually copy the seq file to a FAUbox folder. Then after the scan there will be a .seq.dat file with the same filename. If you copy this back, the code will read the real MR data and reconstruct it. 
+
+\subsection{exF01\_undersampled\_CS\_reco}
+Try to use the CS aproaches for the Cartesian undersampled data
+\begin{enumerate}
+\item For this just use the code as is and play with the undersampling pattern and the iterative reconstruction parameters denoising\_strength and number\_of\_iterations in the CS reconstruction part S6.
+\item How many points can be excluded?
+\item You can also try wavelet domain (uncomment code line)
+\end{enumerate}
+        
+\subsection{exF02\_radialssfp\_CS\_reco}       
+Try to use the CS approaches for the radial undersampled data.
+
+\begin{enumerate}
+\item Reduce the number of spokes by Nphase, 
+\item provide the regridded kspace and the undersampling pattern of the radial trajectory to to the CS algorithm of the previous exercise.
+\end{enumerate}
+
+\newpage
+\section{Appendix}
+\vspace{7.5cm}
+\subsection{From induction to the demodulated signal} \label{subsec:app_induction}
+ The origin of the signal is a voltage that is induced in the receive coils, because of a change in the magnetic flux
+ \begin{equation}
+ U_{ind}=-\frac{d}{dt}\Phi=-\dot\Phi
+ \end{equation}
+ The magnetic flux $\Phi$ is changing in time due to the magnetic moments oscillating, this our magnetization vector.
+ 
+ We start from the signal equation in Haacke et al. (eq. 7.14)
+\begin{equation}
+signal\sim\frac{d}{dt}\int d^{3}r[B_{x}^{-}(\vec{r})M_{x}(\vec{r},t)+B_{y}^{-}(\vec{r})M_{y}(\vec{r},t)+B_{z}^{-}(\vec{r})M_{z}(\vec{r},t)]
+\end{equation}
+where $B^{-}$ is the receive field sensitivity.
+
+As Haacke et al we neglect the much slower dynamic of $M_{z}$ compared to $M_{xy}$. We further assume $B^{-}$ to be $= 1$ homogeneously, so a flat receive sensitivity.
+\begin{equation}
+signal\sim\frac{d}{dt}\int d^{3}r[M_{x}(\vec{r},t)+M_{y}(\vec{r},t)]
+\end{equation}
+The dynamic of $\vec{M}(\vec{r},t)$ is given by the solution of the Bloch differential equations given by Haacke et al. (eq. 4.25-4.27, and in complex form 4.32-4.34):
+\begin{equation}
+M_{+}(\vec{r},t)=e^{-t/T_{2}(\vec{r)}}e^{-i\omega_{0}t}M_{+}(\vec{r},0)
+\end{equation}
+The $T_{2}$ relaxation should not be neglected, yet it can be assumed constant for the time derivative as $1/T_{2}<<\omega_{0}$.
+
+In the presence of an additional linear magnetic gradient field $B_{Gx}=x\cdot G_{x}$ with $\omega_{G}=\gamma\cdot x\cdot G_{x}$ and analogous for y, this extends to
+
+\begin{equation}
+M_{+}(\vec{r},t)=e^{-t/T_{2}(\vec{r)}}e^{-i\omega_{0}t-i\omega_{G}t}M_{+}(\vec{r},0)
+\end{equation}
+
+\begin{equation}
+M_{+}(\vec{r},t)=e^{-t/T_{2}(\vec{r)}}e^{-i\omega_{0}t-i\gamma\cdot(x\cdot G_{x}(t)+y\cdot G_{y}(t))t}M_{+}(\vec{r},0)
+\end{equation}
+As the gradient field is also much smaller compared to $\omega_{0}$ their time derivative can as well be neglected, so we can already remove the time derivative from the signal equation:
+\begin{equation}
+signal\sim\frac{d}{dt}\int d^{3}r[e^{-t/T_{2}(\vec{r)}}e^{-i\omega_{0}t-i\omega_{G}t}M_{+}(\vec{r},0)]
+\end{equation}
+\begin{equation}
+signal\sim-i\omega_{0}\int d^{3}r[e^{-t/T_{2}(\vec{r)}}e^{-i\omega_{0}t-i\omega_{G}t}M_{+}(\vec{r},0)]
+\end{equation}
+
+After demodulation of the signal (Haacke et al eq. 7.27 and 7.28) we can remove all $\omega_{0}terms$
+\begin{equation}
+signal\sim-i\omega_{0}\int d^{3}r[e^{-t/T_{2}(\vec{r)}}e^{-i\omega_{0}t-i\omega_{G}t}M_{+}(\vec{r},0)]
+\end{equation}
+\begin{equation}
+signal\sim\int d^{3}r[e^{-t/T_{2}(\vec{r)}}e^{-i\omega_{G}t}M_{+}(\vec{r},0)]
+\end{equation}
+This corresponds to the rotating frame form of the Bloch equations
+\begin{equation}
+M_{+}(\vec{r},t)=e^{-t/T_{2}(\vec{r)}}e^{-i\gamma\cdot(x\cdot G_{x}(t)+y\cdot G_{y}(t))t}M_{+}(\vec{r},0)
+\end{equation}
+this can be rewritten by the spatial frequencies $k(t)=\frac{\gamma}{2\pi}G\cdot t$ or more general for arbitrary gradients $k(t)=\frac{\gamma}{2\pi}\int_{0}^{t}G(t')dt'$
+\begin{equation}
+M_{+}(\vec{r},t)=e^{-t/T_{2}(\vec{r)}}e^{-i2\pi\cdot(k_{x}\cdot x+k_{y}\cdot y)}M_{+}(\vec{r},0)
+\end{equation}
+Thus the demodulated signal for the time step $t_{0}$ to $t_{0}+t$ is given by
+\begin{equation}
+signal\sim\int d^{3}rM_{+}(\vec{r},t)
+\end{equation}
+\begin{equation}
+signal\sim\int d^{3}r[e^{-t/T_{2}(\vec{r)}}e^{-i2\pi\cdot(k_{x}\cdot x+k_{y}\cdot y)}M_{+}(\vec{r},t_{0})] 
+\end{equation}
+with $with k=\frac{\gamma}{2\pi}\int_{t_{0}}^{t}G(t')dt'$
+This is the continuous model for continuous space r and time t.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{document}
