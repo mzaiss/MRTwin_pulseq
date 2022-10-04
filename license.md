@@ -1,1 +1,0 @@
-(c) M.Zaiss 2022 - allrights reserved
