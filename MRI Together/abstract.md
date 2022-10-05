@@ -6,12 +6,15 @@ However, teaching MR programming effectively requires immediate feedback to the 
 
 In this setup, simulation and measurement are fully interchangeable. This makes it possible to investigate image artifacts, image contrast weighting, or reconstruction problems early on by using the simulation, before measuring the final MR sequence at the real system. 
 
+![FIG1](../exercise/MRI Together/Figure1.png)
+
 # Authors
 
 [CRediT](https://www.elsevier.com/authors/policies-and-guidelines/credit-author-statement)
 
-Moritz Zaiss: Planning, execution and supervision of the course, MR exercise sequences
-Simon Weinmüller: Supervision of exercises and measurement
-Hoai Nam Dang: Supervision of exercises and measurement
-Jonathan Endres: Simulation, Pulseq interpreter
-Zhaoshun Hu: Pulseq interpreter for Bloch-Simulator
+Moritz Zaiss: Conception, testing and supervision of the exercises, solutions to MR exercise sequences, proof reading
+Simon Weinmüller: generation, testing and optimization of measurement loop, proof reading
+Hoai Nam Dang: generation, testing and optimization of measurement loop, Phantom generation, proof reading
+Jonathan Endres: Simulation, Pulseq interpreter, Phantom generation, proof reading
+Zhaoshun Hu: Pulseq interpreter for Bloch-Simulator, proof reading
+Lars Hanson: Bloch-Simulator base code, proof reading
