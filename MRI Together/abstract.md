@@ -6,7 +6,7 @@ However, teaching MR programming effectively requires immediate feedback to the 
 
 In this setup, simulation and measurement are fully interchangeable. This makes it possible to investigate image artifacts, image contrast weighting, or reconstruction problems early on by using the simulation, before measuring the final MR sequence at the real system. 
 
-![FIG1](../exercise/MRI Together/Figure1.png)
+![FIG1](Figure1.png)
 
 # Authors
 
