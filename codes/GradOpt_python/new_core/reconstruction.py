@@ -6,7 +6,7 @@ from numpy import pi
 import numpy as np
 import time
 from . import util
-from auxutil.cg_batch import cg_batch
+
 # import torchkbnufft as tkbn
 
 
