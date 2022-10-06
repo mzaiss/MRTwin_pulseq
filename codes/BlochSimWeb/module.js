@@ -1465,6 +1465,15 @@ function launchApp() { // started onload
         exciteTimers.forEach(function (item) { window.clearInterval(item) });
         exciteTimers = [];
         restartRepIfSampleChange = false;
+        //clear sequence
+        let endTid = setTimeout(function () {});
+        for (let i = 0; i <= endTid; i++) {
+            window.clearTimeout(i)
+            window.clearInterval(i)
+        }
+        trigSampleChange = true;
+        sampleChange();
+        updateMenuList = [];
     }
 
     function exciteSpoilRepeat(TR, tipAngle, phaseCycle, spoiling, B1) {
@@ -1495,13 +1504,16 @@ function launchApp() { // started onload
     } // exciteSpoilRepeat
 
     function testFunction(TR, dict, B1, speed) {
-        // clearRepTimers();
+        clearRepTimers();
         B1 = B1 || 4;
-        // B1 = 50
         let time = 0;
         let angleCache = [];
 
+        speed /=1
+
+        // compute max value
         let maxAngle = 0;
+        let maxAmp = 0;
         for (var id in dict)
         {
             var obj = dict[id]
@@ -1511,7 +1523,20 @@ function launchApp() { // started onload
                 let ang = rf["angle"];
                 maxAngle = Math.max(maxAngle, Math.max.apply(Math, ang));
             }
+            if( obj["trap"]["Gx"]!=0)
+            {
+                let trap = dict[id]["trap"];
+                let amp = trap["Gx"]["amplitude"];
+                maxAmp = Math.max(maxAmp, Math.abs(amp));
+            }
+            if( obj["trap"]["Gy"]!=0)
+            {
+                let trap = dict[id]["trap"];
+                let amp = trap["Gy"]["amplitude"];
+                maxAmp = Math.max(maxAmp, Math.abs(amp));
+            }
         }
+
         for (var id in dict)
         {
             var obj = dict[id]
@@ -1558,15 +1583,15 @@ function launchApp() { // started onload
             if(obj["ADC"] != 0)
             {
                 // G_ADC
-                var adc = dict[id]["ADC"];
-                var period = adc["dwell"];
+                let adc = dict[id]["ADC"];
+                let period = adc["dwell"] * adc["num"];
                 t_rf += adc["delay"]
 
                 window.setTimeout(function(){
                     // console.log(id)
-                    G_ADC.x = 0.25;
+                    G_ADC.x = 1;
                 }, t_rf);
-                t_rf += period * adc["num"]
+                t_rf += period;
                 window.setTimeout(function(){
                     // console.log(id)
                     G_ADC.x = 0;
@@ -1574,29 +1599,37 @@ function launchApp() { // started onload
             }
             if( obj["trap"]["Gx"]!=0)
             {
-                var trap = dict[id]["trap"];
-                t_gx += trap["Gx"]["delay"];
+                let trap = dict[id]["trap"];
+                let amp = trap["Gx"]["amplitude"];
 
-                window.setTimeout(function(){
-                    // console.log(id)
-                    // gradPulse(2, Math.PI / 2);
-                    gradPulse(2, Math.PI / 2);
-                    GMvec.y =  1
-                }, t_gx);
-                t_gx += trap["Gx"]["period"];
+                t_gx += trap["Gx"]["delay"];
+                let tempTime = 10
+                let repeatTime = Math.ceil(trap["Gx"]["period"]/speed/tempTime);
+                for (let i = 0; i < repeatTime; i++)
+                {
+                    t_gx += tempTime
+                    window.setTimeout(function(){
+                        gradPulse(amp, Math.PI / 2);
+                        GMvec.y =  amp/maxAmp
+                    }, t_gx );
+                }
             }
             if( obj["trap"]["Gy"]!=0)
             {
-                var trap = dict[id]["trap"];
-                t_gy += trap["Gy"]["delay"]
-                window.setTimeout(function(){
-                    // console.log(id)
-                    // gradPulse(2, Math.PI / 2);
-                    gradPulse(2, Math.PI / 2);
-                    GMvec.z =  1
-                }, t_gy);
-                t_gy += trap["Gy"]["period"];
+                let trap = dict[id]["trap"];
+                let amp = trap["Gy"]["amplitude"]
 
+                t_gy += trap["Gy"]["delay"]
+                let tempTime = 10
+                let repeatTime = Math.ceil(trap["Gy"]["period"]/speed/tempTime);
+                for (let i = 0; i < repeatTime; i++)
+                {
+                    t_gy += tempTime
+                    window.setTimeout(function(){
+                        gradPulse(amp/repeatTime);
+                        GMvec.z =   amp/maxAmp
+                    }, t_gy );
+                }
             }
 
             time = Math.max(t_rf, t_gx, t_gy);
@@ -1606,10 +1639,9 @@ function launchApp() { // started onload
                 GMvec.x = 0
                 GMvec.y = 0
                 GMvec.z = 0
+                G_ADC.x = 0;
             }, time);
         }
-        clearTimeout(time);
-
     } // testFunction
 
 
@@ -1624,7 +1656,6 @@ function launchApp() { // started onload
         switch (label) {
             //  add some thing zhaoshun
             case "Load_seq_filex01":
-                clearTimeout(0);
                 loadSeq().then(function(d){
                     let seq = readString(d);
                     var seqDict = seq.getSeq(1);
@@ -1633,8 +1664,6 @@ function launchApp() { // started onload
                 });
                 break;
             case "Load_seq_filex03":
-                
-                clearTimeout(0);
                 loadSeq().then(function(d){
                     let seq = readString(d);
                     var seqDict = seq.getSeq(3);
@@ -1643,12 +1672,11 @@ function launchApp() { // started onload
                 });
                 break;
             case "Load_seq_filex10":
-                clearTimeout(0);
                 loadSeq().then(function(d){
                     let seq = readString(d);
                     var seqDict = seq.getSeq(10);
                     console.log(seqDict);
-                    testFunction(50, seqDict, 4, 5)
+                    testFunction(50, seqDict, 4, 10)
                 });
                 break;
             case "Precession": state.Sample = "Precession";
@@ -1748,8 +1776,12 @@ function launchApp() { // started onload
                 break;
             case "||":
             case "⏸":
-            case "\u25AE\u25AE": paused = true; $("#Pause").button("option", "label", "▶"); break;
-            case "▶": break; // Any button restarts so corresponding action appears above.
+            case "\u25AE\u25AE":
+                paused = true;
+                $("#Pause").button("option", "label", "▶");
+                break;
+            case "▶":
+                break; // Any button restarts so corresponding action appears above.
 
             case "Save":
                 savedState = Object.assign({}, state);
@@ -1916,7 +1948,7 @@ function launchApp() { // started onload
         closeMenuIfOpened("ExcHardDrop");
         closeMenuIfOpened("SoftDrop");
         adjustToScreen();
-        window.setTimeout(0); //flush cache;	    
+        window.setTimeout(0); //flush cache;
         adjustToScreen(); //calling twice improves view.
 
         $("#newBlochSimulator").dialog({
@@ -1983,7 +2015,7 @@ function launchApp() { // started onload
         for (var cFolder = 0; //look for changes in open/closed status
             guiFolderFlags[cFolder] == guiFolders[cFolder].closed; //As long as saved close-status matches actual.
             cFolder++) {
-            if ((updateFolder) && (updateFolder == cFolder)) { break }; // Folder marked for update?
+            if ((updateFolder) && (updateFolder == cFolder)) { ;break }; // Folder marked for update?
             if (cFolder == nFolder - 1) { //Check if finished. Loop terminates before if change.
                 if (trigSampleChange) {
                     sampleChange();
@@ -2264,9 +2296,9 @@ function launchApp() { // started onload
     function updateGMWrap(RF, Gx, Gy, color) {
         switch (color) {
             case white:
-                updateGM(RF, GyTimes, GyCurve, 'white', state.viewRF);
-                updateGM(Gx, RFTimes, RFCurve, 'green', state.viewGx);
-                updateGM(Gy, GxTimes, GxCurve, 'yellow', state.viewGy);
+                updateGM(RF, RFTimes, RFCurve, 'white', state.viewRF);
+                updateGM(Gx, GxTimes, GxCurve, 'green', state.viewGx);
+                updateGM(Gy, GyTimes, GyCurve, 'yellow', state.viewGy);
                 break;
             case green:
                     updateGM(RF, GadcTimes, GadcCurve, 'red', state.viewRF);
@@ -2308,7 +2340,7 @@ function launchApp() { // started onload
             let shadowMaterial = shadowMaterials[Math.round(downViewRatio * (nShadowColors - 1))];
             // Clear FID
             FIDctx.clearRect(-5, -5, grWidth + 10, grHeight + 10); //asym borders are needed
-            GMctx.clearRect(-5, -5, grWidth + 10, grHeight + 10); //asym borders are needed
+            GMctx.clearRect(-5, -5, grWidth + 100, grHeight + 100); //asym borders are needed
 
             if ((B1mag != 0) && state.viewB1) { // view B1
                 B1cyl.quaternion.
@@ -2456,8 +2488,13 @@ function launchApp() { // started onload
 
                 // MaxGMvec = Math.max(Gtot.x, Gtot.y, Gtot.z, MaxGMvec)
                 // Gtot.multiplyScalar(1 / MaxGMvec * 1);
+                Gtot.multiplyScalar(state.curveScale / nIsoc);
+                Atot.multiplyScalar(state.curveScale / nIsoc);
                 updateGMWrap(Gtot.x, Gtot.y, Gtot.z,  white);
-                updateGMWrap(Atot.x, Atot.y, Atot.z,  green);
+                if(Atot.x)
+                {
+                    updateGMWrap(0, Atot.y, Atot.z,  green);
+                }
             }
 
             doStats && stats.update();

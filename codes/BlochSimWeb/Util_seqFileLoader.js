@@ -265,9 +265,9 @@ class Trap extends IdSection {
     constructor(lines) {
         super(lines, [
             ["amp", parseFloat, "Amplitude [Hz/m]"],
-            ["rise", (x) => parseInt(x, 10), "Rise time [µs]"],
-            ["flat", (x) => parseInt(x, 10), "Flat time [µs]"],
-            ["fall", (x) => parseInt(x, 10), "Fall time [µs]"],
+            ["rise", (x) => parseFloat(x), "Rise time [µs]"],
+            ["flat", (x) => parseFloat(x), "Flat time [µs]"],
+            ["fall", (x) => parseFloat(x), "Fall time [µs]"],
             ["delay", (x) => parseInt(x, 10), "Delay before gradient [µs]"],
         ]);
     }
@@ -292,3 +292,24 @@ class Delays extends IdSection {
         ]);
     }
 }
+
+// function scientificNotationConversion(x)
+// {
+//     var num = 0;
+//     var times = 0;
+//     if (x.search("e") != -1)
+//     {
+//         num =  parseFloat(x, 10)
+//         console.log(num)
+//         x = x.replace(num.toString(),"")
+//         x = x.replace("e","")
+//         times =  parseInt(x, 10)
+//         return num * Math.pow(10, times)
+//     }
+//     else
+//     {
+//         return  parseFloat(x, 10);
+//     }
+
+
+// }
