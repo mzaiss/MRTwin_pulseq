@@ -20,8 +20,8 @@ Hoai Nam Dang: generation, testing and optimization of measurement loop, Phantom
 
 Jonathan Endres: Simulation, Pulseq interpreter, Phantom generation, proof reading
 
-Zhaoshun Hu: Pulseq interpreter for Bloch-Simulator, proof reading
+Zhaoshun Hu: Pulseq interpreter for Bloch Simulator, proof reading
 
-Lars Hanson: Bloch-Simulator, proof reading
+Lars Hanson: Bloch Simulator, proof reading
 
 Felix Glang: parallel imaging, testing and optimization of measurement loop, proof reading
