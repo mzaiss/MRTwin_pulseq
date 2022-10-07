@@ -1,8 +1,8 @@
 ﻿## pulled form the master branch in 08/2022
 
 
-### version 2.1.x 
-neue  version devJo branch - please tag
+### version 2.1.1 
+letzer commit vor dem simulations update (diffusion, state selection...)
 - dateien aufräumen, alter core raus
 - segemented seqences anpassen ( ADC index)
 - pulseq export mit balanced pre gzr
