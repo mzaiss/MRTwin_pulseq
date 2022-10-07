@@ -137,7 +137,7 @@ class Pulseq {
                 var g = this.trap.events[res["gx"]];
                 var gDist = {};
                 gDist["delay"] = g["delay"] /globalScale;
-                gDist["amplitude"] = g["amp"]/10000;
+                gDist["amplitude"] = g["amp"]/1000; //Hz/m -> Hz/mm ?
                 gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000 /globalScale;
                 sequenceDist[currentIDX]["trap"]["Gx"] = gDist;
             }
@@ -146,7 +146,7 @@ class Pulseq {
                 var g = this.trap.events[res["gy"]];
                 var gDist = {};
                 gDist["delay"] = g["delay"] /globalScale;
-                gDist["amplitude"] = g["amp"]/10000;
+                gDist["amplitude"] = g["amp"]/1000;
                 gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000 /globalScale;
                 sequenceDist[currentIDX]["trap"]["Gy"] = gDist;
             }
@@ -156,7 +156,7 @@ class Pulseq {
 
                 var gDist = {};
                 gDist["delay"] = g["delay"] /globalScale;
-                gDist["amplitude"] = g["amp"]/10000;
+                gDist["amplitude"] = g["amp"]/1000;
                 gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000 /globalScale;
                 sequenceDist[currentIDX]["trap"]["Gz"] = gDist;
             }

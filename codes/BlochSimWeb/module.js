@@ -1503,6 +1503,20 @@ function launchApp() { // started onload
         }
     } // exciteSpoilRepeat
 
+    function gradPulseTest(phaseDiff, directionAngle, duration) {
+        const gradDur = 1;//duration/1000; //ms -> s
+        state.areaLeftGrad = phaseDiff * gradScale / state.Gamma;
+        if (directionAngle) {
+            state.Gx = Math.cos(directionAngle) * state.areaLeftGrad / gradDur;
+            state.Gy = Math.sin(directionAngle) * state.areaLeftGrad / gradDur;
+        } else { //default is Gx
+            state.Gx = state.areaLeftGrad / gradDur;
+            directionAngle = 0;
+        }
+        state.PulseGradDirection = directionAngle;
+        updateMenuList.push(guiGradientsFolder);
+    } // gradPulse
+
     function testFunction(TR, dict, B1, speed) {
         clearRepTimers();
         B1 = B1 || 4;
@@ -1603,13 +1617,21 @@ function launchApp() { // started onload
                 let amp = trap["Gx"]["amplitude"];
 
                 t_gx += trap["Gx"]["delay"];
+
+                // window.setTimeout(function(){
+                //     console.log(amp,"Gx", trap["Gx"]["period"])
+                //     gradPulseTest(amp, Math.PI / 2, trap["Gx"]["period"])
+                //     GMvec.y =  amp/maxAmp
+                // }, t_gx );
+                // t_gx += trap["Gx"]["period"]
                 let tempTime = 10
-                let repeatTime = Math.ceil(trap["Gx"]["period"]/speed/tempTime);
+                let repeatTime = Math.ceil(trap["Gx"]["period"]/tempTime);
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gx += tempTime
                     window.setTimeout(function(){
-                        gradPulse(amp, Math.PI / 2);
+                        console.log(amp,"Gx", repeatTime)
+                        gradPulse(amp/repeatTime);
                         GMvec.y =  amp/maxAmp
                     }, t_gx );
                 }
@@ -1620,13 +1642,21 @@ function launchApp() { // started onload
                 let amp = trap["Gy"]["amplitude"]
 
                 t_gy += trap["Gy"]["delay"]
+
+                // window.setTimeout(function(){
+                //     console.log(amp,"Gy",trap["Gy"]["period"])
+                //     gradPulseTest(amp, Math.PI / 2, trap["Gy"]["period"]) 
+                //     GMvec.z =   amp/maxAmp
+                // }, t_gy );
+                // t_gy += trap["Gy"]["period"]
                 let tempTime = 10
-                let repeatTime = Math.ceil(trap["Gy"]["period"]/speed/tempTime);
+                let repeatTime = Math.ceil(trap["Gy"]["period"]/tempTime);
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gy += tempTime
                     window.setTimeout(function(){
-                        gradPulse(amp/repeatTime);
+                        console.log(amp,"Gy", repeatTime)
+                        gradPulse(amp/repeatTime, Math.PI / 2);
                         GMvec.z =   amp/maxAmp
                     }, t_gy );
                 }
@@ -2387,7 +2417,7 @@ function launchApp() { // started onload
                 if ((state.FrameB1) && (state.viewTorqB1eff) && // View B1eff if B1-frame is chosen.
                     // Hmm, the following line was probably introduced for a good reason (maybe Ensemble), but implies that only off-resonance B1eff is shown for single isochromate if off-resonance. I'll add "|| (i==0)" as test (note that the test starts above):
                     //			((isoc.detuning != 0 ) || frameFixed)) { // Only show on-res B1eff when off-center isocs are present.
-                    ((isoc.detuning != 0) || frameFixed || (i == 0))) { // Only show on-res B1eff when off-center isocs are present.			
+                    ((isoc.detuning != 0) || frameFixed || (i == 0))) { // Only show on-res B1eff when off-center isocs are present.
                     let B1eff = B1vec.clone().addScaledVector(unitZvec, isoc.detuning);
                     let B1effMag = B1eff.length(); //TODO: consistent naming for magnitudes
                     if (B1effMag != 0) {
@@ -2491,10 +2521,10 @@ function launchApp() { // started onload
                 Gtot.multiplyScalar(state.curveScale / nIsoc);
                 Atot.multiplyScalar(state.curveScale / nIsoc);
                 updateGMWrap(Gtot.x, Gtot.y, Gtot.z,  white);
-                if(Atot.x)
-                {
-                    updateGMWrap(0, Atot.y, Atot.z,  green);
-                }
+                // if(Atot.x)
+                // {
+                //     updateGMWrap(0, Atot.y, Atot.z,  green);
+                // }
             }
 
             doStats && stats.update();
