@@ -1,8 +1,13 @@
-﻿## pulled form the master branch in 08/2022
+# Simulation & Interpreter version
 
+## MRTwin pulseq version v1.0.0
 
-### version 2.1.x 
-neue  version devJo branch - please tag
+This version of the MRTwin pulseq framework uses the simulation and pulseq interpreter pulled form the MRzero master branch in 08/2022, version **v2.1.1**
+
+## MRZero Release Notes
+
+### version 2.1.1 
+letzer commit vor dem simulations update (diffusion, state selection...)
 - dateien aufräumen, alter core raus
 - segemented seqences anpassen ( ADC index)
 - pulseq export mit balanced pre gzr
