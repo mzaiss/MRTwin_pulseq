@@ -1,4 +1,8 @@
-﻿## pulled form the master branch in 08/2022
+## Simulation & Interpreter version
+
+### MRTwin pulseq version v1.0.0
+
+pulled form the MRzero master branch in 08/2022
 
 
 ### version 2.1.1 
