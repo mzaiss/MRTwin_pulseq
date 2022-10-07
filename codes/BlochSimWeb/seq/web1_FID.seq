@@ -13,65 +13,31 @@ Name gre
 # Format of blocks:
 #  #  D RF  GX  GY  GZ ADC
 [BLOCKS]
-  1  1  0   0   0   0  0
-  2  0  1   0   0   0  0
-  3  2  0   0   0   0  0
-  4  0  0   1   0   0  0
-  5  0  2   0   0   0  0
-  6  3  0   1   2   0  0
- 
+1  1  0   0   0   0  0
+2  0  1   0   0   0  0
+3  0  0   0   0   0  1
 
 # Format of RF events:
 # id amplitude mag_id phase_id delay freq phase
 # ..        Hz   ....     ....    us   Hz   rad
 [RF]
-1          500 1 2 100 0 0
-2      987.456 3 4 500 0 1.5708
-3      1974.91 3 4 500 0 0
-
-# Format of trapezoid gradients:
-# id amplitude rise flat fall delay
-# ..      Hz/m   us   us   us    us
-[TRAP]
- 1      7466.67 5e+08 4e+09 5e+08   0
- 2      7111.11 5e+08 4e+09 5e+08   0
- 
+1      987.456 1 2 500 0 0
 
 # Format of ADC events:
 # id num dwell delay freq phase
 # ..  ..    ns    us   Hz   rad
 [ADC]
-1 64 156250 500 0 1.5708
+1 128 156250 20 0 0
 
 # Format of delays:
 # id delay (us)
 [DELAYS]
-1 5000000
-2 2500000
-3 50000
-4 45000
+1 10460
 
 # Sequence Shapes
 [SHAPES]
 
 shape_id 1
-num_samples 1020
-1
-0
-0
-997
--1
-0
-0
-17
-
-shape_id 2
-num_samples 1020
-0
-0
-1018
-
-shape_id 3
 num_samples 1020
 2e-08
 1.4e-07
@@ -1077,7 +1043,7 @@ num_samples 1020
 0
 18
 
-shape_id 4
+shape_id 2
 num_samples 1020
 0.5
 0
