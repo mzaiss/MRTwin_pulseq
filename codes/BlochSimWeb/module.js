@@ -1251,8 +1251,8 @@ function launchApp() { // started onload
             cFolder++, createFromFolder--);
 
         guiGradientsFolder = cFolder; // folder index needed for updating during gradient pulses.
-        guiAddFolder('Gradients: Gx=' + Math.round(state.Gx) +
-            ', Gy=' + Math.round(state.Gy),   //there is no y unicode suffix. 
+        guiAddFolder('Gradients: Gx=' + Math.round(state.Gx*100)/100 +
+            ', Gy=' + Math.round(state.Gy*100)/100,   //there is no y unicode suffix. 
             'Gradients',
             function (guiFolder) {
                 let tmp1 = state.Gx; let tmp2 = state.Gy;
@@ -1503,27 +1503,11 @@ function launchApp() { // started onload
         }
     } // exciteSpoilRepeat
 
-    function gradPulseTest(phaseDiff, directionAngle, duration) {
-        const gradDur = 1;//duration/1000; //ms -> s
-        state.areaLeftGrad = phaseDiff * gradScale / state.Gamma;
-        if (directionAngle) {
-            state.Gx = Math.cos(directionAngle) * state.areaLeftGrad / gradDur;
-            state.Gy = Math.sin(directionAngle) * state.areaLeftGrad / gradDur;
-        } else { //default is Gx
-            state.Gx = state.areaLeftGrad / gradDur;
-            directionAngle = 0;
-        }
-        state.PulseGradDirection = directionAngle;
-        updateMenuList.push(guiGradientsFolder);
-    } // gradPulse
-
     function testFunction(TR, dict, B1, speed) {
         clearRepTimers();
         B1 = B1 || 4;
         let time = 0;
         let angleCache = [];
-
-        speed /=1
 
         // compute max value
         let maxAngle = 0;
@@ -1618,20 +1602,14 @@ function launchApp() { // started onload
 
                 t_gx += trap["Gx"]["delay"];
 
-                // window.setTimeout(function(){
-                //     console.log(amp,"Gx", trap["Gx"]["period"])
-                //     gradPulseTest(amp, Math.PI / 2, trap["Gx"]["period"])
-                //     GMvec.y =  amp/maxAmp
-                // }, t_gx );
-                // t_gx += trap["Gx"]["period"]
                 let tempTime = 10
-                let repeatTime = Math.ceil(trap["Gx"]["period"]/tempTime);
+                let repeatTime = Math.ceil(3*trap["Gx"]["period"]/speed/tempTime);
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gx += tempTime
                     window.setTimeout(function(){
                         console.log(amp,"Gx", repeatTime)
-                        gradPulse(amp/repeatTime);
+                        gradPulse(amp*speed);
                         GMvec.y =  amp/maxAmp
                     }, t_gx );
                 }
@@ -1643,20 +1621,14 @@ function launchApp() { // started onload
 
                 t_gy += trap["Gy"]["delay"]
 
-                // window.setTimeout(function(){
-                //     console.log(amp,"Gy",trap["Gy"]["period"])
-                //     gradPulseTest(amp, Math.PI / 2, trap["Gy"]["period"]) 
-                //     GMvec.z =   amp/maxAmp
-                // }, t_gy );
-                // t_gy += trap["Gy"]["period"]
                 let tempTime = 10
-                let repeatTime = Math.ceil(trap["Gy"]["period"]/tempTime);
+                let repeatTime = Math.ceil(3*trap["Gy"]["period"]/speed/tempTime);
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gy += tempTime
                     window.setTimeout(function(){
                         console.log(amp,"Gy", repeatTime)
-                        gradPulse(amp/repeatTime, Math.PI / 2);
+                        gradPulse(amp*speed, Math.PI / 2);
                         GMvec.z =   amp/maxAmp
                     }, t_gy );
                 }
@@ -2516,7 +2488,6 @@ function launchApp() { // started onload
                 Mtot.multiplyScalar(state.curveScale / nIsoc);
                 updateFidWrap(Mtot.x, Mtot.z, Mtot.projectOnPlane(unitZvec).length(), white);
 
-                // MaxGMvec = Math.max(Gtot.x, Gtot.y, Gtot.z, MaxGMvec)
                 // Gtot.multiplyScalar(1 / MaxGMvec * 1);
                 Gtot.multiplyScalar(state.curveScale / nIsoc);
                 Atot.multiplyScalar(state.curveScale / nIsoc);
