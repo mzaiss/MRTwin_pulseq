@@ -1,0 +1,358 @@
+
+% mzaiss
+\usepackage{minted}
+\usemintedstyle{borland}
+
+
+\usepackage[explicit]{titlesec}
+	\usepackage{titletoc}
+	\usepackage{tocloft}
+	\usepackage{charter}
+	\usepackage[many]{tcolorbox}
+	\usepackage{amsmath}
+	\usepackage{graphicx}
+	\usepackage{xcolor}
+	\usepackage{tikz,lipsum,lmodern}
+	\usetikzlibrary{calc}
+	\usepackage[english]{babel}
+	\usepackage{fancyhdr}
+	\usepackage{mathrsfs}
+	\usepackage{empheq}
+	\usepackage{fourier}% change to lmodern if fourier is no available
+	\usepackage{wrapfig}
+	\usepackage{fancyref}
+	\usepackage{hyperref}
+	\usepackage{cleveref}
+	\usepackage{listings}
+	\usepackage{varwidth}
+	\usepackage{longfbox}
+	\usepackage{geometry}
+	\usepackage{marginnote}
+	\tcbuselibrary{theorems}
+	\tcbuselibrary{breakable, skins}
+	
+		\tcbuselibrary{listings, documentation}
+	\geometry{
+		a4paper,
+		left=33mm,
+		right=33mm,
+		top=20mm}
+
+% ============= Macros ================
+\newcommand{\fillin}{\underline{\hspace{.75in}}{\;}}
+\newcommand{\solution}{\textcolor{mordantred19}{Solution:}}
+\setlength{\parindent}{0pt}
+\addto{\captionsenglish}{\renewcommand*{\contentsname}{Table of Contents}}
+\linespread{1.2}
+% ======== Footers & Headers ==========
+\cfoot{\thepage}
+\chead{}\rhead{}\lhead{}
+% =====================================
+\renewcommand{\thesection}{\arabic{section}}
+\newcommand\sectionnumfont{% font specification for the number
+	\fontsize{300}{130}\color{myblueii}\selectfont}
+\newcommand\sectionnamefont{% font specification for the name "PART"
+	\normalfont\color{white}\scshape\small\bfseries }
+% ============= Colors ================
+% ----- Red -----
+\definecolor{mordantred19}{rgb}{0.68, 0.05, 0.0}
+% ----- Blue -----
+\definecolor{st.patrick\'sblue}{rgb}{0.14, 0.16, 0.48}
+\definecolor{teal}{rgb}{0.0, 0.5, 0.5}
+\definecolor{beaublue}{rgb}{0.74, 0.83, 0.9}
+\definecolor{mybluei}{RGB}{0,173,239}
+\definecolor{myblueii}{RGB}{63,200,244}
+\definecolor{myblueiii}{RGB}{199,234,253}
+% ---- Yellow ----
+\definecolor{blond}{rgb}{0.98, 0.94, 0.75}
+\definecolor{cream}{rgb}{1.0, 0.99, 0.82}
+% ----- Green ------
+\definecolor{emerald}{rgb}{0.31, 0.78, 0.47}
+\definecolor{darkspringgreen}{rgb}{0.09, 0.45, 0.27}
+% ---- White -----
+\definecolor{ghostwhite}{rgb}{0.97, 0.97, 1.0}
+\definecolor{splashedwhite}{rgb}{1.0, 0.99, 1.0}
+% ---- Grey -----
+\definecolor{whitesmoke}{rgb}{0.96, 0.96, 0.96}
+\definecolor{lightgray}{rgb}{0.92, 0.92, 0.92}
+\definecolor{floralwhite}{rgb}{1.0, 0.98, 0.94}
+% ========= Part Format ==========
+\titleformat{\section}
+{\normalfont\huge\filleft}
+{}
+{20pt}
+{\begin{tikzpicture}[remember picture,overlay]
+	\fill[myblueiii] 
+	(current page.north west) rectangle ([yshift=-10.5cm]current page.north east);    % das das dunkelblau
+\node[
+	fill=mybluei,
+	text width=2\paperwidth,
+	rounded corners=6cm,
+	text depth=14cm, % das das hellbalu
+	anchor=center,
+	inner sep=0pt] at (current page.north east) (parttop)
+	{\thepart};%
+\node[
+	anchor=south east,
+	inner sep=0pt,
+	outer sep=0pt] (partnum) at ([xshift=-20pt]parttop.south)   % das die pos der nummer und des texts
+	{\sectionnumfont\thesection};
+\node[
+	anchor=south,
+	inner sep=0pt] (partname) at ([yshift=2pt]partnum.south)   
+	{\sectionnamefont SECTION};
+\node[
+	anchor=north east,
+	align=right,
+	inner xsep=0pt] at ([yshift=-0.5cm]partname.east|-partnum.south) 
+	{\parbox{.99\textwidth}{\raggedleft#1}}; % der factor ist die breite vom text
+\end{tikzpicture}%
+}
+% ========= Hyper Ref ===========
+\hypersetup{
+	colorlinks,
+	linkcolor={red!50!black},
+	citecolor={blue!50!black},
+	urlcolor={blue!80!black}
+}
+% ========= Example Boxes =============
+\tcbset{
+	defstyle/.style={
+		fonttitle=\bfseries\upshape, 
+		fontupper=\slshape,
+		arc=0mm, 
+		beamer,
+		colback=blue!5!white,
+		colframe=blue!75!black},
+	theostyle/.style={
+		fonttitle=\bfseries\upshape, 
+		fontupper=\slshape,
+		colback=red!10!white,
+		colframe=red!75!black},
+	visualstyle/.style={
+		height=6.5cm,
+		breakable,
+		enhanced,
+		leftrule=0pt,
+		rightrule=0pt,
+		bottomrule=0pt,
+		outer arc=0pt,
+		arc=0pt,
+		colframe=mordantred19,
+		colback=lightgray,
+		attach boxed title to top left,
+		boxed title style={
+			colback=mordantred19,
+			outer arc=0pt,
+			arc=0pt,
+			top=3pt,
+			bottom=3pt,
+		},
+		fonttitle=\sffamily,},
+	discussionstyle/.style={
+		height=6.5cm,
+		breakable,
+		enhanced,
+		rightrule=0pt,
+		toprule=0pt,
+		outer arc=0pt,
+		arc=0pt,
+		colframe=mordantred19,
+		colback=lightgray,
+		attach boxed title to top left,
+		boxed title style={
+			colback=mordantred19,
+			outer arc=0pt,
+			arc=0pt,
+			top=3pt,
+			bottom=3pt,
+		},
+		fonttitle=\sffamily},
+	mystyle/.style={
+		height=6.5cm,
+		breakable,
+		enhanced,
+		rightrule=0pt,
+		leftrule=0pt,
+		bottomrule=0pt,
+		outer arc=0pt,
+		arc=0pt,
+		colframe=mordantred19,
+		colback=lightgray,
+		attach boxed title to top left,
+		boxed title style={
+			colback=mordantred19,
+			outer arc=0pt,
+			arc=0pt,
+			top=3pt,
+			bottom=3pt,
+		},
+		fonttitle=\sffamily},
+	aastyle/.style={
+			height=3.5cm,
+			enhanced,
+			colframe=teal,
+			colback=lightgray,
+			colbacktitle=floralwhite,
+			fonttitle=\bfseries,
+			coltitle=black,
+		attach boxed title to top center={
+	  		yshift=-0.25mm-\tcboxedtitleheight/2,
+	   		yshifttext=2mm-\tcboxedtitleheight/2}, 
+		boxed title style={boxrule=0.5mm,
+			frame code={ \path[tcb fill frame] ([xshift=-4mm]frame.west)
+				-- (frame.north west) -- (frame.north east) -- ([xshift=4mm]frame.east)
+				-- (frame.south east) -- (frame.south west) -- cycle; },
+			interior code={ 
+				\path[tcb fill interior] ([xshift=-2mm]interior.west)
+				-- (interior.north west) -- (interior.north east)
+				-- ([xshift=2mm]interior.east) -- (interior.south east) -- (interior.south west)
+				-- cycle;} }
+				},
+	examstyle/.style={
+		height=9.5cm,
+		breakable,
+		enhanced,
+		rightrule=0pt,
+		leftrule=0pt,
+		bottomrule=0pt,
+		outer arc=0pt,
+		arc=0pt,
+		colframe=mordantred19,
+		colback=lightgray,
+		attach boxed title to top left,
+		boxed title style={
+			colback=mordantred19,
+			outer arc=0pt,
+			arc=0pt,
+			top=3pt,
+			bottom=3pt,
+		},
+		fonttitle=\sffamily},
+	doc head command={
+		interior style={
+			fill,
+			left color=yellow!20!white, 
+			right color=white}},
+	doc head environment={
+		boxsep=4pt,
+		arc=2pt,
+		colback=yellow!30!white,
+		},
+	doclang/environment content=text
+}
+% ============= Boxes ================
+\newtcolorbox[auto counter,number within=section]{example}[1][]{
+	mystyle,
+	title=Example~\thetcbcounter,
+	overlay unbroken and first={
+		\path
+		let
+		\p1=(title.north east),
+		\p2=(frame.north east)
+		in
+		node[anchor=
+			west,
+			font=\sffamily,
+			color=st.patrick\'sblue,
+			text width=\x2-\x1] 
+		at (title.east) {#1};
+	}
+}
+\newtcolorbox[auto counter,number within=section]{longexample}[1][]{
+	examstyle,
+	title=Example~\thetcbcounter,
+	overlay unbroken and first={
+		\path
+		let
+		\p1=(title.north east),
+		\p2=(frame.north east)
+		in
+		node[anchor=
+		west,
+		font=\sffamily,
+		color=st.patrick\'sblue,
+		text width=\x2-\x1] 
+		at (title.east) {#1};
+	}
+}
+\newtcolorbox[auto counter,number within=section]{example2}[1][]{
+	aastyle,
+	title=Example~\thetcbcounter,{}
+}
+\newtcolorbox[auto counter,number within=section]{discussion}[1][]{
+	discussionstyle,
+	title=Discussion~\thetcbcounter,
+	overlay unbroken and first={
+		\path
+		let
+		\p1=(title.north east),
+		\p2=(frame.north east)
+		in
+		node[anchor=
+		west,
+		font=\sffamily,
+		color=st.patrick\'sblue,
+		text width=\x2-\x1] 
+		at (title.east) {#1};
+	}
+}
+\newtcolorbox[auto counter,number within=section]{visualization}[1][]{
+	visualstyle,
+	title=Visualization~\thetcbcounter,
+	overlay unbroken and first={
+		\path
+		let
+		\p1=(title.north east),
+		\p2=(frame.north east)
+		in
+		node[anchor=
+		west,
+		font=\sffamily,
+		color=st.patrick\'sblue,
+		text width=\x2-\x1] 
+		at (title.east) {#1};
+	}
+}
+% --------- Theorems ---------
+\newtcbtheorem[number within=subsection,crefname={definition}{definitions}]%
+	{Definition}{Definition}{defstyle}{def}%
+\newtcbtheorem[use counter from=Definition,crefname={theorem}{theorems}]%
+	{Theorem}{Theorem}{theostyle}{theo}
+	%
+\newtcbtheorem[use counter from=Definition]{theo}{Theorem}%
+{
+	theorem style=plain,
+	enhanced,
+	colframe=blue!50!black,
+	colback=yellow!20!white,
+	coltitle=red!50!black,
+	fonttitle=\upshape\bfseries,
+	fontupper=\itshape,
+	drop fuzzy shadow=blue!50!black!50!white,
+	boxrule=0.4pt}{theo}
+\newtcbtheorem[use counter from=Definition]{DashedDefinition}{Definition}%
+ {
+ 	enhanced,
+ 	frame empty,
+ 	interior empty,
+ 	colframe=darkspringgreen!50!white,
+	coltitle=darkspringgreen!50!black,
+	fonttitle=\bfseries,
+	colbacktitle=darkspringgreen!15!white,
+	borderline={0.5mm}{0mm}{darkspringgreen!15!white},
+	borderline={0.5mm}{0mm}{darkspringgreen!50!white,dashed},
+	attach boxed title to top center={yshift=-2mm},
+	boxed title style={boxrule=0.4pt},
+	varwidth boxed title}{theo}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newtcblisting[auto counter,number within=section]{disexam}{
+	skin=bicolor,
+	colback=white!30!beaublue,
+	colbacklower=white,
+	colframe=black,
+	before skip=\medskipamount,
+	after skip=\medskipamount,
+	fontlower=\footnotesize,
+	listing options={style=tcblatex,texcsstyle=*\color{red!70!black}},}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

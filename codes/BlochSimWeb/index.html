@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" /> <!-- needs to appear early -->
+<!-- 
+Bloch Simulator for educational interactive MR simulation.
+Copyright (c) 2021 Lars G. Hanson, larsh#drcmr.dk, lghan#dtu.dk ( # -> @ )
+http://drcmr.dk/larsh, http://www.cmr.healthtech.dtu.dk/
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+Please do not redistribute versions yourself except via the channels below, but
+instead share changes with the original developer to improve the official releases:
+Online version: http://drcmr.dk/bloch
+Software repository: https://github.com/larsh957/Bloch-Simulator
+Android app: https://play.google.com/store/apps/developer?id=Lars+G.+Hanson
+
+The software is buggy and tested fixes/improved are much appreciated if they impose 
+no restrictions on software use or redistribution. Since the software development 
+happens in spare time, bug reports and software suggestions may largely be ignored 
+(ideas are already abundant, but time for implementation very limited).
+
+-->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name='viewport' content='user-scalable=0' /> <!-- preventing non-canvas zoom -->
+  <title>Bloch Simulator for MRI & NMR education</title>
+
+  <script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+
+  <script src="Util_seqFileLoader.js"></script>
+  <script src="seqLoader.js"></script>
+
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.min.css"> 
+  <!-- Check https://learn.jquery.com/jquery-ui/getting-started/ for intro. -->
+  <!-- jquery-mobile seems not worth the effort in this case. -->
+
+<!-- Unused THREEx game extensions can likely add keyboard control, e.g (search THREEx further down).
+<script src="js/THREEx.KeyboardState.js"></script>
+<script src="js/THREEx.FullScreen.js"></script>
+<script src="js/THREEx.WindowResize.js"></script> //Could possibly have saved some trouble.
+-->
+
+<link rel="manifest" href="manifest.json">
+
+</head>
+
+<body style="overflow: hidden">
+
+	<script src="module.js" type="module"></script>
+
+    <style> /*needs to be after script since ES6 because imports overwrite */
+      .moveGUI{
+      position: absolute; 
+      top: 0px;
+      left: 0px;
+      transform-origin: top left;
+      transform:  scale(1.4,1.4); 
+      }
+      
+      #textloader {
+      width: 100px;
+      position: absolute;
+      top: calc(50% - 15px);
+      left: calc(50% - 50px);
+      text-align: center;
+      font-size: 14px;
+      }
+      
+      #loader {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 50;
+      width: 150px;
+      height: 150px;
+      margin: -75px 0 0 -75px;
+      border: 16px solid #f3f3f3;
+      border-radius: 50%;
+      border-top: 16px solid #3498db;
+      width: 120px;
+      height: 120px;
+      -webkit-animation: spin 2s linear infinite;
+      animation: spin 2s linear infinite;
+      }
+      
+      @@-webkit-keyframes spin {
+      0% { -webkit-transform: rotate(0deg); }
+      100% { -webkit-transform: rotate(360deg); }
+      }
+      
+      @@keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+      }
+      
+      /* Event buttons and their submenus are on top: */
+      .EventButtons { z-index: 20; }
+      li { z-index: 20; font-size: 130%;}
+      
+      /* props of datgui menu items: */
+      .dg li.title { background-color: transparent; border-bottom: none;
+      text-shadow:
+      0.25px 0.25px 0.5px black,
+      0.25px -0.25px 0.5px black,
+      -0.25px 0.25px 0.5px black,
+      -0.25px -0.25px 0.5px black;}
+      
+      .dg li.save-row { background-color: transparent; border-bottom: none; transform: scale(0.75,0.75) translate(-35px,5px);}
+
+      .dg .property-name { white-space: nowrap; text-overflow: clip;}
+      
+      .dg.main .close-button { display: none; }
+      
+      #guiSetting { 
+      transform: scale(1.5,1.5) translate(15%,0%);
+      position: relative;
+      }
+      
+      #gui_container{ 
+      position: absolute;
+      top: 10%;
+      left: 0%;
+      z-index: 10;
+      }
+
+      html,body {
+      margin:2px;
+      font-family:"Trebuchet MS", "Helvetica", "Arial", "Verdana", "sans-serif";
+      font-size: 100%;
+      /* Avoid text highlighting (inadvertent cut/paste): */
+      -webkit-user-select: none; 
+      -webkit-touch-callout: none; 
+      -moz-user-select: none; 
+      -ms-user-select: none; 
+      user-select: none;    
+      }
+      
+      
+      .dialog a {color: darkred;}
+      
+      
+      .ui-menu { max-width: 190px; white-space: nowrap; }/* split button menu */
+      
+      
+      .ui-button {
+      padding-left: 0em;
+      padding-right: 0em;}
+      
+    </style>
+    
+  <div id="WebGLmessage" style="transform: scale(1.3,1.3) translate(0px,0px);">
+  </div> 
+
+
+<div  class="moveGUI">
+</div>
+  
+  <!-- Add display:none below when developing to avoid 3D rendering. -->
+  <canvas id="canvasA" width="100%" height="100%"
+	  style="position: absolute; left: 0px; top: 0px; z-index: -3">
+  </canvas>
+  
+<div id="fidbox" style="height:200px; width:200px; padding:0 0 0 0; border: 0 0 0 0;  background-color:transparent; position:absolute; top:1%; right:1%;">
+  <canvas id="FIDcanvasAxis" style="position: absolute; z-index: 39; height:100%; width:100%;"> 
+  </canvas>
+  <canvas id="FIDcanvas" style="position: absolute; z-index: 40; height:100%; width:100%">
+  </canvas>
+  <div id="MxyLabel" style="position: absolute; right: 10px; top: 7px; z-index: 20;font-family: Arial, Helvetica, Geneva, sans-serif; color: white">|Mxy|</div>
+  <div id="MxLabel" style="position: absolute; right: 10px; top: 24px; z-index: 20;font-family: Arial, Helvetica, Geneva, sans-serif; color: red">Mx</div>
+  <div id="MzLabel" style="position: absolute; right: 10px; top: 41px; z-index: 20;font-family: Arial, Helvetica, Geneva, sans-serif; color: gray">Mz</div>
+</div>
+<!-- ！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! todo TODO: -->
+<div id="gmBox" style="height:200px; width:200px; padding:0 0 0 0; border: 0 0 0 0;  background-color:transparent; position:absolute; top:35%; right:1%;">
+  <canvas id="GMcanvasAxis" style="position: absolute; z-index: 39; height:100%; width:100%;"> 
+  </canvas>
+  <canvas id="GMcanvas" style="position: absolute; z-index: 40; height:100%; width:100%">
+  </canvas>
+  <div id="RFLabel" style="position: absolute; right: 10px; top: 7px; z-index: 20;font-family: Arial, Helvetica, Geneva, sans-serif; color: white">RF</div>
+  <div id="GxLabel" style="position: absolute; right: 10px; top: 24px; z-index: 20;font-family: Arial, Helvetica, Geneva, sans-serif; color: Green">Gx/Gy</div>
+  <div id="GyLabel" style="position: absolute; right: 10px; top: 24px; z-index: 20;font-family: Arial, Helvetica, Geneva, sans-serif; color: yellow">Gy</div>
+  <div id="adcLabel" style="position: absolute; right: 10px; top: 41px; z-index: 20;font-family: Arial, Helvetica, Geneva, sans-serif; color: red">ADC</div>
+</div>
+
+
+<!-- Event menu begins -->
+<div id="EventMenu" style="zoom:0.3; display:inline-block; max-width:1000px">
+  <!-- Setting zoom small ensures sufficient space at initial rendering. -->
+  
+    <div id="leftmost" style="position:absolute; width:0%; bottom:3%"> </div>
+    
+    <div class="EventButtons" style="position:absolute; bottom:3%"> 
+      <button id="Presets" style="width:8em; height:2em; background-color:#842326; color:#bbbbbb">Equilibrium</button>
+      <button id="PresetsDrop" style="height:2em">select scene</button> <!-- text is tool tip -->
+    </div>
+    <ul class="DropDowns" style="z-index: 30">
+      <!-- <li><a class="PresetsAction">Precession</a></li> --> <!-- class name must be "buttonid+Action" -->
+      <li id="Equilibrium" ><a class="PresetsAction">Equilibrium</a></li> <!--style="display:none-->
+      <!-- Equilibrium menu item needs to be hidden if hideWhenSelected is true since
+	   that label is shown on button above. Otherwise comment hiding out. --> 
+      <li id="Inhomogeneity"><a class="PresetsAction">Inhomogeneity</a></li>
+      <li id="Mixedmatter"><a class="PresetsAction">Mixed matter</a></li>
+      <li id="Weakgradient"><a class="PresetsAction">Weak gradient</a></li>
+      <li id="Stronggradient"><a class="PresetsAction">Strong gradient</a></li>
+      <li id="Structure"><a class="PresetsAction">Structure</a></li>
+      <li id="Ensemble"><a class="PresetsAction">Ensemble</a></li>
+      <li id="Plane"><a class="PresetsAction">Plane</a></li>      
+      <li id="Saving"> <a class="PresetsAction">Save</a></li> 
+    </ul>
+
+    <div class="EventButtons" style="position:absolute; bottom:3%"> 
+      <button id="ExcHard" style="width:5.5em; height:2em">90°<i style='position: relative; left: -.4em;'>ₓ</i> hard</button>  <!-- Unicode latin subscript small letter x (U+2093) (not UTF-8)-->
+      <button id="ExcHardDrop" style="height:2em">excite hard</button> <!-- text is tool tip -->
+    </div>
+    <ul class="DropDowns">
+      <li><a class="ExcHardAction">90°<i style='position: relative; left: -.4em;'>ₓ</i> hard</a></li>  <!-- class name must be "buttonid+Action" -->
+      <li><a class="ExcHardAction">90°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i> hard</a></li>
+      <li><a class="ExcHardAction">80°<i style='position: relative; left: -.4em;'>ₓ</i> hard</a></li>
+      <li><a class="ExcHardAction">30°<i style='position: relative; left: -.4em;'>ₓ</i> hard</a></li>
+<!--      <li><a class="ExcHardAction">30°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i> hard</a></li>-->
+      <li><a class="ExcHardAction">90°<i style='position: relative; left: -.4em;'>ₓ</i> sinc<i style='position: relative; top: 0.3em;font-size:0.6em;'>h</i></a></li>
+    </ul>
+
+    <div class="EventButtons" style="position:absolute; bottom:3%"> 
+      <button id="Soft" style="width:5em; height:2em">90°<i style='position: relative; left: -.4em;'>ₓ</i> soft</button>
+      <button id="SoftDrop" style="height:2em">selective pulsing</button> <!-- text is tool tip -->
+    </div>
+    <ul class="DropDowns">
+      <li><a class="SoftAction">90°<i style='position: relative; left: -.4em;'>ₓ</i> soft</a></li> <!-- class name must be "buttonid+Action" -->
+      <li><a class="SoftAction">90°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i> soft</a></li>
+      <li><a class="SoftAction">30°<i style='position: relative; left: -.4em;'>ₓ</i> soft</a></li>
+      <li><a class="SoftAction">30°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i> soft</a></li>
+      <li><a class="SoftAction">90°<i style='position: relative; left: -.4em;'>ₓ</i> sinc<i style='position: relative; top: 0.3em;font-size:0.6em;'>s</i></a></li>
+      <li><a class="SoftAction">180°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i> sinc<i style='position: relative; top: 0.3em;font-size:0.6em;'>s</i></a></li>
+    </ul>
+    
+    <div class="EventButtons" style="position:absolute; bottom:3%">
+      <button id="Refocus" style="width:3.5em; height:2em">180°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i></button>
+      <button id="RefocusDrop" style="height:2em">refocusing</button> <!-- text is tool tip -->
+    </div>
+    <ul class="DropDowns">
+      <li><a class="RefocusAction">180°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i></a></li> <!-- class name must be "buttonid+Action" -->
+      <li><a class="RefocusAction">180°<i style='position: relative; left: -.4em;'>ₓ</i></a></li>
+      <li><a class="RefocusAction">160°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i></a></li>
+      <li><a class="RefocusAction">160°<i style='position: relative; left: -.4em;'>ₓ</i></a></li>
+    </ul>
+    
+    <div class="EventButtons" style="position:absolute; bottom:3%">
+      <button id="Spoil" style="width:6em; height:2em">Spoil</button>
+      <button id="SpoilDrop" style="height:2em">gradient pulses</button> <!-- text is tool tip -->
+    </div>
+    <ul class="DropDowns">
+      <li><a class="SpoilAction">Spoil</a></li> 
+      <li><a class="SpoilAction">Gx refocus</a></li>
+      <li><a class="SpoilAction">Gx pulse</a></li>
+      <li><a class="SpoilAction">Gy pulse</a></li> 
+    </ul>
+    
+    <div class="EventButtons" style="position:absolute; bottom:3%">
+      <button id="RepExc" style="width:8em; height:2em">Non-rep. exc.</button>
+      <button id="RepExcDrop" style="height:2em">repeated exc.</button> <!-- text is tool tip -->
+    </div>
+    <ul class="DropDowns"> 
+      <li><a class="RepExcAction">Non-rep. exc.</a></li> 
+      <li><a class="RepExcAction">[90°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i>] <i style='position: relative; left: -.4em; top: 0.3em;font-size:0.6em;'>TR=5s,spoiled</i></a></li>
+      <li><a class="RepExcAction">[90°<i style='position: relative; left: -.4em;'>ₓ</i>] <i style='position: relative; left: -.4em; top: 0.3em;font-size:0.6em;'>TR=5s,spoiled</i></a></li>
+      <li><a class="RepExcAction">[90°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i>] <i style='position: relative; left: -.4em; top: 0.3em;font-size:0.6em;'>TR=8s,spoiled</i></a></li>
+      <li><a class="RepExcAction">[30°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i>] <i style='position: relative; left: -.4em; top: 0.3em;font-size:0.6em;'>TR=3s,spoiled</i></a></li>
+      <li><a class="RepExcAction">[90°<i style='position: relative; left: -.4em;'>ₓ</i>] <i style='position: relative; left: -.4em; top: 0.3em;font-size:0.6em;'>TR=5s</i></a></li>
+      <li><a class="RepExcAction">[±90°<i style='position: relative; left: -.4em;'>ₓ</i>] <i style='position: relative; left: -.4em; top: 0.3em;font-size:0.6em;'>TR=5s</i></a></li>
+      <li><a class="RepExcAction">90°<i style='position: relative; left: -.4em;'>ₓ</i>-[180°<i style='position: relative; left: -.4em; top: 0.3em;'>ʸ</i>]<i style='position: relative; left: -.0em; top: 0.3em;font-size:0.6em;'>ES=5s</i></a></li>
+	  
+	<!--  ！！！！！！！！！！！！！！！！！！！！！！！！！ add some thing zhaoshun -->
+      <li><a class="RepExcAction">Load_seq_filex01</a></li>
+      <li><a class="RepExcAction">Load_seq_filex03</a></li>
+      <li><a class="RepExcAction">Load_seq_filex10</a></li>
+    </ul>
+    
+    <div class="EventButtons" style="position:absolute; bottom:3%">
+      <button id="Pause" style="height:2em;width:2.5em;font-weight:bold">||<!--&#9646;&#9646;--></button> <!-- ⏸ -->
+    </div>
+</div> <!-- Event menu ends -->
+  
+  
+<div id="icons" class="icons" style="text-shadow: 1px 1px 2px white; position:absolute; bottom:10%; right:1%; width:20px"> 
+  <div id="FloorShape">◯</div><br>
+  <div id="XYZview">XYZ</div><br>
+  <div id="ResetCamera" style="font-size:150%;">⏎</div><br>
+</div>
+
+
+<div id="dialogGetStarted" class="dialog" title="Getting started" style="display: none;">
+  <p>
+    Click and drag to navigate around the shown spin system.
+
+    The red configurable button (left) offers a selection of starting
+    points for MR experiments (incl. samples). The neighboring buttons
+    trigger a wide variety of events such as RF and gradient pulses.
+    
+    The left menu is used to set field, viewing and relaxation properties.
+    
+    The icons to the right offer more viewing options, e.g. specific viewing angles.
+  </p>
+</div>
+
+<div id="dialogVideoIntros" class="dialog" title="Video Introductions" style="display: none;">
+  <p>
+    <a onClick='window.open("https://www.youtube.com/watch?v=6aWBZtypU7w&list=PL23477A8FD874A872", "_system")'>
+      Video introductions</a> to the Bloch Simulator are available
+    from YouTube™. Currently these demonstrate the older
+    Flash™/ActionScript™-based version that is still available at the
+    main <a onClick='window.open("http://drcmr.dk/bloch", "_system")'>software homepage</a>.
+    The new version is somewhat similar but much functionality was added.
+  </p>
+</div>
+
+<div id="dialogGetApps" class="dialog" title="Get or rate app" style="display: none;">
+  <p>
+    The Bloch Simulator is available as a free app for Android™ devices via
+    <a onClick='window.open("https://play.google.com/store/apps/developer?id=Lars+G.+Hanson", "_system")'>
+    Google Play™</a> and Huawei AppGallery™. The app improves the user
+    experience considerably over the web page for small devices. Similar
+    apps for iOS™ and possibly other platforms will soon follow (ask).
+  </p>  
+  <p>Feedback is appreciated. Please <a onClick='window.open("https://play.google.com/store/apps/developer?id=Lars+G.+Hanson", "_system")'>rate and comment</a> in the appropriate app store. 
+  </p>
+</div>
+
+<div id="dialogTools" class="dialog" title="Related tools" style="display: none;">
+  <p>
+    Other educational NMR/MRI tools by <a onClick='window.open("http://drcmr.dk/larsh", "_system")'>Lars G. Hanson</a>:</p> <!-- terrible list look-alike. Note: Bullet height needs adjustment -->
+  <p><span class="ui-icon ui-icon-circle-check" style="float:left; margin:0 7px 40px 0;"></span>
+    The <a onClick='window.open("http://www.drcmr.dk/CompassMR", "_system")'>CompassMR Simulator</a>
+    and Android™
+    <a onClick='window.open("https://play.google.com/store/apps/details?id=dk.drcmr.compassmr",
+       "_system")'>app</a>
+    giving insight into basic MR</p>
+  
+  <p><span class="ui-icon ui-icon-circle-check" style="float:left; margin:0 7px 20px 0;"></span>
+    <a onClick='window.open("http://www.drcmr.dk/fid", "_system")'>
+      Interactive FID and Spectrum Explorers</a></p>
+  
+  <p><span class="ui-icon ui-icon-circle-check" style="float:left; margin:0 7px 20px 0;"></span>
+    <a onClick='window.open("http://www.drcmr.dk/MR", "_system")'>Lots of other material</a>
+    (notes, animations, explanations,...) </p>
+</div>
+
+<div id="dialogAbout" class="dialog" title="About" style="display: none;">
+  <p>
+    The <b>Bloch Simulator</b> (here version 1.0.9) was created by
+    <a onClick='window.open("http://drcmr.dk/larsh", "_system")'>Lars G. Hanson</a>
+    (<a onClick='window.open("http://cmr.healthtech.dtu.dk", "_system")'>DTU</a>,
+    <a onClick='window.open("http://www.drcmr.dk/larsh", "_system")'>DRCMR</a>)
+    to aid challenging MRI and NMR education. You can interactively perform
+    Magnetic Resonance measurements in almost any browser.
+    The app is currently only for Android™ though.</p>
+  <p>
+    Your feedback is most welcome, but support
+    limited for this open-sourced hobby project (channels:
+    <a onClick='window.open("https://play.google.com/store/apps/developer?id=Lars+G.+Hanson",
+       "_system")'>app store</a>,
+    <a onClick='window.open("https://www.youtube.com/user/larsghanson/videos?app=desktop",
+       "_system")'>YouTube™</a>,
+    <a onClick='window.open("https://dk.linkedin.com/in/larshanson", "_system")'>LinkedIn™</a>,
+    <a onClick='window.open("https://github.com/larsh957/Bloch-Simulator",
+       "_system")'>GitHub™</a>,
+    fist bumps at conferences,
+    <a onClick='window.open("mailto:larsh"+"@drcmr.dk", "_system")'>e-mail</a>). Click for main
+    <a onClick='window.open("http://drcmr.dk/bloch", "_system")'>software homepage</a>.
+  </p>
+</div>
+
+<div id="dialogUseLandscape" class="dialog" title="Use landscape mode" style="display:none;">
+  <p>
+    The <b>Bloch Simulator</b> is designed for landscape screen mode only, and will
+    likely look horrible unless your device is rotated.
+  </p>
+</div>
+
+<div id="dialogConsiderApp" class="dialog" title="Consider using app" style="display:none;z-index: 100">
+  <p>
+    On small devices, the corresponding app will give you a better experience due
+    to improved screen usage.
+    <a onClick='window.open("https://play.google.com/store/apps/developer?id=Lars+G.+Hanson",
+       "_system")'>Click for Android app info</a>.
+  </p>
+</div>
+
+<div id="dialogWebGLfail" class="dialog" title="WebGL error" style="display:none;">
+  <p>
+    The Bloch Simulator requires the browser functionality WebGL to work (graphics
+    accelleration). Advice for checking and enabling it is here:<br>
+    <a onClick='window.open("https://get.webgl.org", "_system")'>https://get.webgl.org</a>
+  </p>
+</div>
+
+<div id="newBlochSimulator" class="dialog" title="New Bloch Simulator" style="display:none;">
+  <p>This is the  
+    <a onClick='window.open("http://drcmr.dk/bloch","_system")'>Bloch Simulator</a>
+    offering interactive exploration of Magnetic Resonance and a wide range of 
+    MRI and NMR techniques. This version replaces the
+    <a onClick='window.open("http://drcmr.dk/BlochSimulator/index.Flash.html",
+       "_system")'>older Flash™ version</a>. The corresponding
+    <a onClick='window.open("https://play.google.com/store/apps/developer?id=Lars+G.+Hanson",
+       "_system")'>Android™ app</a> improves the experience on small devices.
+    Reduce window size for smoother animations. Please report errors.</p>
+
+    <p>The top-left menu item will help you get started. Enjoy!</p>
+</div>
+
+<!-- SocialMedia goes here. -->
+
+<!-- Analytics goes here. -->
+
+<!-- Loader: Enable hideLoader call in launchApp also --> <!--
+<div id="textloader">Loading Bloch Simulator...</div>
+<div id="loader"></div>
+<script language="javascript" type="text/javascript">
+    function hideLoader() {
+	document.getElementById("loader").style.display = "none";
+	document.getElementById("textloader").style.display = "none";
+    }
+</script>
+-->
+
+</body>
+</html>

@@ -6,7 +6,7 @@ import torch
 from enum import Enum
 from typing import Iterable, Union
 from . import util
-from seq_builder.PREP_builder import PREPT1, PREPT2
+# from seq_builder.PREP_builder import PREPT1, PREPT2
 
 
 class PulseUsage(Enum):
