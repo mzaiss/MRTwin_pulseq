@@ -14,7 +14,7 @@ from new_core.reconstruction import reconstruct
 util.use_gpu = False
 
 
-def sim_external(object_sz=32,reco_sz=0, plot_seq_k=(0,0), obj=0,dB0=0,M_threshold=1e-3):   
+def sim_external(object_sz=32,reco_sz=0, plot_seq_k=(0,0), obj=0,dB0=0,M_threshold=1e-3,seqfile='./out/external.seq'):   
     #  Load a pulseq file
     
     # NOTE
@@ -31,7 +31,7 @@ def sim_external(object_sz=32,reco_sz=0, plot_seq_k=(0,0), obj=0,dB0=0,M_thresho
     # but currently use adc phase - 45°
     
     # Import a pulseq file (supported: 1.2.0, 1.2.1, 1.3.0, 1.3.1, 1.4.0)
-    pulseq = PulseqFile("out/external.seq")
+    pulseq = PulseqFile(seqfile)
     # Can also save it again as 1.4.0 file (for converting older files)
     # pulseq.save("pulseq_loader/tests/out.seq")
     # Plot the full sequence stored in the file
