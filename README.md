@@ -27,7 +27,3 @@ If you are not familiar with python, please make sure to understand the file ex_
 - [Bloch Simulator](https://www.drcmr.dk/BlochSimulator/): Visualization Tool (this repository contains an extension for Pulseq files)
 - [LaTeX](https://www.latex-project.org/): Used for the script of the course
 
-## DS ISMRM Poster
-The Pulseq simulation pipeline was also presented at the 2022 DS ISMRM meeting:
-
-![FIG1](MRI%20Together/DS%20ISMRM%20Poster.png)
