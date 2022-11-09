@@ -1043,6 +1043,7 @@ function launchApp() { // started onload
                 RFfunc: RFconst,
                 IsocArr: [],
                 t: 0, tSinceRF: 0,
+                RF: 1, GM: 1,
             };
 
             gui = new dat.GUI({ autoPlace: false });
@@ -1258,6 +1259,16 @@ function launchApp() { // started onload
                 let tmp1 = state.Gx; let tmp2 = state.Gy;
                 guiFolder.add(state, 'Gx', -7, 7, 1);
                 guiFolder.add(state, 'Gy', -7, 7, 1);
+                state.Gx = tmp1; state.Gy = tmp2;
+            },
+            cFolder++, createFromFolder--);
+
+        guiAddFolder('Speed (Seq only)',
+            'Speed',
+            function (guiFolder) {
+                let tmp1 = state.Gx; let tmp2 = state.Gy;
+                guiFolder.add(state, 'RF', 0, 15, 1);
+                guiFolder.add(state, 'GM', 0, 25, 0.1);
                 state.Gx = tmp1; state.Gy = tmp2;
             },
             cFolder++, createFromFolder--);
@@ -1657,14 +1668,22 @@ function launchApp() { // started onload
         let TR;
         switch (label) {
             //  add some thing zhaoshun
-            case "Load_seq_filex01":
+            case "Load_seq_file":
                 loadSeq().then(function(d){
                     let seq = readString(d);
-                    var seqDict = seq.getSeq(1);
+                    var seqDict = seq.getSeq(state.RF);
                     console.log(seqDict);
-                    testFunction(50, seqDict, 4, 1)
+                    testFunction(50, seqDict, 4, state.GM)
                 });
                 break;
+            case "Load_seq_filex01":
+                    loadSeq().then(function(d){
+                        let seq = readString(d);
+                        var seqDict = seq.getSeq(1);
+                        console.log(seqDict);
+                        testFunction(50, seqDict, 4, 1)
+                    });
+                    break;
             case "Load_seq_filex03":
                 loadSeq().then(function(d){
                     let seq = readString(d);
