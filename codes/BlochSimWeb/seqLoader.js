@@ -124,7 +124,7 @@ class Pulseq {
                     let real = amp * mag[i] * Math.cos(2*Math.PI*phase[i]);
                     let comp = amp * mag[i] * Math.sin(2*Math.PI*phase[i]);
                     let temp = Math.pow(Math.pow(real,2) + Math.pow(comp,2),0.5)
-                    angle.push(temp * 1e-6 *0.909*  360)
+                    angle.push(temp * 1e-6 * 0.908611 *  360)
                     angleSum += angle[i]
                 })
                 console.log(angleSum)

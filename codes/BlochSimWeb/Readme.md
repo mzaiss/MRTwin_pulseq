@@ -13,6 +13,11 @@ https://www.asd2511.xyz/bloch/
 
 ## Update Log
 
+### 2022.11.24
+1. Fix flickering problem
+2. Reduce GM time
+3. Add adc display
+
 ### 2022.11.09
 1. The speed control of decoupled RF PULS and gradient magnetic field.
 2. Fix the color layer of Sequence Figure.
@@ -29,4 +34,5 @@ https://www.asd2511.xyz/bloch/
 Known problems
 1. FILE I/O can only be available in Chorme and Edge browser.
 2. Sequence Figure in some cases, the visual effect is not good. Eg. EPI seq Gy
-3. Flickering B1 arrow
+3. ~~Flickering B1 arrow~~
+4. Sometimes B1 arrow error occurs.
