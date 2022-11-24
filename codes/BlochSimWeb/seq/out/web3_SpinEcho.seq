@@ -56,7 +56,7 @@ Name gre
 # Format of delays:
 # id delay (us)
 [DELAYS]
-1 800
+1 1300
 
 # Sequence Shapes
 [SHAPES]
