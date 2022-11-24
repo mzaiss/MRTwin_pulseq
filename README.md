@@ -1,7 +1,7 @@
 # MRTwin_pulseq
 
 # MRTwin sequence programming and simulation framework
-MRTwin is part of a larger project for automatic sequence programming. We use it here to code manually and simulate MR images using the included Bloch simulation. 
+MRTwin is a tool to code sequences manually and simulate MR images using the included Bloch simulation. 
 The Documentation/Script of the course can be generated from the tex files in /script or downloaded from https://www.studon.fau.de/studon/goto.php?target=crs_2819947 .
 It covers A : basic echoes in 1D, B : gradient echo encoding and fast GRE MRI, C : spin echo and RARE, D : balanced SSFP, E : exporting and scanning at a real MRI system, F : non-cartesian trajectories, undersampling and reconstruction.
 
@@ -27,7 +27,3 @@ If you are not familiar with python, please make sure to understand the file ex_
 - [Bloch Simulator](https://www.drcmr.dk/BlochSimulator/): Visualization Tool (this repository contains an extension for Pulseq files)
 - [LaTeX](https://www.latex-project.org/): Used for the script of the course
 
-## DS ISMRM Poster
-The Pulseq simulation pipeline was also presented at the 2022 DS ISMRM meeting:
-
-![FIG1](MRI%20Together/DS%20ISMRM%20Poster.png)

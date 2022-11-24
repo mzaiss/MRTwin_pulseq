@@ -124,7 +124,7 @@ class Pulseq {
                     let real = amp * mag[i] * Math.cos(2*Math.PI*phase[i]);
                     let comp = amp * mag[i] * Math.sin(2*Math.PI*phase[i]);
                     let temp = Math.pow(Math.pow(real,2) + Math.pow(comp,2),0.5)
-                    angle.push(temp * 1e-6 *0.909*  360)
+                    angle.push(temp * 1e-6 * 0.908611 *  360)
                     angleSum += angle[i]
                 })
                 console.log(angleSum)
@@ -137,7 +137,7 @@ class Pulseq {
                 var g = this.trap.events[res["gx"]];
                 var gDist = {};
                 gDist["delay"] = g["delay"] /globalScale;
-                gDist["amplitude"] = g["amp"]/10000;
+                gDist["amplitude"] = g["amp"]/100000; //Hz/m -> Hz/mm ?
                 gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000 /globalScale;
                 sequenceDist[currentIDX]["trap"]["Gx"] = gDist;
             }
@@ -146,7 +146,7 @@ class Pulseq {
                 var g = this.trap.events[res["gy"]];
                 var gDist = {};
                 gDist["delay"] = g["delay"] /globalScale;
-                gDist["amplitude"] = g["amp"]/10000;
+                gDist["amplitude"] = g["amp"]/50000;
                 gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000 /globalScale;
                 sequenceDist[currentIDX]["trap"]["Gy"] = gDist;
             }
@@ -156,7 +156,7 @@ class Pulseq {
 
                 var gDist = {};
                 gDist["delay"] = g["delay"] /globalScale;
-                gDist["amplitude"] = g["amp"]/10000;
+                gDist["amplitude"] = g["amp"]/100000;
                 gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000 /globalScale;
                 sequenceDist[currentIDX]["trap"]["Gz"] = gDist;
             }
