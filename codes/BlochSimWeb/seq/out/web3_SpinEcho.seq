@@ -68,8 +68,8 @@ Name gre
 # id amplitude mag_id phase_id delay freq phase
 # ..        Hz   ....     ....    us   Hz   rad
 [RF]
-1          250 1 2 100 0 0
-2          500 1 2 100 0 1.5708
+1         2500 1 2 100 0 0
+2         5000 1 2 100 0 1.5708
 
 # Format of ADC events:
 # id num dwell delay freq phase
@@ -87,19 +87,19 @@ Name gre
 [SHAPES]
 
 shape_id 1
-num_samples 1020
+num_samples 120
 1
 0
 0
-997
+97
 -1
 0
 0
 17
 
 shape_id 2
-num_samples 1020
+num_samples 120
 0
 0
-1018
+118
 
