@@ -1,4 +1,4 @@
-experiment_id = 'exA06_gradient_echo_phase_encoding'
+experiment_id = 'exA03_gradient_echo'
 
 # %% S0. SETUP env
 import sys,os
@@ -39,30 +39,37 @@ system = Opts(max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s', rf
 seq = Sequence()
 
 # Define FOV and resolution
-fov = (1000-3 )
-Nread = 64
-Nphase = 64
-
+fov = 1000e-3 
+Nread = 128
+Nphase = 1
 slice_thickness = 8e-3  # slice
 
 # Define rf events
-rf1, _,_ = make_sinc_pulse(flip_angle=5 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf1, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
 # rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-adc = make_adc(num_samples=Nread, duration=2e-3, phase_offset=0*np.pi/180,system=system)
- 
+
+gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=20e-3, system=system)
+gx_ = make_trapezoid(channel='x', flat_area=-Nread, flat_time=20e-3, system=system)
+
+gx_pre = make_trapezoid(channel='x', area=-Nread/2, duration=2e-3, system=system)
+
+adc = make_adc(num_samples=Nread, duration=20e-3, phase_offset=0*np.pi/180,delay=gx.rise_time,system=system)
+
+
 # ======
 # CONSTRUCT SEQUENCE
 # ======
+seq.add_block(make_delay(0.011-rf1.delay))
+seq.add_block(rf1)
+seq.add_block(gx_pre)
+seq.add_block(adc,gx)
+seq.add_block(adc,gx_)
+seq.add_block(adc,gx)
+seq.add_block(adc,gx_)
 
-for ii in range(-Nphase//2, Nphase//2):
-    seq.add_block(make_delay(1))
-    seq.add_block(rf1)
-    gp= make_trapezoid(channel='y', area=ii, duration=20e-3, system=system)
-    seq.add_block(gp)
-    seq.add_block(adc)
-    
+# seq.add_block(adc)
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
@@ -93,13 +100,12 @@ sz=[64,64]
 if 0:
     obj_p = SimData.load('../data/phantom2D.mat')
     obj_p = SimData.load('../data/numerical_brain_cropped.mat')
-    obj_p.T2dash[:] = 30e-3
     obj_p = obj_p.resize(sz[0],sz[1],1)
 else:
 # or (ii) set phantom  manually to a pixel phantom
     obj_p = torch.zeros((sz[0],sz[1],6)); 
     
-    obj_p[24,24,:]=torch.tensor([1, 1, 0.1, 0.1, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
+    obj_p[24,24,:]=torch.tensor([1, 3, 0.5, 30e-3, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
     # obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1,0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
     
     obj_p=obj_p.permute(2,0,1)[:,:,:,None]
@@ -112,59 +118,8 @@ obj_p.plot_sim_data()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
-signal, _= sim_external(obj=obj_p,plot_seq_k=[0,1])
+signal, _= sim_external(obj=obj_p,plot_seq_k=[0,0])
 # plot the result into the ADC subplot
 sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
 sp_adc.plot(t_adc,np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
-
-# %% S6: MR IMAGE RECON of signal ::: #####################################
-fig=plt.figure(); # fig.clf()
-plt.subplot(411); plt.title('ADC signal')
-spectrum=torch.reshape((signal),(Nphase,Nread)).clone().t()
-kspace=spectrum
-plt.plot(torch.real(signal),label='real')
-plt.plot(torch.imag(signal),label='imag')
-
-
-major_ticks = np.arange(0, Nphase*Nread, Nread) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-
-space = torch.zeros_like(spectrum)
-
-# fftshift
-spectrum=torch.fft.fftshift(spectrum)
-for ii in range(0,Nread):
-    space[ii,:]=torch.fft.ifft(spectrum[ii,:])
-    
-for ii in range(0,Nphase):
-    space[:,ii]=torch.fft.ifft(space[:,ii])
-    
-#iFFT
-    
-# fftshift
-space=torch.fft.fftshift(space)
-
-
-plt.subplot(312); plt.title('FFT')
-
-plt.plot(torch.abs(torch.t(space).flatten(0)),label='real')
-plt.plot(torch.imag(torch.t(space).flatten(0)),label='imag')
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
-
-# compare with original phantom obj_p.PD
-from new_core import util
-plt.subplot(313); plt.title('phantom projection')
-PD = util.to_full(
-    obj_p.PD, obj_p.mask).squeeze(0)
-import torchvision
-t= torchvision.transforms.Resize((Nread,Nphase),interpolation=0)(PD.permute(2,0,1))[0,:,:]
-t=np.roll(t,-Nphase//sz[1]//2+1,1)  # this is needed due to the oversampling of the phantom, szread>sz
-
-if gp.channel=='y':
-    plt.plot(np.sum(t,axis=0).flatten('F'),label='proj1')
-else:
-    plt.plot(np.sum(t,axis=1).flatten('F'),label='proj1')
-        
-plt.show()    
-
