@@ -33,7 +33,7 @@ from pypulseq.opts import Opts
 
 ## choose the scanner limits
 system = Opts(max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s', rf_ringdown_time=20e-6,
-                 rf_dead_time=100e-6, adc_dead_time=20e-6,grad_raster_time=50*10e-6)
+                rf_dead_time=000e-6, adc_dead_time=00e-6,grad_raster_time=50*10e-6)
 
 # %% S2. DEFINE the sequence 
 seq = Sequence()
@@ -45,15 +45,11 @@ Nphase = 1
 slice_thickness = 8e-3  # slice
 
 # Define rf events
-rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-5, system=system)
-rf2, _= make_block_pulse(flip_angle=180 * math.pi / 180, phase_offset=90* math.pi / 180, duration=1e-5, system=system)
-rf1.delay=0
-rf2.delay=0
-# rf1, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=0.01e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, delay=0,system=system)
-# rf2, _,_ = make_sinc_pulse(flip_angle=180 * math.pi / 180, duration=0.01e-3,phase_offset=90* math.pi / 180, slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf1, _, = make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-5, delay=0, system=system)
+rf2, _, = make_block_pulse(flip_angle=180 * math.pi / 180, duration=1e-5, phase_offset=90* math.pi / 180, delay=0,system=system)
 
 # Define other gradients and ADC events
-adc = make_adc(num_samples=Nread, duration=0.04e-3, phase_offset=0*np.pi/180,delay=0,system=system)
+adc = make_adc(num_samples=Nread, duration=4e-5, phase_offset=0*np.pi/180,delay=0,system=system)
 
 
 # ======
@@ -63,10 +59,22 @@ seq.add_block(rf1)
 seq.add_block(make_delay(3e-5))
 for i in range(0,12):
     seq.add_block(rf2)
-    seq.add_block(make_delay(1e-5))
+    seq.add_block(make_delay(1.5e-5))
     seq.add_block(adc)
-    seq.add_block(make_delay(1e-5))
+    seq.add_block(make_delay(2e-5)) # rf compensation delay
+    seq.add_block(make_delay(1.5e-5))
 
+    """
+    We shorten the RF puls to 1e-5.
+    num_samples = 30.
+    Each sample = 50 ms.
+    RF time = 1500 ms.
+
+    However, only the first 500 ms we have amplitude.
+    The remaining 20 samples = 0 (dead zone?)
+
+    This means that in each RF puls, there is a delay of 1000 ms. So in the set combination now, the times match.
+    """
 
 
 
