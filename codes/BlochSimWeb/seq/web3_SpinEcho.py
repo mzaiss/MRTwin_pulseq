@@ -48,6 +48,9 @@ slice_thickness = 8e-3  # slice
 rf1, _, = make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-5, delay=0, system=system)
 rf2, _, = make_block_pulse(flip_angle=180 * math.pi / 180, duration=1e-5, phase_offset=90* math.pi / 180, delay=0,system=system)
 
+# rf1.delay=0  # for some reason this is necessary to set the rf delay to 0
+# rf2.delay=0
+
 # Define other gradients and ADC events
 adc = make_adc(num_samples=Nread, duration=4e-5, phase_offset=0*np.pi/180,delay=0,system=system)
 
