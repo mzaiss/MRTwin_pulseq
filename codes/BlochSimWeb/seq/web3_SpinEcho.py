@@ -45,22 +45,27 @@ Nphase = 1
 slice_thickness = 8e-3  # slice
 
 # Define rf events
-rf1, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, delay=0,system=system)
-# rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
-rf2, _,_ = make_sinc_pulse(flip_angle=180 * math.pi / 180, duration=1e-3,phase_offset=90* math.pi / 180, slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-5, system=system)
+rf2, _= make_block_pulse(flip_angle=180 * math.pi / 180, phase_offset=90* math.pi / 180, duration=1e-5, system=system)
+rf1.delay=0
+rf2.delay=0
+# rf1, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=0.01e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, delay=0,system=system)
+# rf2, _,_ = make_sinc_pulse(flip_angle=180 * math.pi / 180, duration=0.01e-3,phase_offset=90* math.pi / 180, slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
 
 # Define other gradients and ADC events
-adc = make_adc(num_samples=Nread, duration=2e-3, phase_offset=0*np.pi/180,delay=0,system=system)
+adc = make_adc(num_samples=Nread, duration=0.04e-3, phase_offset=0*np.pi/180,delay=0,system=system)
 
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
 seq.add_block(rf1)
-seq.add_block(make_delay(0.010-rf1.delay-rf2.delay))
+seq.add_block(make_delay(3e-5))
 for i in range(0,12):
     seq.add_block(rf2)
+    seq.add_block(make_delay(1e-5))
     seq.add_block(adc)
+    seq.add_block(make_delay(1e-5))
 
 
 
