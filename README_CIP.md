@@ -12,7 +12,7 @@ run the following commands in a terminal:
  2. module load torch
  3. navigate to 'MRTwin_pulseq\codes\GradOpt_python\new_core\pre_pass\wheels' and run
 
- - pip install pre_pass-0.2.0-cp37-abi3-manylinux_2_27_x86_64.whl
+ - pip install pre_pass-0.4.1-cp37-abi3-linux_x86_64.whl
 
 ### Start spyder
 After running the installation you can start the environment by:

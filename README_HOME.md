@@ -30,10 +30,10 @@ In addition to python some extension packages are required like Pytorch. Install
 
 ```
  On Windows:
- pip install pre_pass-0.2.0-cp37-abi3-win_amd64.whl
+ pip install pre_pass-0.4.1-cp37-abi3-win_amd64.whl
 
  On Linux:
- pip install pre_pass-0.2.0-cp37-abi3-manylinux_2_27_x86_64.whl
+ pip install pre_pass-0.4.1-cp37-abi3-linux_x86_64.whl
  
  On Mac:
  not yet supported
