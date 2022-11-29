@@ -3,16 +3,16 @@ import torch
 import matplotlib.pyplot as plt
 
 from .sequence import Sequence
-from .sim_data import SimData
+from .sim_data import SimData, RawSimData
 import numpy as np
 from . import util
 
 
 def execute_graph(graph: list[list],
                   seq: Sequence,
-                  data: SimData,
-                  min_signal: float = 1e-3,
-                  min_influence: float = 1e-3,
+                  data: SimData | RawSimData,
+                  min_signal: float = 1e-2,
+                  min_weight: float = 1e-3,
                   return_mag_p: int | bool | None = None,
                   return_mag_z: int | bool | None = None,
                   return_encoding: bool = False
@@ -39,9 +39,10 @@ def execute_graph(graph: list[list],
     data : SimData
         Physical properties of phantom and scanner.
     min_signal : float
-        Minimum signal of a state for it to be measured.
-    min_influence : float
-        Minimum influence of a state for it to be measured.
+        Minimum relative signal of a state for it to be measured.
+    min_weight : float
+        Minimum "weight" metric of a state for it to be simulated. Should be
+        less than min_signal.
     return_mag_p : int or bool, optional
         If set, returns the transverse magnetisation of either the given
         repetition (int) or all repetitions (``True``).
@@ -62,6 +63,7 @@ def execute_graph(graph: list[list],
     encoding : list[list[tuple[torch.Tensor, torch.Tensor, float]]]
         (signal, trajectory, phase) of all distributions of all repetitions.
     """
+    k_to_si = 2*np.pi / data.fov
     signal: list[torch.Tensor] = []
     # Only filled and returned if requested
     mag_p = []
@@ -71,21 +73,23 @@ def execute_graph(graph: list[list],
     # Proton density can be baked into coil sensitivity. shape: voxels x coils
     coil_sensitivity = (
         data.coil_sens.t().to(torch.cfloat)
-        * data.PD.unsqueeze(1)/data.PD.sum()
+        * torch.abs(data.PD).unsqueeze(1)#/torch.abs(data.PD).sum()
     )
-    coil_count = data.coil_count
+    coil_count = int(coil_sensitivity.shape[1])
+    voxel_count = data.PD.numel()
 
     # The first repetition contains only one element: A fully relaxed z0
     graph[0][0].mag = torch.ones(
-        data.voxel_count, dtype=torch.cfloat, device=util.get_device())
-    # Calculate kt_offset_vec ourselves for autograd
-    graph[0][0].kt_offset_vec = torch.zeros(4, device=util.get_device())
+        voxel_count, dtype=torch.cfloat, device=util.get_device()
+    )
+    # Calculate kt_vec ourselves for autograd
+    graph[0][0].kt_vec = torch.zeros(4, device=util.get_device())
 
     for i, (dists, rep) in enumerate(zip(graph[1:], seq)):
         print(f"\rCalculating repetition {i+1} / {len(seq)}", end='')
         # Apply the pulse
         # Necessary elements of the pulse rotation matrix
-        angle = rep.pulse.angle * data.B1[0, :]
+        angle = rep.pulse.angle * torch.abs(data.B1[0, :])
         phase = torch.as_tensor(rep.pulse.phase)
         # Unaffected magnetisation
         z_to_z = util.set_device(torch.cos(angle))
@@ -118,14 +122,16 @@ def execute_graph(graph: list[list],
         # shape: events x coils
         rep_sig = torch.zeros(rep.event_count, coil_count,
                               dtype=torch.cfloat, device=util.get_device())
+
         # shape: events x 4
-        trajectory = torch.cat([
-            torch.cumsum(util.set_device(rep.gradm), 0),
-            torch.cumsum(util.set_device(rep.event_time), 0).unsqueeze(1)], 1)
+        trajectory = util.set_device(torch.cumsum(torch.cat([
+            rep.gradm, rep.event_time[:, None]
+        ], 1), 0))
+        dt = util.set_device(rep.event_time)
 
         total_time = rep.event_time.sum()
-        r1 = torch.exp(-total_time / data.T1)
-        r2 = torch.exp(-total_time / data.T2)
+        r1 = torch.exp(-total_time / torch.abs(data.T1))
+        r2 = torch.exp(-total_time / torch.abs(data.T2))
 
         mag_p_rep = []
         mag_z_rep = []
@@ -139,7 +145,7 @@ def execute_graph(graph: list[list],
                 lambda edge: edge[1].mag is not None, dist.ancestors
             ))
 
-            if dist.dist_type != 'z0' and dist.rel_influence < min_influence:
+            if dist.dist_type != 'z0' and dist.weight < min_weight:
                 continue  # skip unimportant distributions
             if dist.dist_type != 'z0' and len(ancestors) == 0:
                 continue  # skip dists for which no ancestors were simulated
@@ -147,39 +153,57 @@ def execute_graph(graph: list[list],
             dist.mag = sum([calc_mag(ancestor) for ancestor in ancestors])
             if dist.dist_type in ['z0', 'z'] and return_mag_z in [i, True]:
                 mag_z_rep.append(dist.mag)
-            # The pre_pass already calculates kt_offset_vec, but that does not
+            # The pre_pass already calculates kt_vec, but that does not
             # work with autograd -> we need to calculate it with torch
             if dist.dist_type == 'z0':
-                dist.kt_offset_vec = torch.zeros(4, device=util.get_device())
+                dist.kt_vec = torch.zeros(4, device=util.get_device())
             elif ancestors[0][0] in ['-+', '-z']:
-                dist.kt_offset_vec = -1.0 * ancestors[0][1].kt_offset_vec
+                dist.kt_vec = -1.0 * ancestors[0][1].kt_vec
             else:
-                dist.kt_offset_vec = ancestors[0][1].kt_offset_vec.clone()
+                dist.kt_vec = ancestors[0][1].kt_vec.clone()
 
-            if dist.dist_type == '+' and dist.prepass_rel_signal >= min_signal:
-                # shape: events x 3
-                dist_traj = dist.kt_offset_vec + trajectory
+            # shape: events x 4
+            dist_traj = dist.kt_vec + trajectory
+
+            # Diffusion
+            k2 = dist_traj[:, :3] * k_to_si
+            k1 = torch.empty_like(k2)  # Calculate k-space at start of event
+            k1[0, :] = dist.kt_vec[:3] * k_to_si
+            k1[1:, :] = k2[:-1, :]
+            # Integrate over each event to get b factor (lin. interp. grad)
+            b = 1/3 * dt * (k1**2 + k1*k2 + k2**2).sum(1)
+            # shape: events x voxels
+            diffusion = torch.exp(-1e-9 * data.D * torch.cumsum(b, 0)[:, None])
+
+            # NOTE: We are calculating the signal for samples that are not
+            # measured (adc_usage == 0), which is, depending on the sequence,
+            # produces an overhead of ca. 5 %. On the other hand, this makes
+            # the code much simpler bc. we only have to apply the adc mask
+            # once at the end instead of for every input. Change only if this
+            # performance improvement is worth it. Repetitions without any adc
+            # are already skipped because the pre-pass returns no signal.
+
+            if dist.dist_type == '+' and dist.rel_signal >= min_signal:
                 # shape: events x voxels
                 transverse_mag = (
                     dist.mag.unsqueeze(0)
-                    * torch.exp(-trajectory[:, 3:] / data.T2)
-                    * torch.exp(-torch.abs(dist_traj[:, 3:]) / data.T2dash)
+                    * torch.exp(-trajectory[:, 3:] / torch.abs(data.T2))
+                    * torch.exp(-torch.abs(dist_traj[:, 3:]) / torch.abs(data.T2dash))
                     * torch.exp(1j * (
                         2*np.pi * dist_traj[:, 3:] * data.B0
                         # This gradient definition matches DFT
                         + -2*np.pi * dist_traj[:, :3] @ data.voxel_pos.t()))
+                    * diffusion
                 )
 
-                # apply intra-voxel dephasing
-                # wave length = voxel size -> fully dephased -> sinc(+- 1)
-                transverse_mag *= (1.41421356237 * torch.prod(torch.sinc(
-                    dist_traj[:, :3] / data.shape
-                ), dim=1)).unsqueeze(1)  # same for all voxels
+                transverse_mag *= (
+                    1.41421356237 * data.dephasing_func(dist_traj[:, :3])
+                ).unsqueeze(1)
 
                 # PD is encoded in coil_sensitivity which we don't include in
                 # the transverse magnetisation, so apply it separately here
                 if return_mag_p in [i, True]:
-                    mag_p_rep.append(adc_rot * transverse_mag * data.PD)
+                    mag_p_rep.append(adc_rot * transverse_mag * torch.abs(data.PD))
 
                 # (events x voxels) @ (voxels x coils) = (events x coils)
                 dist_signal = transverse_mag @ coil_sensitivity
@@ -190,14 +214,15 @@ def execute_graph(graph: list[list],
                     encoding_rep.append([dist_signal, dist_traj, phase])
 
             if dist.dist_type == '+':
-                dist.mag = dist.mag * r2
+                # Diffusion for whole trajectory + T2 relaxation
+                dist.mag = dist.mag * r2 * diffusion[-1, :]
+                dist.kt_vec = dist_traj[-1]
             else:  # z or z0
-                dist.mag = dist.mag * r1
+                k = torch.linalg.vector_norm(dist.kt_vec[:3] * k_to_si)
+                diffusion = torch.exp(-1e-9 * data.D * total_time * k**2)
+                dist.mag = dist.mag * r1 * diffusion
             if dist.dist_type == 'z0':
                 dist.mag = dist.mag + 1 - r1
-
-            if dist.dist_type == '+':
-                dist.kt_offset_vec += trajectory[-1]
 
         rep_sig *= adc_rot
 
@@ -289,6 +314,10 @@ def signal_hist_sim(
         of the signal of a repetition. Indices are [repetition, # of
         excitations, # refocusings]
     """
+
+    print("!!! This simulation currently ignores diffusion !!!")
+    print("Also, update for weight metric & renamed properties")
+
     size = len(seq)
     dev = util.get_device()
     # repetition, # of excits, # of refocs
