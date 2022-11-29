@@ -85,18 +85,16 @@ seq.write('out/' + experiment_id +'.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-from new_core.sim_data import SimData, CustomVoxelPhantom, plot_sim_data
+from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
 sz=[64,64]
-# (i) load a phantom object from file
-if 0:
-    obj_p = SimData.load('../data/phantom2D.mat')
-    obj_p = SimData.load('../data/numerical_brain_cropped.mat')
-    obj_p = obj_p.resize(sz[0],sz[1],1)
 
-    obj_p.B0*=1;
-    plot_sim_data(obj_p)
+if 0:
+    # (i) load a phantom object from file
+    obj_p = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
+    obj_p = obj_p.interpolate(sz[0], sz[1], 1)
+    obj_p.B0 *= 1
 else:
-# or (ii) set phantom  manually to a pixel phantom
+    # or (ii) set phantom  manually to a pixel phantom
     obj_p = CustomVoxelPhantom(
         pos=[[-0.25, -0.25, 0]],
         T1=[3.0],
@@ -105,8 +103,10 @@ else:
         voxel_size=0.1,
         voxel_shape="box"
     )
-    obj_p.plot()
-    obj_p = obj_p.build()
+
+obj_p.plot()
+# Convert Phantom into simulation data
+obj_p = obj_p.build()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot

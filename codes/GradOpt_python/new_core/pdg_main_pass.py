@@ -3,14 +3,14 @@ import torch
 import matplotlib.pyplot as plt
 
 from .sequence import Sequence
-from .sim_data import SimData, RawSimData
+from .sim_data import RawSimData
 import numpy as np
 from . import util
 
 
 def execute_graph(graph: list[list],
                   seq: Sequence,
-                  data: SimData | RawSimData,
+                  data: RawSimData,
                   min_signal: float = 1e-2,
                   min_weight: float = 1e-3,
                   return_mag_p: int | bool | None = None,
@@ -36,7 +36,7 @@ def execute_graph(graph: list[list],
         Distribution graph that will be executed.
     seq : Sequence
         Sequence that will be simulated and was used to create ``graph``.
-    data : SimData
+    data : RawSimData
         Physical properties of phantom and scanner.
     min_signal : float
         Minimum relative signal of a state for it to be measured.

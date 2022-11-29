@@ -100,12 +100,6 @@ def sim_external(object_sz=32,reco_sz=0, plot_seq_k=(0,0), obj=0,dB0=0,M_thresho
 
     data=obj
 
-    # Workaround so that it works with old SimData and new RawSimData
-    if hasattr(data, "nyquist"):
-        nyquist = data.nyquist
-    else:
-        nyquist = (data.shape / 2).tolist()
-
     graph = pre_pass.compute_graph(
         seq,
         float(torch.mean(data.T1)),
@@ -114,7 +108,7 @@ def sim_external(object_sz=32,reco_sz=0, plot_seq_k=(0,0), obj=0,dB0=0,M_thresho
         float(torch.mean(data.D)),
         1000,
         M_threshold,
-        nyquist,
+        data.nyquist,
         data.fov.tolist(),
         data.avg_B1_trig,
     )
