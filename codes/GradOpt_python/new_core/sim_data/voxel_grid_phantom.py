@@ -2,6 +2,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from scipy.io import loadmat
 from .raw_sim_data import RawSimData
 from .. import util
 
@@ -166,6 +167,39 @@ class VoxelGridPhantom:
             rel_fov=torch.ones(3)
         )
 
+    @classmethod
+    def load(cls, file_name: str) -> VoxelGridPhantom:
+        # TODO: docstring (see old_sim_data) and T2dash / D parameters
+        mat = loadmat(file_name)
+        keys = [
+            key for key in mat
+            if not (key.startswith('__') and key.endswith('__'))
+        ]
+        arrays = [mat[key] for key in keys if isinstance(mat[key], np.ndarray)]
+        assert len(keys) == 1, "The loaded mat file must contain exatly one array"
+
+        data = torch.from_numpy(arrays[0]).float()
+        assert data.ndim == 3 and data.shape[-1] == 5
+        # Expand data to 3D
+        data = data.unsqueeze(2)
+        PD = data[..., 0]
+        T1 = data[..., 1]
+        T2 = data[..., 2]
+        B0 = data[..., 3]
+        B1 = data[..., 4]
+        # TODO: Use function parameters here instead of constatns
+        T2dash = torch.full_like(PD, 30e-3)
+        D = torch.full_like(PD, 0.0)
+
+        # TODO: do we know FOV? currently assuming 1.5 mm voxels
+
+        return cls(
+            PD, T1, T2, T2dash, D, B0, B1[None, :],
+            coil_sens=torch.ones(1, *PD.shape),
+            base_fov=torch.tensor(PD.shape) * 1.5e-3,
+            rel_fov=torch.ones(3)
+        )
+
     def slices(self, slices: list[int]) -> VoxelGridPhantom:
         """Generate a copy that only contains the selected slice(s).
 
@@ -271,6 +305,9 @@ class VoxelGridPhantom:
             return torch.nn.functional.interpolate(
                 tensor[None, None, ...], size=(x, y, z), mode='area'
             )[0, 0, ...]
+        
+        # Code assumes single coil, adopt (iterate) for multi-coil
+        assert self.B1.shape[0] == 1 and self.coil_sens.shape[0] == 1
 
         return VoxelGridPhantom(
             resample(self.PD),
@@ -279,8 +316,8 @@ class VoxelGridPhantom:
             resample(self.T2dash),
             resample(self.D),
             resample(self.B0),
-            resample(self.B1.squeeze()).unsqueeze(0),
-            resample(self.coil_sens.squeeze()).unsqueeze(0),
+            resample(self.B1[0, ...]).unsqueeze(0),
+            resample(self.coil_sens[0, ...]).unsqueeze(0),
             self.base_fov.clone(),
             self.rel_fov.clone(),
         )
