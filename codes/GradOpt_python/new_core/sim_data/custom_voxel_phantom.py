@@ -134,6 +134,32 @@ class CustomVoxelPhantom:
             recover_func=lambda d: recover(self.voxel_size, self.voxel_shape, d)
         )
 
+    def generate_PD_map(self) -> torch.Tensor:
+        """Convenience function for MRTwin_pulseq to generate a PD map."""
+        kx, ky = torch.meshgrid(
+            torch.linspace(-64, 63, 128),
+            torch.linspace(-64, 63, 128),
+        )
+        trajectory = torch.stack([
+            kx.flatten(),
+            ky.flatten(),
+            torch.zeros(kx.numel()),
+        ], dim=1)
+        PD_kspace = torch.zeros(128, 128, dtype=torch.cfloat)
+
+        # All voxels have the same shape -> same intra-voxel dephasing
+        dephasing = build_dephasing_func(
+            self.voxel_shape, self.voxel_size
+        )(trajectory)
+
+        # Iterate over all voxels and render them into the kspaces
+        for i in range(self.PD.numel()):
+            rot = torch.exp(-2j*pi * (trajectory @ self.voxel_pos[i, :]))
+            kspace = (rot * dephasing).view(128, 128)
+            PD_kspace += kspace * self.PD[i]
+
+        return torch.fft.fftshift(torch.fft.ifft2(PD_kspace)).abs()
+
     def plot(self) -> None:
         """Print and plot all data stored in this phantom."""
         # Best way to accurately plot this is to generate a k-space -> FFT
@@ -185,8 +211,8 @@ class CustomVoxelPhantom:
             plt.subplot(231 + i)
             plt.title(titles[i])
             plt.imshow(maps[i].abs().T, origin="lower", vmin=0)
-            plt.xticks([-0.5, 63.5, 127.5], [-1, 0, 1])
-            plt.yticks([-0.5, 63.5, 127.5], [-1, 0, 1])
+            plt.xticks([-0.5, 63.5, 127.5], [-0.5, 0, 0.5])
+            plt.yticks([-0.5, 63.5, 127.5], [-0.5, 0, 0.5])
             plt.grid()
             plt.colorbar()
         plt.show()
