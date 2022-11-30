@@ -86,17 +86,20 @@ seq.write('out/' + experiment_id +'.seq')
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
-sz=[64,64]
+sz = [64, 64]
 
 if 0:
     # (i) load a phantom object from file
+    # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
     obj_p = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
+    # Manipulate loaded data
     obj_p.B0 *= 1
 else:
     # or (ii) set phantom  manually to a pixel phantom
     obj_p = CustomVoxelPhantom(
         pos=[[-0.25, -0.25, 0]],
+        PD=[1.0],
         T1=[3.0],
         T2=[0.5],
         T2dash=[30e-3],
