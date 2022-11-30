@@ -89,29 +89,35 @@ seq.write('out/' + experiment_id +'.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-from new_core.sim_data import SimData
+from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
+sz = [64, 64]
 
-sz=(64,64)   # spin system size / resolution
-# (i) load a phantom object from file
 if 0:
-    obj_p = SimData.load('../data/phantom2D.mat')
-    obj_p = SimData.load('../data/numerical_brain_cropped.mat')
+    # (i) load a phantom object from file
+    # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
+    obj_p = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
+    obj_p = obj_p.interpolate(sz[0], sz[1], 1)
+    # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
-    obj_p = obj_p.resize(sz[0],sz[1],1)
+    # Store PD for comparison
+    PD = obj_p.PD
 else:
-# or (ii) set phantom  manually to a pixel phantom
-    obj_p = torch.zeros((sz[0],sz[1],6)); 
-    
-    obj_p[24,24,:]=torch.tensor([1, 1, 0.1, 0.1, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
-    # obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1,0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
-    
-    obj_p=obj_p.permute(2,0,1)[:,:,:,None]
-    obj_p= SimData(obj_p[0,:],obj_p[1,:],obj_p[2,:],obj_p[3,:],obj_p[4,:],obj_p[5,:]*torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),normalize_B0_B1= False)
-    obj_p = obj_p.resize(sz[0],sz[1],1)
-    
-# manipulate obj and plot it
-obj_p.B0*=1;
-obj_p.plot_sim_data()
+    # or (ii) set phantom  manually to a pixel phantom
+    obj_p = CustomVoxelPhantom(
+        pos=[[-0.25, -0.25, 0]],
+        PD=[1.0],
+        T1=[1.0],
+        T2=[0.1],
+        T2dash=[0.1],
+        voxel_size=0.1,
+        voxel_shape="box"
+    )
+    # Store PD for comparison
+    PD = obj_p.generate_PD_map()
+
+obj_p.plot()
+# Convert Phantom into simulation data
+obj_p = obj_p.build()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
@@ -151,8 +157,6 @@ ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
 # %% compare with original phantom obj_p.PD
 from new_core import util
 plt.subplot(325); plt.title('phantom projection')
-PD = util.to_full(
-    obj_p.PD, obj_p.mask).squeeze(0)
 import torchvision
 t= torchvision.transforms.Resize((Nread,Nphase),interpolation=0)(PD.permute(2,0,1))[0,:,:]
 t=np.roll(t,-Nphase//sz[1]//2+1,1)  # this is needed due to the oversampling of the phantom, szread>sz
