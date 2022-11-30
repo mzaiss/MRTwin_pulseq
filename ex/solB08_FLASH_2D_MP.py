@@ -129,7 +129,7 @@ seq.write('out/' + experiment_id +'.seq')
 from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
 sz = [64, 64]
 
-if 0:
+if 1:
     # (i) load a phantom object from file
     # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
     obj_p = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
