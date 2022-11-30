@@ -5,13 +5,28 @@ https://www.drcmr.dk/BlochSimulator/
 
 with Pulseq extension
 
-https://www.asd2511.xyz/bloch/
+https://asd2511.xyz/BlochSimWeb/
 
 .seq-files can be loaded only in Chrome browser until now.
 
 
 
 ## Update Log
+
+### 2022.11.30
+1. Fix RF time
+2. Fix Phase problem of RF puls
+
+#### Known problems
+1. Mix matter not working
+2. In Some sequence gradPuls will over write each other
+3. B1 arrow flickering - b1 view
+#### Todo List
+- [ ] Use Gamma chagne the speed
+- [ ] Use Single Event fix the flcking problem (watch out the correction in the end of the puls)
+- [ ] Make a Event queue to make teh clear event more elegent
+- [ ] Compute the plan size?
+- [ ] Fix the color BULE in mix matter case. 
 
 ### 2022.11.24
 1. Fix flickering problem

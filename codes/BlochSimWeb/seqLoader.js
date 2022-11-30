@@ -32,6 +32,21 @@ function resize(data, speed)
     }
     return temp;
 }
+function resize_v2(data, speed) // not add
+{
+    var temp = [];
+    let t = 0;
+    for (let i =0; i <data.length; i++)
+    {
+        t = data[i];
+        if (i % speed == 0)
+        {
+            temp.push(t);
+            t = 0;
+        }
+    }
+    return temp;
+}
 let loaded_sequence = null;
 
 class Pulseq {
@@ -96,7 +111,7 @@ class Pulseq {
     getSeq(speed){
         var sequenceDist = {};
         var currentIDX = 0;
-        var globalScale = 1000;
+        var globalScale = 1;
         sequenceDist[currentIDX] = {"delay":0,
                                     "RF":0,
                                     "ADC":0,
@@ -119,17 +134,18 @@ class Pulseq {
                 var mag = this.shapes.shapes[rfPuls["mag_id"]]["samples"];
                 var phase = this.shapes.shapes[rfPuls["phase_id"]]["samples"];
                 var angle = [];
-                var angleSum = 0;
                 mag.forEach((val, i, arr) => {
-                    let real = amp * mag[i] * Math.cos(2*Math.PI*phase[i]);
-                    let comp = amp * mag[i] * Math.sin(2*Math.PI*phase[i]);
-                    let temp = Math.pow(Math.pow(real,2) + Math.pow(comp,2),0.5)
-                    angle.push(temp * 1e-6 * 0.908611 *  360)
-                    angleSum += angle[i]
+                    // // console.log(Math.sin(0))
+                    // // let real = amp * mag[i] * Math.cos(2*Math.PI*phase[i]);
+                    // // let comp = amp * mag[i] * Math.sin(2*Math.PI*phase[i]);
+                    // // let temp = Math.pow(Math.pow(real,2) + Math.pow(comp,2),0.5)
+                    angle.push(amp * mag[i] * 1e-6 * 360 )
+                    // // angleSum += angle[i]
                 })
-                console.log(angleSum)
-                rfDist["angle"] = resize(angle,speed)
-                rfDist["phase"] = rfPuls["phase"]/Math.PI;
+                // // console.log(angleSum)
+                rfDist["angle"] = resize(angle, 50 * speed)
+                rfDist["phase"] = rfPuls["phase"] ///Math.PI;  +
+                rfDist["D_phase"] = resize_v2(phase, 50 * speed) ///Math.PI;
                 sequenceDist[currentIDX]["RF"] = rfDist
             }
             if(res["gx"]!=0)
@@ -137,8 +153,8 @@ class Pulseq {
                 var g = this.trap.events[res["gx"]];
                 var gDist = {};
                 gDist["delay"] = g["delay"] /globalScale;
-                gDist["amplitude"] = g["amp"]/100000; //Hz/m -> Hz/mm ?
-                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000 /globalScale;
+                gDist["amplitude"] = g["amp"]/2000; //Unit trans: 1 Hz/m ->  1 Hz/mm
+                gDist["period"] = (g["rise"] + g["flat"] + g["fall"]) /globalScale;
                 sequenceDist[currentIDX]["trap"]["Gx"] = gDist;
             }
             if(res["gy"]!=0)
@@ -146,8 +162,8 @@ class Pulseq {
                 var g = this.trap.events[res["gy"]];
                 var gDist = {};
                 gDist["delay"] = g["delay"] /globalScale;
-                gDist["amplitude"] = g["amp"]/50000;
-                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000 /globalScale;
+                gDist["amplitude"] = g["amp"]/2000;
+                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/globalScale;
                 sequenceDist[currentIDX]["trap"]["Gy"] = gDist;
             }
             if(res["gz"]!=0)
@@ -156,8 +172,8 @@ class Pulseq {
 
                 var gDist = {};
                 gDist["delay"] = g["delay"] /globalScale;
-                gDist["amplitude"] = g["amp"]/100000;
-                gDist["period"] = (g["rise"] + g["flat"] + g["fall"])/1000 /globalScale;
+                gDist["amplitude"] = g["amp"];
+                gDist["period"] = (g["rise"] + g["flat"] + g["fall"]) /globalScale;
                 sequenceDist[currentIDX]["trap"]["Gz"] = gDist;
             }
             if(res["adc"]!=0)
@@ -165,7 +181,7 @@ class Pulseq {
                 var adc = this.adc.events[res["adc"]];
                 var adcDist = {};
                 adcDist["delay"] = adc["delay"] /globalScale;
-                adcDist["dwell"] = adc["dwell"] /globalScale;
+                adcDist["dwell"] = adc["dwell"] /1000 /globalScale;
                 adcDist["num"] = adc["num"]
                 adcDist["freq"] = adc["freq"];
                 adcDist["phase"] = adc["phase"];

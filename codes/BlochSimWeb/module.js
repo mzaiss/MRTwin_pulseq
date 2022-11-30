@@ -625,23 +625,23 @@ function launchApp() { // started onload
             let M0 = 0.91;
             return new Isoc(
                 new THREE.Vector3(0, 0, M0),
-                green, nullvec)//, nElem, // Note: added relax dR1, dR2 must be pos.
-                //true, 0, 0, M0, 0);
+                green, nullvec, nElem, // Note: added relax dR1, dR2 must be pos.
+                true, 0, 0, M0, 0);
         } //showCurve, dR1, dR2, M0, dRadius
         function IsocZblue() {
             let M0 = 1.0;
             return new Isoc(
                 new THREE.Vector3(0, 0, M0),
-                blue, nullvec)//, nElem,
-                // true, 0.2, 0.2, M0, 0.001);
+                white, nullvec, nElem,
+                true, 0.2, 0.2, M0, 0.001);
         } //showCurve, dR1, dR2, M0, dRadius
 
         function IsocZwhite() {
             let M0 = 0.91;
             return new Isoc(
                 new THREE.Vector3(0, 0, M0),
-                white, nullvec)//, nElem,
-                // true, 0, 0.2, M0, 0.0008);
+                white, nullvec, nElem,
+                true, 0, 0.2, M0, 0.0008);
         } //showCurve, dR1, dR2, M0, dRadius
         function IsocNX() { return new Isoc(nx, white, nullvec); }
         function IsocNY() { return new Isoc(ny, white, nullvec); }
@@ -686,6 +686,8 @@ function launchApp() { // started onload
             let inhom = { IsocArr: [] };
             const spreadScale = 1 / 6;
             const nonlinScale = Math.PI / 1.5; //reduces recovery
+            // const spreadScale = 1 / 1;
+            // const nonlinScale = Math.PI / 9; // change t2* for inhomo
             for (let i = 0; i < nIsoc; i++) {
                 inhom.IsocArr.push(IsocZ());
                 inhom.IsocArr[i].dB0 =
@@ -1270,8 +1272,8 @@ function launchApp() { // started onload
             'Speed',
             function (guiFolder) {
                 let tmp1 = state.Gx; let tmp2 = state.Gy;
-                guiFolder.add(state, 'RF', 0, 15, 1);
-                guiFolder.add(state, 'GM', 0, 25, 0.1);
+                guiFolder.add(state, 'RF', 0, 2, 0.1);
+                guiFolder.add(state, 'GM', 0, 2, 0.1);
                 state.Gx = tmp1; state.Gy = tmp2;
             },
             cFolder++, createFromFolder--);
@@ -1519,9 +1521,10 @@ function launchApp() { // started onload
         }
     } // exciteSpoilRepeat
 
+
     function testFunction(TR, dict, B1) {
         // TR(ms) mean the duration of the sup puls
-        // TR can be change by the RF speed
+        // ~~TR can be change by the RF speed~~
 
         clearRepTimers();
         B1 = B1 || 4;
@@ -1554,47 +1557,63 @@ function launchApp() { // started onload
             }
         }
 
+
+        // loop the blocks
         for (var id in dict)
         {
             var obj = dict[id]
+            console.log(id)
             if(obj["delay"] != 0) // global delay
             {
-                var delayValue = dict[id]["delay"];
-                time += delayValue ;
+                console.log("event delay start",time)
+                var delayValue = obj["delay"];
+                time += delayValue;
+                console.log("event delay start",time)
             }
+
             // compute the time separatly
             let t_rf = time;
+            let t_adc = time;
             let t_gx = time;
             let t_gy = time;
             if(obj["RF"] != 0)
             {
                 let rf = dict[id]["RF"];
+                console.log("rf delay start",t_rf)
                 t_rf += rf["delay"] // add local delay here
+                console.log("rf delay end",t_rf)
                 let ang = rf["angle"];
                 let length = ang.length
+                
+                console.log("rf start",t_rf)
                 for (let i = 0; i < length; i++) // recreate the puls
                 {
-                    state.tSinceRF = 0; // reset the tSinceRF
+                     // reset the tSinceRF
+                    state.tSinceRF = 0;
                     angleCache.push(ang[i])
                     // console.log(i, ang[i], t_rf)
                     window.setTimeout(function(){
+                        // state.B0 = 0;
+                        isRunningSequence = false
                         if(state.FrameB0)
                         {
-                            RFpulse('rect', Math.PI / 180 * ang[i], Math.PI * rf["phase"], B1); // it's just work
+                            RFpulse('rect', Math.PI / 180 * ang[i],parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i], B1); // it's just work
                         }
                         else if(state.FrameB1)
                         {
-                            RFpulse('rect', Math.PI / 180 * ang[i], Math.PI * rf["phase"], B1); // it's just work
+                            RFpulse('rect', Math.PI / 180 * ang[i], parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i], B1); // it's just work
                         }
                         else
                         {
-                            RFpulse('rect', Math.PI / 180 * ang[i], -0.001 * 2 * TR* i + Math.PI * rf["phase"], B1);
+                            RFpulse('rect', Math.PI / 180 * ang[i], -0.001 * 2 * TR* i + parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i], B1);
                         }
+                        // // console.log(parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i])
                         GMvec.x =  ang[i] / maxAngle;
                         isRunningSequence = true;
                     }, t_rf);
                     t_rf += TR;
                 }
+                console.log("rf end",t_rf)
                 window.setTimeout(function(){
                     state.B1 = 0;
                 }, t_rf);
@@ -1605,16 +1624,21 @@ function launchApp() { // started onload
                 // todo Frequence and  phase
                 let adc = dict[id]["ADC"];
                 let period = adc["dwell"] * adc["num"];
-                t_rf += adc["delay"]
+                
+                console.log("adc delay start: ",t_adc)
+                t_adc += adc["delay"]
+                console.log("adc delay end: ",t_adc)
 
                 window.setTimeout(function(){
                     G_ADC.x = 1;
-                }, t_rf);
+                }, t_adc);
+                console.log("adc start",t_adc)
                 // ! adc time related with RF speed
-                t_rf += period / state.RF;
+                t_adc += period ;
+                console.log("adc end",t_adc)
                 window.setTimeout(function(){
                     G_ADC.x = 0;
-                }, t_rf);
+                }, t_adc);
             }
             if( obj["trap"]["Gx"]!=0)
             {
@@ -1622,15 +1646,13 @@ function launchApp() { // started onload
                 let amp = trap["Gx"]["amplitude"];
 
                 t_gx += trap["Gx"]["delay"];
-
-                let tempTime = 50
-                let repeatTime = Math.ceil(trap["Gx"]["period"]/state.GM/tempTime);
+                let repeatTime = 10;
+                let tempTime = Math.ceil(trap["Gx"]["period"]/state.GM/repeatTime);
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gx += tempTime
                     window.setTimeout(function(){
-                        //console.log(amp,"Gx", repeatTime)
-                        gradPulse(amp*state.GM);
+                        gradPulse(amp*state.GM / repeatTime);
                         GMvec.y =  amp/maxAmp
                     }, t_gx );
                 }
@@ -1642,32 +1664,38 @@ function launchApp() { // started onload
 
                 t_gy += trap["Gy"]["delay"]
 
-                let tempTime = 50
-                let repeatTime = Math.ceil(trap["Gy"]["period"]/state.GM/tempTime);
+                let repeatTime = 10;
+                let tempTime = Math.ceil(trap["Gy"]["period"]/state.GM/repeatTime)
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gy += tempTime
                     window.setTimeout(function(){
-                        console.log(amp,"Gy", repeatTime)
-                        gradPulse(amp*state.GM, Math.PI / 2);
+                        gradPulse(amp*state.GM  / repeatTime, Math.PI / 2);
                         GMvec.z =   amp/maxAmp
                     }, t_gy );
                 }
             }
 
-            time = Math.max(t_rf, t_gx, t_gy);
+            window.setTimeout(function()
+            {
+                GMvec.x = 0 // rf
+                isRunningSequence = false; // rf
+            }, t_rf);
+            window.setTimeout(function()
+            {
+                G_ADC.x = 0;// adc
+                fidbox.style["backgroundColor"] = "transparent"; // adc
+            }, t_adc);
 
-            window.setTimeout(function(){
-
-                GMvec.x = 0
+            window.setTimeout(function()
+            {
                 GMvec.y = 0
+            }, t_gx);
+            window.setTimeout(function()
+            {
                 GMvec.z = 0
-                G_ADC.x = 0;
-
-                isRunningSequence = false;
-
-                fidbox.style["backgroundColor"] = "transparent";
-            }, time);
+            }, t_gy);
+            time = Math.max(t_rf, t_gx, t_gy,t_adc);
         }
     } // testFunction
 
@@ -1687,7 +1715,7 @@ function launchApp() { // started onload
                     let seq = readString(d);
                     var seqDict = seq.getSeq(state.RF);
                     console.log(seqDict);
-                    testFunction(50, seqDict, 4)
+                    testFunction(50, seqDict, 512)
                 });
                 break;
             case "Precession": state.Sample = "Precession";
@@ -1741,6 +1769,8 @@ function launchApp() { // started onload
                 if (frameFixed) gradPulse(2, Math.PI / 2); break; //whatever area
 
             case "Non-rep. exc.":
+                GMvec = [0,0,0]
+                G_ADC = [0,0,0]
                 clearRepTimers();
                 break;
 
@@ -2370,7 +2400,7 @@ function launchApp() { // started onload
                     B1shadow.visible = true;
                 }
             }
-            else {
+            else{
                 B1cyl.visible = false;
                 B1shadow.visible = false;
             }
@@ -2508,11 +2538,12 @@ function launchApp() { // started onload
                 updateGMWrap(Gtot.x, Gtot.y, Gtot.z,  white);
                 if(Atot.x)
                 {
-                    //updateGMWrap(0, Atot.y, Atot.z,  green);
+                    updateGMWrap(0.5, Atot.y, Atot.z,  green);
                     fidbox.style["backgroundColor"] = "rgb(255, 0, 100, 0.5)";
                 }
                 else
                 {
+                    updateGMWrap(0, Atot.y, Atot.z,  green);
                     fidbox.style["backgroundColor"] = "transparent";
                 }
             }
