@@ -99,8 +99,9 @@ if 0:
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
+    obj_p.D *= 0
 else:
-    # or (ii) set phantom  manually to a pixel phantom
+    # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
     pos_x = (30 / 64) - 0.5
     pos_y = (60 / 64) - 0.5
     obj_p = CustomVoxelPhantom(
@@ -109,6 +110,7 @@ else:
         T1=[1.0],
         T2=[0.1],
         T2dash=[30e-3],
+        D=[0.0],
         voxel_size=1/64,
         voxel_shape="box"
     )

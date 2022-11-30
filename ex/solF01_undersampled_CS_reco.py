@@ -25,6 +25,7 @@ sz = [64, 64]
 phantom = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
 phantom = phantom.interpolate(sz[0], sz[1], 1)
 phantom.T2dash[:] = 30e-3
+phantom.D *= 0
 
 space = np.fft.ifftshift(phantom.PD[:, :, 0])
 kspace_adc = np.fft.ifft2(space)
