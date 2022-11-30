@@ -18,20 +18,15 @@ import torch
 from matplotlib import pyplot as plt
  
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-from new_core.sim_data import SimData
-sz=[64,64]
-# (i) load a phantom object from file
-if 1:
-    obj_p = SimData.load('../data/phantom2D.mat')
-    obj_p = SimData.load('../data/numerical_brain_cropped.mat')
-    obj_p.T2dash[:] = 30e-3
-    obj_p = obj_p.resize(sz[0],sz[1],1)
-      
-# obj_p.plot_sim_data()
+from new_core.sim_data import VoxelGridPhantom
+sz = [64, 64]
 
-# lets just use the PD as an MRI image 
-space= np.squeeze(util.to_full(obj_p.PD, obj_p.mask))
-space = np.fft.ifftshift(space)
+# obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
+phantom = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
+phantom = phantom.interpolate(sz[0], sz[1], 1)
+phantom.T2dash[:] = 30e-3
+
+space = np.fft.ifftshift(phantom.PD[:, :, 0])
 kspace_adc = np.fft.ifft2(space)
 kspace_adc = np.fft.ifftshift(kspace_adc) # this is a kspace as it woudk come from an ADC, with low frequencies centered.
 
