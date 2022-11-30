@@ -158,7 +158,7 @@ class CustomVoxelPhantom:
             kspace = (rot * dephasing).view(128, 128)
             PD_kspace += kspace * self.PD[i]
 
-        return torch.fft.fftshift(torch.fft.ifft2(PD_kspace)).abs()
+        return torch.fft.fftshift(torch.fft.ifft2(PD_kspace)).abs()[:, :, None]
 
     def plot(self) -> None:
         """Print and plot all data stored in this phantom."""
