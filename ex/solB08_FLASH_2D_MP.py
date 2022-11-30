@@ -201,7 +201,6 @@ plt.subplot(3,4,10); plt.title('FFT-phase')
 plt.imshow(np.angle(space.numpy()),vmin=-np.pi,vmax=np.pi); plt.colorbar()
 
 # % compare with original phantom obj_p.PD
-from new_core import util
 plt.subplot(348); plt.title('phantom PD')
 plt.imshow(PD)
 plt.subplot(3,4,12); plt.title('phantom B0')

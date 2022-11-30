@@ -157,7 +157,6 @@ plt.plot(torch.imag(torch.t(space).flatten(0)),label='imag')
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
 
 # compare with original phantom obj_p.PD
-from new_core import util
 plt.subplot(313); plt.title('phantom projection')
 import torchvision
 t= torchvision.transforms.Resize((Nread,Nread),interpolation=0)(PD.permute(2,0,1))[0,:,:]
