@@ -1,13 +1,24 @@
 # Simulation & Interpreter version
 
-## MRTwin pulseq version v1.0.0
+## MRTwin pulseq
+
+### version v1.1.0
+
+Updated simulation and phantoms to newest version of MRzero, **v2.2.0**
+
+### version v1.0.0
 
 This version of the MRTwin pulseq framework uses the simulation and pulseq interpreter pulled form the MRzero master branch in 08/2022, version **v2.1.1**
 
 ## MRZero Release Notes
 
+### version 2.2.0
+ - A new phantom -> sim data workflow is introduced that facilitates simulating classical phantoms (e.g.: BrainWeb), quantification or custom analytical phantoms with the same simulation.
+ - Diffusion is now supported
+ - Voxel shape separated from simulation
+
 ### version 2.1.1 
-letzer commit vor dem simulations update (diffusion, state selection...)
+devJo Branch merged into main
 - dateien aufräumen, alter core raus
 - segemented seqences anpassen ( ADC index)
 - pulseq export mit balanced pre gzr
