@@ -1,4 +1,4 @@
-experiment_id = 'web_RARE_16'
+experiment_id = 'web4_RARE_16'
 
 # %% S0. SETUP env
 import sys,os
