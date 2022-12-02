@@ -107,17 +107,19 @@ if 1:
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
+    obj_p.D *= 0
     # Store PD for comparison
     PD = obj_p.PD
     B0 = obj_p.B0
 else:
-    # or (ii) set phantom  manually to a pixel phantom
+    # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
     obj_p = CustomVoxelPhantom(
         pos=[[-0.4, -0.4, 0], [-0.4, -0.2, 0], [-0.3, -0.2, 0], [-0.2, -0.2, 0], [-0.1, -0.2, 0]],
         PD=[1.0, 1.0, 0.5, 0.5, 0.5],
         T1=1.0,
         T2=0.1,
         T2dash=0.1,
+        D=0.0,
         voxel_size=0.1,
         voxel_shape="box"
     )
@@ -128,7 +130,6 @@ else:
 obj_p.plot()
 # Convert Phantom into simulation data
 obj_p = obj_p.build()
-
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
@@ -174,9 +175,7 @@ plt.subplot(3,4,10); plt.title('FFT-phase')
 plt.imshow(np.angle(space.numpy()),vmin=-np.pi,vmax=np.pi); plt.colorbar()
 
 # % compare with original phantom obj_p.PD
-from new_core import util
-PD = util.to_full(obj_p.PD, obj_p.mask).squeeze(0)
-B0 = util.to_full(obj_p.B0, obj_p.mask).squeeze(0)
+
 plt.subplot(348); plt.title('phantom PD')
 plt.imshow(PD)
 plt.subplot(3,4,12); plt.title('phantom B0')

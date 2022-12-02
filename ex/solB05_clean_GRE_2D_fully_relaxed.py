@@ -94,24 +94,26 @@ seq.write('out/' + experiment_id +'.seq')
 from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
 sz = [64, 64]
 
-if 0:
+if 1:
     # (i) load a phantom object from file
     # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
     obj_p = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
+    obj_p.D *= 0
     # Store PD and B0 for comparison
     PD = obj_p.PD
     B0 = obj_p.B0
 else:
-    # or (ii) set phantom  manually to a pixel phantom
+    # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
     obj_p = CustomVoxelPhantom(
         pos=[[-0.4, -0.4, 0], [-0.4, -0.2, 0], [-0.3, -0.2, 0], [-0.2, -0.2, 0], [-0.1, -0.2, 0]],
         PD=[1.0, 1.0, 0.5, 0.5, 0.5],
         T1=1.0,
         T2=0.1,
         T2dash=0.1,
+        D=0.0,
         voxel_size=0.1,
         voxel_shape="box"
     )
@@ -167,7 +169,6 @@ plt.subplot(3,4,10); plt.title('FFT-phase')
 plt.imshow(np.angle(space.numpy()),vmin=-np.pi,vmax=np.pi); plt.colorbar()
 
 # % compare with original phantom obj_p.PD
-from new_core import util
 plt.subplot(348); plt.title('phantom PD')
 plt.imshow(PD)
 plt.subplot(3,4,12); plt.title('phantom B0')

@@ -18,41 +18,16 @@ import torch
 from matplotlib import pyplot as plt
  
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
+from new_core.sim_data import VoxelGridPhantom
 sz = [64, 64]
 
-if 1:
-    # (i) load a phantom object from file
-    # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
-    obj_p = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
-    obj_p = obj_p.interpolate(sz[0], sz[1], 1)
-    # Manipulate loaded data
-    obj_p.T2dash[:] = 30e-3
-    # Store PD and B0 for comparison
-    PD = obj_p.PD
-    B0 = obj_p.B0
-else:
-    # or (ii) set phantom  manually to a pixel phantom
-    obj_p = CustomVoxelPhantom(
-        pos=[[-0.4, -0.4, 0], [-0.4, -0.2, 0], [-0.3, -0.2, 0], [-0.2, -0.2, 0], [-0.1, -0.2, 0]],
-        PD=[1.0, 1.0, 0.5, 0.5, 0.5],
-        T1=1.0,
-        T2=0.1,
-        T2dash=0.1,
-        voxel_size=0.1,
-        voxel_shape="box"
-    )
-    # Store PD for comparison
-    PD = obj_p.generate_PD_map()
-    B0 = torch.zeros_like(PD)
+# obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
+phantom = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
+phantom = phantom.interpolate(sz[0], sz[1], 1)
+phantom.T2dash[:] = 30e-3
+phantom.D *= 0
 
-obj_p.plot()
-# Convert Phantom into simulation data
-obj_p = obj_p.build()
-
-# lets just use the PD as an MRI image 
-space= np.squeeze(PD)
-space = np.fft.ifftshift(space)
+space = np.fft.ifftshift(phantom.PD[:, :, 0])
 kspace_adc = np.fft.ifft2(space)
 kspace_adc = np.fft.ifftshift(kspace_adc) # this is a kspace as it woudk come from an ADC, with low frequencies centered.
 
