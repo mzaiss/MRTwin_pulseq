@@ -91,28 +91,39 @@ seq.write('out/' + experiment_id +'.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-from new_core.sim_data import SimData
-sz=[64,64]
-# (i) load a phantom object from file
+from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
+sz = [64, 64]
+
 if 1:
-    obj_p = SimData.load('../data/phantom2D.mat')
-    obj_p = SimData.load('../data/numerical_brain_cropped.mat')
+    # (i) load a phantom object from file
+    # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
+    obj_p = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
+    obj_p = obj_p.interpolate(sz[0], sz[1], 1)
+    # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
-    obj_p = obj_p.resize(64,64,1)
+    obj_p.D *= 0
+    # Store PD and B0 for comparison
+    PD = obj_p.PD
+    B0 = obj_p.B0
 else:
-# or (ii) set phantom  manually to a pixel phantom
-    obj_p = torch.zeros((sz[0],sz[1],5)); 
-    
-    obj_p[7,25,:]=torch.tensor([1, 1, 0.1, 0.1, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
-    obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1,0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
-    
-    obj_p=obj_p.permute(2,0,1)[:,:,:,None]
-    obj_p= SimData(obj_p[0,:],obj_p[1,:],obj_p[2,:],obj_p[3,:],obj_p[4,:],obj_p[5,:]*torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),normalize_B0_B1= False)
-    obj_p = obj_p.resize(sz[0],sz[1],1)
-    
-# manipulate obj and plot it
-obj_p.B0*=1;
-obj_p.plot_sim_data()
+    # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
+    obj_p = CustomVoxelPhantom(
+        pos=[[-0.4, -0.4, 0], [-0.4, -0.2, 0], [-0.3, -0.2, 0], [-0.2, -0.2, 0], [-0.1, -0.2, 0]],
+        PD=[1.0, 1.0, 0.5, 0.5, 0.5],
+        T1=1.0,
+        T2=0.1,
+        T2dash=0.1,
+        D=0.0,
+        voxel_size=0.1,
+        voxel_shape="box"
+    )
+    # Store PD for comparison
+    PD = obj_p.generate_PD_map()
+    B0 = torch.zeros_like(PD)
+
+obj_p.plot()
+# Convert Phantom into simulation data
+obj_p = obj_p.build()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
@@ -158,9 +169,6 @@ plt.subplot(3,4,10); plt.title('FFT-phase')
 plt.imshow(np.angle(space.numpy()),vmin=-np.pi,vmax=np.pi); plt.colorbar()
 
 # % compare with original phantom obj_p.PD
-from new_core import util
-PD = util.to_full(obj_p.PD, obj_p.mask).squeeze(0)
-B0 = util.to_full(obj_p.B0, obj_p.mask).squeeze(0)
 plt.subplot(348); plt.title('phantom PD')
 plt.imshow(PD)
 plt.subplot(3,4,12); plt.title('phantom B0')
