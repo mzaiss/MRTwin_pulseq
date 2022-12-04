@@ -649,7 +649,7 @@ function launchApp() { // started onload
             let M0 = 1.0;
             return new Isoc(
                 new THREE.Vector3(0, 0, M0),
-                white, nullvec, nElem,
+                blue, nullvec, nElem,
                 true, 0.2, 0.2, M0, 0.001);
         } //showCurve, dR1, dR2, M0, dRadius
 
