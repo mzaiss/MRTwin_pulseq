@@ -2364,7 +2364,7 @@ function launchApp() { // started onload
                     // updateGM(Gy, GxTimes, GxCurve, 'gray', state.viewGx);
                     // updateGM(RF, GyTimes, GyCurve, 'white', state.viewGy);
                     break;
-            default: alert("color should be specified");
+//            default: alert("color should be specified");
         }
 
     } //updateGMWrap
