@@ -159,6 +159,15 @@ function dialog(id) {
     }
 }
 
+function colorExists(color) { // Checks if a color name is valid.
+    if (color == 'white') {
+	return true;
+    }
+    $('#colortest').css('backgroundColor', 'white'); // set a div color to white
+    var whiteStr = $('#colortest').css('backgroundColor'); // return representation of white
+    $('#colortest').css('backgroundColor', color); // change color
+    return (!($('#colortest').css('backgroundColor') == whiteStr)); // has color changed from white?
+}
 
 function launchApp() { // started onload
 
@@ -254,6 +263,7 @@ function launchApp() { // started onload
 
     var trigSampleChange = false;
     var lastB1freq = 0;
+    var delayB1vecUpdate = 0; // used to delay B1-updating a number of frames.
     var dtTotal = 0, dtCount = 0;
     //	var dtMemory = Array(10).fill(0), dtMemIndi = 0; // not IE compat
     var dtMemory = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtMemIndi = 0;
@@ -280,10 +290,17 @@ function launchApp() { // started onload
     var exciteTimers = [];
 
     const white = new THREE.Color('white');
-    const greenStr = 'lawngreen';
-    const green = new THREE.Color(greenStr); //only this can be chosen freely.
+    // Do not just use hex instead of color names. Colors: https://www.w3schools.com/colors/colors_groups.asp
+    var greenList = ['lawngreen', 'chartreuse', 'green']; // preferred colors may not exist
+    var blueList = ['dodgerblue','mediumblue','blue']; // preferred colors may not exist
+    var color;
+    do { color = greenList.shift() } while (!colorExists(color));
+    const greenStr  = color;
+    do { color = blueList.shift() } while (!colorExists(color));
+    const blueStr  = color;
+    
     const red = new THREE.Color('red');
-    const blueStr = 'dodgerblue';
+    const green = new THREE.Color(greenStr); //only this can be chosen freely.
     const blue = new THREE.Color(blueStr);
 
     const nZeroSinc = 4; // 4 for 3-lobe sinc. Matching 0.22571 appears below.
@@ -632,7 +649,7 @@ function launchApp() { // started onload
             let M0 = 1.0;
             return new Isoc(
                 new THREE.Vector3(0, 0, M0),
-                white, nullvec, nElem,
+                blue, nullvec, nElem,
                 true, 0.2, 0.2, M0, 0.001);
         } //showCurve, dR1, dR2, M0, dRadius
 
@@ -2172,6 +2189,7 @@ function launchApp() { // started onload
                     state.tLeftRF = 0;
                     state.B1 = 0;
                     updateMenuList.push(guiFieldsFolder); //mark field folder for updating
+		    delayB1vecUpdate = 1; // delay 1 frame to avoid corrected B1 to be shown briefly.
                 } else { //mid pulse
                     state.areaLeftRF -= dArea;
                     state.tLeftRF -= dt;
@@ -2346,7 +2364,7 @@ function launchApp() { // started onload
                     // updateGM(Gy, GxTimes, GxCurve, 'gray', state.viewGx);
                     // updateGM(RF, GyTimes, GyCurve, 'white', state.viewGy);
                     break;
-            default: alert("color should be specified");
+//            default: alert("color should be specified");
         }
 
     } //updateGMWrap
@@ -2382,29 +2400,32 @@ function launchApp() { // started onload
             // Clear FID
             FIDctx.clearRect(-5, -5, grWidth + 10, grHeight + 10); //asym borders are needed
             GMctx.clearRect(-5, -5, grWidth + 10, grHeight + 10); //asym borders are needed
-
-            if ((B1mag != 0) && state.viewB1) { // view B1
-                B1cyl.quaternion.
-                    setFromUnitVectors(unitYvec, B1vec.clone().divideScalar(B1mag));
-                B1cyl.scale.y = B1mag * B1scale * allScale;
-                B1cyl.visible = true;
-
-                if (myShadow) {  //shadow of B1
-                    var B1vecTrans = B1vec.clone().projectOnPlane(unitZvec);
-                    var B1vecTransLength = B1vecTrans.length();
-
-                    B1shadow.material = shadowMaterial;
-                    B1shadow.quaternion.
-                        setFromUnitVectors(unitYvec, B1vecTrans.clone().divideScalar(B1vecTransLength));
-                    B1shadow.scale.y = B1vecTransLength * B1scale * allScale;  // requires length_y=1 initially.
-                    B1shadow.visible = true;
-                }
-            }
-            else{
-                B1cyl.visible = false;
-                B1shadow.visible = false;
-            }
-
+	    
+	    if ((delayB1vecUpdate--) <= 0) { //used to delay updating of B1-viewing to prevent flickering.
+		delayB1vecUpdate = 0; 
+		if ((B1mag != 0) && state.viewB1) { // view B1
+                    B1cyl.quaternion.
+			setFromUnitVectors(unitYvec, B1vec.clone().divideScalar(B1mag));
+                    B1cyl.scale.y = B1mag * B1scale * allScale;
+                    B1cyl.visible = true;
+		    
+                    if (myShadow) {  //shadow of B1
+			var B1vecTrans = B1vec.clone().projectOnPlane(unitZvec);
+			var B1vecTransLength = B1vecTrans.length();
+			
+			B1shadow.material = shadowMaterial;
+			B1shadow.quaternion.
+                            setFromUnitVectors(unitYvec, B1vecTrans.clone().divideScalar(B1vecTransLength));
+			B1shadow.scale.y = B1vecTransLength * B1scale * allScale;  // requires length_y=1 initially.
+			B1shadow.visible = true;
+                    }
+		}
+		else{
+                    B1cyl.visible = false;
+                    B1shadow.visible = false;
+		}
+	    }
+	    
             let Mvec, dMRFvec, torqueStart, isoc;
             let Mtot = nullvec.clone();
             let nIsoc = state.IsocArr.length;
