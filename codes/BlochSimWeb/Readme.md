@@ -27,10 +27,10 @@ https://asd2511.xyz/BlochSimWeb/
 3. B1 arrow flickering - b1 view
 #### Todo List
 - [ ] Use Gamma chagne the speed
-- [ ] Use Single Event fix the flcking problem (watch out the correction in the end of the puls)
+- [x] Use Single Event fix the flcking problem (watch out the correction in the end of the puls)
 - [ ] Make a Event queue to make teh clear event more elegent
 - [ ] Compute the plan size?
-- [ ] Fix the color BLUE in mix matter case. 
+- [x] Fix the color BLUE in mix matter case. 
 
 ### 2022.11.24
 1. Fix flickering problem

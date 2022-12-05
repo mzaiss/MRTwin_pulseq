@@ -2099,7 +2099,7 @@ function launchApp() { // started onload
         let nIsoc = state.IsocArr.length;
         let rep, Mx, My, Mz, Mxy, arg, randomIsocIndi, randomIsoc, R1;
         if (state.T1 != Infinity) {
-            R1 = 1 / (state.T1 + 0.1); //precision is not an aim here.		
+            R1 = 1 / (state.T1 + 0.1); //precision is not an aim here.
             for (rep = 1; rep < Math.floor(nIsoc * R1 / 10); rep++) { //TODO: frame rate needs to enter.
                 //repeat depending on T1 and nIsoc
                 Mz = thermalDrawFromLinearDist(state.B0); //cosTheta is linearly distributed.
@@ -2189,7 +2189,7 @@ function launchApp() { // started onload
                     state.tLeftRF = 0;
                     state.B1 = 0;
                     updateMenuList.push(guiFieldsFolder); //mark field folder for updating
-		    delayB1vecUpdate = 1; // delay 1 frame to avoid corrected B1 to be shown briefly.
+		            delayB1vecUpdate = 5; // delay 1 frame to avoid corrected B1 to be shown briefly.
                 } else { //mid pulse
                     state.areaLeftRF -= dArea;
                     state.tLeftRF -= dt;
@@ -2352,19 +2352,19 @@ function launchApp() { // started onload
 
     } //updateFidWrap
 
-    function updateGMWrap(RF, Gx, Gy, color) {
-        switch (color) {
-            case white:
-                updateGM(RF, RFTimes, RFCurve, 'white', state.viewRF);
-                updateGM(Gx, GxTimes, GxCurve, 'green', state.viewGx);
-                updateGM(Gy, GyTimes, GyCurve, 'yellow', state.viewGy);
+    function updateGMWrap(v1, v2, v3, mode) {
+        switch (mode) {
+            case "RFandGM":
+                updateGM(v2, GxTimes, GxCurve, 'green', state.viewGx);
+                updateGM(v3, GyTimes, GyCurve, 'yellow', state.viewGy);
+                updateGM(v1, RFTimes, RFCurve, 'white', state.viewRF);
                 break;
-            case green:
-                    updateGM(RF, GadcTimes, GadcCurve, 'red', state.viewRF);
-                    // updateGM(Gy, GxTimes, GxCurve, 'gray', state.viewGx);
-                    // updateGM(RF, GyTimes, GyCurve, 'white', state.viewGy);
-                    break;
-//            default: alert("color should be specified");
+            case "ADC":
+                updateGM(v1, GadcTimes, GadcCurve, 'red', state.viewRF);
+                // updateGM(Gy, GxTimes, GxCurve, 'gray', state.viewGx);
+                // updateGM(RF, GyTimes, GyCurve, 'white', state.viewGy);
+                break;
+        // default: alert("color should be specified");
         }
 
     } //updateGMWrap
@@ -2400,32 +2400,34 @@ function launchApp() { // started onload
             // Clear FID
             FIDctx.clearRect(-5, -5, grWidth + 10, grHeight + 10); //asym borders are needed
             GMctx.clearRect(-5, -5, grWidth + 10, grHeight + 10); //asym borders are needed
-	    
-	    if ((delayB1vecUpdate--) <= 0) { //used to delay updating of B1-viewing to prevent flickering.
-		delayB1vecUpdate = 0; 
-		if ((B1mag != 0) && state.viewB1) { // view B1
-                    B1cyl.quaternion.
-			setFromUnitVectors(unitYvec, B1vec.clone().divideScalar(B1mag));
-                    B1cyl.scale.y = B1mag * B1scale * allScale;
-                    B1cyl.visible = true;
-		    
-                    if (myShadow) {  //shadow of B1
-			var B1vecTrans = B1vec.clone().projectOnPlane(unitZvec);
-			var B1vecTransLength = B1vecTrans.length();
-			
-			B1shadow.material = shadowMaterial;
-			B1shadow.quaternion.
-                            setFromUnitVectors(unitYvec, B1vecTrans.clone().divideScalar(B1vecTransLength));
-			B1shadow.scale.y = B1vecTransLength * B1scale * allScale;  // requires length_y=1 initially.
-			B1shadow.visible = true;
-                    }
-		}
-		else{
+
+            if ((B1mag != 0) && state.viewB1)
+            { // view B1
+                B1cyl.quaternion.
+                    setFromUnitVectors(unitYvec, B1vec.clone().divideScalar(B1mag));
+                B1cyl.scale.y = B1mag * B1scale * allScale;
+                B1cyl.visible = true;
+
+                if (myShadow) {  //shadow of B1
+                    var B1vecTrans = B1vec.clone().projectOnPlane(unitZvec);
+                    var B1vecTransLength = B1vecTrans.length();
+
+                    B1shadow.material = shadowMaterial;
+                    B1shadow.quaternion.
+                                    setFromUnitVectors(unitYvec, B1vecTrans.clone().divideScalar(B1vecTransLength));
+                    B1shadow.scale.y = B1vecTransLength * B1scale * allScale;  // requires length_y=1 initially.
+                    B1shadow.visible = true;
+                }
+            }
+            else{
+                if ((delayB1vecUpdate--) <= 0) { //used to delay updating of B1-viewing to prevent flickering.
+                    delayB1vecUpdate = 0; 
+                    // console.log(delayB1vecUpdate);
                     B1cyl.visible = false;
                     B1shadow.visible = false;
-		}
-	    }
-	    
+                }
+            }
+
             let Mvec, dMRFvec, torqueStart, isoc;
             let Mtot = nullvec.clone();
             let nIsoc = state.IsocArr.length;
@@ -2543,7 +2545,7 @@ function launchApp() { // started onload
 
                 if (isoc.showCurve) { // Update Mxy curve for this isochromate.
                     updateFidWrap(Mvec.x, Mvec.z, MvecTransLength, isoc.color);
-                    updateGMWrap(Gtot.x, Gtot.y, Gtot.z, isoc.color);
+                    // updateGMWrap(Gtot.x, Gtot.y, Gtot.z, isoc.color);
                     showTotalCurve = false;
                 }
 
@@ -2556,17 +2558,17 @@ function launchApp() { // started onload
                 // Gtot.multiplyScalar(1 / MaxGMvec * 1);
                 Gtot.multiplyScalar(state.curveScale / nIsoc);
                 Atot.multiplyScalar(state.curveScale / nIsoc);
-                updateGMWrap(Gtot.x, Gtot.y, Gtot.z,  white);
                 if(Atot.x)
                 {
-                    updateGMWrap(0.5, Atot.y, Atot.z,  green);
-                    fidbox.style["backgroundColor"] = "rgb(255, 0, 100, 0.5)";
+                    updateGMWrap(0.5, Atot.y, Atot.z,  "ADC");
+                    // fidbox.style["backgroundColor"] = "rgb(255, 0, 100, 0.5)"; // remove the adc in the Signal figure
                 }
                 else
                 {
-                    updateGMWrap(0, Atot.y, Atot.z,  green);
-                    fidbox.style["backgroundColor"] = "transparent";
+                    updateGMWrap(0, Atot.y, Atot.z,  "ADC");
+                    // fidbox.style["backgroundColor"] = "transparent"; // remove the adc in the Signal figure
                 }
+                updateGMWrap(Gtot.x, Gtot.y, Gtot.z,  "RFandGM");
             }
 
             doStats && stats.update();
