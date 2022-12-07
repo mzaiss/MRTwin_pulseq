@@ -249,6 +249,7 @@ function launchApp() { // started onload
     var GyLabelIdent = $('#adcLabel');
 
     var isRunningSequence = false; // run sequence flag
+    var eventCache = [];
 
     var GMcanvas = document.getElementById("GMcanvas");
     var GMcanvasAxis = document.getElementById("GMcanvasAxis");
@@ -1066,6 +1067,7 @@ function launchApp() { // started onload
                 IsocArr: [],
                 t: 0, tSinceRF: 0,
                 RF: 1, GM: 1,
+                Gamma: 1,
             };
 
             gui = new dat.GUI({ autoPlace: false });
@@ -1285,13 +1287,12 @@ function launchApp() { // started onload
             },
             cFolder++, createFromFolder--);
 
-        guiAddFolder('Speed (Seq only)',
+        guiAddFolder('Speed',
             'Speed',
             function (guiFolder) {
-                let tmp1 = state.Gx; let tmp2 = state.Gy;
-                guiFolder.add(state, 'RF', 0, 2, 0.1);
-                guiFolder.add(state, 'GM', 0, 2, 0.1);
-                state.Gx = tmp1; state.Gy = tmp2;
+                let tmp1 = state.Gamma;
+                guiFolder.add(state, 'Gamma', 0.1, 5, 0.5);
+                state.Gamma = tmp1;
             },
             cFolder++, createFromFolder--);
 
@@ -1501,10 +1502,10 @@ function launchApp() { // started onload
         exciteTimers = [];
         restartRepIfSampleChange = false;
         //clear sequence
-        let endTid = setTimeout(function () {});
-        for (let i = 0; i <= endTid; i++) {
-            window.clearTimeout(i)
-            window.clearInterval(i)
+        for (let i = 0; i <= eventCache.length; i++) {
+            var id = eventCache[i];
+            window.clearTimeout(id)
+            window.clearInterval(id)
         }
         trigSampleChange = true;
         sampleChange();
@@ -1579,13 +1580,10 @@ function launchApp() { // started onload
         for (var id in dict)
         {
             var obj = dict[id]
-            console.log(id)
             if(obj["delay"] != 0) // global delay
             {
-                console.log("event delay start",time)
                 var delayValue = obj["delay"];
                 time += delayValue;
-                console.log("event delay start",time)
             }
 
             // compute the time separatly
@@ -1596,44 +1594,41 @@ function launchApp() { // started onload
             if(obj["RF"] != 0)
             {
                 let rf = dict[id]["RF"];
-                console.log("rf delay start",t_rf)
                 t_rf += rf["delay"] // add local delay here
-                console.log("rf delay end",t_rf)
                 let ang = rf["angle"];
                 let length = ang.length
-                
-                console.log("rf start",t_rf)
                 for (let i = 0; i < length; i++) // recreate the puls
                 {
                      // reset the tSinceRF
                     state.tSinceRF = 0;
                     angleCache.push(ang[i])
-                    // console.log(i, ang[i], t_rf)
-                    window.setTimeout(function(){
-                        // state.B0 = 0;
-                        isRunningSequence = false
-                        if(state.FrameB0)
-                        {
-                            RFpulse('rect', Math.PI / 180 * ang[i],parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i], B1); // it's just work
-                        }
-                        else if(state.FrameB1)
-                        {
-                            RFpulse('rect', Math.PI / 180 * ang[i], parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i], B1); // it's just work
-                        }
-                        else
-                        {
-                            RFpulse('rect', Math.PI / 180 * ang[i], -0.001 * 2 * TR* i + parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i], B1);
-                        }
-                        // // console.log(parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i])
-                        GMvec.x =  ang[i] / maxAngle;
-                        isRunningSequence = true;
-                    }, t_rf);
+                    eventCache.push(
+                        window.setTimeout(function(){
+                            isRunningSequence = false
+                            if(state.FrameB0)
+                            {
+                                RFpulse('rect', Math.PI / 180 * ang[i],parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i], B1); // it's just work
+                            }
+                            else if(state.FrameB1)
+                            {
+                                RFpulse('rect', Math.PI / 180 * ang[i], parseFloat(rf["phase"]) + 2 * Math.PI * rf["D_phase"][i], B1); // it's just work
+                            }
+                            else
+                            {
+                                RFpulse('rect', Math.PI / 180 * ang[i], (-0.001 * 2 * TR* i + parseFloat(rf["phase"]))*state.Gamma + 2 * Math.PI * rf["D_phase"][i], B1);
+                            }
+                            GMvec.x =  ang[i] / maxAngle;
+                            isRunningSequence = true;
+                        }, t_rf)
+                    );
                     t_rf += TR;
                 }
-                console.log("rf end",t_rf)
-                window.setTimeout(function(){
-                    state.B1 = 0;
-                }, t_rf);
+
+                eventCache.push(
+                    window.setTimeout(function(){
+                        state.B1 = 0;
+                    }, t_rf)
+                );
             }
             if(obj["ADC"] != 0)
             {
@@ -1641,21 +1636,21 @@ function launchApp() { // started onload
                 // todo Frequence and  phase
                 let adc = dict[id]["ADC"];
                 let period = adc["dwell"] * adc["num"];
-                
-                console.log("adc delay start: ",t_adc)
                 t_adc += adc["delay"]
-                console.log("adc delay end: ",t_adc)
 
-                window.setTimeout(function(){
-                    G_ADC.x = 1;
-                }, t_adc);
-                console.log("adc start",t_adc)
+                eventCache.push(
+                    window.setTimeout(function(){
+                        G_ADC.x = 1;
+                    }, t_adc)
+                );
                 // ! adc time related with RF speed
-                t_adc += period ;
-                console.log("adc end",t_adc)
-                window.setTimeout(function(){
-                    G_ADC.x = 0;
-                }, t_adc);
+                t_adc += period;
+
+                eventCache.push(
+                    window.setTimeout(function(){
+                        G_ADC.x = 0;
+                    }, t_adc)
+                );
             }
             if( obj["trap"]["Gx"]!=0)
             {
@@ -1664,14 +1659,16 @@ function launchApp() { // started onload
 
                 t_gx += trap["Gx"]["delay"];
                 let repeatTime = 10;
-                let tempTime = Math.ceil(trap["Gx"]["period"]/state.GM/repeatTime);
+                let tempTime = Math.ceil(trap["Gx"]["period"]/repeatTime);
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gx += tempTime
-                    window.setTimeout(function(){
-                        gradPulse(amp*state.GM / repeatTime);
-                        GMvec.y =  amp/maxAmp
-                    }, t_gx );
+                    eventCache.push(
+                        window.setTimeout(function(){
+                            gradPulse(amp / repeatTime);
+                            GMvec.y =  amp/maxAmp
+                        }, t_gx )
+                    );
                 }
             }
             if( obj["trap"]["Gy"]!=0)
@@ -1682,36 +1679,47 @@ function launchApp() { // started onload
                 t_gy += trap["Gy"]["delay"]
 
                 let repeatTime = 10;
-                let tempTime = Math.ceil(trap["Gy"]["period"]/state.GM/repeatTime)
+                let tempTime = Math.ceil(trap["Gy"]["period"]/repeatTime)
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gy += tempTime
-                    window.setTimeout(function(){
-                        gradPulse(amp*state.GM  / repeatTime, Math.PI / 2);
-                        GMvec.z =   amp/maxAmp
-                    }, t_gy );
+                    
+                    eventCache.push(
+                        window.setTimeout(function(){
+                            gradPulse(amp  / repeatTime, Math.PI / 2);
+                            GMvec.z =   amp/maxAmp
+                        }, t_gy )
+                    );
                 }
             }
 
-            window.setTimeout(function()
-            {
-                GMvec.x = 0 // rf
-                isRunningSequence = false; // rf
-            }, t_rf);
-            window.setTimeout(function()
-            {
-                G_ADC.x = 0;// adc
-                fidbox.style["backgroundColor"] = "transparent"; // adc
-            }, t_adc);
+            eventCache.push(
+                window.setTimeout(function()
+                {
+                    GMvec.x = 0 // rf
+                    isRunningSequence = false; // rf
+                }, t_rf)
+            );
+            eventCache.push(
+                window.setTimeout(function()
+                {
+                    G_ADC.x = 0;// adc
+                    fidbox.style["backgroundColor"] = "transparent"; // adc
+                }, t_adc)
+            );
 
-            window.setTimeout(function()
-            {
-                GMvec.y = 0
-            }, t_gx);
-            window.setTimeout(function()
-            {
-                GMvec.z = 0
-            }, t_gy);
+            eventCache.push(
+                window.setTimeout(function()
+                {
+                    GMvec.y = 0
+                }, t_gx)
+            );
+            eventCache.push(
+                window.setTimeout(function()
+                {
+                    GMvec.z = 0
+                }, t_gy)
+            );
             time = Math.max(t_rf, t_gx, t_gy,t_adc);
         }
     } // testFunction
@@ -1730,7 +1738,7 @@ function launchApp() { // started onload
             case "Load_seq_file":
                 loadSeq().then(function(d){
                     let seq = readString(d);
-                    var seqDict = seq.getSeq(state.RF);
+                    var seqDict = seq.getSeq();
                     console.log(seqDict);
                     testFunction(50, seqDict, 512)
                 });

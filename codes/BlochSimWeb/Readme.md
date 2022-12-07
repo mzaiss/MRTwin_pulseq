@@ -26,9 +26,9 @@ https://asd2511.xyz/BlochSimWeb/
 2. In Some sequence gradPuls will over write each other
 3. B1 arrow flickering - b1 view
 #### Todo List
-- [ ] Use Gamma chagne the speed
-- [x] Use Single Event fix the flcking problem (watch out the correction in the end of the puls)
-- [ ] Make a Event queue to make teh clear event more elegent
+- [x] Use Gamma change the speed
+- [x] Use Single Event fix the flecking problem (watch out the correction in the end of the puls)
+- [x] Make a Event queue to make the clear event more elegant
 - [ ] Compute the plan size?
 - [x] Fix the color BLUE in mix matter case. 
 

@@ -108,7 +108,7 @@ class Pulseq {
     }
 
 
-    getSeq(speed){
+    getSeq(){
         var sequenceDist = {};
         var currentIDX = 0;
         var globalScale = 1;
@@ -135,17 +135,11 @@ class Pulseq {
                 var phase = this.shapes.shapes[rfPuls["phase_id"]]["samples"];
                 var angle = [];
                 mag.forEach((val, i, arr) => {
-                    // // console.log(Math.sin(0))
-                    // // let real = amp * mag[i] * Math.cos(2*Math.PI*phase[i]);
-                    // // let comp = amp * mag[i] * Math.sin(2*Math.PI*phase[i]);
-                    // // let temp = Math.pow(Math.pow(real,2) + Math.pow(comp,2),0.5)
                     angle.push(amp * mag[i] * 1e-6 * 360 )
-                    // // angleSum += angle[i]
                 })
-                // // console.log(angleSum)
-                rfDist["angle"] = resize(angle, 50 * speed)
+                rfDist["angle"] = resize(angle, 50)
                 rfDist["phase"] = rfPuls["phase"] ///Math.PI;  +
-                rfDist["D_phase"] = resize_v2(phase, 50 * speed) ///Math.PI;
+                rfDist["D_phase"] = resize_v2(phase, 50) ///Math.PI;
                 sequenceDist[currentIDX]["RF"] = rfDist
             }
             if(res["gx"]!=0)
