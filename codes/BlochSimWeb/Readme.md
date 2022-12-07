@@ -13,7 +13,16 @@ https://asd2511.xyz/BlochSimWeb/
 
 ## Update Log
 
+### 2022.12.07
+1. Add Event queue
+2. Add speed control feature
+
+#### Problem
+If the shape of the RF puls is sinc func. Max speed up factor is 2.
+If Block func, max speed up factor is 2.5.
+
 ### 2022.12.04
+
 1. Fixed exotic color names being undefined in some environments.
 2. Delayed B1 vector updating to avoid flickering (increase delayB1vecUpdate if not gone)
 

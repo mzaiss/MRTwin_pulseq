@@ -1287,11 +1287,11 @@ function launchApp() { // started onload
             },
             cFolder++, createFromFolder--);
 
-        guiAddFolder('Speed',
+        guiAddFolder('Speed = ' + state.Gamma,
             'Speed',
             function (guiFolder) {
                 let tmp1 = state.Gamma;
-                guiFolder.add(state, 'Gamma', 0.1, 5, 0.5);
+                guiFolder.add(state, 'Gamma', 0.1, 2.5, 0.5);
                 state.Gamma = tmp1;
             },
             cFolder++, createFromFolder--);
@@ -1582,7 +1582,7 @@ function launchApp() { // started onload
             var obj = dict[id]
             if(obj["delay"] != 0) // global delay
             {
-                var delayValue = obj["delay"];
+                var delayValue = obj["delay"] / state.Gamma;
                 time += delayValue;
             }
 
@@ -1594,7 +1594,7 @@ function launchApp() { // started onload
             if(obj["RF"] != 0)
             {
                 let rf = dict[id]["RF"];
-                t_rf += rf["delay"] // add local delay here
+                t_rf += rf["delay"] / state.Gamma; // add local delay here
                 let ang = rf["angle"];
                 let length = ang.length
                 for (let i = 0; i < length; i++) // recreate the puls
@@ -1635,8 +1635,8 @@ function launchApp() { // started onload
                 // G_ADC
                 // todo Frequence and  phase
                 let adc = dict[id]["ADC"];
-                let period = adc["dwell"] * adc["num"];
-                t_adc += adc["delay"]
+                let period = adc["dwell"] * adc["num"] / state.Gamma;
+                t_adc += adc["delay"] / state.Gamma;
 
                 eventCache.push(
                     window.setTimeout(function(){
@@ -1657,9 +1657,9 @@ function launchApp() { // started onload
                 let trap = dict[id]["trap"];
                 let amp = trap["Gx"]["amplitude"];
 
-                t_gx += trap["Gx"]["delay"];
+                t_gx += trap["Gx"]["delay"] / state.Gamma;;
                 let repeatTime = 10;
-                let tempTime = Math.ceil(trap["Gx"]["period"]/repeatTime);
+                let tempTime = Math.ceil(trap["Gx"]["period"] / state.Gamma /repeatTime);
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gx += tempTime
@@ -1676,14 +1676,14 @@ function launchApp() { // started onload
                 let trap = dict[id]["trap"];
                 let amp = trap["Gy"]["amplitude"]
 
-                t_gy += trap["Gy"]["delay"]
+                t_gy += trap["Gy"]["delay"] / state.Gamma;
 
                 let repeatTime = 10;
-                let tempTime = Math.ceil(trap["Gy"]["period"]/repeatTime)
+                let tempTime = Math.ceil(trap["Gy"]["period"] / state.Gamma /repeatTime)
                 for (let i = 0; i < repeatTime; i++)
                 {
                     t_gy += tempTime
-                    
+
                     eventCache.push(
                         window.setTimeout(function(){
                             gradPulse(amp  / repeatTime, Math.PI / 2);
@@ -1738,7 +1738,7 @@ function launchApp() { // started onload
             case "Load_seq_file":
                 loadSeq().then(function(d){
                     let seq = readString(d);
-                    var seqDict = seq.getSeq();
+                    var seqDict = seq.getSeq(state.Gamma);
                     console.log(seqDict);
                     testFunction(50, seqDict, 512)
                 });

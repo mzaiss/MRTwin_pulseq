@@ -108,7 +108,7 @@ class Pulseq {
     }
 
 
-    getSeq(){
+    getSeq(gamma){
         var sequenceDist = {};
         var currentIDX = 0;
         var globalScale = 1;
@@ -137,9 +137,9 @@ class Pulseq {
                 mag.forEach((val, i, arr) => {
                     angle.push(amp * mag[i] * 1e-6 * 360 )
                 })
-                rfDist["angle"] = resize(angle, 50)
+                rfDist["angle"] = resize(angle, 50 * gamma)
                 rfDist["phase"] = rfPuls["phase"] ///Math.PI;  +
-                rfDist["D_phase"] = resize_v2(phase, 50) ///Math.PI;
+                rfDist["D_phase"] = resize_v2(phase, 50 * gamma) ///Math.PI;
                 sequenceDist[currentIDX]["RF"] = rfDist
             }
             if(res["gx"]!=0)
