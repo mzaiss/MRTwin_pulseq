@@ -1,0 +1,44 @@
+The compiled pre-pass contained in this repository depends directly and indirectly on the following list of open source libraries.
+Their licenses are provided in their respective repositories.
+All dependencies can be found under: https://crates.io/<NAME>
+
+(MIT OR Apache-2.0) AND Unicode-DFS-2016:
+unicode-ident
+
+Apache-2.0:
+pyo3
+pyo3-build-config
+pyo3-ffi
+pyo3-macros
+pyo3-macros-backend
+
+Apache-2.0 OR MIT:
+autocfg
+bitflags
+cfg-if
+indoc
+libc
+lock_api
+once_cell
+parking_lot
+parking_lot_core
+proc-macro2
+quote
+scopeguard
+smallvec
+syn
+unindent
+windows-sys
+windows_aarch64_gnullvm
+windows_aarch64_msvc
+windows_i686_gnu
+windows_i686_msvc
+windows_x86_64_gnu
+windows_x86_64_gnullvm
+windows_x86_64_msvc
+
+Apache-2.0 WITH LLVM-exception:
+target-lexicon
+
+MIT:
+redox_syscall
