@@ -1,4 +1,4 @@
-experiment_id = 'exA03_gradient_echo'
+experiment_id = 'web1_FID'
 
 # %% S0. SETUP env
 import sys,os
@@ -33,7 +33,7 @@ from pypulseq.opts import Opts
 
 ## choose the scanner limits
 system = Opts(max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s', rf_ringdown_time=20e-6,
-                 rf_dead_time=100e-6, adc_dead_time=20e-6,grad_raster_time=50*10e-6)
+                rf_dead_time=100e-6, adc_dead_time=20e-6,grad_raster_time=50*10e-6)
 
 # %% S2. DEFINE the sequence 
 seq = Sequence()
@@ -44,32 +44,24 @@ Nread = 128
 Nphase = 1
 slice_thickness = 8e-3  # slice
 
-# Define rf events
-rf1, _,_ = make_sinc_pulse(flip_angle=90 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
-# rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-
-gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=20e-3, system=system)
-gx_ = make_trapezoid(channel='x', flat_area=-Nread, flat_time=20e-3, system=system)
-
-gx_pre = make_trapezoid(channel='x', area=-Nread/2, duration=2e-3, system=system)
-
-adc = make_adc(num_samples=Nread, duration=20e-3, phase_offset=0*np.pi/180,delay=gx.rise_time,system=system)
+adc = make_adc(num_samples=Nread, duration=2e-3, phase_offset=0*np.pi/180,delay=0,system=system)
 
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
-seq.add_block(make_delay(0.011-rf1.delay))
-seq.add_block(rf1)
-seq.add_block(gx_pre)
-seq.add_block(adc,gx)
-seq.add_block(adc,gx_)
-seq.add_block(adc,gx)
-seq.add_block(adc,gx_)
+for i in range(0,12):
+    
+    rf1, _ = make_block_pulse(flip_angle=(i+1)*30 * math.pi / 180, duration=1e-3,system=system)
 
-# seq.add_block(adc)
+    seq.add_block(rf1)
+    seq.add_block(adc)
+    seq.add_block(make_delay(2e-3))
+
+
+
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
@@ -94,31 +86,27 @@ seq.write('out/' + experiment_id +'.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
-sz = [64, 64]
-
+from new_core.sim_data import SimData
+sz=[64,64]
+# (i) load a phantom object from file
 if 0:
-    # (i) load a phantom object from file
-    # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
-    obj_p = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
-    obj_p = obj_p.interpolate(sz[0], sz[1], 1)
-    # Manipulate loaded data
-    obj_p.B0 *= 1
+    obj_p = SimData.load('../data/phantom2D.mat')
+    obj_p = SimData.load('../data/numerical_brain_cropped.mat')
+    obj_p = obj_p.resize(sz[0],sz[1],1)
 else:
-    # or (ii) set phantom  manually to a pixel phantom
-    obj_p = CustomVoxelPhantom(
-        pos=[[-0.25, -0.25, 0]],
-        PD=[1.0],
-        T1=[3.0],
-        T2=[0.5],
-        T2dash=[30e-3],
-        voxel_size=0.1,
-        voxel_shape="box"
-    )
-
-obj_p.plot()
-# Convert Phantom into simulation data
-obj_p = obj_p.build()
+# or (ii) set phantom  manually to a pixel phantom
+    obj_p = torch.zeros((sz[0],sz[1],6)); 
+    
+    obj_p[24,24,:]=torch.tensor([1, 3, 0.5, 30e-3, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
+    # obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1,0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
+    
+    obj_p=obj_p.permute(2,0,1)[:,:,:,None]
+    obj_p= SimData(obj_p[0,:],obj_p[1,:],obj_p[2,:],obj_p[3,:],obj_p[4,:],obj_p[5,:]*torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),normalize_B0_B1= False)
+    obj_p = obj_p.resize(sz[0],sz[1],1)
+    
+# manipulate obj and plot it
+obj_p.B0*=1;
+obj_p.plot_sim_data()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
@@ -127,3 +115,30 @@ signal, _= sim_external(obj=obj_p,plot_seq_k=[0,0])
 sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
 sp_adc.plot(t_adc,np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
+
+
+
+#%%  FITTING BLOCK - work in progress
+from scipy import optimize
+
+# choose echo tops and flatten extra dimensions
+S=signal[63::128,:].abs().ravel()
+t=t_adc[63::128].ravel()
+
+S=S.numpy()
+def fit_func(t, a, R,c):
+    return a*np.exp(-R*t) + c   
+
+p=optimize.curve_fit(fit_func,t,S,p0=(1, 1,0))
+print(p[0][1])
+
+fig=plt.figure("""fit""")
+ax1=plt.subplot(131)
+ax=plt.plot(t_adc,np.abs(signal.numpy()),label='fulldata')
+ax=plt.plot(t,S,'x',label='data')
+plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
+plt.title('fit')
+plt.legend()
+plt.ion()
+
+plt.show()

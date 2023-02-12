@@ -1,4 +1,4 @@
-experiment_id = 'web_RARE_16'
+experiment_id = 'web4_RARE_16'
 
 # %% S0. SETUP env
 import sys,os
@@ -46,9 +46,14 @@ Nread = 16    # frequency encoding steps/samples
 Nphase = 16    # phase encoding steps/samples
 
 # Define rf events
-rf1, _,_ = make_sinc_pulse(flip_angle=90* math.pi / 180, phase_offset=90* math.pi / 180,duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
-rf2, _,_ = make_sinc_pulse(flip_angle=180* math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+# rf1, _,_ = make_sinc_pulse(flip_angle=90* math.pi / 180, phase_offset=90* math.pi / 180,duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
+# rf2, _,_ = make_sinc_pulse(flip_angle=180* math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
 # rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
+
+rf1, _ = make_block_pulse(flip_angle=90* math.pi / 180, phase_offset=90* math.pi / 180,duration=1e-3, system=system)
+rf2, _ = make_block_pulse(flip_angle=180* math.pi / 180, duration=1e-3, system=system)
+
+
 rf2.delay=0
 # Define other gradients and ADC events
 gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=2e-3, system=system)

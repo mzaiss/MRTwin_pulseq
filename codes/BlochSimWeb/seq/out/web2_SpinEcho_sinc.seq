@@ -23,7 +23,7 @@ Name gre
 # ..        Hz   ....     ....    us   Hz   rad
 [RF]
 1      987.456 1 2 500 0 0
-2      1974.91 1 2 500 0 0
+2      1974.91 1 2 500 0 1.5708
 
 # Format of ADC events:
 # id num dwell delay freq phase

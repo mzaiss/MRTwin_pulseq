@@ -59,9 +59,9 @@ happens in spare time, bug reports and software suggestions may largely be ignor
 
 <body style="overflow: hidden">
 
-	<script src="module.js" type="module"></script>
+  <script src="module.js" type="module"></script>
 
-    <style> /*needs to be after script since ES6 because imports overwrite */
+  <style> /*needs to be after script since ES6 because imports overwrite */
       .moveGUI{
       position: absolute; 
       top: 0px;
@@ -159,14 +159,13 @@ happens in spare time, bug reports and software suggestions may largely be ignor
       padding-left: 0em;
       padding-right: 0em;}
       
-    </style>
+  </style>
     
-  <div id="WebGLmessage" style="transform: scale(1.3,1.3) translate(0px,0px);">
-  </div> 
+  <div id="WebGLmessage" style="transform: scale(1.3,1.3) translate(0px,0px);"></div> 
 
-
-<div  class="moveGUI">
-</div>
+  <div id="colortest"></div>
+  
+  <div class="moveGUI"></div>
   
   <!-- Add display:none below when developing to avoid 3D rendering. -->
   <canvas id="canvasA" width="100%" height="100%"

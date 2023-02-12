@@ -1,5 +1,4 @@
-experiment_id = 'exE02_RARE_2D'
-
+experiment_id = 'web3_FLASH_16'
 
 # %% S0. SETUP env
 import sys,os
@@ -32,73 +31,66 @@ from pypulseq.opts import Opts
 
 # %% S1. SETUP sys
 
-# choose the scanner limits
-system = Opts(
-    max_grad=28,
-    grad_unit='mT/m',
-    max_slew=150,
-    slew_unit='T/m/s',
-    rf_ringdown_time=20e-6,
-    rf_dead_time=100e-6,
-    adc_dead_time=20e-6,
-    grad_raster_time=50e-6
-)
+## choose the scanner limits
+system = Opts(max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s', rf_ringdown_time=20e-6,
+                 rf_dead_time=100e-6, adc_dead_time=20e-6,grad_raster_time=50*10e-6)
 
 # %% S2. DEFINE the sequence 
 seq = Sequence()
 
 # Define FOV and resolution
-fov = 220e-3
-slice_thickness = 8e-3
-sz = (32, 32)  # spin system size / resolution
-Nread = 64  # frequency encoding steps/samples
-Nphase = 64  # phase encoding steps/samples
-
+fov = 1000e-3 
+slice_thickness=8e-3
+sz=(48,48)   # spin system size / resolution
+Nread = 16    # frequency encoding steps/samples
+Nphase = 16    # phase encoding steps/samples
 
 # Define rf events
-rf1, gz, gzr = make_sinc_pulse(flip_angle=90* math.pi / 180, phase_offset=90* math.pi / 180,duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
-rf2, gz180,_ = make_sinc_pulse(flip_angle=180* math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
-
+rf1, _,_ = make_sinc_pulse(flip_angle=30 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
 # rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
-rf2.delay=0
+
 # Define other gradients and ADC events
-gx = make_trapezoid(channel='x', flat_area=Nread/fov, flat_time=2e-3, system=system)
-adc = make_adc(num_samples=Nread, duration=2e-3, phase_offset=90*np.pi/180,delay=gx.rise_time, system=system)
-gx_pre0 = make_trapezoid(channel='x', area=+(1.0 +3.0 )*gx.area / 2, duration=1e-3, system=system)
-gx_prewinder = make_trapezoid(channel='x', area= +3.0 *gx.area / 2, duration=1e-3, system=system)
+gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=5e-3, system=system)
+adc = make_adc(num_samples=Nread, duration=5e-3, phase_offset=0*np.pi/180,delay=gx.rise_time, system=system)
+gx_pre = make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=system)
+gx_spoil = make_trapezoid(channel='x', area=1.5*gx.area, duration=1e-3, system=system)
+
+rf_phase = 0
+rf_inc = 0
+rf_spoiling_inc=117
+
+phase_enc__gradmoms = torch.arange(0,Nphase,1)-Nphase//2
+
+
+permvec=np.zeros((Nphase,),dtype=int)
+permvec[0]=0
+for i in range(1,int(Nphase//2+1)):
+    permvec[i*2-1]=-i
+    if i <Nphase/2:
+        permvec[i*2]=i
+permvec+=Nphase//2
+phase_enc__gradmoms=phase_enc__gradmoms[permvec]
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
-# seq.add_block(make_delay(5*sdel))    
 
-# rf_prep, _= make_block_pulse(flip_angle=180 * math.pi / 180, duration=1e-3, system=system)
-# # FLAIR
-# seq.add_block(rf_prep)
-# seq.add_block(make_delay(2.7))
-# seq.add_block(gx_pre0)
+for ii in range(0, Nphase):  # e.g. -64:63
 
-# seq.add_block(make_delay(0.00031))
-seq.add_block(make_delay(0.0009))
-
-seq.add_block(rf1,gz)
-seq.add_block(gzr)
-calc_duration(rf1)
-calc_duration(gx_pre0)
-
-seq.add_block(gx_pre0,make_delay(0.0041-calc_duration(rf1)-rf2.delay - rf2.t[-1]/2+ rf2.ringdown_time/2))
-
-for ii in range(-Nphase//2, Nphase//2):  # e.g. -64:63
+    rf1.phase_offset = rf_phase / 180 * np.pi   # set current rf phase
     
-    seq.add_block(rf2,gz180)   # @JE: check sim with and without gz180
-    
-    seq.add_block(make_delay(0.0001))
-    gp= make_trapezoid(channel='y', area=ii/fov*0, duration=1e-3, system=system)
-    gp_= make_trapezoid(channel='y', area=-ii/fov*0, duration=1e-3, system=system)
-    seq.add_block(gx_prewinder,gp)
+    adc.phase_offset = rf_phase / 180 * np.pi  # follow with ADC
+    rf_inc = divmod(rf_inc + rf_spoiling_inc, 360.0)[1]   # increase increment
+    rf_phase = divmod(rf_phase + rf_inc, 360.0)[1]        # increment additional pahse
+
+    seq.add_block(rf1)
+    gp= make_trapezoid(channel='y', area=phase_enc__gradmoms[ii], duration=1e-3, system=system)
+    seq.add_block(gx_pre,gp)
     seq.add_block(adc,gx)
-    seq.add_block(gx_prewinder,gp_)
-    seq.add_block(make_delay(0.00008))
+    gp= make_trapezoid(channel='y', area=-phase_enc__gradmoms[ii], duration=1e-3, system=system)
+    seq.add_block(gx_spoil,gp)
+    if ii<Nphase-1:
+        seq.add_block(make_delay(0.001))
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
@@ -109,13 +101,18 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = seq.plot(clear=False)
+sp_adc,t_adc =seq.plot(clear=False)
+#   
+if 0:
+    sp_adc,t_adc =seq.plot(clear=True)
+
 
 # Prepare the sequence output for the scanner
-seq.set_definition('FOV', [fov*1000, fov*1000, slice_thickness*1000])  # m -> mm
-seq.set_definition('Name', 'RARE')
+seq.set_definition('FOV', [fov, fov, slice_thickness])
+seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
 seq.write('out/' + experiment_id +'.seq')
+
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
@@ -129,7 +126,7 @@ if 1:
     # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
     obj_p.D *= 0
-    # Store PD for comparison
+    # Store PD and B0 for comparison
     PD = obj_p.PD
     B0 = obj_p.B0
 else:
@@ -154,29 +151,26 @@ obj_p = obj_p.build()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
-from new_core import util
-
-use_simulation = 1
-
-if use_simulation:
-    signal, _= sim_external(obj=obj_p,plot_seq_k=[0,1])
-else:
-    signal = util.get_signal_from_real_system('out/' + experiment_id +'.seq.dat', Nphase, Nread)
-
+signal, _= sim_external(obj=obj_p,plot_seq_k=[0,1])
 # plot the result into the ADC subplot
 sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
 sp_adc.plot(t_adc,np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
 
 
+# additional noise as simulation is perfect
+z = 1e-4*np.random.randn(signal.shape[0], 2).view(np.complex128) 
+signal+=z
 # %% S6: MR IMAGE RECON of signal ::: #####################################
 fig=plt.figure(); # fig.clf()
 plt.subplot(411); plt.title('ADC signal')
-spectrum=torch.reshape((signal),(Nphase,Nread)).clone().transpose(1,0)
-kspace=spectrum
+spectrum=torch.reshape((signal),(Nphase,Nread)).clone().t()
+kspace_adc=spectrum
 plt.plot(torch.real(signal),label='real')
 plt.plot(torch.imag(signal),label='imag')
 
+ipermvec=np.arange(len(permvec))[np.argsort(permvec)]
+kspace=kspace_adc[:,ipermvec]
 
 major_ticks = np.arange(0, Nphase*Nread, Nread) # this adds ticks at the correct position szread
 ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
@@ -184,16 +178,15 @@ ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
 space = torch.zeros_like(spectrum)
 
 # fftshift
-spectrum=torch.fft.fftshift(spectrum,0); spectrum=torch.fft.fftshift(spectrum,1)
+spectrum=torch.fft.fftshift(kspace,0); spectrum=torch.fft.fftshift(kspace,1)
 #FFT
-space = torch.fft.ifft2(spectrum,dim=(0,1))
+space = torch.fft.ifft2(spectrum)
 # fftshift
 space=torch.fft.ifftshift(space,0); space=torch.fft.ifftshift(space,1)
 
-# space=torch.sum(space.abs(),2)
 
 plt.subplot(345); plt.title('k-space')
-plt.imshow(np.abs(kspace.numpy()))
+plt.imshow(np.log(np.abs(kspace_adc.numpy())))
 plt.subplot(349); plt.title('k-space_r')
 plt.imshow(np.log(np.abs(kspace.numpy())))
 
