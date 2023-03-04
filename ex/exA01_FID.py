@@ -1,42 +1,29 @@
-experiment_id = 'exA01_FID'
-
 # %% S0. SETUP env
-import sys,os
-os.chdir(os.path.abspath(os.path.dirname(__file__)))  #  makes the ex folder your working directory
-sys.path.append(os.path.dirname(os.getcwd()))         #  add required folders to path
-mpath=os.path.dirname(os.getcwd())
-c1=r'codes'; c2=r'codes\GradOpt_python'; c3=r'codes\scannerloop_libs' #  add required folders to path
-sys.path += [rf'{mpath}\{c1}',rf'{mpath}\{c2}',rf'{mpath}\{c3}']
-
-## imports for simulation
-from GradOpt_python.pulseq_sim_external import sim_external
-from GradOpt_python.new_core.util import plot_kspace_trajectory
-import math
+import MRzeroCore as mr0
+import pypulseq as pp
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
-## imports for pypulseq
-from pypulseq.Sequence.sequence import Sequence
-from pypulseq.calc_duration import calc_duration
-from pypulseq.make_adc import make_adc
-from pypulseq.make_delay import make_delay
-from pypulseq.make_sinc_pulse import make_sinc_pulse
-from pypulseq.make_trap_pulse import make_trapezoid
-from pypulseq.make_block_pulse import make_block_pulse
-from pypulseq.make_extended_trapezoid import make_extended_trapezoid
-from pypulseq.make_arbitrary_grad import make_arbitrary_grad
-from pypulseq.opts import Opts
+# makes the ex folder your working directory
+import os
+os.chdir(os.path.abspath(os.path.dirname(__file__)))
+
+experiment_id = 'exA01_FID'
 
 
 # %% S1. SETUP sys
 
-## choose the scanner limits
-system = Opts(max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s', rf_ringdown_time=20e-6,
-                 rf_dead_time=100e-6, adc_dead_time=20e-6,grad_raster_time=50*10e-6)
+# choose the scanner limits
+system = pp.Opts(
+    max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s',
+    rf_ringdown_time=20e-6, rf_dead_time=100e-6,
+    adc_dead_time=20e-6, grad_raster_time=50 * 10e-6
+)
+
 
 # %% S2. DEFINE the sequence 
-seq = Sequence()
+seq = pp.Sequence()
 
 # Define FOV and resolution
 fov = 1000e-3 
@@ -50,7 +37,7 @@ slice_thickness = 8e-3  # slice
 # ======
 # CONSTRUCT SEQUENCE
 # ======
-seq.add_block(make_delay(0.01))
+seq.add_block(pp.make_delay(0.01))
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
@@ -62,10 +49,10 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc,t_adc =seq.plot(clear=False)
+sp_adc,t_adc =mr0.pulseq_plot(seq, clear=False)
 #   
 if 0:
-    sp_adc,t_adc =seq.plot(clear=True)
+    sp_adc,t_adc =mr0.pulseq_plot(seq, clear=True)
 
 
 # Prepare the sequence output for the scanner
@@ -76,20 +63,19 @@ seq.write('out/' + experiment_id +'.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-from new_core.sim_data import VoxelGridPhantom, CustomVoxelPhantom
 sz = [64, 64]
 
 if 0:
     # (i) load a phantom object from file
     # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
-    obj_p = VoxelGridPhantom.load('../data/numerical_brain_cropped.mat')
+    obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data
     obj_p.B0 *= 1
     obj_p.D *= 0
 else:
     # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
-    obj_p = CustomVoxelPhantom(
+    obj_p = mr0.CustomVoxelPhantom(
         pos=[[-0.25, -0.25, 0]],
         PD=[1.0],
         T1=[3.0],
@@ -106,7 +92,16 @@ obj_p = obj_p.build()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
-signal, _= sim_external(obj=obj_p,plot_seq_k=[0,0])
+
+# Read in the sequence
+seq_file = mr0.PulseqFile("out/external.seq")
+# seq_file.plot()
+seq = mr0.Sequence.from_seq_file(seq_file)
+seq.plot_kspace_trajectory()
+# Simulate the sequence
+graph = mr0.compute_graph(seq, obj_p, 200, 1e-3)
+signal = mr0.execute_graph(graph, seq, obj_p)
+
 # plot the result into the ADC subplot
 sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
 sp_adc.plot(t_adc,np.abs(signal.numpy()))
