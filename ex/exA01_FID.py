@@ -2,8 +2,6 @@
 import MRzeroCore as mr0
 import pypulseq as pp
 import numpy as np
-import torch
-from matplotlib import pyplot as plt
 
 # makes the ex folder your working directory
 import os
@@ -22,16 +20,14 @@ system = pp.Opts(
 )
 
 
-# %% S2. DEFINE the sequence 
+# %% S2. DEFINE the sequence
 seq = pp.Sequence()
 
 # Define FOV and resolution
-fov = 1000e-3 
+fov = 1000e-3
 Nread = 128
 Nphase = 1
 slice_thickness = 8e-3  # slice
-
-
 
 
 # ======
@@ -41,7 +37,8 @@ seq.add_block(pp.make_delay(0.01))
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
-ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
+# Check whether the timing of the sequence is correct
+ok, error_report = seq.check_timing()
 if ok:
     print('Timing check passed successfully')
 else:
@@ -49,17 +46,13 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc,t_adc =mr0.pulseq_plot(seq, clear=False)
-#   
-if 0:
-    sp_adc,t_adc =mr0.pulseq_plot(seq, clear=True)
-
+sp_adc, t_adc = mr0.pulseq_plot(seq, clear=False)
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
 seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
-seq.write('out/' + experiment_id +'.seq')
+seq.write('out/' + experiment_id + '.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
@@ -103,6 +96,6 @@ graph = mr0.compute_graph(seq, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq, obj_p)
 
 # plot the result into the ADC subplot
-sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
-sp_adc.plot(t_adc,np.abs(signal.numpy()))
+sp_adc.plot(t_adc, np.real(signal.numpy()), t_adc, np.imag(signal.numpy()))
+sp_adc.plot(t_adc, np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
