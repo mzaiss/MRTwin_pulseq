@@ -25,26 +25,26 @@ system = pp.Opts(
 seq = pp.Sequence()
 
 # Define FOV and resolution
-fov = 1000e-3 
+fov = 1000e-3
 Nread = 128
 Nphase = 1
 slice_thickness = 8e-3  # slice
 
-rf = pp.make_block_pulse(flip_angle=90* np.pi / 180, duration=1e-3, phase_offset=90*np.pi/180, system=system)
+rf = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, phase_offset=90 * np.pi / 180, system=system)
 
 # Define other gradients and ADC events
 
-adc = pp.make_adc(num_samples=128, duration=20e-3, phase_offset=0*np.pi/180,system=system)
+adc = pp.make_adc(num_samples=128, duration=20e-3, phase_offset=0 * np.pi / 180, system=system)
 
 
 # ======
-# CONSTRUCT 
+# CONSTRUCT SEQUENCE
+# ======
+seq.add_block(pp.make_delay(12e-3 - pp.calc_duration(rf) - rf.ringdown_time))
 
-seq.add_block(pp.make_delay(12e-3-pp.calc_duration(rf) - rf.ringdown_time))
+Trec = 0.5
 
-Trec=0.5
-
-for i in range(0,12):
+for i in range(0, 12):
     seq.add_block(rf)
     seq.add_block(adc)
     seq.add_block(pp.make_delay(Trec))
@@ -54,7 +54,8 @@ seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
-ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
+# Check whether the timing of the sequence is correct
+ok, error_report = seq.check_timing()
 if ok:
     print('Timing check passed successfully')
 else:
@@ -68,7 +69,7 @@ sp_adc, t_adc = mr0.pulseq_plot(seq, clear=False)
 seq.set_definition('FOV', [fov, fov, slice_thickness])
 seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
-seq.write('out/' + experiment_id +'.seq')
+seq.write('out/' + experiment_id + '.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above

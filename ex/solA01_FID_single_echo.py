@@ -1,4 +1,5 @@
 # %% S0. SETUP env
+from scipy import optimize
 import MRzeroCore as mr0
 import pypulseq as pp
 import numpy as np
@@ -25,23 +26,27 @@ system = pp.Opts(
 seq = pp.Sequence()
 
 # Define FOV and resolution
-fov = 1000e-3 
+fov = 1000e-3
 Nread = 128
 Nphase = 1
 slice_thickness = 8e-3  # slice
 
 # Define rf events
-rf1, _,_ = pp.make_sinc_pulse(flip_angle=90 * np.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system, return_gz=True)
+rf1, _, _ = pp.make_sinc_pulse(
+    flip_angle=90 * np.pi / 180, duration=1e-3,
+    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
+    system=system, return_gz=True
+)
 # rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-adc = pp.make_adc(num_samples=Nread, duration=20e-3, phase_offset=0*np.pi/180,delay=0,system=system)
+adc = pp.make_adc(num_samples=Nread, duration=20e-3, phase_offset=0 * np.pi / 180, delay=0, system=system)
 gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=2e-3, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
-del1=pp.make_delay(0.012  - pp.calc_duration(rf1) - rf1.ringdown_time)
+del1 = pp.make_delay(0.012 - pp.calc_duration(rf1) - rf1.ringdown_time)
 
 seq.add_block(del1)
 seq.add_block(rf1)
@@ -53,9 +58,9 @@ seq.add_block(adc)
 seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
 
 
-
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
-ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
+# Check whether the timing of the sequence is correct
+ok, error_report = seq.check_timing()
 if ok:
     print('Timing check passed successfully')
 else:
@@ -69,7 +74,7 @@ sp_adc, t_adc = mr0.pulseq_plot(seq, clear=False)
 seq.set_definition('FOV', [fov, fov, slice_thickness])
 seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
-seq.write('out/' + experiment_id +'.seq')
+seq.write('out/' + experiment_id + '.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
@@ -117,25 +122,28 @@ sp_adc.plot(t_adc, np.real(signal.numpy()), t_adc, np.imag(signal.numpy()))
 sp_adc.plot(t_adc, np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
 
-#%%  FITTING BLOCK - work in progress
-from scipy import optimize
+# %%  FITTING BLOCK - work in progress
 
 # choose echo tops and flatten extra dimensions
-S=signal.abs().ravel()
-t=t_adc.ravel()
+S = signal.abs().ravel()
+t = t_adc.ravel()
 
-S=S.numpy()
-def fit_func(t, a, R,c):
-    return a*np.exp(-R*t) + c   
+S = S.numpy()
 
-p=optimize.curve_fit(fit_func,t,S,p0=(1, 1,0))
+
+def fit_func(t, a, R, c):
+    return a * np.exp(-R * t) + c
+
+
+p = optimize.curve_fit(fit_func, t, S, p0=(1, 1, 0))
 print(p[0][1])
 
-fig=plt.figure("""fit""")
-ax1=plt.subplot(131)
-ax=plt.plot(t_adc,np.abs(signal.numpy()),'o',label='fulldata')
-ax=plt.plot(t,S,'x',label='data')
-plt.plot(t,fit_func(t,p[0][0],p[0][1],p[0][2]),label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1],p[0][2]))
+fig = plt.figure("""fit""")
+ax1 = plt.subplot(131)
+ax = plt.plot(t_adc, np.abs(signal.numpy()), 'o', label='fulldata')
+ax = plt.plot(t, S, 'x', label='data')
+plt.plot(t, fit_func(t, p[0][0], p[0][1], p[0][2]),
+         label="f={:.2}*exp(-{:.2}*t)+{:.2}".format(p[0][0], p[0][1], p[0][2]))
 plt.title('fit')
 plt.legend()
 plt.ion()

@@ -2,6 +2,7 @@
 import MRzeroCore as mr0
 import pypulseq as pp
 import numpy as np
+import matplotlib.pyplot as plt
 
 # makes the ex folder your working directory
 import os
@@ -38,7 +39,7 @@ rf1, _, _ = pp.make_sinc_pulse(
 # rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-adc = pp.make_adc(num_samples=Nread, duration=20e-3, phase_offset=0*np.pi/180, delay=0, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=20e-3, phase_offset=0 * np.pi / 180, delay=0, system=system)
 gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=2e-3, system=system)
 
 # ======

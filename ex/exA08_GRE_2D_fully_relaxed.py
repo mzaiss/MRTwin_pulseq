@@ -50,7 +50,7 @@ rf0, _, _ = pp.make_sinc_pulse(
 
 # Define other gradients and ADC events
 gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=10e-3, system=system)
-adc = pp.make_adc(num_samples=Nread, duration=10e-3, phase_offset=0*np.pi/180, delay=gx.rise_time, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=10e-3, phase_offset=0 * np.pi / 180, delay=gx.rise_time, system=system)
 gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system=system)
 
 # ======

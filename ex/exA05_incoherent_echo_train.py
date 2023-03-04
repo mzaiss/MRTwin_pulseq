@@ -46,8 +46,8 @@ rf2, _, _ = pp.make_sinc_pulse(
 
 
 # Define other gradients and ADC events
-adc = pp.make_adc(num_samples=Nread, duration=20e-3, phase_offset=90*np.pi/180, delay=5*1e-4, system=system)
-adc0 = pp.make_adc(num_samples=Nread, duration=8e-3, phase_offset=90*np.pi/180, delay=5*1e-4, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=20e-3, phase_offset=90 * np.pi / 180, delay=5 * 1e-4, system=system)
+adc0 = pp.make_adc(num_samples=Nread, duration=8e-3, phase_offset=90 * np.pi / 180, delay=5 * 1e-4, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE
