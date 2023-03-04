@@ -2,6 +2,7 @@
 import MRzeroCore as mr0
 import pypulseq as pp
 import numpy as np
+import matplotlib.pyplot as plt
 
 # makes the ex folder your working directory
 import os
@@ -50,6 +51,9 @@ seq.add_block(rf1)
 seq.add_block(adc)
 
 # seq.add_block(adc)
+
+# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
+seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
