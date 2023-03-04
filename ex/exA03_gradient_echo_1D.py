@@ -35,9 +35,7 @@ rf1, _, _ = pp.make_sinc_pulse(
     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
     system=system, return_gz=True
 )
-# rf1, _, _ = pp.make_block_pulse(
-#     flip_angle=90 * np.pi / 180, duration=1e-3, system=system, return_gz=True
-# )
+# rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
 adc = pp.make_adc(num_samples=Nread, duration=20e-3, phase_offset=0*np.pi/180, delay=0, system=system)
@@ -51,6 +49,10 @@ seq.add_block(rf1)
 seq.add_block(adc)
 
 # seq.add_block(adc)
+
+# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
+seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
+
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
