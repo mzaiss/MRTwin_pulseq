@@ -2,6 +2,7 @@
 import MRzeroCore as mr0
 import pypulseq as pp
 import numpy as np
+import matplotlib.pyplot as plt
 
 # makes the ex folder your working directory
 import os
@@ -34,6 +35,9 @@ slice_thickness = 8e-3  # slice
 # CONSTRUCT SEQUENCE
 # ======
 seq.add_block(pp.make_delay(0.01))
+
+# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
+seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
@@ -90,7 +94,7 @@ obj_p = obj_p.build()
 seq_file = mr0.PulseqFile("out/external.seq")
 # seq_file.plot()
 seq = mr0.Sequence.from_seq_file(seq_file)
-seq.plot_kspace_trajectory()
+# seq.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq, obj_p)
