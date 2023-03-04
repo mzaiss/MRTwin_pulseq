@@ -25,7 +25,7 @@ import torch
 from torch import optim
 import matplotlib
 import matplotlib.pyplot as plt
-import pre_pass   # if this does drop an error, read again the readme.
+import MRzeroCore as mr0   # if this does drop an error, read again the readme.
 
 # to test if all your versions are fine, tested before were
 #torch.__version__  : '1.10.2'
@@ -36,7 +36,8 @@ print('torch.__version__ :',torch.__version__, '; tested 1.10.2' )
 print('np.__version__ :',np.__version__ , '; tested 1.20.3' )
 print('scipy.__version__:',scipy.__version__, '; tested 1.5.2' )
 print('matplotlib.__version__ :',matplotlib.__version__, '; tested 3.4.3' )
-	
+
+os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 #%% variables (int, float, bool)
 A = 4.0
