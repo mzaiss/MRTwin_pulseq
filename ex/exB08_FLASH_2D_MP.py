@@ -4,6 +4,7 @@ import pypulseq as pp
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
+import util
 
 # makes the ex folder your working directory
 import os
@@ -42,9 +43,9 @@ rf1, _, _ = pp.make_sinc_pulse(
 
 # Define other gradients and ADC events
 gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=10e-3, system=system)
-adc = pp.make_adc(num_samples=Nread, duration=10e-3, phase_offset=0 * np.pi/180, delay=gx.rise_time, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=10e-3, phase_offset=0 * np.pi / 180, delay=gx.rise_time, system=system)
 gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system=system)
-gx_spoil = pp.make_trapezoid(channel='x', area=1.5*gx.area, duration=2e-3, system=system)
+gx_spoil = pp.make_trapezoid(channel='x', area=1.5 * gx.area, duration=2e-3, system=system)
 
 rf_phase = 0
 rf_inc = 0
@@ -100,7 +101,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = mr0.pulseq_plot(seq, clear=False)
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False)
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
