@@ -43,7 +43,7 @@ rf2, _, _ = pp.make_sinc_pulse(
     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
     system=system, return_gz=True
 )
-# rf1 = make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
+# rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 rf2.delay = 0
 # rf2.delay = 5 * 1e-4    # wrong timing! strong artifacts
@@ -109,7 +109,7 @@ sz = [64, 64]
 
 if 1:
     # (i) load a phantom object from file
-    # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
+    # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data

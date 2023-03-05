@@ -62,7 +62,7 @@ gx_prewinder = pp.make_trapezoid(channel='x', area=+3.0 * gx.area / 2, duration=
 # ======
 # seq.add_block(make_delay(5*sdel))
 
-# rf_prep, _= make_block_pulse(flip_angle=180 * np.pi / 180, duration=1e-3, system=system)
+# rf_prep, _= pp.make_block_pulse(flip_angle=180 * np.pi / 180, duration=1e-3, system=system)
 # # FLAIR
 # seq.add_block(rf_prep)
 # seq.add_block(make_delay(2.7))
@@ -114,7 +114,7 @@ sz = [64, 64]
 
 if 1:
     # (i) load a phantom object from file
-    # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
+    # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data

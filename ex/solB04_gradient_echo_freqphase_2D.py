@@ -83,7 +83,7 @@ sz = [64, 64]
 
 if 1:
     # (i) load a phantom object from file
-    # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
+    # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data

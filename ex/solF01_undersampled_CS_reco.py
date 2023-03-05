@@ -15,7 +15,7 @@ experiment_id = 'exD01_bSSFP_2D'
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 sz = [64, 64]
 
-# obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
+# obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
 phantom = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
 phantom = phantom.interpolate(sz[0], sz[1], 1)
 phantom.T2dash[:] = 30e-3

@@ -46,10 +46,7 @@ rf3, _, _ = pp.make_sinc_pulse(
     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
     system=system, return_gz=True
 )
-
-# rf1, _= pp.make_block_pulse(
-#     flip_angle=90 * np.pi / 180, duration=1e-3, system=system, return_gz=True
-# )
+# rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
 adc1 = pp.make_adc(num_samples=Nread, duration=100e-3, phase_offset=0 * np.pi / 180, system=system)
@@ -98,7 +95,7 @@ sz = [64, 64]
 
 if 0:
     # (i) load a phantom object from file
-    # obj_p = VoxelGridPhantom.load('../data/phantom2D.mat')
+    # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data
