@@ -68,6 +68,7 @@ for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
     if ii < Nphase - 1:
         seq.add_block(pp.make_delay(10))
 
+
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
 ok, error_report = seq.check_timing()
@@ -141,6 +142,7 @@ signal = mr0.execute_graph(graph, seq, obj_p)
 sp_adc.plot(t_adc, np.real(signal.numpy()), t_adc, np.imag(signal.numpy()))
 sp_adc.plot(t_adc, np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
+
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
 fig = plt.figure()  # fig.clf()

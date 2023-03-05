@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
+
 # %% ##########################################################################
 # reverse in numpy
 AA = np.zeros([24, 24])
@@ -33,6 +34,7 @@ CC[::2, :] = AA[::2, ::-1]  # reverse manipulation 2, only every second line
 plt.figure()
 plt.imshow(CC)
 plt.title('reverse manipulation 2')
+
 
 # %% shift in numpy
 AA = np.zeros([24, 24])
@@ -85,6 +87,7 @@ CC[::2, :] = torch.flip(AA[::2, :], [0])
 plt.figure()
 plt.imshow(CC)
 plt.title('reverse manipulation 2')
+
 
 # %% shift in torch
 AA = torch.zeros([24, 24])

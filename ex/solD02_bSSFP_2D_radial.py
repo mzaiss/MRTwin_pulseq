@@ -87,6 +87,7 @@ for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
     seq.add_block(gx_pre, gy_pre)
     # seq.add_block(make_delay(10))
 
+
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
 ok, error_report = seq.check_timing()
@@ -104,6 +105,7 @@ seq.set_definition('FOV', [fov, fov, slice_thickness])
 seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
 seq.write('out/' + experiment_id + '.seq')
+
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 sz = [64, 64]
@@ -162,9 +164,7 @@ sp_adc.plot(t_adc, np.abs(signal.numpy()))
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-spectrum = torch.reshape((signal), (Nphase, Nread)).clone().t()
-kspace = spectrum
-kspace_adc = spectrum
+kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t()
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
@@ -174,17 +174,13 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-space = torch.zeros_like(spectrum)
-
 if 0:  # FFT
     # fftshift
-    spectrum = torch.fft.fftshift(spectrum, 0)
-    spectrum = torch.fft.fftshift(spectrum, 1)
+    spectrum = torch.fft.fftshift(kspace_adc)
     # FFT
     space = torch.fft.ifft2(spectrum)
     # fftshift
-    space = torch.fft.ifftshift(space, 0)
-    space = torch.fft.ifftshift(space, 1)
+    space = torch.fft.ifftshift(space)
 
 
 if 1:  # NUFFT
@@ -228,7 +224,7 @@ if 1:  # NUFFT
 space = np.transpose(space)
 plt.subplot(345)
 plt.title('k-space')
-plt.imshow(np.abs(kspace))
+plt.imshow(np.abs(kspace_adc))
 plt.subplot(349)
 plt.title('k-space_r')
 plt.imshow(np.abs(kspace_r))

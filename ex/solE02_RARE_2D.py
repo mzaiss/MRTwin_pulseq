@@ -89,6 +89,7 @@ for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
     seq.add_block(gx_prewinder, gp_)
     seq.add_block(pp.make_delay(0.00008))
 
+
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
 ok, error_report = seq.check_timing()
@@ -106,6 +107,7 @@ seq.set_definition('FOV', [fov, fov, slice_thickness])
 seq.set_definition('Name', 'RARE')
 seq.write('out/external.seq')
 seq.write('out/' + experiment_id + '.seq')
+
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 sz = [64, 64]

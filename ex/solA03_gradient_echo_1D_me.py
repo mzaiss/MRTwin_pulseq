@@ -61,6 +61,7 @@ seq.add_block(adc, gx_)
 
 # seq.add_block(adc)
 
+
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
 ok, error_report = seq.check_timing()

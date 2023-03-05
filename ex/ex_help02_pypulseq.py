@@ -49,8 +49,9 @@ seq.add_block(gx_pre)
 seq.add_block(adc, gx)
 seq.add_block(del15)
 
-
 seq.plot()
+
+
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
 ok, error_report = seq.check_timing()

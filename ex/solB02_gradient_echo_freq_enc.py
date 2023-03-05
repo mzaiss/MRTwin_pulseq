@@ -134,7 +134,7 @@ sp_adc.plot(t_adc, np.abs(signal.numpy()))
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-spectrum = torch.reshape((signal), (Nphase, Nread)).clone().t()
+kspace = torch.reshape((signal), (Nphase, Nread)).clone().t()
 
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
@@ -145,10 +145,8 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-space = torch.zeros_like(spectrum)
-
 # fftshift
-spectrum = torch.fft.fftshift(spectrum)
+spectrum = torch.fft.fftshift(kspace)
 
 space = torch.fft.ifft(spectrum[:, 0])
 # iFFT
@@ -175,7 +173,7 @@ plt.title('phantom projection')
 # t= torchvision.transforms.Resize((Nread,Nread),interpolation=0)(PD.permute(2,0,1))[0,:,:]
 # t=np.roll(t,-Nread//sz[1]//2+1,0)  # this is needed due to the oversampling of the phantom, szread>sz
 
-t = np.squeeze(PD).numpy()
+t = np.squeeze(PD.numpy())
 
 if gx.channel == 'x':
     plt.plot(np.sum(t, axis=1).flatten('F'), label='proj1')

@@ -95,6 +95,7 @@ seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
 seq.write('out/' + experiment_id + '.seq')
 
+
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 sz = [64, 64]
 

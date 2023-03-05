@@ -122,6 +122,7 @@ sp_adc.plot(t_adc, np.real(signal.numpy()), t_adc, np.imag(signal.numpy()))
 sp_adc.plot(t_adc, np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
 
+
 # %%  FITTING BLOCK - work in progress
 
 # choose echo tops and flatten extra dimensions

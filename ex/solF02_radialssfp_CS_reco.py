@@ -107,6 +107,7 @@ seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
 seq.write('out/' + experiment_id + '.seq')
 
+
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 sz = [64, 64]
 
@@ -154,19 +155,14 @@ sp_adc.plot(t_adc, np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
 
 kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t()
-spectrum = kspace_adc
-
-space = torch.zeros_like(spectrum)
 
 if 0:  # FFT
     # fftshift
-    spectrum = torch.fft.fftshift(spectrum, 0)
-    spectrum = torch.fft.fftshift(spectrum, 1)
+    spectrum = torch.fft.fftshift(kspace_adc)
     # FFT
     space = torch.fft.ifft2(spectrum)
     # fftshift
-    space = torch.fft.ifftshift(space, 0)
-    space = torch.fft.ifftshift(space, 1)
+    space = torch.fft.ifftshift(space)
 
 
 if 1:  # NUFFT

@@ -58,6 +58,7 @@ for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
     if ii < Nphase - 1:
         seq.add_block(pp.make_delay(10))
 
+
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
 ok, error_report = seq.check_timing()

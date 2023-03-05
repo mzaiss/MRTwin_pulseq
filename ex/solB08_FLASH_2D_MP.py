@@ -170,8 +170,7 @@ sp_adc.plot(t_adc, np.abs(signal.numpy()))
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-spectrum = torch.reshape((signal), (Nphase, Nread)).clone().t()
-kspace_adc = spectrum
+kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t()
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
@@ -184,16 +183,12 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-space = torch.zeros_like(spectrum)
-
 # fftshift
-spectrum = torch.fft.fftshift(kspace, 0)
-spectrum = torch.fft.fftshift(kspace, 1)
+spectrum = torch.fft.fftshift(kspace)
 # FFT
 space = torch.fft.ifft2(spectrum)
 # fftshift
-space = torch.fft.ifftshift(space, 0)
-space = torch.fft.ifftshift(space, 1)
+space = torch.fft.ifftshift(space)
 
 
 plt.subplot(345)

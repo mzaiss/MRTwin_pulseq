@@ -76,6 +76,7 @@ for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
     gp = pp.make_trapezoid(channel='y', area=-ii, duration=1e-3, system=system)
     seq.add_block(gx_pre, gp)
 
+
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
 ok, error_report = seq.check_timing()
@@ -146,12 +147,12 @@ sp_adc.plot(t_adc, np.real(signal.numpy()), t_adc, np.imag(signal.numpy()))
 sp_adc.plot(t_adc, np.abs(signal.numpy()))
 # seq.plot(signal=signal.numpy())
 
+
 # %% S6: MR IMAGE RECON of signal ::: #####################################
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-spectrum = torch.reshape((signal), (Nphase, Nread)).clone().t()
-kspace = spectrum
+kspace = torch.reshape((signal), (Nphase, Nread)).clone().t()
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
@@ -162,16 +163,12 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-space = torch.zeros_like(spectrum)
-
 # fftshift
-spectrum = torch.fft.fftshift(spectrum, 0)
-spectrum = torch.fft.fftshift(spectrum, 1)
+spectrum = torch.fft.fftshift(kspace)
 # FFT
 space = torch.fft.ifft2(spectrum)
 # fftshift
-space = torch.fft.ifftshift(space, 0)
-space = torch.fft.ifftshift(space, 1)
+space = torch.fft.ifftshift(space)
 
 
 plt.subplot(345)
