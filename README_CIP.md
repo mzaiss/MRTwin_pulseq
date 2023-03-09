@@ -3,21 +3,24 @@
 ## Installation and starting Spyder in the FAU-CIP pool ##
 
 you can clone the current version into your home folder by opening a terminal in the home folder and run:
-
-- git clone https://github.com/mzaiss/MRTwin_pulseq.git
+```
+git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git
+```
 
 ### Installation of MRTwin_pulseq
-run the following commands in a terminal:
- 1. module load python3/anaconda-2022.05  (or module load python) 
- 2. module load torch
- 3. navigate to 'MRTwin_pulseq\codes\GradOpt_python\new_core\pre_pass\wheels' and run
-
- - pip install pre_pass-0.4.1-cp37-abi3-linux_x86_64.whl
+run the following commands in a terminal in your home folder (the same folder where "MRTwin_pulseq" is located):
+```
+module load python3/anaconda-2022.05
+pip install MRTwin_pulseq/data/MRzeroCore-0.1.0-cp39-cp39-manylinux_2_28_x86_64.whl --force-reinstall
+pip install pypulseq
+```
 
 ### Start spyder
-After running the installation you can start the environment by:
- 1. module load python3/anaconda-2022.05  (or module load python) 
- 2. spyder
+After running the installation you can start the environment by running in any terminal:
+```
+module load python3/anaconda-2022.05
+spyder
+```
 
 ### Check the installation
 See if you can run the python files ex/ex_help_01_python and ex/exB05.
