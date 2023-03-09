@@ -1,21 +1,18 @@
 # MRTwin_pulseq for your home system
 
 ##  Get the MRTwin_pulseq package
-Go to 
 
- - https://github.com/mzaiss/MRTwin_pulseq
+ - Download the code as zip file and extract it somewhere
+    - Download the zip file here https://github.com/mzaiss/MRTwin_pulseq/archive/refs/heads/mr0-core.zip
+    - Alternatively, go to https://github.com/mzaiss/MRTwin_pulseq switch to the ``mr0-core`` branch on the top left and click on the ``Code`` button, then download zip.
+ - If you are familiar to git you can also run: ``git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git``
 
-and click on the CODE button, then download zip, and unzip this file.
-
-If you are familiar to git you can also run 
-
-- git clone https://github.com/mzaiss/MRTwin_pulseq.git
 
 ## Downloading Python, Pytorch and Spyder ##
 Python is free to download and is available on all types of operating systems. We recommend to install Anaconda. For Linux see https://docs.anaconda.com/anaconda/install/linux/. For windows see https://www.anaconda.com/distribution/windows . 
 In addition to python some extension packages are required like Pytorch. Install them by using the following commands in the "Anaconda Prompt".
 						
- -for pytorch find your correct command here: https://pytorch.org/   
+ - for pytorch find your correct command here: https://pytorch.org/   
 
 ```
  e.g. without gpu:
@@ -26,32 +23,36 @@ In addition to python some extension packages are required like Pytorch. Install
 ```
 
 
-- The MRTwin_pulseq simulation itself requires a compiled file, the pre_pass, to install it open a console, navigate to 'codes\GradOpt_python\new_core\pre_pass\wheels' and run
+- The MRTwin_pulseq simulation itself requires the MRzero Core for simulation. Install it with:
 
 ```
- On Windows:
- pip install pre_pass-0.4.1-cp37-abi3-win_amd64.whl
+ On Windows (requires python > 3.8):
+ pip install MRzeroCore-0.1.0-cp38-none-win_amd64.whl
 
- On Linux:
- pip install pre_pass-0.4.1-cp37-abi3-linux_x86_64.whl
+ On Linux (requires python > 3.9):
+ pip install MRzeroCore-0.1.0-cp39-cp39-manylinux_2_28_x86_64.whl
  
  On Mac:
  not yet supported
 ```
 
-If not already installed you also need numpy, scipy and matplotlib.
+If not already installed you also need pypulseq, numpy, scipy and matplotlib.
 
-The can be installed with 
-- pip install numpy
-- pip install scipy
-- pip install matplotlib
+The can be installed with
+```
+pip install pypulseq
+pip install numpy
+pip install scipy
+pip install matplotlib
+```
 
 **Versions that were tested**
 
+ -  pypulseq.__version__ : '1.3.1post1'
  -  torch.__version__  : '1.3.0'   and  '1.7.0'
  -  np.__version__ 	 : '1.18.1'    and  '1.19.2'
  -  scipy.__version__: '1.4.1'     and  '1.5.2'
- -   matplotlib.__version__: '3.1.1'
+ -  matplotlib.__version__: '3.1.1'
 
 You can also run file ./ex/ex_help01_python.py to test versions.
 
