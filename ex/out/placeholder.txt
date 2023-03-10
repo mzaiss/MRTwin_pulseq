@@ -1,0 +1,3 @@
+The excercise scripts assume that the ex/out/ ordner exists in order to write
+pulseq .seq files to it. This file serves no purpose except that this folder
+can be tracked by git.
