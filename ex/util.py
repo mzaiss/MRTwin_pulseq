@@ -156,10 +156,10 @@ def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), t
     [fig2_sp_list[x].set_ylabel(f'G{grad_plot_labels[x]} (kHz/m)') for x in range(3)]
 
 # >>>> Changed: added grid
-    sp11.grid()
-    sp12.grid()
-    sp13.grid()
-    [fig2_sp_list[x].grid() for x in range(3)]
+    sp11.grid('on')
+    sp12.grid('on')
+    sp13.grid('on')
+    [fig2_sp_list[x].grid('on') for x in range(3)]
 # <<<< End of change
     # Setting display limits
     disp_range = t_factor * np.array([time_range[0], min(t0, time_range[1])])

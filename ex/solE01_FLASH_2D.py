@@ -145,10 +145,10 @@ if use_simulation:
 else:
     signal = util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
 
-# plot the result into the ADC subplot
-sp_adc.plot(t_adc, np.real(signal.numpy()), t_adc, np.imag(signal.numpy()))
-sp_adc.plot(t_adc, np.abs(signal.numpy()))
-# seq.plot(signal=signal.numpy())
+# PLOT sequence with signal in the ADC subplot
+sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
+ 
+ 
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################

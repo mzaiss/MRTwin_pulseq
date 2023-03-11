@@ -122,7 +122,7 @@ graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
 
 
 # %%  FITTING BLOCK - work in progress

@@ -161,10 +161,10 @@ seq0.plot_kspace_trajectory()
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
 
-# plot the result into the ADC subplot
-sp_adc.plot(t_adc, np.real(signal.numpy()), t_adc, np.imag(signal.numpy()))
-sp_adc.plot(t_adc, np.abs(signal.numpy()))
-# seq.plot(signal=signal.numpy())
+# PLOT sequence with signal in the ADC subplot
+sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
+ 
+ 
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################

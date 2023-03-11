@@ -113,7 +113,7 @@ seq0 = mr0.Sequence.from_seq_file(seq_file)
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
 
-# plot the result into the ADC subplot
-sp_adc.plot(t_adc, np.real(signal.numpy()), t_adc, np.imag(signal.numpy()))
-sp_adc.plot(t_adc, np.abs(signal.numpy()))
-# seq.plot(signal=signal.numpy())
+# PLOT sequence with signal in the ADC subplot
+sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
+ 
+ 
