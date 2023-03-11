@@ -169,10 +169,10 @@ def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), t
     [x.set_xlim(disp_range) for x in fig2_sp_list]
 
 # >>>> Changed: Plot signal and adc samples perhaps?
-    # sp11.plot((t0 + t[-1]), np.zeros(1), 'rx',  label='ADC')
+
     if np.size(signal)>1:
         N_adc[0]=N_adc[0]/N_adc[1]
-        if 1:
+        if N_adc[0].is_integer():
             idx=np.arange(int(N_adc[0]),int(N_adc[0])*N_adc[1],int(N_adc[0]))
             t_adc_p=np.insert(t_adc, idx, np.nan, axis=None)
             signal=np.insert(signal, idx, np.nan, axis=None)
@@ -184,20 +184,9 @@ def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), t
             
             sp11.legend(loc='right',bbox_to_anchor=(1.12, 0.5), fontsize='xx-small')
         else:
-                # sp11.plot(t_adc, np.real(signal), t_adc, np.imag(signal))
-            
-            if N_adc[0].is_integer():
-                
-                for ii in range(0,int(N_adc[1])-1):
-                    sp11.set_prop_cycle(None)
-                    idx=np.arange(int(N_adc[0])*ii,(int(N_adc[0])*(ii+1)),1)
-                    sp11.plot(t_adc[idx], np.real(signal[idx]), t_adc[idx], np.imag(signal[idx]))
-                    sp11.plot(t_adc[idx], np.abs(signal[idx]))
-                    plt.show()
-                    
-            else:
-                print('Your ADCs seem to have different samples, this cannot be plotted.')
-                print(N_adc)
+            print('Your ADCs seem to have different samples, this cannot be plotted.')
+            print(N_adc)
+           
                             
 # <<<< End of change
     plt.show()
