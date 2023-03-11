@@ -138,9 +138,9 @@ use_simulation = True
 
 if use_simulation:
     seq_file = mr0.PulseqFile("out/external.seq")
-    seq = mr0.Sequence.from_seq_file(seq_file)
-    graph = mr0.compute_graph(seq, obj_p, 200, 1e-3)
-    signal = mr0.execute_graph(graph, seq, obj_p)
+    seq0 = mr0.Sequence.from_seq_file(seq_file)
+    graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
+    signal = mr0.execute_graph(graph, seq0, obj_p)
 
 else:
     signal = util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
