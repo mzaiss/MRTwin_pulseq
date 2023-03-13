@@ -106,6 +106,7 @@ def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), t
     t_factor = t_factor_list[valid_time_units.index(time_disp)]
     t0 = 0
     t_adc = []
+    N_adc=[0,0]
     for iB in range(1, len(seq.dict_block_events) + 1):
         block = seq.get_block(iB)
         is_valid = time_range[0] <= t0 <= time_range[1]
@@ -115,6 +116,8 @@ def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), t
                 t = adc.delay + [(x * adc.dwell) for x in range(0, int(adc.num_samples))]
                 sp11.plot((t0 + t), np.zeros(len(t)), 'rx')
                 t_adc = np.append(t_adc, t0 + t)  # >>>> Changed: store adc samples <<<<
+                N_adc[1]+=1
+                N_adc[0]+=int(adc.num_samples)
             if hasattr(block, 'rf'):
                 rf = block.rf
                 tc, ic = calc_rf_center(rf)
@@ -153,10 +156,10 @@ def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), t
     [fig2_sp_list[x].set_ylabel(f'G{grad_plot_labels[x]} (kHz/m)') for x in range(3)]
 
 # >>>> Changed: added grid
-    sp11.grid()
-    sp12.grid()
-    sp13.grid()
-    [fig2_sp_list[x].grid() for x in range(3)]
+    sp11.grid('on')
+    sp12.grid('on')
+    sp13.grid('on')
+    [fig2_sp_list[x].grid('on') for x in range(3)]
 # <<<< End of change
     # Setting display limits
     disp_range = t_factor * np.array([time_range[0], min(t0, time_range[1])])
@@ -166,9 +169,25 @@ def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), t
     [x.set_xlim(disp_range) for x in fig2_sp_list]
 
 # >>>> Changed: Plot signal and adc samples perhaps?
-    sp11.plot((t0 + t), np.zeros(len(t)), 'rx')
+
     if np.size(signal)>1:
-        sp11.plot(t_adc, np.real(signal), t_adc, np.imag(signal))
+        N_adc[0]=N_adc[0]/N_adc[1]
+        if N_adc[0].is_integer():
+            idx=np.arange(int(N_adc[0]),int(N_adc[0])*N_adc[1],int(N_adc[0]))
+            t_adc_p=np.insert(t_adc, idx, np.nan, axis=None)
+            signal=np.insert(signal, idx, np.nan, axis=None)
+            
+            sp11.plot(t_adc_p, np.abs(signal),  label='abs')
+            
+            sp11.plot(t_adc_p, np.real(signal), label='real',linewidth=0.5)
+            sp11.plot(t_adc_p, np.imag(signal), label='imag',linewidth=0.5)
+            
+            sp11.legend(loc='right',bbox_to_anchor=(1.12, 0.5), fontsize='xx-small')
+        else:
+            print('Your ADCs seem to have different samples, this cannot be plotted.')
+            print(N_adc)
+           
+                            
 # <<<< End of change
     plt.show()
 

@@ -138,17 +138,17 @@ use_simulation = True
 
 if use_simulation:
     seq_file = mr0.PulseqFile("out/external.seq")
-    seq = mr0.Sequence.from_seq_file(seq_file)
-    graph = mr0.compute_graph(seq, obj_p, 200, 1e-3)
-    signal = mr0.execute_graph(graph, seq, obj_p)
+    seq0 = mr0.Sequence.from_seq_file(seq_file)
+    graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
+    signal = mr0.execute_graph(graph, seq0, obj_p)
 
 else:
     signal = util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
 
-# plot the result into the ADC subplot
-sp_adc.plot(t_adc, np.real(signal.numpy()), t_adc, np.imag(signal.numpy()))
-sp_adc.plot(t_adc, np.abs(signal.numpy()))
-# seq.plot(signal=signal.numpy())
+# PLOT sequence with signal in the ADC subplot
+sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
+ 
+ 
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
