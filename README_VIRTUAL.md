@@ -28,4 +28,7 @@ We meet  daily from 9:30 am to 5:30 pm (CET).
 The first week is very interactive, with small inputs, and interleaved exercises and discussion of them.
 The second week is more independent.
 
+Unfortunately, I cannot interact with people joining virtually. But with the script and the available exercises and theirs solutions you should be fine.
+For questions regarding installationsI try to dedicate someone in zoom to help you out in a breakout session.
+
 
