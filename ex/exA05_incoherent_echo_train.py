@@ -99,7 +99,8 @@ if 0:
     # obj_p.T2 *= 100
     # obj_p.T1 *= 100
     # obj_p.B1[:]=1
-    obj_p.D *= 0
+    obj_p.D *= 0 
+    obj_p.B0 *= 1    # alter the B0 inhomogeneity
     # Store PD for comparison
     PD = obj_p.PD
     B0 = obj_p.B0
@@ -112,6 +113,7 @@ else:
         T2=0.5,
         T2dash=0.01,
         D=0.0,
+        B0=0,
         voxel_size=0.1,
         voxel_shape="box"
     )

@@ -1,11 +1,10 @@
 # MRTwin_pulseq for your home system
 
 ##  Get the MRTwin_pulseq package
-
- - Download the code as zip file and extract it somewhere
+ - If you are familiar to git you can run: ``git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git``
+ - If not, you can download the code as zip file and extract it somewhere
     - Download the zip file here https://github.com/mzaiss/MRTwin_pulseq/archive/refs/heads/mr0-core.zip
     - Alternatively, go to https://github.com/mzaiss/MRTwin_pulseq switch to the ``mr0-core`` branch on the top left and click on the ``Code`` button, then download zip.
- - If you are familiar to git you can also run: ``git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git``
 
 
 ## Downloading Python, Pytorch and Spyder ##
@@ -26,8 +25,12 @@ In addition to python some extension packages are required like Pytorch. Install
 - The MRTwin_pulseq simulation itself requires the MRzero Core for simulation. Install it with:
 
 ```
+
  On Windows (requires python > 3.8):
  pip install MRzeroCore-0.1.0-cp38-none-win_amd64.whl
+ 
+ On Windows (requires python > 3.7):
+ pip install MRzeroCore-0.1.0-cp37-abi3-win_amd64.whl
 
  On Linux (requires python > 3.9):
  pip install MRzeroCore-0.1.0-cp39-cp39-manylinux_2_28_x86_64.whl

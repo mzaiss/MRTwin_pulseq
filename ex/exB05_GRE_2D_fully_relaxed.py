@@ -57,7 +57,7 @@ gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system
 for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
     seq.add_block(pp.make_delay(1))
 
-    if np.abs(ii) > 20:  # tutorial1:   # (2)   if np.mod(ii,2)==1:    # (3) np.abs(ii)==30:   with high FA
+    if np.abs(ii) > 5:  # tutorial1:   # (2)   if np.mod(ii,2)==1:    # (3) np.abs(ii)==30:   with high FA
         seq.add_block(rf0)  # add rf0 with zero flip_angle
     else:
         seq.add_block(rf1)  # add rf1 with 90° flip_angle
@@ -91,14 +91,15 @@ seq.write('out/' + experiment_id + '.seq')
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 sz = [64, 64]
 
-if 0:
+if 1:
     # (i) load a phantom object from file
     # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
-    obj_p.D *= 0
+    obj_p.D *= 0 
+    obj_p.B0 *= 1    # alter the B0 inhomogeneity
     # Store PD and B0 for comparison
     PD = obj_p.PD
     B0 = obj_p.B0
@@ -112,6 +113,7 @@ else:
         T2=0.1,
         T2dash=0.1,
         D=0.0,
+        B0=0,
         voxel_size=0.1,
         voxel_shape="box"
     )

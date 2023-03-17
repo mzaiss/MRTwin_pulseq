@@ -101,7 +101,8 @@ if 1:
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
-    obj_p.D *= 0
+    obj_p.D *= 0 
+    obj_p.B0 *= 1    # alter the B0 inhomogeneity
     # Store PD for comparison
     PD = obj_p.PD
     B0 = obj_p.B0
@@ -114,6 +115,7 @@ else:
         T2=0.1,
         T2dash=0.1,
         D=0.0,
+        B0=0,
         voxel_size=0.1,
         voxel_shape="box"
     )
