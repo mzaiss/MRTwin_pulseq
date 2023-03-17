@@ -36,7 +36,7 @@
 %	Information	
 % =================
 	{\large Designed by: M. Zaiss '19 \\
-	Updated '22 \\
+	Updated '23 \\
 		\vspace*{1.2\baselineskip}
 	moritz.zaiss@fau.de} \\
 	\vfill
@@ -344,6 +344,7 @@ To check you python skills and also test the versions of the installed packages 
 
 \subsection{Usage on your own PC}
 Download all the code files from github \href{https://github.com/mzaiss/MRTwin_pulseq}{https://github.com/mzaiss/MRTwin\_pulseq}   and copy them to your project folder.
+Then follow the README\_HOME.md
 I strongly recommend sypder as editor, as all test were done in this environment.
 Start spyder.
 To have plots as separate window, which is important as we add lines subsequently to some plots, go to Tools->Preferences. Then on the rider \emph{IPythonKonsole} go to \emph{Graphics} and choose for the graphics backend: Automatic. 
@@ -357,18 +358,16 @@ Once this is set up, make the project code folder \emph{MRTwin\_pulseq/code/MRtw
 To compare your changes to the original files or to a solution we need a difference tool. On windows to you can use \href{https://winmerge.org/}{Winmerge} or \href{https://tortoisegit.org/}{Tortoise} for Unix Systems see the next section for the FAU-CIP pool.
 
 \subsection{Usage in the FAU-CIP pool}\label{sec:spyder_cip}
-All project files will be in the folder \\
-\emph{/Proj/ciptmp/zaissmz}
-\\
-Copy the folder \emph{MRTwin\_pulseq} to your home folder.
+Download all the code files from github \href{https://github.com/mzaiss/MRTwin_pulseq}{https://github.com/mzaiss/MRTwin\_pulseq}   and copy them to your home folder.
+Then follow the README\_CIP.md
 
 To start spyder run the following commands in a terminal:
 \begin{enumerate}
-\item module load python
+\item load python3/anaconda-2022.05
 \item spyder
 \end{enumerate}
 
-I strongly recommend sypder as editor, as all test were done in this environment.
+I strongly recommend sypder as editor, as all tests were done in this environment.
 Start spyder.
 To have plots as separate window, which is important as we add lines subsequently to some plots, go to Tools->Preferences. Then on the rider \emph{IPythonKonsole} go to \emph{Graphics} and choose for the graphics backend: Automatic.
 
@@ -399,13 +398,13 @@ The main exercise files (exA0x ...) are in this folder \textbf{MRTwin\_pulseq/ex
 
 We follow some exercises of the package for this tutorial.
 
-\subsection{exA08 - a first taste of MR imaging}
-Before going through the code section by section, let us quickly generate a first image. Open the source file \textbf{exA08\_GRE\_2D\_fully\_relaxed.py}. This is a gradient echo imaging sequence, where everything is set up except all excitation flip angles are zero. When you run this script as it is you should see the plot as in Figure \ref{fig:exA08_1}
+\subsection{exB05 - a first taste of MR imaging}
+Before going through the code section by section, let us quickly generate a first image. Open the source file \textbf{exB05\_GRE\_2D\_fully\_relaxed.py}. This is a gradient echo imaging sequence, where everything is set up except some excitation flip angles are zero. When you run this script as it is you should see the plot as in Figure \ref{fig:exA08_1}
 
 \begin{figure}[!ht] 
 \centering
 \includegraphics[width=16cm]{img/exA08_1.PNG}
-\caption{Output from exA08. On the right hand side you see the MR sequence schemes (SubFigure 1: ADC, RF amplitue, and RF phase, and SubFigure 2: gradient events). SubFigure 3 shows the Input for scanner -proton density (PD), relaxation times and field inhomogeneity. Subfigure 4 shows the acquired MR signal, the acquired k-space, the MR images - magnitude image and phase image. The images look quite blurry, we will fix this now. }\label{fig:exA08_1}
+\caption{Output from exB05. On the right hand side you see the MR sequence schemes (SubFigure 1: ADC, RF amplitue, and RF phase, and SubFigure 2: gradient events). SubFigure 3 shows the Input for scanner -proton density (PD), relaxation times and field inhomogeneity. Subfigure 4 shows the acquired MR signal, the acquired k-space, the MR images - magnitude image and phase image. The images look quite blurry, we will fix this now. }\label{fig:exA08_1}
 \end{figure}
 
 Then search in this file for the term 'tutorial1'. You will find the following code, which defines as gradient echo MRI sequence
@@ -415,16 +414,16 @@ Then search in this file for the term 'tutorial1'. You will find the following c
 # CONSTRUCT SEQUENCE
 # ======
 for ii in range(-Nphase//2, Nphase//2):  # e.g. -64:63
-    seq.add_block(make_delay(1))
+    seq.add_block(pp.make_delay(1))
     if np.abs(ii)>1:   #tutorial1:   # (2)   if np.mod(ii,2)==1:    
         seq.add_block(rf0)
     else:
         seq.add_block(rf1)
-    gp= make_trapezoid(channel='y', area=ii, duration=5e-3, system=system)
+    gp= pp.make_trapezoid(channel='y', area=ii, duration=5e-3, system=system)
     seq.add_block(gx_pre,gp)
     seq.add_block(adc,gx)
     if ii<Nphase-1:
-        seq.add_block(make_delay(10))
+        seq.add_block(pp.make_delay(10))
 \end{minted}
 
 The line \mintinline{python}{np.abs(ii)>1} excites only magnetization at the k-space center (lines -1,0 and +1), which leads to a blurry image. Change this to \mintinline{python}{np.abs(ii)>5} or \mintinline{python}{np.abs(ii)==30}  to excite different or more lines and observe the effect on the images.
@@ -445,49 +444,40 @@ With more and more lines, you should see the image formation as depicted in Figu
 To get an overview of the whole framework, the file exA08\_GRE\_2D\_fully\_relaxed.py is explained here section by section. In the very beginning the \emph{experiment\_id} is defined which should always be a copy of the current filename, to both filename and experiment id, add your last name after copying the exercise file. 
 
 \subsubsection{Section S0}
-The first section S0 sets up the environment with required paths and python libraries that are loaded. As well as some classes of MRTwin for for simulation and if course the python pulseq package pypulseq for generating pulseq files.
-NOTE: if you want to go to definitions quickly (CTRL-click), you have to add the included paths ('./codes, ./codes/GradOpt\_python, ./codes/scannerloop\_libs)  again in your spyder path manually in the menu (Tools/PYTHONPATH):
+The first section S0 sets up the environment with required paths and python libraries that are loaded. As well as some classes of MRTwin for for simulation and of course the python Pulseq package pypulseq for generating pulseq files.
+
+NOTE: if you want to go to definitions quickly (CTRL-click), on some systems you have to add the included paths ('./codes, ./codes/GradOpt\_python, ...)  again in your spyder path manually in the menu (Tools/PYTHONPATH):
 
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
 # %% S0. SETUP env
-import sys,os
-os.chdir(os.path.abspath(os.path.dirname(__file__)))  #  makes the ex folder your working directory
-sys.path.append(os.path.dirname(os.getcwd()))         #  add required folders to path
-mpath=os.path.dirname(os.getcwd())
-c1=r'codes'; c2=r'codes\GradOpt_python'; c3=r'codes\scannerloop_libs' #  add required folders to path
-sys.path += [rf'{mpath}\{c1}',rf'{mpath}\{c2}',rf'{mpath}\{c3}']
-
-## imports for simulation
-from codes.GradOpt_python.pulseq_sim_external import sim_external
-from GradOpt_python.new_core.util import plot_kspace_trajectory
-import math
+import MRzeroCore as mr0
+import pypulseq as pp
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
+import util
 
-## imports for pypulseq
-from pypulseq.Sequence.sequence import Sequence
-from pypulseq.calc_duration import calc_duration
-from pypulseq.make_adc import make_adc
-from pypulseq.make_delay import make_delay
-from pypulseq.make_sinc_pulse import make_sinc_pulse
-from pypulseq.make_trap_pulse import make_trapezoid
-from pypulseq.make_block_pulse import make_block_pulse
-from pypulseq.make_extended_trapezoid import make_extended_trapezoid
-from pypulseq.make_arbitrary_grad import make_arbitrary_grad
-from pypulseq.opts import Opts
+# makes the ex folder your working directory
+import os
+os.chdir(os.path.abspath(os.path.dirname(__file__)))
+
+experiment_id = 'exB05_GRE_2D_fully_relaxed'
 \end{minted}
 
 \subsubsection{Section S1}
 In Section S1 the scanner system for Pulseq is defined.
-Here we have several physical limits of our real MR scanner, such as maximum gradient amplitude, maximum slew rate of the gradients. This is necessary to calculate gradient and rf events that can be played out by real hardware.
+Here we have several physical limits of our real MR scanner, such as maximum gradient amplitude, maximum slew rate of the gradients. This is necessary to calculate gradient and rf events that can be played out by real hardware. We will learn more about these definitions in ex\_help02.
 
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
 # %% S1. SETUP sys
 
-## choose the scanner limits
-system = Opts(max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s', rf_ringdown_time=20e-6,
-                 rf_dead_time=100e-6, adc_dead_time=20e-6,grad_raster_time=50*10e-6)
+# choose the scanner limits
+system = pp.Opts(
+    max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s',
+    rf_ringdown_time=20e-6, rf_dead_time=100e-6,
+    adc_dead_time=20e-6, grad_raster_time=50 * 10e-6
+)
+
 \end{minted}
 
 \subsubsection{Section S2}
@@ -499,52 +489,61 @@ In Section S2 the Pulseq sequence is defined. After some variable definitions yo
 \item ADC events  - realized by the function \emph{make\_adc}
 \end{itemize}
 
-They are added to the sequence by the code \mintinline{python}{seq.add_block(gx_pre,gp)}
-
+They are added to the sequence e.g. by the code \mintinline{python}{seq.add_block(gx_pre,gp)}
 
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
-# %% S2. DEFINE the sequence 
-seq = Sequence()
+# %% S2. DEFINE the sequence
+seq = pp.Sequence()
 
 # Define FOV and resolution
-fov = 1000e-3 
-slice_thickness=8e-3
-sz=(48,48)   # spin system size / resolution
+fov = 1000e-3
+slice_thickness = 8e-3
+sz = (48, 48)   # spin system size / resolution
 Nread = 48    # frequency encoding steps/samples
 Nphase = 48    # phase encoding steps/samples
 
 # Define rf events
-rf1, _,_ = make_sinc_pulse(flip_angle=90.0 * math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
-
-rf0, _,_ = make_sinc_pulse(flip_angle=0.001* math.pi / 180, duration=1e-3,slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4, system=system)
-# rf1, _= make_block_pulse(flip_angle=90 * math.pi / 180, duration=1e-3, system=system)
+rf1, _, _ = pp.make_sinc_pulse(
+    flip_angle=90 * np.pi / 180, duration=1e-3,
+    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
+    system=system, return_gz=True
+)
+rf0, _, _ = pp.make_sinc_pulse(
+    flip_angle=0.001 * np.pi / 180, duration=1e-3,
+    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
+    system=system, return_gz=True
+)
+# rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-gx = make_trapezoid(channel='x', flat_area=Nread, flat_time=10e-3, system=system)
-adc = make_adc(num_samples=Nread, duration=10e-3, phase_offset=0*np.pi/180,delay=gx.rise_time, system=system)
-gx_pre = make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system=system)
+gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=10e-3, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=10e-3, phase_offset=0 * np.pi / 180, delay=gx.rise_time, system=system)
+gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
-for ii in range(-Nphase//2, Nphase//2):  # e.g. -64:63
-    seq.add_block(make_delay(1))
-    if np.abs(ii)>5:   #tutorial1:   # (2)   if np.mod(ii,2)==1:    #(3) np.abs(ii)==30:   with high FA
-        seq.add_block(rf0)  # add rf0 with zero flip_angle 
+for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
+    seq.add_block(pp.make_delay(1))
+
+    if np.abs(ii) > 5:  # tutorial1:   # (2)   if np.mod(ii,2)==1:    # (3) np.abs(ii)==30:   with high FA
+        seq.add_block(rf0)  # add rf0 with zero flip_angle
     else:
-        seq.add_block(rf1)  # add rf1 with 90° flip_angle 
-    gp= make_trapezoid(channel='y', area=ii, duration=5e-3, system=system)
-    seq.add_block(gx_pre,gp)
-    seq.add_block(adc,gx)
-    if ii<Nphase-1:
-        seq.add_block(make_delay(10))
+        seq.add_block(rf1)  # add rf1 with 90° flip_angle
+
+    gp = pp.make_trapezoid(channel='y', area=ii, duration=5e-3, system=system)
+    seq.add_block(gx_pre, gp)
+    seq.add_block(adc, gx)
+    if ii < Nphase - 1:
+        seq.add_block(pp.make_delay(10))
 \end{minted}
 
 \subsubsection{Section S3}
 Here the sequence is checked, the sequence schemes are plotted and the sequence is exported as .seq-file called 'external.seq'
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
-ok, error_report = seq.check_timing()  # Check whether the timing of the sequence is correct
+# Check whether the timing of the sequence is correct
+ok, error_report = seq.check_timing()
 if ok:
     print('Timing check passed successfully')
 else:
@@ -552,16 +551,13 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc,t_adc =seq.plot(clear=False)
-#   
-if 0:
-    sp_adc,t_adc =seq.plot(clear=True)
-
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False)
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
 seq.set_definition('Name', 'gre')
 seq.write('out/external.seq')
+seq.write('out/' + experiment_id + '.seq')
 \end{minted}
 
 
@@ -571,45 +567,71 @@ As a second option, a self defined phantom can be defined pixel-wise.
 Finally, the parameters can still be manipulated and are plotted.
 
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
- # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-from new_core.sim_data import SimData
+# %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
+sz = [64, 64]
 
-# (i) load a phantom object from file
 if 1:
-    obj_p = SimData.load('../data/phantom2D.mat')
-    obj_p = SimData.load('../data/numerical_brain_cropped.mat')
+    # (i) load a phantom object from file
+    # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
+    obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
+    obj_p = obj_p.interpolate(sz[0], sz[1], 1)
+    # Manipulate loaded data
+    obj_p.T2dash[:] = 30e-3
+    obj_p.D *= 0 
+    obj_p.B0 *= 1    # alter the B0 inhomogeneity
+    # Store PD and B0 for comparison
+    PD = obj_p.PD
+    B0 = obj_p.B0
 else:
-# or (ii) set phantom  manually to a pixel phantom
-    obj_p = torch.zeros((sz[0],sz[1],5)); 
-    
-    obj_p[7,25,:]=torch.tensor([1, 1, 0.1, 0, 1]) # dimensions: PD, T1 T2, T2dash, dB0 rB1
-    obj_p[7,23:29,:]=torch.tensor([1, 1, 0.1, 0, 1]) # dimensions: PD, T1 T2,T2dash, dB0 rB1
-    
-    obj_p=obj_p.permute(2,0,1)[:,:,:,None]
-    obj_p= SimData(obj_p[0,:],obj_p[0,:],obj_p[0,:],obj_p[0,:],obj_p[0,:]*0,torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),torch.ones(1,obj_p.shape[1],obj_p.shape[2],1),normalize_B0_B1= False)
-    obj_p = obj_p.resize(sz[0],sz[1],1)
-    
-# manipulate obj and plot it
-obj_p.B0*=1;
-obj_p.plot_sim_data()
+    # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
+    obj_p = mr0.CustomVoxelPhantom(
+        pos=[[-0.4, -0.4, 0], [-0.4, -0.2, 0],
+             [-0.3, -0.2, 0], [-0.2, -0.2, 0], [-0.1, -0.2, 0]],
+        PD=[1.0, 1.0, 0.5, 0.5, 0.5],
+        T1=1.0,
+        T2=0.1,
+        T2dash=0.1,
+        D=0.0,
+        B0=0,
+        voxel_size=0.1,
+        voxel_shape="box"
+    )
+    # Store PD for comparison
+    PD = obj_p.generate_PD_map()
+    B0 = torch.zeros_like(PD)
 
+obj_p.plot()
+# Convert Phantom into simulation data
+obj_p = obj_p.build()
 
 \end{minted}
 
 \subsubsection{S5: Run the simulation}
-The next section runs the simulation using the seq-file ex/out/external.seq and  the just defined phantom object obj\_p and plots the signal into the pulseq sequence schemes in the ADC plot.
+The next section runs the simulation using the seq-file ex/out/external.seq and  the just defined phantom object obj\_p and plots the signal into the Pulseq sequence schemes in the ADC plot.
 
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
-# %% S5: SIMULATE  the external.seq file and add acquired signal to ADC plot
-signal, _= sim_external(obj=obj_p, reco_sz=sz[0],plot_seq_k=[0,1])
-# plot the result into the ADC subplot
-sp_adc.plot(t_adc,np.real(signal.numpy()),t_adc,np.imag(signal.numpy()))
-sp_adc.plot(t_adc,np.abs(signal.numpy()))
+# %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
+# Read in the sequence
+seq_file = mr0.PulseqFile("out/external.seq")
+# seq_file.plot()
+seq0 = mr0.Sequence.from_seq_file(seq_file)
+seq0.plot_kspace_trajectory()
+# Simulate the sequence
+graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
+signal = mr0.execute_graph(graph, seq0, obj_p)
+
+# PLOT sequence with signal in the ADC subplot
+sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
 \end{minted}
 
 \subsubsection{S5b: Case of real MR scan}
-The external.seq file can also be directly executed at a real MR scanner, giving back teh same complex signal.
+The external.seq file can also be directly executed at a real MR scanner, giving back the same complex signal. Then the signal is obtained via the following code:
+
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+signal = util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
+\end{minted}
+This code expects that the seq file was send to an MRI scanner, played out, and that the data file was received back in the \\out folder.
 
 \subsubsection{S6: MR image reconstruction}
 Here the signal is rearranged and processed.
@@ -618,41 +640,63 @@ The complex image is plotted as magnitude and phase image.
 
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
 # %% S6: MR IMAGE RECON of signal ::: #####################################
-fig=plt.figure(); # fig.clf()
-plt.subplot(411); plt.title('ADC signal')
-spectrum=torch.reshape((signal),(Nphase,Nread)).clone().t()
-kspace=spectrum
-plt.plot(torch.real(signal),label='real')
-plt.plot(torch.imag(signal),label='imag')
+fig = plt.figure()  # fig.clf()
+plt.subplot(411)
+plt.title('ADC signal')
+spectrum = torch.reshape((signal), (Nphase, Nread)).clone().t()
+kspace = spectrum
+plt.plot(torch.real(signal), label='real')
+plt.plot(torch.imag(signal), label='imag')
 
 
-major_ticks = np.arange(0, Nphase*Nread, Nread) # this adds ticks at the correct position szread
-ax=plt.gca(); ax.set_xticks(major_ticks); ax.grid()
+# this adds ticks at the correct position szread
+major_ticks = np.arange(0, Nphase * Nread, Nread)
+ax = plt.gca()
+ax.set_xticks(major_ticks)
+ax.grid()
 
 space = torch.zeros_like(spectrum)
 
 # fftshift
-spectrum=torch.fft.fftshift(spectrum,0); spectrum=torch.fft.fftshift(spectrum,1)
-#FFT
+spectrum = torch.fft.fftshift(spectrum, 0)
+spectrum = torch.fft.fftshift(spectrum, 1)
+# FFT
 space = torch.fft.ifft2(spectrum)
 # fftshift
-space=torch.fft.ifftshift(space,0); space=torch.fft.ifftshift(space,1)
+space = torch.fft.ifftshift(space, 0)
+space = torch.fft.ifftshift(space, 1)
 
 
-plt.subplot(345); plt.title('k-space')
+plt.subplot(345)
+plt.title('k-space')
 plt.imshow(np.abs(kspace.numpy()))
-plt.subplot(349); plt.title('k-space_r')
+plt.subplot(349)
+plt.title('k-space_r')
 plt.imshow(np.log(np.abs(kspace.numpy())))
 
-plt.subplot(346); plt.title('FFT-magnitude')
-plt.imshow(np.abs(space.numpy())); plt.colorbar()
-plt.subplot(3,4,10); plt.title('FFT-phase')
-plt.imshow(np.angle(space.numpy()),vmin=-np.pi,vmax=np.pi); plt.colorbar()
+plt.subplot(346)
+plt.title('FFT-magnitude')
+plt.imshow(np.abs(space.numpy()))
+plt.colorbar()
+plt.subplot(3, 4, 10)
+plt.title('FFT-phase')
+plt.imshow(np.angle(space.numpy()), vmin=-np.pi, vmax=np.pi)
+plt.colorbar()
+
+# % compare with original phantom obj_p.PD
+plt.subplot(348)
+plt.title('phantom PD')
+plt.imshow(PD)
+plt.subplot(3, 4, 12)
+plt.title('phantom B0')
+plt.imshow(B0)
+
 
 \end{minted}
 
+\newpage
 
-\section{Application at real MRI scanner - Introduction of pulseq}
+\section{Application at real MRI scanner - Introduction of Pulseq}
 \vspace{7.5cm}
 	Pulseq is an open source framework for the development and execution of magnetic resonance (MR) pulse sequences for imaging and spectroscopy. In summary, MRI sequence can be programmed directly in MATLAB or Python and executed on real hardware.
     A central contribution of the pulseq project is an open file format to compactly describe MR sequences suitable for execution on an MRI scanner. The detailed file specification can be obtained on http://pulseq.github.io/.
@@ -907,12 +951,79 @@ The exercises are structured by sequence types:
 This file gives a quick overview over python, numpy, torch and plotting commands that are often used.
 At the end of the file some exercises with wrong code or code that doesn't run is given for you to fix.
 It is also helpful file to check weather all required packages are installed. 
+
 \subsection{ex\_help02\_pypylseq}
 This file gives a quick overview over pypulseq and how to load and plot .seq-files, and how to generate basic sequence objects with pypulseq and write a seq file.
 
+Hint: Blocks in Pulseq will always be played out after each other. If you want to play events out simultaneously you have to put them into the same block, separated by a comma.
+
+You cannot edit blocks, to alter the events, you have to either define new events before adding them in a block. Or you alter old events after a first block, to then add the altered event to a new block.
+
+\begin{enumerate}
+
+\item 	Try to generate the sequence as displayed in Figure \ref{fig:ex_help02}. 
+
+\end{enumerate}
+
+\begin{figure}[H] 
+\centering
+\includegraphics[width=10cm]{img/ex_help02_pypulseq.png}
+\caption{An arbitrary MR sequence. Try to generate it with pypulseq.} \label{fig:ex_help02}
+\end{figure}
+
+
+\subsubsection{Exact pulse timing}
+When generating an rf pulse and inspecting it carefully, you will realize, that it has additional properties.
+Just put the enter the rf name in the console:
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+namespace(type='rf',
+          signal=array([-2.17000952e-07, -1.73933907e-06, -5.88120996e-06, ...,
+                         0.00000000e+00,  0.00000000e+00,  0.00000000e+00]),
+          t=array([1.00000e-06, 2.00000e-06, 3.00000e-06, ..., 2.00998e-01,
+                   2.00999e-01, 2.01000e-01]),
+          freq_offset=0,
+          phase_offset=0,
+          dead_time=0.0001,
+          ringdown_time=2e-05,
+          delay=0.0005)
+\end{minted}
+and you get the delay, the dead time and the ringdown time.
+The delay is a delay before the pulse is played out, even if you requested a delay of 0 ms in the make\_sinc function, this delay is overwritten by either the dead time, or the rise time of the gradient, if it is a slice selective pulse (if it has a thickness).  The dead time is the time it takes the RF coil to switch between transmit and receive modes and is a security time where no events can be played out. Teh gradient rise time, depends on your gradient system, but typically your rf pulses are 0.5 ms delayed. 
+
+The ringdown time refers to the time period during which the RF coil continues to oscillate after the RF excitation pulse has been turned off. This ringing is due to the resonant nature of the RF coil, and can result in unwanted signals in the acquired data, leading to image artifacts.It counts as part of your pulse duration. 
+
+To calculate some important durations there exists some function:
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+rf.delay                    # delay before the start of the pulse due to dead time or gradient rise time
+ct=pp.calc_rf_center(rf)    # rf center time returns time and index of the center of the pulse
+ct[0]                       # this is the rf center time
+rf.ringdown_time            # this is the rf ringdown time after the rf pulse
+pp.calc_duration(rf)        # this is the rf duration including delay and ringdown time
+\end{minted}
+
+For a pulse with requested duration 1 ms the total duration
+
+is\textbf{ 0.00152 s} consisting of 
+\begin{itemize}
+    \item \textbf{0.00100 s}  requested duration
+    \item \textbf{0.00050 s} rf  delay
+    \item \textbf{0.00002 s} ringdown\_time
+\end{itemize}
+Further, calc\_rf\_center(rf1) tells us that 0.00050 s after the delay, we have the center of the pulse, this at 0.00100 s  after the start of the block.
+
+With this information you can now do the next exercises
+
+\begin{enumerate}
+\setcounter{enumi}{1}
+
+\item 	Create a sequence with a single rf pulse centered at exactly 0.1 s. 
+\item 	Create a second rf pulse exactly 0.2 s. 
+
+\end{enumerate}
+
 \newpage
 \subsection{ex01\_FID}
-This is  the simplest MR sequence that just consits of an ADC event and an rf excitation.
+This is  the simplest MR sequence that just consists of an ADC event and an rf excitation.
 
 \begin{enumerate}
 
@@ -1084,9 +1195,8 @@ This file starts from B01. We want now to create the 1D - fourier transform of t
 This is also called phase encoding. \\
 For this we need multiple phase encoding steps, thus we need multiple repetitions of our gradient echo sequence. The number of repetition steps is equal to the number of phase encoding steps, which is why we call this number Nphase.
 \begin{enumerate}
-\item  Use the same rf and gradient blocks in every repetition, add a recovery time at the end of each repetition.
-\item  What is the recovery time needed to have same echo amplitudes? is there a general rule for this? 
-\item  Set Nphase = 12 and comment out the frequency encoding gradients, you should get an approximately constant signal in every repetition.
+\item  Use the same rf and gradient blocks in every repetition, add a recovery time at the end of each repetition. What is the recovery time needed to have same echo amplitudes? is there a general rule for this? 
+\item  Comment out the frequency encoding gradients, if not already done. You should get an approximately constant signal in every repetition.
 \item Now add phase encoding gradients in y-direction; they are not played out during the ADC, but before, like a re-winder. Give each repetition a different phase encoding gradient moment. Now you should see an echo along the repetition dimension or phase encoding dimension. Try to center the echo again.
 
 \item As every repetition has Nread samples, create a loop over Nread to generate the Fourier transform along Nphase, or every sampling point in read direction. Compare your result to the upsampled phantom:
