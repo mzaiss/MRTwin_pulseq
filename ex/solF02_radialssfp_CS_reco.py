@@ -1,19 +1,22 @@
 # %% S0. SETUP env
-from skimage.restoration import denoise_tv_chambolle
-import pywt
-import MRzeroCore as mr0
-import pypulseq as pp
-import numpy as np
-import torch
 from matplotlib import pyplot as plt
+
+import MRzeroCore as mr0
+import numpy as np
+import pypulseq as pp
+
+import h5py
+import pywt
+import torch
 import util
 
 # makes the ex folder your working directory
 import os
+# get the current dir of this file
+DIR = os.path.dirname(os.path.realpath(__file__))
+
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
 experiment_id = 'exF02_undersampled_radial'
-
 
 # %% S1. SETUP sys
 
@@ -24,16 +27,15 @@ system = pp.Opts(
     adc_dead_time=20e-6, grad_raster_time=50 * 10e-6
 )
 
-
 # %% S2. DEFINE the sequence
 seq = pp.Sequence()
 
 # Define FOV and resolution
 fov = 1000e-3
 slice_thickness = 8e-3
-sz = (64, 64)   # spin system size / resolution
-Nread = 64    # frequency encoding steps/samples
-Nphase = 32    # phase encoding steps/samples
+sz = (128, 128) # spin system size / resolution
+Nread = sz[0]   # frequency encoding steps/samples
+Nphase = 31     # phase encoding steps/samples - number of radial spokes
 
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
@@ -110,8 +112,6 @@ seq.write('out/' + experiment_id + '.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-sz = [64, 64]
-
 if 1:
     # (i) load a phantom object from file
     # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
@@ -154,210 +154,128 @@ signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal in the ADC subplot
 sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
- 
- 
 
 kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t()
 
-if 0:  # FFT
-    # fftshift
-    spectrum = torch.fft.fftshift(kspace_adc)
-    # FFT
-    space = torch.fft.ifft2(spectrum)
-    # fftshift
-    space = torch.fft.ifftshift(space)
+# %% S6:. NUFFT reconstruction with density compensation
+# Zhengguo Tan <zhengguo.tan@gmail.com>
+
+print('> NUFFT recon with density compensation function')
+
+import torchkbnufft as tkbn
+
+# traj
+traj = torch.reshape(kspace_loc, (Nphase, Nread, kspace_loc.shape[-1]))
+traj = traj[..., :2]
+
+traj = traj/Nread * np.pi * 2
+traj = torch.reshape(traj, (-1, 2)).transpose(1, 0)
+
+# compute density compensation function
+dcf = (traj[0, ...]**2 + traj[1, ...]**2)**0.5
+dcf = dcf.reshape(1, -1).repeat(2, 1).transpose(1, 0)
+
+# kdat
+kdat = torch.view_as_real(kspace_adc.transpose(1, 0))
+kdat = torch.reshape(kdat, (1, 1, -1, 2))
+
+img_shape = [Nread] * 2
+
+# define nufft adjoint operator
+nufft_adj = tkbn.KbNufftAdjoint(im_size=img_shape)
+
+recon_nufft = nufft_adj(kdat * dcf, traj)
+
+print('nufft_adj -> image shape: ', recon_nufft.shape)
 
 
-if 1:  # NUFFT
-    import scipy.interpolate
-    grid = kspace_loc[:, :2]
-    Nx = 64
-    Ny = 64
+# define nufft forward operator
+nufft_fwd = tkbn.KbNufft(im_size=img_shape)
 
-    X, Y = np.meshgrid(np.linspace(0, Nx - 1, Nx) - Nx / 2,
-                       np.linspace(0, Ny - 1, Ny) - Ny / 2)
-    grid = np.double(grid.numpy())
-    grid[np.abs(grid) < 1e-3] = 0
+R = recon_nufft.cpu().detach().numpy()
 
-    plt.subplot(347)
-    plt.plot(grid[:, 0].ravel(), grid[:, 1].ravel(), 'rx', markersize=3)
-    plt.plot(X, Y, 'k.', markersize=2)
-    plt.show()
+R1 = R[..., 0] + 1j * R[..., 1]
+R1 = np.flip(np.swapaxes(R1, -1, -2), -2)
 
-    spectrum_resampled_x = scipy.interpolate.griddata(
-        (grid[:, 0].ravel(), grid[:, 1].ravel()),
-        np.real(signal.ravel()), (X, Y), method='cubic'
-    )
-    spectrum_resampled_y = scipy.interpolate.griddata(
-        (grid[:, 0].ravel(), grid[:, 1].ravel()),
-        np.imag(signal.ravel()), (X, Y), method='cubic'
-    )
+# %% S7:. Compressed Sensing reconstruction for radial sampling
+# Zhengguo Tan <zhengguo.tan@gmail.com>
 
-    kspace_r = spectrum_resampled_x+1j*spectrum_resampled_y
-    kspace_r[np.isnan(kspace_r)] = 0
+print('> Compressed sensing recon for radial sampled data')
 
-    # k-space sampling pattern needed for the CS algorithms
-    pattern_resampled = np.zeros([sz[0], sz[1]])
-    gridx = grid[:, 0].ravel()
-    gridy = grid[:, 1].ravel()
-    for ii in range(len(gridx)):
-        pattern_resampled[int(gridx[ii]), int(gridy[ii])] = 1
-    plt.imshow(pattern_resampled)
-    plt.show()
-    # end sampling pattern
+def soft_thresh(input, lamda):
+
+    abs_input = abs(input)
+
+    sign = np.true_divide(input, abs_input,
+                          out=np.zeros_like(input), where=abs_input!=0)
+
+    magn = abs_input - lamda
+    magn = (abs(magn) + magn) / 2
+
+    return magn * sign
 
 
-# %% ##########################################################################
-## S6: compressed sensing MR reconstruction of undersampled signal
-# S6.1: function definitions
+def prox_wav(input, lamda):
+
+    if torch.is_tensor(input):
+        input = input.cpu().detach().numpy()
+
+    # pywt outputs numpy arrays
+    cA, (cH, cV, cD) = pywt.dwt2(input, 'db4')
+
+    cA_t = soft_thresh(cA, lamda)
+    cH_t = soft_thresh(cH, lamda)
+    cV_t = soft_thresh(cV, lamda)
+    cD_t = soft_thresh(cD, lamda)
+
+    wav_coef = cA_t, (cH_t, cV_t, cD_t)
+
+    output = pywt.idwt2(wav_coef, 'db4')
+
+    return torch.tensor(output)
 
 
-def shrink(coeff, epsilon):
-    shrink_values = (abs(coeff) < epsilon)
-    high_values = coeff >= epsilon
-    low_values = coeff <= -epsilon
-    coeff[shrink_values] = 0
-    coeff[high_values] -= epsilon
-    coeff[low_values] += epsilon
+# compute maximal eigenvalue:
+x = torch.randn(size=recon_nufft.shape, dtype=recon_nufft.dtype)
+for n in range(30):
+    y = nufft_adj(nufft_fwd(x, traj), traj)
+    max_eig = torch.linalg.norm(y).ravel()
+    x = y / max_eig
+
+    print(max_eig)
 
 
-# help?
-# https://www2.isye.gatech.edu/~brani/wp/kidsA.pdf
-for family in pywt.families():
-    print("%s family: " % family + ', '.join(pywt.wavelist(family)))
+# Gradient method
+Niter = 200
 
-print(pywt.Wavelet('haar'))
+alpha = (1 / max_eig).cpu().detach().numpy().item()
+lamda = 0.001
 
+x = torch.zeros_like(recon_nufft)
 
-def waveletShrinkage(current, epsilon):
-    # Compute Wavelet decomposition
-    cA, (cH, cV, cD) = pywt.dwt2(current, 'haar')
-    # Shrink
-    shrink(cA, epsilon)
-    shrink(cH, epsilon)
-    shrink(cV, epsilon)
-    shrink(cD, epsilon)
-    wavelet = cA, (cH, cV, cD)
-    # return inverse WT
-    return pywt.idwt2(wavelet, 'haar')
+for n in range(Niter):
 
+    x_old = x.clone()
 
-def updateData(k_space, pattern, current, step, i):
-    # go to k-space
-    update = np.fft.ifft2(np.fft.fftshift(current))
-    # compute difference
-    update = k_space - (update * pattern)
-    print("i: {}, consistency RMSEpc: {:3.6f}".format(
-        i, np.abs(update[:]).sum()*100))
-    # return to image space
-    update = np.fft.fftshift(np.fft.fft2(update))
-    # improve current estimation by consitency
-    update = current + (step * update)
-    return update
+    r = nufft_fwd(x, traj) - kdat
+    g = nufft_adj(r, traj)
+
+    x = prox_wav(x - alpha * g, alpha * lamda)
+
+    resid = (torch.linalg.norm(x - x_old).ravel()).ravel()
+
+    print('> iter ' + str(n).zfill(4) + ' residuum ' + str(resid[0]))
 
 
-# S6.2: preparation and conventional fully sampled reconstruction
+R2 = torch.view_as_complex(x).cpu().detach().numpy()
+R2 = np.flip(np.swapaxes(R2, -1, -2), -2)
 
-# high  frequencies centered as FFT needs it
-kspace_full = np.fft.ifftshift(kspace_r)
+f, ax = plt.subplots(1, 2, figsize=(12, 6))
+ax[0].imshow(abs(np.squeeze(R1)), cmap='gray')
+ax[0].set_title('NUFFT')
 
-kspace = kspace_full
-# fully sampled recon
-recon_nufft = (np.fft.fftshift(np.fft.fft2(kspace_full)))
+ax[1].imshow(abs(np.squeeze(R2)), cmap='gray')
+ax[1].set_title('Compressed Sensing')
 
-
-# %% S6.3 undersampling and undersampled reconstruction
-# kspace_full= kspace_full/ np.linalg.norm(kspace_full[:])   # normalization of the data somethimes helps
-
-# parameters of iterative reconstructio using total variation denoising
-denoising_strength = 5e-5
-number_of_iterations = 8000
-
-# parameters of random subsampling pattern
-# percent = 0.25        # this is the amount of data that is randomly measured
-# square_size = 16      # size of square in center of k-space
-
-
-# # generate a random subsampling pattern
-# np.random.seed(np.random.randint(100))
-# pattern = np.random.random_sample(kspace.shape)
-# pattern=pattern<percent  # random data
-
-# pattern[sz[0]//2-square_size//2:sz[0]//2+square_size//2,sz[0]//2-square_size//2:sz[0]//2+square_size//2] = 1   # square in center of k-space
-# pattern = np.fft.fftshift(pattern) # high  frequencies centered as kspace and as FFT needs it
-
-pattern = pattern_resampled
-
-kspace = kspace_full * pattern  # apply the undersampling pattern
-
-# calculate the actually measured data in percent
-actual_measured_percent = np.count_nonzero(pattern) / pattern.size * 100
-
-# actual iterative reconstruction algorithm
-current = np.zeros(kspace.size).reshape(kspace.shape)
-current_shrink = np.zeros(kspace.size).reshape(kspace.shape)
-first = updateData(kspace, pattern, current, 1, 0)
-current_shrink = first
-all_iter = np.zeros((kspace.shape[0], kspace.shape[1], number_of_iterations))
-
-i = 0
-while i < number_of_iterations:
-    current = updateData(kspace, pattern, current_shrink, 0.1, i)
-
-    current_shrink = denoise_tv_chambolle(abs(current), denoising_strength)
-    # current_shrink = waveletShrinkage(abs(current), denoising_strength)
-
-    all_iter[:, :, i] = current
-    i = i + 1
-
-# Plotting
-
-pattern_vis = np.fft.fftshift(pattern * 256)
-
-fig = plt.figure(dpi=90)
-plt.subplot(321)
-plt.set_cmap(plt.gray())
-plt.imshow(abs(recon_nufft))
-plt.ylabel('recon_full')
-plt.subplot(322)
-plt.set_cmap(plt.gray())
-plt.imshow(abs(pattern_vis))
-plt.ylabel("pattern_vis")
-plt.title("{:.1f} % sampled".format(actual_measured_percent))
-plt.subplot(323)
-plt.set_cmap(plt.gray())
-plt.imshow(abs(first))
-plt.ylabel('first iter (=NUFFT)')
-plt.subplot(325)
-plt.set_cmap(plt.gray())
-plt.imshow(abs(current_shrink))
-plt.ylabel('final recon')
-plt.subplot(324)
-plt.set_cmap(plt.gray())
-plt.imshow(np.log(abs(np.fft.fftshift(kspace_full))))
-plt.ylabel('kspace_nufft')
-plt.subplot(326)
-plt.set_cmap(plt.gray())
-plt.imshow(np.log(abs(np.fft.fftshift((kspace)))))
-plt.ylabel('kspace*pattern')
-plt.show()
-
-
-# %% Plot all iter
-# make 25 example iterations
-idx = np.linspace(1, all_iter.shape[2], 25) - 1
-# choose them from all iters
-red_iter = all_iter[:, :, tuple(idx.astype(int))]
-Tot = red_iter.shape[2]
-Rows = Tot // 5
-if Tot % 5 != 0:
-    Rows += 1
-Position = range(1, Tot + 1)  # Position index
-
-fig = plt.figure()
-for k in range(Tot):
-    ax = fig.add_subplot(Rows, 5, Position[k])
-    ax.imshow((abs((red_iter[:, :, k]))))
-    plt.title('iter {}'.format(idx[k].astype(int)))
-    print(k)
-plt.show()
+plt.savefig(DIR + '/' + experiment_id + '.png',
+            bbox_inches='tight', pad_inches=0, dpi=300)
