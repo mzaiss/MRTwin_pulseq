@@ -31,7 +31,7 @@ fov = 1000e-3
 slice_thickness = 8e-3
 
 Nread = 128    # frequency encoding steps/samples
-Nphase = 32    # phase encoding steps/samples
+Nphase = 16    # phase encoding steps/samples
 
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
@@ -63,6 +63,8 @@ for ii in range(-Nphase // 2, Nphase // 2 - 1):  # e.g. -64:63
     seq.add_block(adc)
     seq.add_block(pp.make_delay(1e-3))
 
+# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
+seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
@@ -107,8 +109,8 @@ else:
         pos=[[-0.4, -0.4, 0], [-0.4, -0.2, 0], [-0.3, -0.2, 0], [-0.2, -0.2, 0], [-0.1, -0.2, 0]],
         PD=[1.0, 1.0, 0.5, 0.5, 0.5],
         T1=1.0,
-        T2=0.1,
-        T2dash=0.1,
+        T2=0.5,
+        T2dash=0.01,
         D=0.0,
         voxel_size=0.1,
         voxel_shape="box"
