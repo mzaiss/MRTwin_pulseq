@@ -145,7 +145,7 @@ seq_file = mr0.PulseqFile("out/external.seq")
 # seq_file.plot()
 seq0 = mr0.Sequence.from_seq_file(seq_file)
 seq0.plot_kspace_trajectory()
-kspace_loc = seq.get_kspace()
+kspace_loc = seq0.get_kspace()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)

@@ -40,7 +40,7 @@ If not already installed you also need pypulseq, numpy, scipy and matplotlib.
 
 The can be installed with
 ```
-pip install pypulseq
+pip install pypulseq==1.3.1.post1
 pip install numpy
 pip install scipy
 pip install matplotlib

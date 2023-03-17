@@ -25,6 +25,10 @@ rf, _, _ = pp.make_sinc_pulse(
     flip_angle=90.0 * np.pi / 180, duration=2e-3, slice_thickness=8e-3,
     apodization=0.5, time_bw_product=4, system=system, return_gz=True
 )
+rf2, _, _ = pp.make_sinc_pulse(
+    flip_angle=120.0 * np.pi / 180, duration=2e-3, slice_thickness=8e-3,
+    apodization=0.5, time_bw_product=4, system=system, return_gz=True
+)
 # rf1, _, _ = pp.make_block_pulse(
 #     flip_angle=90 * np.pi / 180, duration=1e-3, system=system, return_gz=True
 # )
@@ -38,9 +42,12 @@ del15 = pp.make_delay(0.0015)
 seq.add_block(del15)
 seq.add_block(rf)
 seq.add_block(gx_pre)
-seq.add_block(adc, gx)
+seq.add_block(gx)
+seq.add_block(gx)
+seq.add_block(gx_pre)
+seq.add_block(rf2)
+seq.add_block(gx,gx_pre,adc)
 
-seq.plot()
 # PLOT sequence
 util.pulseq_plot(seq)
 
@@ -62,14 +69,14 @@ seq.set_definition('Name', 'test')
 seq.write('out/external.seq')
 
 
+
 # %% LOAD and PLOT a sequence   .seq
 seq = pp.Sequence()
 
 seq.read('out/external.seq')
 
 seq.plot()
-# PLOT sequence
-util.pulseq_plot(seq)
+
 
 
 # %% Exact pulse timing
@@ -97,6 +104,12 @@ rf, _, _ = pp.make_sinc_pulse(
     delay=0.0, system=system, return_gz=True
 )
 
+rf2, _, _ = pp.make_sinc_pulse(
+    flip_angle=1 * np.pi / 180, duration=2e-3,
+    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
+    delay=0.0, system=system, return_gz=True
+)
+
 # what i want: an RF pulse at exactly 0.1
 
 rf.delay                    # delay before the start of the pulse due to dead time or gradient rise time
@@ -118,15 +131,28 @@ print("%0.5f" %(ct[0]), "s after the delay, we have the center of the pulse, thu
 print("%0.5f" %(ct[0]+rf.delay), "s after the start of the block"  )                # this is the rf center time
 
 
-delay1=pp.make_delay(.10)
+# delay1=pp.make_delay(.10)
 # delay1=pp.make_delay(.10 - rf.delay)
-# delay1=pp.make_delay(.10 - rf.delay - ct[0])
+delay1=pp.make_delay(.10 - rf.delay - ct[0])
+
+# we know the pulse ends at  0.1 + pp.calc_duration(rf) -rf.delay - ct[0]
+# for the second pulse we have again to remove -rf.delay - ct[0]  to center it at teh additional 0.1
+# for the same pulse (same duration) this is aleady done when we just remove the first pp.calc_duration(rf)
+# thus
+delay2=pp.make_delay(.10 - pp.calc_duration(rf) )
+
+# or detailed ( and for a different rf pulse)
+ct2=pp.calc_rf_center(rf2)    # rf center time returns time and index of the center of the pulse
+delay2=pp.make_delay(.10 - pp.calc_duration(rf) +rf.delay + ct[0]    -rf2.delay - ct2[0])
+
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
 seq.add_block(delay1)
 seq.add_block(rf)
+seq.add_block(delay2)
+seq.add_block(rf2)
 
 
 # # Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event

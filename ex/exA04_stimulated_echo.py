@@ -71,6 +71,8 @@ seq.add_block(rf3)
 seq.add_block(adc2)
 seq.add_block(adc2)
 
+# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
+seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
