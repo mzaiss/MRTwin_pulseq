@@ -2,8 +2,18 @@
 
 # MRTwin sequence programming and simulation framework
 MRTwin is a tool to code sequences manually and simulate MR images using the included Bloch simulation. 
-The Documentation/Script of the course can be generated from the tex files in /script or downloaded from https://www.studon.fau.de/studon/goto.php?target=crs_2819947 .
+The Documentation/Script of the course is in /script.
 It covers A : basic echoes in 1D, B : gradient echo encoding and fast GRE MRI, C : spin echo and RARE, D : balanced SSFP, E : exporting and scanning at a real MRI system, F : non-cartesian trajectories, undersampling and reconstruction.
+
+## Course setup
+The course format is full time two weeks. 
+We meet  daily from 9:30 am to 5:30 pm (CET).
+The first week is very interactive, with small inputs, and interleaved exercises and discussion of them.
+The second week is more independent.
+
+For virtual attendence read the [README_VIRTUAL.md](README_VIRTUAL.md).
+
+
 
 ## Installation
 Check the readmes for your system:
