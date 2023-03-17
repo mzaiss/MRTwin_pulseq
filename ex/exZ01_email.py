@@ -21,11 +21,11 @@ hint: https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.24158
 
 Z01.3. Diffusion
 GRE DWI and spin echo DWI
-hint: any textbook and Jonathan Endres for simulation
+hint: any textbook 
 https://blog.ismrm.org/2017/06/06/dwe-part-2/ 
 
 Z01.4. B0 mapping  
-hint: FLASH phase maps, any text book
+hint: FLASH phase maps, any text book, sequence duration must not exceed 10 s
 
 Z01.5. B1 mapping  
 hint: Double angle https://onlinelibrary.wiley.com/doi/10.1002/mrm.20896 or (cosine fit)
@@ -54,6 +54,14 @@ any textbook and https://pulseq.github.io/, reuse radial reco
 Z01.10  silent EPI -   cosine 
 hint: Fig 2 in https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5836719/, reuse radial reco
 
-Z01.11:  compressed sensing radial MRI
+Z01.11:  compressed sensing undersampled cartesian MRI
 hint: exercise F01 F02, Studon Hoppe-Script, 
+
+Z01.12. HASTE sequence - POCS algorithm
+hint: textbook and https://mriquestions.com/partial-fourier.html
+
+Z01.13:  WASABI MRI - advanced https://doi.org/10.1002/mrm.26133
+hint: add new analytic simulation block before simulation
+
+
 

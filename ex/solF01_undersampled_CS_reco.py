@@ -3,6 +3,7 @@ from skimage.restoration import denoise_tv_chambolle
 import pywt
 import MRzeroCore as mr0
 import numpy as np
+import pypulseq as pp
 from matplotlib import pyplot as plt
 
 # makes the ex folder your working directory

@@ -56,8 +56,6 @@ Z02.1. Display all Spins as a vector or many vectors
 Z02.2. Display all Spins as a vector or many vectors, and animate this during a sequence
 
 
-
-
 """
 
 Tuesday to Thirsday 
@@ -67,24 +65,3 @@ Tuesday to Thirsday
 Excursion Henkestrasse 91 ALDI other side of the street
 
  
-Monday 16:00
-
-Von Atrija Singh an alle 02:57 PM
-+1
-Von Jonas Petersen an alle 02:57 PM
-
-Von Navaneeth Narayanan an alle 02:57 PM
-
-Von Abul Kasem Mohammad Zunayed an alle 02:57 PM
-
-
-Monday 17:00
- 
-Von Tim Baum an alle 02:57 PM
-
-Von nandan kulkarni an alle 02:58 PM
-+1
-Von Simon Koch an alle 02:58 PM
-+1
-Von Andrey Chubarov an alle 02:58 PM
-
