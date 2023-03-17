@@ -131,18 +131,18 @@ print("%0.5f" %(ct[0]), "s after the delay, we have the center of the pulse, thu
 print("%0.5f" %(ct[0]+rf.delay), "s after the start of the block"  )                # this is the rf center time
 
 
-#delay1=pp.make_delay(.10)
+# delay1=pp.make_delay(.10)
 # delay1=pp.make_delay(.10 - rf.delay)
 delay1=pp.make_delay(.10 - rf.delay - ct[0])
 
 # we know the pulse ends at  0.1 + pp.calc_duration(rf) -rf.delay - ct[0]
-# for the second pulse we have again to remove -rf.delay - ct[0]  to center it at teh additioal 0.1
-# as this is aleady done when we just remove the first pp.calc_duration(rf)
+# for the second pulse we have again to remove -rf.delay - ct[0]  to center it at teh additional 0.1
+# for the same pulse (same duration) this is aleady done when we just remove the first pp.calc_duration(rf)
 # thus
 delay2=pp.make_delay(.10 - pp.calc_duration(rf) )
 
 # or detailed ( and for a different rf pulse)
-ct2=pp.calc_rf_center(rf)    # rf center time returns time and index of the center of the pulse
+ct2=pp.calc_rf_center(rf2)    # rf center time returns time and index of the center of the pulse
 delay2=pp.make_delay(.10 - pp.calc_duration(rf) +rf.delay + ct[0]    -rf2.delay - ct2[0])
 
 
