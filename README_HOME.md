@@ -1,7 +1,7 @@
 # MRTwin_pulseq for your home system
 
 ##  Get the MRTwin_pulseq package
- - If you are familiar to git you can run: ``git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git``
+ - If you are familiar to git you can run: ``git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git --depth 1``
  - If not, you can download the code as zip file and extract it somewhere
     - Download the zip file here https://github.com/mzaiss/MRTwin_pulseq/archive/refs/heads/mr0-core.zip
     - Alternatively, go to https://github.com/mzaiss/MRTwin_pulseq switch to the ``mr0-core`` branch on the top left and click on the ``Code`` button, then download zip.
@@ -44,7 +44,7 @@ If not already installed you also need pypulseq, torchkbnufft, numpy, scipy and 
 The can be installed with
 ```
 pip install pypulseq==1.3.1.post1
-pip install torchkbnufft==1.3.0
+pip install torchkbnufft==1.3.0 --no-deps
 pip install numpy
 pip install scipy
 pip install matplotlib

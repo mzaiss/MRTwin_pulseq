@@ -26,6 +26,7 @@ from torch import optim
 import matplotlib
 import matplotlib.pyplot as plt
 import MRzeroCore as mr0   # if this does drop an error, read again the readme.
+import pypulseq as pp   # if this does drop an error, read again the readme.
 import torchkbnufft
 
 # to test if all your versions are fine, tested before were:
@@ -33,6 +34,7 @@ print(f"torch.__version__ : {torch.__version__}; tested 1.10.2")
 print(f"np.__version__ : {np.__version__ }; tested 1.20.3")
 print(f"scipy.__version__: {scipy.__version__}; tested 1.5.2")
 print(f"matplotlib.__version__ : {matplotlib.__version__}; tested 3.4.3")
+print(f"pp.major.minor.revision : {pp.major}.{pp.minor}.{pp.revision}; tested 1.3.1post1")
 print(f"torchkbnufft.__version__:  : {torchkbnufft.__version__}; tested 1.3.0")
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
