@@ -84,9 +84,8 @@ if 0:
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data
-        obj_p.B0 *= 1    # alter the B0 inhomogeneity
-    obj_p.D *= 0 
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
+    obj_p.D *= 0 
 else:
     # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
     obj_p = mr0.CustomVoxelPhantom(
@@ -96,6 +95,7 @@ else:
         T2=[0.5],
         T2dash=[30e-3],
         D=[0.0],
+        B0=0,
         voxel_size=0.1,
         voxel_shape="box"
     )
