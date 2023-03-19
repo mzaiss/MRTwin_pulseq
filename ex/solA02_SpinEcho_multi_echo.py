@@ -72,7 +72,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False)
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False, figid=(11,12))
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
@@ -89,7 +89,8 @@ if 0:
     # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
-    # Manipulate loaded data    obj_p.B0 *= 1    # alter the B0 inhomogeneity
+    # Manipulate loaded data
+    obj_p.B0 *= 1    # alter the B0 inhomogeneity
     obj_p.D *= 0 
 else:
     # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
@@ -122,7 +123,7 @@ graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal
-sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
 
 
 # %%  FITTING BLOCK - work in progress

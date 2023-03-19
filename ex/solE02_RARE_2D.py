@@ -51,12 +51,11 @@ rf2, gz180, _ = pp.make_sinc_pulse(
 )
 # rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
-rf2.delay = 0
 # Define other gradients and ADC events
 gx = pp.make_trapezoid(channel='x', flat_area=Nread / fov, flat_time=2e-3, system=system)
 adc = pp.make_adc(num_samples=Nread, duration=2e-3, phase_offset=90 * np.pi / 180, delay=gx.rise_time, system=system)
-gx_pre0 = pp.make_trapezoid(channel='x', area=+(1.0 + 3.0) * gx.area / 2, duration=1e-3, system=system)
-gx_prewinder = pp.make_trapezoid(channel='x', area=+3.0 * gx.area / 2, duration=1e-3, system=system)
+gx_pre0 = pp.make_trapezoid(channel='x', area=+(1.0 + 2.0) * gx.area / 2, duration=1e-3, system=system)
+gx_prewinder = pp.make_trapezoid(channel='x', area=+2.0 * gx.area / 2, duration=1e-3, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE
@@ -83,8 +82,8 @@ for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
     seq.add_block(rf2, gz180)
 
     seq.add_block(pp.make_delay(0.0001))
-    gp = pp.make_trapezoid(channel='y', area=ii / fov * 0, duration=1e-3, system=system)
-    gp_ = pp.make_trapezoid(channel='y', area=-ii / fov * 0, duration=1e-3, system=system)
+    gp = pp.make_trapezoid(channel='y', area=ii / fov , duration=1e-3, system=system)
+    gp_ = pp.make_trapezoid(channel='y', area=-ii / fov , duration=1e-3, system=system)
     seq.add_block(gx_prewinder, gp)
     seq.add_block(adc, gx)
     seq.add_block(gx_prewinder, gp_)
@@ -101,7 +100,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False)
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False, figid=(11,12))
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
@@ -154,6 +153,7 @@ use_simulation = True
 if use_simulation:
     seq_file = mr0.PulseqFile("out/external.seq")
     seq0 = mr0.Sequence.from_seq_file(seq_file)
+    seq0.plot_kspace_trajectory()
     graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
     signal = mr0.execute_graph(graph, seq0, obj_p)
 
@@ -161,7 +161,8 @@ else:
     signal = util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
 
 # PLOT sequence with signal in the ADC subplot
-sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
+plt.close(11);plt.close(12)
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
  
  
 

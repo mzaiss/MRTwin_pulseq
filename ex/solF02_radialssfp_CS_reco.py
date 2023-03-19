@@ -102,7 +102,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False)
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False, figid=(11,12))
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
@@ -153,7 +153,8 @@ graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal in the ADC subplot
-sp_adc, t_adc = util.pulseq_plot(seq, clear=True, signal=signal.numpy())
+plt.close(11);plt.close(12)
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
 
 kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t()
 

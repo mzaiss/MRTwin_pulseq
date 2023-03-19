@@ -45,7 +45,7 @@ def get_signal_from_real_system(path, NRep, NCol):
 
 # This plot function is a modified version from the one provided by
 # pypulseq 1.2.0post1, all changes are marked
-def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), time_disp: str = 's', clear=False, signal=0):
+def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), time_disp: str = 's', clear=False, signal=0, figid=(1,2)):
     """
     Plot `Sequence`.
     Parameters
@@ -65,7 +65,7 @@ def pulseq_plot(seq: Sequence, type: str = 'Gradient', time_range=(0, np.inf), t
     if time_disp not in valid_time_units:
         raise Exception()
 
-    fig1, fig2 = plt.figure(1), plt.figure(2)
+    fig1, fig2 = plt.figure(figid[0]), plt.figure(figid[1])
 
 # >>>> This is changed compared to pypulseq 1.2
     fig1_sp_list = fig1.get_axes()
