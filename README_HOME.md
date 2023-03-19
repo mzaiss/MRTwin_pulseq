@@ -39,11 +39,12 @@ In addition to python some extension packages are required like Pytorch. Install
  not yet supported
 ```
 
-If not already installed you also need pypulseq, numpy, scipy and matplotlib.
+If not already installed you also need pypulseq, torchkbnufft, numpy, scipy and matplotlib.
 
 The can be installed with
 ```
 pip install pypulseq==1.3.1.post1
+pip install torchkbnufft==1.3.0
 pip install numpy
 pip install scipy
 pip install matplotlib
@@ -56,6 +57,7 @@ pip install matplotlib
  -  np.__version__ 	 : '1.18.1'    and  '1.19.2'
  -  scipy.__version__: '1.4.1'     and  '1.5.2'
  -  matplotlib.__version__: '3.1.1'
+ -  torchkbnufft.__version__: '1.3.0'
 
 You can also run file ./ex/ex_help01_python.py to test versions.
 

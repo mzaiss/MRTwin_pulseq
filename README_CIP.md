@@ -13,6 +13,7 @@ run the following commands in a terminal in your home folder (the same folder wh
 module load python3/anaconda-2022.05
 pip install MRTwin_pulseq/data/MRzeroCore-0.1.0-cp39-cp39-manylinux_2_28_x86_64.whl --force-reinstall
 pip install pypulseq==1.3.1.post1
+pip install torchkbnufft==1.3.0
 ```
 
 ### Start spyder
