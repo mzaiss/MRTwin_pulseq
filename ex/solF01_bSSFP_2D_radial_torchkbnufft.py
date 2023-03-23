@@ -207,6 +207,7 @@ R = recon_nufft.cpu().detach().numpy()
 
 R1 = R[..., 0] + 1j * R[..., 1]
 R1 = np.flip(np.swapaxes(R1, -1, -2), -2)
+R1 = np.squeeze(R1)
 
 
 plt.subplot(345)
