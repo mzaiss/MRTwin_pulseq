@@ -29,8 +29,8 @@ seq = pp.Sequence()
 # Define FOV and resolution
 fov = 1000e-3
 slice_thickness = 8e-3
-sz = (128, 128)   # spin system size / resolution
-Nread = 128    # frequency encoding steps/samples
+sz = (64, 64)   # spin system size / resolution
+Nread = 64    # frequency encoding steps/samples
 Nphase = 61    # phase encoding steps/samples - number of spokes
 
 # Define rf events
@@ -160,6 +160,7 @@ signal = mr0.execute_graph(graph, seq0, obj_p)
 plt.close(11);plt.close(12)
 sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
 
+kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t()
 
 # %% S6:. NUFFT reconstruction with density compensation
 # Zhengguo Tan <zhengguo.tan@gmail.com>
@@ -167,48 +168,40 @@ sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t()
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
-
 print('> NUFFT recon with density compensation function')
 
 import torchkbnufft as tkbn
-
-# traj
-traj = torch.reshape(kspace_loc, (Nphase, Nread, kspace_loc.shape[-1]))
-traj = traj[..., :2]
-
-traj = traj/Nread * np.pi * 2
-traj = torch.reshape(traj, (-1, 2)).transpose(1, 0)
-
-# compute density compensation function
-dcf = (traj[0, ...]**2 + traj[1, ...]**2)**0.5
-dcf = dcf.reshape(1, -1).repeat(2, 1).transpose(1, 0)
-
-# kdat
-kdat = torch.view_as_real(kspace_adc.transpose(1, 0))
-kdat = torch.reshape(kdat, (1, 1, -1, 2))
-
 img_shape = [Nread] * 2
+
+# prepare k-space trajectory traj
+traj = kspace_loc[:, :2].T  # tkbn assumes xy in the first dim, thus .T
+traj = traj / Nread * np.pi * 2 # normalize k-space trajectory from -kmax to kmax to -pi to pi for tkbn
+
+if 0:# compute density compensation function manually
+    dcf = (traj[0,:]**2 + traj[1,:]**2)**0.5 # density compensation factor
+    print(dcf.shape,'should be: [num_samples]')
+else:# calculate density compensation function using  tkbn.calc_density_compensation_function
+    dcf = tkbn.calc_density_compensation_function(ktraj=traj, im_size=img_shape)
+    print(dcf.shape,'should be: [batch_size, num_coils,num_samples]')
+
+# prepare kdat
+kdat = signal.squeeze()
+print(kdat.shape,'should be: [num_samples]') # should be num_samples
+
+# Reshape kdat and dcf: (1, 1, num_samples) -> (batch_size, num_coils, num_samples) for adjoint
+kdat = kdat.reshape(1, 1, -1)
+dcf = dcf.reshape(1, 1, -1)
 
 # define nufft adjoint operator
 nufft_adj = tkbn.KbNufftAdjoint(im_size=img_shape)
-
-recon_nufft = nufft_adj(kdat * dcf, traj)
+recon_nufft = nufft_adj(kdat*dcf , traj)
 
 print('nufft_adj -> image shape: ', recon_nufft.shape)
 
-
-# define nufft forward operator
-nufft_fwd = tkbn.KbNufft(im_size=img_shape)
-
-R = recon_nufft.cpu().detach().numpy()
-
-R1 = R[..., 0] + 1j * R[..., 1]
-R1 = np.flip(np.swapaxes(R1, -1, -2), -2)
-R1 = np.squeeze(R1)
-
+space = recon_nufft.numpy().squeeze()
+space = np.flip(np.swapaxes(space, -1, -2), -2)
 
 plt.subplot(345)
 plt.title('k-space')
@@ -216,11 +209,11 @@ plt.imshow(np.abs(kspace_adc))
 
 plt.subplot(346)
 plt.title('FFT-magnitude')
-plt.imshow(np.abs(R1))
+plt.imshow(np.abs(space))
 plt.colorbar()
 plt.subplot(3, 4, 10)
 plt.title('FFT-phase')
-plt.imshow(np.angle(R1), vmin=-np.pi, vmax=np.pi)
+plt.imshow(np.angle(space), vmin=-np.pi, vmax=np.pi)
 plt.colorbar()
 
 # % compare with original phantom obj_p.PD
