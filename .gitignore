@@ -1,6 +1,5 @@
 __pycache__/
 .vscode/
 
-*.seq
 *.npy
 *.gif
