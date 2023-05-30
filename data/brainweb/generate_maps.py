@@ -8,11 +8,11 @@ from enum import IntEnum
 
 # Disable slow perlin noise
 NO_NOISE = True
+NOISE_TYPE = 'perlin' #alternative 'gaussian'
 
 if not NO_NOISE:
     # Needs perlin_numpy: https://github.com/pvigier/perlin-numpy
     from perlin_numpy import generate_fractal_noise_3d, generate_perlin_noise_3d
-
 # NOTE: tissues are blended linearly.
 # Exp. fits might be better, but not in general and are more complicated
 
@@ -215,13 +215,22 @@ for subject in SUBJECTS:
             if INCLUDE_FAT:
                 total += tissue_FAT * fat_val
         else:
-            total = (
-                tissue_GM * gm_val * (1 + 0.1 * perlin()) +
-                tissue_WM * wm_val * (1 + 0.1 * perlin()) +
-                tissue_CSF * csf_val * (1 + 0.1 * perlin())
-            )
-            if INCLUDE_FAT:
-                total += tissue_FAT * fat_val ** (1 + 0.1 * perlin())
+            if NOISE_TYPE == 'perlin':
+                total = (
+                    tissue_GM * gm_val * (1 + 0.1 * perlin()) +
+                    tissue_WM * wm_val * (1 + 0.1 * perlin()) +
+                    tissue_CSF * csf_val * (1 + 0.1 * perlin())
+                )
+                if INCLUDE_FAT:
+                    total += tissue_FAT * fat_val ** (1 + 0.1 * perlin())
+            elif NOISE_TYPE =='gaussian':
+                total = (
+                    tissue_GM * gm_val * (1 + 0.1 * gaussian()) +
+                    tissue_WM * wm_val * (1 + 0.1 * gaussian()) +
+                    tissue_CSF * csf_val * (1 + 0.1 * gaussian())
+                )
+                if INCLUDE_FAT:
+                    total += tissue_FAT * fat_val ** (1 + 0.1 * gaussian())                
         return total
 
     T1_map = gen_map(1.55, 0.83, 4.16, 0.374)
@@ -241,7 +250,7 @@ for subject in SUBJECTS:
         plt.title(title)
         # NOTE: Plot this way so matplotlib does not rotate the image
         # First index: to the right, second index: to the top
-        plt.imshow(image[:, :, 90].T, origin="lower")
+        plt.imshow(image[:, :, 216].T, origin="lower")
         plt.colorbar()
         plt.show()
 
