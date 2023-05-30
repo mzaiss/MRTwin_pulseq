@@ -63,7 +63,7 @@ seq.write('out/' + experiment_id + '.seq')
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 sz = [64, 64]
 
-if 0:
+if 1:
     # (i) load a phantom object from file
     # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.brainweb('../data/brainweb/output/subject05.npz').slices([216]) #original resolution 432x432x432
