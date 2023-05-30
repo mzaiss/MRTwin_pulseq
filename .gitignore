@@ -3,3 +3,7 @@ __pycache__/
 
 *.npy
 *.gif
+
+*.gz
+
+data/brainweb/output/
