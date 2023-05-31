@@ -100,9 +100,8 @@ seq.write('out/' + experiment_id + '.seq')
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 sz = [64, 64]
-# subject_list = [4, 5, 6, 18, 20, 38, 41, 42, 43, 44,
-# 45, 46, 47, 48, 49, 50, 51, 52, 53, 54]
-subject_list = [4, 5, 6]
+subject_list = [4, 5, 6, 18, 20, 38, 41, 42, 43, 44,
+45, 46, 47, 48, 49, 50, 51, 52, 53, 54]
 subject_num = random.choice(subject_list) # random subject from subject_list, alternativly select one manually
 phantom_path = f'../data/brainweb/output/subject{subject_num:02d}.npz'
 slice_num = 216 #center slice
