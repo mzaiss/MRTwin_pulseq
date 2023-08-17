@@ -94,9 +94,7 @@ obj_p = obj_p.build()
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
 # Read in the sequence
-seq_file = mr0.PulseqFile("out/external.seq")
-# seq_file.plot()
-seq0 = mr0.Sequence.from_seq_file(seq_file)
+seq0 = mr0.Sequence.from_seq_file("out/external.seq")
 # seq0.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
