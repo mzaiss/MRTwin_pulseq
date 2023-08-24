@@ -26,14 +26,13 @@ In addition to python some extension packages are required like Pytorch. Install
 
 ```
 
- On Windows (requires python > 3.8):
- pip install MRzeroCore-0.1.0-cp38-none-win_amd64.whl
+ change path to MRTwin_pulseq/data
  
  On Windows (requires python > 3.7):
  pip install MRzeroCore-0.1.0-cp37-abi3-win_amd64.whl
 
  On Linux (requires python > 3.9):
- pip install MRzeroCore-0.1.0-cp39-cp39-manylinux_2_28_x86_64.whl
+ pip install MRzeroCore-0.1.0-cp37-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.whl
  
  On Mac:
  not yet supported
