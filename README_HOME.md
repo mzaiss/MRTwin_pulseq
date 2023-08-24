@@ -44,7 +44,7 @@ The can be installed with
 pip install pypulseq==1.3.1.post1
 pip install torchkbnufft==1.3.0 --no-deps
 pip install torchvision --no-deps
-pip install numpy
+pip install numpy==1.23.5
 pip install scipy
 pip install matplotlib
 ```
