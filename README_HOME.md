@@ -33,6 +33,9 @@ For this course, there are two additional dependencies:
 ```
 pip install torchkbnufft==1.3.0 --no-deps
 pip install torchvision --no-deps
+pip install numpy==1.23.5
+pip install scipy
+pip install matplotlib
 ```
 
 **Dependency Versions**
