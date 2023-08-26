@@ -22,26 +22,15 @@ In addition to python some extension packages are required like Pytorch. Install
 ```
 
 
-- The MRTwin_pulseq simulation itself requires the MRzero Core for simulation. Install it with:
+- The MRTwin_pulseq simulation itself requires the MRzero Core for simulation. Install it with (Windows or Linux, Mac not supported):
 
 ```
- change path to MRTwin_pulseq/data
- 
- On Windows (requires python > 3.7):
- pip install MRzeroCore-0.1.0-cp37-abi3-win_amd64.whl
-
- On Linux (requires python > 3.9):
- pip install MRzeroCore-0.1.0-cp37-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.whl
- 
- On Mac:
- not yet supported
+pip install mrzerocore
 ```
 
-If not already installed you also need pypulseq, torchkbnufft, numpy, scipy and matplotlib.
+For this course, there are two additional dependencies:
 
-The can be installed with
 ```
-pip install pypulseq==1.3.1.post1
 pip install torchkbnufft==1.3.0 --no-deps
 pip install torchvision --no-deps
 pip install numpy==1.23.5
@@ -49,16 +38,9 @@ pip install scipy
 pip install matplotlib
 ```
 
-**Versions that were tested**
+**Dependency Versions**
 
- -  pypulseq.__version__ : '1.3.1post1'
- -  torch.__version__  : '1.3.0'   and  '1.7.0'
- -  np.__version__ 	 : '1.18.1'    and  '1.19.2'
- -  scipy.__version__: '1.4.1'     and  '1.5.2'
- -  matplotlib.__version__: '3.1.1'
- -  torchkbnufft.__version__: '1.3.0'
-
-You can also run file ./ex/ex_help01_python.py to test versions.
+If there are compatibility problems with the installed versions, you can run file ./ex/ex_help01_python.py to test versions.
 
 ## Starting Spyder at your own PC ##
 

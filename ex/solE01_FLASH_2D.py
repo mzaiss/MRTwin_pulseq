@@ -139,8 +139,7 @@ obj_p = obj_p.build()
 use_simulation = True
 
 if use_simulation:
-    seq_file = mr0.PulseqFile("out/external.seq")
-    seq0 = mr0.Sequence.from_seq_file(seq_file)
+    seq0 = mr0.Sequence.from_seq_file("out/external.seq")
     seq0.plot_kspace_trajectory()
     graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
     signal = mr0.execute_graph(graph, seq0, obj_p)
