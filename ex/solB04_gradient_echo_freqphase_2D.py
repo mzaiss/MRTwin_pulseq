@@ -146,11 +146,24 @@ ax.grid()
 space = torch.zeros_like(spectrum)
 
 # fftshift
-spectrum = torch.fft.fftshift(spectrum)
+# spectrum = torch.fft.fftshift(spectrum)
 # FFT
-space = torch.fft.ifft2(spectrum)
+# space = torch.fft.ifft2(spectrum)
+
+spectrum = torch.fft.fftshift(spectrum,dim=0)
+spectrum = torch.fft.fftshift(spectrum,dim=1)
+
+for ii in range(0, Nread):
+    space[ii, :] = torch.fft.ifft(spectrum[ii, :])
+
+for ii in range(0, Nphase):
+    space[:, ii] = torch.fft.ifft(space[:, ii])
+    
+   
 # fftshift
-space = torch.fft.fftshift(space)
+space = torch.fft.fftshift(space,dim=0)
+space = torch.fft.fftshift(space,dim=1)
+
 
 plt.subplot(323)
 plt.title('FFT')

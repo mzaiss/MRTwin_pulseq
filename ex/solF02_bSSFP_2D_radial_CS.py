@@ -5,7 +5,7 @@ import MRzeroCore as mr0
 import numpy as np
 import pypulseq as pp
 
-import h5py
+
 import pywt
 import torch
 import util
@@ -247,7 +247,7 @@ for n in range(30):
 
 
 # Gradient method
-Niter = 200
+Niter = 400
 
 alpha = (1 / max_eig).cpu().detach().numpy().item()
 lamda = 0.001

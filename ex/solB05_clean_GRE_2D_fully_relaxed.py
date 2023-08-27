@@ -39,11 +39,7 @@ rf1, _, _ = pp.make_sinc_pulse(
     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
     system=system, return_gz=True
 )
-# rf0, _, _ = pp.make_sinc_pulse(
-#     flip_angle=0.001 * np.pi / 180, duration=1e-3,
-#     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
-#     system=system, return_gz=True
-# )
+
 
 # Define other gradients and ADC events
 gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=10e-3, system=system)
@@ -139,9 +135,8 @@ plt.close(11);plt.close(12)
 sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
  
  
-
 # additional noise as simulation is perfect
-signal += 1e-5 * np.random.randn(signal.shape[0], 2).view(np.complex128)
+signal += 1e-1 * np.random.randn(signal.shape[0], 2).view(np.complex128)
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################

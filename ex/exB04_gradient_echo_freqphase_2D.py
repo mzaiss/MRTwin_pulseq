@@ -149,12 +149,19 @@ ax.grid()
 
 space = torch.zeros_like(spectrum)
 
-# fftshift
-
-# FFT
 
 # fftshift
+spectrum = torch.fft.fftshift(spectrum)
 
+for ii in range(0, Nread):
+    space[ii, :] = torch.fft.ifft(spectrum[ii, :])      # phase encoding FFT
+
+# add freq encoding FFT
+
+# iFFT
+
+# fftshift
+space = torch.fft.fftshift(space)
 
 plt.subplot(323)
 plt.title('FFT')

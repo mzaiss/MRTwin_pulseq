@@ -128,7 +128,6 @@ delay1=pp.make_delay(.10)
 seq.add_block(delay1)
 seq.add_block(rf)
 
-
 # # Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
 seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
 

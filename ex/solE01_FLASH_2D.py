@@ -129,38 +129,41 @@ else:
     PD = obj_p.generate_PD_map()
     B0 = torch.zeros_like(PD)
 
-obj_p.plot()
+# obj_p.plot()
 # Convert Phantom into simulation data
 obj_p = obj_p.build()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
-use_simulation = True
+use_simulation = False
 
 if use_simulation:
     seq_file = mr0.PulseqFile("out/external.seq")
     seq0 = mr0.Sequence.from_seq_file(seq_file)
-    seq0.plot_kspace_trajectory()
+    # seq0.plot_kspace_trajectory()
     graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
     signal = mr0.execute_graph(graph, seq0, obj_p)
+    spectrum = torch.reshape((signal), (Nphase, Nread)).clone().transpose(1, 0)
+    kspace = spectrum
+    # PLOT sequence with signal in the ADC subplot
+    plt.close(11);plt.close(12)
+    sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+     
 
 else:
     signal = util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
-
-# PLOT sequence with signal in the ADC subplot
-plt.close(11);plt.close(12)
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
- 
- 
+    spectrum = torch.reshape((signal), (Nphase, Nread, 20)).clone().transpose(1, 0)
+    kspace = spectrum[:, :, 10]
+    
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-spectrum = torch.reshape((signal), (Nphase, Nread, 20)).clone().transpose(1, 0)
-kspace = spectrum[:, :, 10]
+
+
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
@@ -193,7 +196,7 @@ plt.imshow(np.log(np.abs(kspace.numpy())))
 
 plt.subplot(346)
 plt.title('FFT-magnitude')
-plt.imshow(np.abs(space.numpy()))
+plt.imshow(np.abs(space.numpy()),vmin=0, vmax=0.8*1e-5,cmap='gray')
 plt.colorbar()
 plt.subplot(3, 4, 10)
 plt.title('FFT-phase')

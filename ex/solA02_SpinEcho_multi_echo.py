@@ -135,8 +135,8 @@ t = t_adc[63::128].ravel()
 S = S.numpy()
 
 
-def fit_func(t, a, R, c):
-    return a * np.exp(-R * t) + c
+def fit_func(t, a, T, c):
+    return a * np.exp(- t/T) + c
 
 
 p = optimize.curve_fit(fit_func, t, S, p0=(1, 1, 0))

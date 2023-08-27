@@ -11,7 +11,8 @@ hint: https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.24158
 
 Z01.3. Diffusion weighted MRI
 GRE DWI and spin echo DWI
-hint: any textbook and Jonathan Endres for simulation
+hint: any textbook, https://blog.ismrm.org/2017/06/06/dwe-part-2/ 
+
 
 Z01.4. B0 mapping  
 hint: FLASH phase maps, any text book
@@ -37,6 +38,7 @@ Z01.8. FISP / PSIF
 hint: https://mriquestions.com/psif-vs-fisp.html
 oder (fat suppression / water fat imaging)
 
+
 Z01.9. HASTE sequence 
 hint: textbook and https://mriquestions.com/partial-fourier.html
 
@@ -54,6 +56,11 @@ hint: exercise F01 F02, Studon Hoppe-Script,
 Z02.1. Display all Spins as a vector or many vectors
 
 Z02.2. Display all Spins as a vector or many vectors, and animate this during a sequence
+
+Z02.3. Ernst angle derivation - application to FID and FLASH
+
+Z02.4. B0 distortion correction in EPI
+
 
 
 """

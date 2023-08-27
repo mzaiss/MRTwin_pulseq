@@ -132,7 +132,7 @@ obj_p = obj_p.build()
 seq_file = mr0.PulseqFile("out/external.seq")
 # seq_file.plot()
 seq0 = mr0.Sequence.from_seq_file(seq_file)
-seq0.plot_kspace_trajectory()
+# seq0.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
@@ -142,9 +142,8 @@ plt.close(11);plt.close(12)
 sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
  
  
-
 # additional noise as simulation is perfect
-signal += 1e-5 * np.random.randn(signal.shape[0], 2).view(np.complex128)
+signal += 1e-1 * np.random.randn(signal.shape[0], 2).view(np.complex128)
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################

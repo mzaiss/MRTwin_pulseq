@@ -52,7 +52,7 @@ adc = pp.make_adc(num_samples=Nread, duration=2e-3, phase_offset=0 * np.pi / 180
 for ii in range(-Nphase // 2, Nphase // 2):
     seq.add_block(pp.make_delay(1))
     seq.add_block(rf1)
-    gp = pp.make_trapezoid(channel='y', area=ii, duration=20e-3, system=system)
+    gp = pp.make_trapezoid(channel='y', area=ii, duration=2e-3, system=system)
     seq.add_block(gp)
     seq.add_block(adc)
 
@@ -93,8 +93,8 @@ if 0:
 else:
     # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
     obj_p = mr0.CustomVoxelPhantom(
-        pos=[[-0.25, -0.25, 0]],
-        PD=[1.0],
+        pos=[[-0.25, -0.25, 0],[-0.25, 0, 0]],
+        PD=[1.0,0.3],
         T1=[1.0],
         T2=[0.1],
         T2dash=[0.1],
@@ -151,8 +151,7 @@ spectrum = torch.fft.fftshift(spectrum)
 for ii in range(0, Nread):
     space[ii, :] = torch.fft.ifft(spectrum[ii, :])
 
-for ii in range(0, Nphase):
-    space[:, ii] = torch.fft.ifft(space[:, ii])
+
 
 # iFFT
 

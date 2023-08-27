@@ -73,7 +73,6 @@ rf_prep = pp.make_block_pulse(flip_angle=180 * np.pi / 180, duration=1e-3, syste
 
 # add DIR preparation here: double inversion recovery
 
-
 for ii in range(0, Nphase):  # e.g. -64:63
 
     rf1.phase_offset = rf_phase / 180 * np.pi   # set current rf phase
@@ -113,7 +112,7 @@ seq.write('out/' + experiment_id + '.seq')
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
 sz = [64, 64]
 
-if 0:
+if 1:
     # (i) load a phantom object from file
     # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
