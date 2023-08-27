@@ -29,9 +29,9 @@ seq = pp.Sequence()
 # Define FOV and resolution
 fov = 1000e-3
 slice_thickness = 8e-3
-sz = (64, 64)   # spin system size / resolution
-Nread = 64    # frequency encoding steps/samples
-Nphase = 64    # phase encoding steps/samples
+sz = (128, 128)   # spin system size / resolution
+Nread = 128    # frequency encoding steps/samples
+Nphase = 61    # phase encoding steps/samples - number of spokes
 
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
@@ -109,7 +109,6 @@ seq.write('out/' + experiment_id + '.seq')
 
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
-sz = [64, 64]
 
 if 1:
     # (i) load a phantom object from file
@@ -118,7 +117,7 @@ if 1:
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
     # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
-    obj_p.D *= 0 
+    obj_p.D *= 0
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
     # Store PD for comparison
     PD = obj_p.PD
@@ -160,8 +159,6 @@ signal = mr0.execute_graph(graph, seq0, obj_p)
 # PLOT sequence with signal in the ADC subplot
 plt.close(11);plt.close(12)
 sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
- 
- 
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################

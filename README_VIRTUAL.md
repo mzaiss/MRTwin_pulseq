@@ -17,13 +17,13 @@ https://fau.zoom.us/j/97342557725?pwd=aTVNZzBZdzZya0xBT3lrR294d3o1dz09 <br>
 Meeting-ID: 973 4255 7725<br>
 Code: 162060
 
-## Course setup  - next start at Monday March 20, 2023
+## Course setup  - next start at Monday August 28, 2023
 The course format is full time two weeks. <br>
 We meet  daily from 9:30 am to 5:30 pm (CET).<br>
 The first week is very interactive, with small inputs, and interleaved exercises and discussion of them.<br>
 The second week is more independent.
 
-Unfortunately, I cannot interact with people joining virtually. But with the script and the available exercises and theirs solutions you should be fine.
-For questions regarding installationsI try to dedicate someone in zoom to help you out in a breakout session.
+Unfortunately, I cannot interact with people joining virtually. But with the script and the available exercises and their solutions, you should be fine.
+For questions regarding installations, I try to dedicate someone in zoom to help you out in a breakout session.
 
 
