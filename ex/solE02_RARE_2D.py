@@ -12,10 +12,6 @@ os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 experiment_id = 'exE02_RARE_2D'
 
-# NOTE: This sequence seems to need fixing:
-# - max_grad is violated by the prewinders
-# - there is no frequency encoding
-
 
 # %% S1. SETUP sys
 

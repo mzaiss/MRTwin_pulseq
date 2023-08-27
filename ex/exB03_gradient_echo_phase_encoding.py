@@ -11,7 +11,7 @@ import util
 import os
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
-experiment_id = 'exA06_gradient_echo_phase_encoding'
+experiment_id = 'exB03_gradient_echo_phase_encoding'
 
 
 # %% S1. SETUP sys

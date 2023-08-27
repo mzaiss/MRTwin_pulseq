@@ -29,9 +29,9 @@ seq = pp.Sequence()
 # Define FOV and resolution
 fov = 1000e-3
 slice_thickness = 8e-3
-sz = (128, 128)   # spin system size / resolution
-Nread = 128    # frequency encoding steps/samples
-Nphase = 61    # phase encoding steps/samples - number of spokes
+sz = (64, 64)   # spin system size / resolution
+Nread = 64     # frequency encoding steps/samples
+Nphase = 64    # phase encoding steps/samples - number of spokes
 
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
