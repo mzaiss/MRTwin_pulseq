@@ -10,7 +10,7 @@ import util
 import os
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
-experiment_id = 'exB09_GRE_EPI_2D'
+experiment_id = 'exD01_bSFFP_2D'
 
 
 # %% S1. SETUP sys

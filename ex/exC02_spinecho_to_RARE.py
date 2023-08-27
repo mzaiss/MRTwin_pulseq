@@ -10,7 +10,7 @@ import util
 import os
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
-experiment_id = 'exD01_bSSFP_2D'
+experiment_id = 'exC02_SE_to_RARE_2D'
 
 
 # %% S1. SETUP sys
@@ -29,64 +29,47 @@ seq = pp.Sequence()
 # Define FOV and resolution
 fov = 1000e-3
 slice_thickness = 8e-3
-sz = (64, 64)   # spin system size / resolution
+sz = (32, 32)   # spin system size / resolution
 Nread = 64    # frequency encoding steps/samples
 Nphase = 64    # phase encoding steps/samples
 
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
-    flip_angle=6 * np.pi / 180, duration=1e-3,
+    flip_angle=90 * np.pi / 180, phase_offset=90 * np.pi / 180, duration=1e-3,
+    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
+    system=system, return_gz=True
+)
+rf2, _, _ = pp.make_sinc_pulse(
+    flip_angle=180 * np.pi / 180, duration=1e-3,
     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
     system=system, return_gz=True
 )
 # rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
-rf0, _, _ = pp.make_sinc_pulse(
-    flip_angle=6/2 * np.pi / 180, duration=1e-3,
-    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
-    system=system, return_gz=True
-)
+rf_prep = pp.make_block_pulse(flip_angle=180 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=5e-3, system=system)
-gy = pp.make_trapezoid(channel='y', flat_area=Nread, flat_time=5e-3, system=system)
-
-gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=system)
-gy_pre = pp.make_trapezoid(channel='y', area=-gx.area / 2, duration=1e-3, system=system)
-
-adc = pp.make_adc(num_samples=Nread, duration=5e-3, phase_offset=0 * np.pi / 180, delay=gx.rise_time, system=system)
-
-rf_phase = 180
-rf_inc = 180
+gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=4e-3, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=4e-3, phase_offset=90 * np.pi / 180, delay=gx.rise_time, system=system)
+gx_pre = pp.make_trapezoid(channel='x', area=+gx.area / 2, duration=5e-3, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
-sdel = 1e-0
-
-seq.add_block(rf0)
-seq.add_block(pp.make_delay(3e-3))
-
 for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
+    gp = pp.make_trapezoid(channel='y', area=-ii, duration=5e-3, system=system)
 
-    rf1.phase_offset = rf_phase / 180 * np.pi   # set current rf phase
+    seq.add_block(pp.make_delay(5))
 
-    adc.phase_offset = rf_phase / 180 * np.pi  # follow with ADC
-    # increment additional pahse
-    rf_phase = divmod(rf_phase + rf_inc, 360.0)[1]
+    # FLAIR
+    seq.add_block(rf_prep)
+    seq.add_block(pp.make_delay(2.5))
+    seq.add_block(gx_pre)
 
     seq.add_block(rf1)
-
-    gx = pp.make_trapezoid(channel='x', flat_area=-Nread * np.sin(ii / Nphase * np.pi) + 1e-7, flat_time=5e-3, system=system)
-    gy = pp.make_trapezoid(channel='y', flat_area=Nread * np.cos(ii / Nphase * np.pi) + 1e-7, flat_time=5e-3, system=system)
-
-    gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=system)
-    gy_pre = pp.make_trapezoid(channel='y', area=-gy.area / 2, duration=1e-3, system=system)
-
-    seq.add_block(gx_pre, gy_pre)
-    seq.add_block(adc, gx, gy)
-    # seq.add_block(adc,gx,gy)
-    seq.add_block(gx_pre, gy_pre)
-    # seq.add_block(make_delay(10))
+    seq.add_block(gx_pre, gp, pp.make_delay(0.01))
+    seq.add_block(rf2)
+    seq.add_block(pp.make_delay(0.005))
+    seq.add_block(adc, gx)
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
@@ -152,7 +135,6 @@ seq_file = mr0.PulseqFile("out/external.seq")
 # seq_file.plot()
 seq0 = mr0.Sequence.from_seq_file(seq_file)
 seq0.plot_kspace_trajectory()
-kspace_loc = seq0.get_kspace()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
@@ -163,14 +145,18 @@ sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
  
  
 
+# additional noise as simulation is perfect
+signal += 1e-4 * np.random.randn(signal.shape[0], 2).view(np.complex128)
+
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t()
+kspace = torch.reshape((signal), (Nphase, Nread)).clone().t()
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
+
 
 # this adds ticks at the correct position szread
 major_ticks = np.arange(0, Nphase * Nread, Nread)
@@ -178,71 +164,32 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-if 0:  # FFT
-    # fftshift
-    spectrum = torch.fft.fftshift(kspace_adc)
-    # FFT
-    space = torch.fft.ifft2(spectrum)
-    # fftshift
-    space = torch.fft.ifftshift(space)
+# fftshift
+spectrum = torch.fft.fftshift(kspace)
+# FFT
+space = torch.fft.ifft2(spectrum)
+# fftshift
+space = torch.fft.ifftshift(space)
 
 
-if 1:  # NUFFT
-    import scipy.interpolate
-    grid = kspace_loc[:, :2]
-    Nx = 64
-    Ny = 64
-
-    X, Y = np.meshgrid(np.linspace(0, Nx - 1, Nx) - Nx / 2,
-                       np.linspace(0, Ny - 1, Ny) - Ny / 2)
-    grid = np.double(grid.numpy())
-    grid[np.abs(grid) < 1e-3] = 0
-
-    plt.subplot(347)
-    plt.plot(grid[:, 0].ravel(), grid[:, 1].ravel(), 'rx', markersize=3)
-    plt.plot(X, Y, 'k.', markersize=2)
-    plt.show()
-
-    spectrum_resampled_x = scipy.interpolate.griddata(
-        (grid[:, 0].ravel(), grid[:, 1].ravel()),
-        np.real(signal.ravel()), (X, Y), method='cubic'
-    )
-    spectrum_resampled_y = scipy.interpolate.griddata(
-        (grid[:, 0].ravel(), grid[:, 1].ravel()),
-        np.imag(signal.ravel()), (X, Y), method='cubic'
-    )
-
-    kspace_r = spectrum_resampled_x + 1j * spectrum_resampled_y
-    kspace_r[np.isnan(kspace_r)] = 0
-
-    # fftshift
-    # kspace_r = np.roll(kspace_r,Nx//2,axis=0)
-    # kspace_r = np.roll(kspace_r,Ny//2,axis=1)
-    kspace_r_shifted = np.fft.ifftshift(kspace_r, 0)
-    kspace_r_shifted = np.fft.ifftshift(kspace_r_shifted, 1)
-
-    space = np.fft.ifft2(kspace_r_shifted)
-    space = np.fft.ifftshift(space, 0)
-    space = np.fft.ifftshift(space, 1)
-
-space = np.transpose(space)
 plt.subplot(345)
 plt.title('k-space')
-plt.imshow(np.abs(kspace_adc))
+plt.imshow(np.abs(kspace.numpy()))
 plt.subplot(349)
 plt.title('k-space_r')
-plt.imshow(np.abs(kspace_r))
+plt.imshow(np.log(np.abs(kspace.numpy())))
 
 plt.subplot(346)
 plt.title('FFT-magnitude')
-plt.imshow(np.abs(space))
+plt.imshow(np.abs(space.numpy()))
 plt.colorbar()
 plt.subplot(3, 4, 10)
 plt.title('FFT-phase')
-plt.imshow(np.angle(space), vmin=-np.pi, vmax=np.pi)
+plt.imshow(np.angle(space.numpy()), vmin=-np.pi, vmax=np.pi)
 plt.colorbar()
 
 # % compare with original phantom obj_p.PD
+
 plt.subplot(348)
 plt.title('phantom PD')
 plt.imshow(PD)
