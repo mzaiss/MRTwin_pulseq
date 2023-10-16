@@ -40,3 +40,27 @@ To be able to go to definitions quickly (CTRL-click), you have to add the includ
 
 ## Diff tool ##
 If you want compare changed files or sample solutions you can use the tools diff, or more visually advanced Kompare or Meld.
+
+
+
+# useful terminal commands:
+
+arandr : screen position/projector
+
+## quota and large files
+
+cip-quota
+du -a |sort -n -r | head -n 20
+pip cache purge
+
+## git
+
+git clone https://github.com/mzaiss/MRTwin_pulseq.git mripulse
+
+git pull
+
+git difftool --tool kompare
+
+git diff 
+(press q to leave)
+git diff --name-only
