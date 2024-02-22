@@ -17,7 +17,7 @@ mv /home/cip/guests/$USER/.local/lib/python3.9/site-packages-backup /proj/ciptmp
 
 module load python3/anaconda-2022.05
 pip install mrzerocore
-pip install pypulseq==1.3.1.post1
+pip install git+https://github.com/imr-framework/pypulseq.git 
 pip install torchkbnufft==1.3.0 --no-deps
 pip install torchvision --no-deps
 ```
