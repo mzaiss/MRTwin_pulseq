@@ -10,8 +10,13 @@ git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git --depth 1
 ### Installation of MRTwin_pulseq
 run the following commands in a terminal in your home folder (the same folder where "MRTwin_pulseq" is located):
 ```
+mkdir /proj/ciptmp/$USER/
+mv /home/cip/guests/$USER/.local/lib/python3.9/site-packages/ /home/cip/guests/$USER/.local/lib/python3.9/site-packages-backup
+ln -s /proj/ciptmp/$USER/site-packages /home/cip/guests/$USER/.local/lib/python3.9/site-packages
+mv /home/cip/guests/$USER/.local/lib/python3.9/site-packages-backup /proj/ciptmp/$USER/site-packages
+
 module load python3/anaconda-2022.05
-pip install MRTwin_pulseq/data/MRzeroCore-0.1.0-cp37-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.whl --force-reinstall 
+pip install mrzerocore
 pip install pypulseq==1.3.1.post1
 pip install torchkbnufft==1.3.0 --no-deps
 pip install torchvision --no-deps
