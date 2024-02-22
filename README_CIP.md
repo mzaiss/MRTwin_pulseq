@@ -60,12 +60,16 @@ arandr : screen position/projector
 ## quota and large files
 
 cip-quota
+
+ncdu
+
 du -a |sort -n -r | head -n 20
+
 pip cache purge
 
 ## git
 
-git clone https://github.com/mzaiss/MRTwin_pulseq.git mripulse
+git clone https://github.com/mzaiss/MRTwin_pulseq.git 
 
 git pull
 
