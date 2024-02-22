@@ -8,7 +8,7 @@ git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git --depth 1
 ```
 
 ### Installation of MRTwin_pulseq
-run the following commands in a terminal in your home folder (the same folder where "MRTwin_pulseq" is located):
+run the following commands in a terminal:
 ```
 mkdir /proj/ciptmp/$USER/
 mv /home/cip/guests/$USER/.local/lib/python3.9/site-packages/ /home/cip/guests/$USER/.local/lib/python3.9/site-packages-backup
