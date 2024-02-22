@@ -8,7 +8,10 @@ git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git --depth 1
 ```
 
 ### Installation of MRTwin_pulseq
-run the following commands in a terminal:
+The cip-quota for disk space is limited, thus we need to make a symlink to the more relaxed /proj directory.
+This is done in the first 4 commands, the other 7 install packages an a specific environment python3/anaconda-2022.05
+
+Run all of the following commands in a terminal:
 ```
 mkdir /proj/ciptmp/$USER/
 mv /home/cip/guests/$USER/.local/lib/python3.9/site-packages/ /home/cip/guests/$USER/.local/lib/python3.9/site-packages-backup
