@@ -155,23 +155,23 @@ if use_simulation:
     #seq0.plot_kspace_trajectory()
     graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
     signal = mr0.execute_graph(graph, seq0, obj_p)
+    spectrum = torch.reshape((signal), (Nphase, Nread)).clone().transpose(1, 0)
+    kspace = spectrum
+    # PLOT sequence with signal in the ADC subplot
+    plt.close(11);plt.close(12)
+    sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
 
 else:
     signal = mr0.util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
+    spectrum = torch.reshape((signal), (Nphase, Nread, 20)).clone().transpose(1, 0)
+    
 
-# PLOT sequence with signal in the ADC subplot
-plt.close(11);plt.close(12)
-sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
- 
- 
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-spectrum = torch.reshape((signal), (Nphase, Nread)).clone().transpose(1, 0)
-kspace = spectrum
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
@@ -193,7 +193,8 @@ space = torch.fft.fft2(spectrum, dim=(0, 1))
 space = torch.fft.fftshift(space, 0)
 space = torch.fft.fftshift(space, 1)
 
-# space=torch.sum(space.abs(),2)
+if use_simulation==False:
+    space = torch.sum(space.abs(), 2)
 
 plt.subplot(345)
 plt.title('k-space')

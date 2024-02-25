@@ -157,7 +157,6 @@ if use_simulation:
 else:
     signal = mr0.util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
     spectrum = torch.reshape((signal), (Nphase, Nread, 20)).clone().transpose(1, 0)
-    kspace = spectrum[:, :, 10]
     
 
 
@@ -165,8 +164,6 @@ else:
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-
-
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
@@ -188,7 +185,8 @@ space = torch.fft.fft2(spectrum, dim=(0, 1))
 space = torch.fft.fftshift(space, 0)
 space = torch.fft.fftshift(space, 1)
 
-space = torch.sum(space.abs(), 2)
+if use_simulation==False:
+    space = torch.sum(space.abs(), 2)
 
 plt.subplot(345)
 plt.title('k-space')
