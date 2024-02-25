@@ -3,7 +3,6 @@ import MRzeroCore as mr0
 import pypulseq as pp
 import numpy as np
 import matplotlib.pyplot as plt
-import util
 
 # makes the ex folder your working directory
 import os
@@ -19,7 +18,8 @@ if 0:
     # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
-    # Manipulate loaded data
+
+# Manipulate loaded data
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
     obj_p.D *= 0 
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
@@ -33,6 +33,7 @@ else:
     )
 
 obj_p.plot()
+obj_p.size=torch.tensor([fov, fov, slice_thickness]) 
 # Convert Phantom into simulation data
 obj_p = obj_p.build()
 
@@ -56,5 +57,6 @@ obj_p = mr0.CustomVoxelPhantom(
 
 
 obj_p.plot()
+obj_p.size=torch.tensor([fov, fov, slice_thickness]) 
 # Convert Phantom into simulation data
 obj_p = obj_p.build()

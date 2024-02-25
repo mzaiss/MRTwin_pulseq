@@ -2,8 +2,8 @@
 import MRzeroCore as mr0
 import pypulseq as pp
 import numpy as np
+import torch
 import matplotlib.pyplot as plt
-import util
 
 # makes the ex folder your working directory
 import os
@@ -66,7 +66,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False, figid=(11,12))
+sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, figid=(11,12))
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
@@ -83,7 +83,8 @@ if 0:
     # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
-    # Manipulate loaded data
+
+# Manipulate loaded data
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
     obj_p.D *= 0 
 else:
@@ -101,16 +102,17 @@ else:
     )
 
 obj_p.plot()
+obj_p.size=torch.tensor([fov, fov, slice_thickness]) 
 # Convert Phantom into simulation data
 obj_p = obj_p.build()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
-# Read in the sequence
-seq_file = mr0.PulseqFile("out/external.seq")
-# seq_file.plot()
-seq0 = mr0.Sequence.from_seq_file(seq_file)
+# Read in the sequence 
+seq0 = mr0.Sequence.import_file("out/external.seq")
+
+ 
 # seq0.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
@@ -118,6 +120,6 @@ signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal in the ADC subplot
 plt.close(11);plt.close(12)
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
  
  

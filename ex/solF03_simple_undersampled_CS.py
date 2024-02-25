@@ -3,6 +3,7 @@ from skimage.restoration import denoise_tv_chambolle
 import pywt
 import MRzeroCore as mr0
 import numpy as np
+import torch
 import pypulseq as pp
 from matplotlib import pyplot as plt
 
@@ -22,10 +23,10 @@ phantom = phantom.interpolate(sz[0], sz[1], 1)
 phantom.T2dash[:] = 30e-3
 phantom.D *= 0
 
-space = np.fft.ifftshift(phantom.PD[:, :, 0])
-kspace_adc = np.fft.ifft2(space)
+space = np.fft.fftshift(phantom.PD[:, :, 0])
+kspace_adc = np.fft.fft2(space)
 # this is a kspace as it woudk come from an ADC, with low frequencies centered.
-kspace_adc = np.fft.ifftshift(kspace_adc)
+kspace_adc = np.fft.fftshift(kspace_adc)
 
 plt.imshow(np.log(np.abs(kspace_adc)))
 
@@ -67,7 +68,7 @@ def waveletShrinkage(current, epsilon):
 
 def updateData(k_space, pattern, current, step, i):
     # go to k-space
-    update = np.fft.ifft2(np.fft.fftshift(current))
+    update = np.fft.fft2(np.fft.fftshift(current))
     # compute difference
     update = k_space - (update * pattern)
     print("i: {}, consistency RMSEpc: {:3.6f}".format(
@@ -82,7 +83,7 @@ def updateData(k_space, pattern, current, step, i):
 # S6.2: preparation and conventional fully sampled reconstruction
 
 # high  frequencies centered as FFT needs it
-kspace_full = np.fft.ifftshift(kspace_adc)
+kspace_full = np.fft.fftshift(kspace_adc)
 
 kspace = kspace_full
 # fully sampled recon

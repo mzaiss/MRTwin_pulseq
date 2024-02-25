@@ -5,7 +5,6 @@ import numpy as np
 # makes the ex folder your working directory
 import os
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-import util
 
 # %% GENERATE and WRITE a sequence   .seq
 # %% S1. SETUP sys
@@ -42,7 +41,7 @@ seq.add_block(adc, gx)
 
 seq.plot()
 # PLOT sequence
-util.pulseq_plot(seq)
+mr0.util.pulseq_plot(seq)
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
@@ -69,7 +68,7 @@ seq.read('out/external.seq')
 
 seq.plot()
 # PLOT sequence
-util.pulseq_plot(seq)
+mr0.util.pulseq_plot(seq)
 
 
 # %% Exact pulse timing
@@ -141,4 +140,4 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = util.pulseq_plot(seq)
+sp_adc, t_adc = mr0.util.pulseq_plot(seq)

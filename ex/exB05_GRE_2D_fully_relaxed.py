@@ -4,7 +4,6 @@ import pypulseq as pp
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-import util
 
 # makes the ex folder your working directory
 import os
@@ -79,7 +78,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False, figid=(11,12))
+sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, figid=(11,12))
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
@@ -96,7 +95,8 @@ if 1:
     # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
-    # Manipulate loaded data
+
+# Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
     obj_p.D *= 0 
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
@@ -122,16 +122,16 @@ else:
     B0 = torch.zeros_like(PD)
 
 obj_p.plot()
+obj_p.size=torch.tensor([fov, fov, slice_thickness]) 
 # Convert Phantom into simulation data
 obj_p = obj_p.build()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
-# Read in the sequence
-seq_file = mr0.PulseqFile("out/external.seq")
-# seq_file.plot()
-seq0 = mr0.Sequence.from_seq_file(seq_file)
+# Read in the sequence 
+seq0 = mr0.Sequence.import_file("out/external.seq")
+ 
 # seq0.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
@@ -139,7 +139,7 @@ signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal in the ADC subplot
 plt.close(11);plt.close(12)
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
  
  
 # additional noise as simulation is perfect
@@ -168,10 +168,10 @@ space = torch.zeros_like(spectrum)
 spectrum = torch.fft.fftshift(spectrum, 0)
 spectrum = torch.fft.fftshift(spectrum, 1)
 # FFT
-space = torch.fft.ifft2(spectrum)
+space = torch.fft.fft2(spectrum)
 # fftshift
-space = torch.fft.ifftshift(space, 0)
-space = torch.fft.ifftshift(space, 1)
+space = torch.fft.fftshift(space, 0)
+space = torch.fft.fftshift(space, 1)
 
 
 plt.subplot(345)
