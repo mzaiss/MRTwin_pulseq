@@ -7,7 +7,8 @@ import torch
 from matplotlib import pyplot as plt
 
 # makes the ex folder your working directory
-import os
+import os 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 experiment_id = 'exB05_GRE_2D_fully_relaxed'
@@ -133,7 +134,7 @@ obj_p = obj_p.build()
 # Read in the sequence 
 seq0 = mr0.Sequence.import_file("out/external.seq")
  
-# seq0.plot_kspace_trajectory()
+# #seq0.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
@@ -174,10 +175,6 @@ space = torch.fft.fft2(spectrum)
 space = torch.fft.fftshift(space, 0)
 space = torch.fft.fftshift(space, 1)
 
-
-def util.MR_imshow(data, *args, **kwargs):    # plt.imshow shows the matrix (x,y) as (col,rows)
-    plt.imshow(data.T , *args, **kwargs) # util.MR_imshow transposes to (rows,col)
-    
     
 plt.subplot(345)
 plt.title('k-space')

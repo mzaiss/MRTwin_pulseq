@@ -9,7 +9,8 @@ import util
 from matplotlib import pyplot as plt
 
 # makes the ex folder your working directory
-import os
+import os 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 experiment_id = 'exD01_bSSFP_2D'

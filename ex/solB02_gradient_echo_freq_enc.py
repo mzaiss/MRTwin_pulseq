@@ -8,7 +8,8 @@ import torch
 import matplotlib.pyplot as plt
 
 # makes the ex folder your working directory
-import os
+import os 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 experiment_id = 'exB02_gradient_echo_freq_enc'
@@ -123,7 +124,7 @@ obj_p = obj_p.build()
 # Read in the sequence 
 seq0 = mr0.Sequence.import_file("out/external.seq")
  
-# seq0.plot_kspace_trajectory()
+# #seq0.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)

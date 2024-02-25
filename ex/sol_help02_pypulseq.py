@@ -4,7 +4,8 @@ import util
 import numpy as np
 
 # makes the ex folder your working directory
-import os
+import os 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 # %% GENERATE and WRITE a sequence   .seq

@@ -6,7 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # makes the ex folder your working directory
-import os
+import os 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 experiment_id = 'exA00_phantom'

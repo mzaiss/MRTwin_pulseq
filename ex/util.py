@@ -1,4 +1,5 @@
-import os
+import os 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 import time
 import torch
 import numpy as np
@@ -202,3 +203,4 @@ def MR_imshow(data, *args, **kwargs):    # plt.imshow shows the matrix (x,y) as 
         print(f"Error transposing data: {e}")
         transposed_data=data
     plt.imshow(transposed_data, *args, **kwargs)
+    

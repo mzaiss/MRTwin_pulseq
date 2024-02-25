@@ -7,7 +7,8 @@ import torch
 from matplotlib import pyplot as plt
 
 # makes the ex folder your working directory
-import os
+import os 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 experiment_id = 'exE02_RARE_2D'
@@ -151,7 +152,7 @@ use_simulation = True
 if use_simulation:
     seq_file = mr0.PulseqFile("out/external.seq")
     seq0 = mr0.Sequence.import_file("out/external.seq")
-    seq0.plot_kspace_trajectory()
+    #seq0.plot_kspace_trajectory()
     graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
     signal = mr0.execute_graph(graph, seq0, obj_p)
 
