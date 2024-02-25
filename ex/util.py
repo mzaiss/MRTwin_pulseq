@@ -202,5 +202,5 @@ def MR_imshow(data, *args, **kwargs):    # plt.imshow shows the matrix (x,y) as 
     except TypeError as e:
         print(f"Error transposing data: {e}")
         transposed_data=data
-    plt.imshow(transposed_data, *args, **kwargs)
+    plt.imshow(transposed_data, *args,origin="lower", **kwargs)  # also the origin is set to lower!
     

@@ -151,13 +151,13 @@ ax.set_xticks(major_ticks)
 ax.grid()
 
 # fftshift
-spectrum = torch.fft.fftshift(kspace)
+spectrum = torch.fft.ifftshift(kspace)
 
 space = torch.fft.fft(spectrum[:, 0])
 # fft
 
 # fftshift
-space = torch.fft.ifftshift(space)
+space = torch.fft.fftshift(space)
 
 
 plt.subplot(312)

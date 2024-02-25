@@ -11,7 +11,7 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
-experiment_id = 'exC02_SE_to_RARE_2D'
+experiment_id = 'exE01_FLASH_2D_user_tag_fruit#'
 
 
 # %% S1. SETUP sys
@@ -28,44 +28,55 @@ system = pp.Opts(
 seq = pp.Sequence()
 
 # Define FOV and resolution
-fov = 1000e-3
+fov = 220e-3
 slice_thickness = 8e-3
-sz = (32, 32)   # spin system size / resolution
-Nread = 64    # frequency encoding steps/samples
-Nphase = 64    # phase encoding steps/samples
+sz = (32, 32)  # spin system size / resolution
+Nread = 64  # frequency encoding steps/samples
+Nphase = 64  # phase encoding steps/samples
 
 # Define rf events
-rf1, _, _ = pp.make_sinc_pulse(
-    flip_angle=90 * np.pi / 180, phase_offset=90 * np.pi / 180, duration=1e-3,
+rf1, gz, gzr = pp.make_sinc_pulse(
+    flip_angle=5 * np.pi / 180, duration=1e-3,
     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
     system=system, return_gz=True
 )
-rf2, _, _ = pp.make_sinc_pulse(
-    flip_angle=180 * np.pi / 180, duration=1e-3,
-    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
-    system=system, return_gz=True
-)
-# rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
-rf_prep = pp.make_block_pulse(flip_angle=180 * np.pi / 180, duration=1e-3, system=system)
 
+# seq.add_block(rf1,gz)
+# seq.add_block(gzr)
+
+zoom = 1
 # Define other gradients and ADC events
-gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=4e-3, system=system)
-adc = pp.make_adc(num_samples=Nread, duration=4e-3, phase_offset=90 * np.pi / 180, delay=gx.rise_time, system=system)
-gx_pre = pp.make_trapezoid(channel='x', area=+gx.area / 2, duration=5e-3, system=system)
+gx = pp.make_trapezoid(channel='x', flat_area=Nread * zoom, flat_time=2e-3, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=2e-3, delay=gx.rise_time, system=system)
+gx_pre = pp.make_trapezoid(channel='x', area=-0.5 * gx.area, duration=5e-3, system=system)
+gx_spoil = pp.make_trapezoid(channel='x', area=1.5 * gx.area, duration=5e-3, system=system)
+
+rf_phase = 0
+rf_inc = 0
+rf_spoiling_inc = 117
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
+
 for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
-    gp = pp.make_trapezoid(channel='y', area=-ii, duration=5e-3, system=system)
 
-    seq.add_block(pp.make_delay(5))
+    rf1.phase_offset = rf_phase / 180 * np.pi   # set current rf phase
 
-    seq.add_block(rf1)
-    seq.add_block(gx_pre, gp, pp.make_delay(0.01))
-    seq.add_block(rf2)
-    seq.add_block(pp.make_delay(0.005))
+    adc.phase_offset = rf_phase / 180 * np.pi  # follow with ADC
+
+    rf_inc = divmod(rf_inc + rf_spoiling_inc, 360.0)[1]  # increase increment
+    rf_phase = divmod(rf_phase + rf_inc, 360.0)[1]  # increment phase
+
+    seq.add_block(rf1, gz)
+    seq.add_block(gzr)
+    gy_pre = pp.make_trapezoid(channel='y', area=ii  * zoom, duration=5e-3, system=system)
+    seq.add_block(gx_pre, gy_pre)
     seq.add_block(adc, gx)
+    gy_spoil = pp.make_trapezoid( channel='y', area=-ii *zoom, duration=5e-3, system=system)
+    seq.add_block(gx_spoil, gy_spoil)
+    if ii < Nphase - 1:
+        seq.add_block(pp.make_delay(0.001))
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
@@ -120,7 +131,7 @@ else:
     PD = obj_p.generate_PD_map()
     B0 = torch.zeros_like(PD)
 
-obj_p.plot()
+# obj_p.plot()
 obj_p.size=torch.tensor([fov, fov, slice_thickness]) 
 # Convert Phantom into simulation data
 obj_p = obj_p.build()
@@ -128,29 +139,33 @@ obj_p = obj_p.build()
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
-# Read in the sequence 
-seq0 = mr0.Sequence.import_file("out/external.seq")
- 
-#seq0.plot_kspace_trajectory()
-# Simulate the sequence
-graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
-signal = mr0.execute_graph(graph, seq0, obj_p)
+use_simulation = True
 
-# PLOT sequence with signal in the ADC subplot
-plt.close(11);plt.close(12)
-sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
- 
- 
+if use_simulation:
+    seq0 = mr0.Sequence.import_file("out/external.seq")
+    # #seq0.plot_kspace_trajectory()
+    graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
+    signal = mr0.execute_graph(graph, seq0, obj_p)
+    spectrum = torch.reshape((signal), (Nphase, Nread)).clone().transpose(1, 0)
+    kspace = spectrum
+    # PLOT sequence with signal in the ADC subplot
+    plt.close(11);plt.close(12)
+    sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+     
 
-# additional noise as simulation is perfect
-signal += 1e-4 * np.random.randn(signal.shape[0], 2).view(np.complex128)
+else:
+    signal = mr0.util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
+    spectrum = torch.reshape((signal), (Nphase, Nread, 20)).clone().transpose(1, 0)
+    
+    
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-kspace = torch.reshape((signal), (Nphase, Nread)).clone().t()
+
+
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
@@ -161,13 +176,19 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-# fftshift
-spectrum = torch.fft.fftshift(kspace)
-# FFT
-space = torch.fft.fft2(spectrum)
-# fftshift
-space = torch.fft.fftshift(space)
+space = torch.zeros_like(spectrum)
 
+# fftshift
+spectrum = torch.fft.fftshift(spectrum, 0)
+spectrum = torch.fft.fftshift(spectrum, 1)
+# FFT
+space = torch.fft.fft2(spectrum, dim=(0, 1))
+# fftshift
+space = torch.fft.fftshift(space, 0)
+space = torch.fft.fftshift(space, 1)
+
+if use_simulation==False:
+    space = torch.sum(space.abs(), 2)
 
 plt.subplot(345)
 plt.title('k-space')
@@ -178,7 +199,7 @@ util.MR_imshow(np.log(np.abs(kspace.numpy())))
 
 plt.subplot(346)
 plt.title('FFT-magnitude')
-util.MR_imshow(np.abs(space.numpy()))
+util.MR_imshow(np.abs(space.numpy()),vmin=0)
 plt.colorbar()
 plt.subplot(3, 4, 10)
 plt.title('FFT-phase')
@@ -186,7 +207,6 @@ util.MR_imshow(np.angle(space.numpy()), vmin=-np.pi, vmax=np.pi)
 plt.colorbar()
 
 # % compare with original phantom obj_p.PD
-
 plt.subplot(348)
 plt.title('phantom PD')
 util.MR_imshow(PD)

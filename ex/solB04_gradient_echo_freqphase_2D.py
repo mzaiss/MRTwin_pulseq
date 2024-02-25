@@ -152,14 +152,14 @@ space = torch.zeros_like(spectrum)
 # FFT
 # space = torch.fft.fft2(spectrum)
 
-spectrum = torch.fft.fftshift(spectrum,dim=0)
-spectrum = torch.fft.fftshift(spectrum,dim=1)
+spectrum = torch.fft.ifftshift(spectrum,dim=0)
+spectrum = torch.fft.ifftshift(spectrum,dim=1)
 
 for ii in range(0, Nread):
     space[ii, :] = torch.fft.fft(spectrum[ii, :])
 
 for ii in range(0, Nphase):
-    space[:, ii] = torch.fft.ifft(space[:, ii])
+    space[:, ii] = torch.fft.fft(space[:, ii])
     
    
 # fftshift

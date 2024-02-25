@@ -49,7 +49,7 @@ plt.plot(np.imag(FFT_func_echolike)); plt.legend(['real','imag'])
 
 # fft of rolled fft-shifted
 
-FFT_func_echolike_shifted = np.fft.fft(np.fft.fftshift(func_echolike, 0))
+FFT_func_echolike_shifted = np.fft.fft(np.fft.ifftshift(func_echolike, 0))
 
 plt.subplot(326)
 plt.title('FFT(FFTshift(echo)')

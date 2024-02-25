@@ -134,7 +134,7 @@ sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
 fig = plt.figure()  # fig.clf()
-plt.subplot(411)
+plt.subplot(321)
 plt.title('ADC signal')
 spectrum = torch.reshape((signal), (Nphase, Nread)).clone().t()
 kspace = spectrum

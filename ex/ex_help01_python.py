@@ -31,7 +31,6 @@ import MRzeroCore as mr0   # if this does drop an error, read again the readme.
 import pypulseq as pp
 import util   # if this does drop an error, read again the readme.
 import torchkbnufft
-import torchvision
 import skimage as ski
 import pywt
 
@@ -42,7 +41,6 @@ print(f"scipy.__version__: {scipy.__version__}; tested 1.5.2")
 print(f"matplotlib.__version__ : {matplotlib.__version__}; tested 3.4.3")
 print(f"pp.major.minor.revision : {pp.major}.{pp.minor}.{pp.revision}; tested 1.3.1post1")
 print(f"torchkbnufft.__version__:  : {torchkbnufft.__version__}; tested 1.3.0")
-print(f"torchvision.__version__:  : {torchvision.__version__}; tested 0.17.1+cpu")
 print(f"ski.__version__:  : {ski.__version__}; tested 0.20.0")
 print(f"pywt.__version__:  : {pywt.__version__}; tested 1.4.1")
 os.chdir(os.path.abspath(os.path.dirname(__file__)))

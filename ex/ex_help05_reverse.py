@@ -5,6 +5,7 @@ Created on Wed Feb 12 23:01:40 2020
 @author: zaissmz
 """
 import numpy as np
+import util
 import torch
 from matplotlib import pyplot as plt
 

@@ -1,17 +1,16 @@
 # %% S0. SETUP env
 import MRzeroCore as mr0
 import pypulseq as pp
-import util
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
+import util
 
 # makes the ex folder your working directory
-import os 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+import os
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
-experiment_id = 'exC02_SE_to_RARE_2D'
+experiment_id = 'exB05_GRE_2D_fully_relaxed'
 
 
 # %% S1. SETUP sys
@@ -30,45 +29,50 @@ seq = pp.Sequence()
 # Define FOV and resolution
 fov = 1000e-3
 slice_thickness = 8e-3
-sz = (32, 32)   # spin system size / resolution
-Nread = 64    # frequency encoding steps/samples
-Nphase = 64    # phase encoding steps/samples
+
+Nread = 64  # frequency encoding steps/samples
+Nphase = 64  # phase encoding steps/samples
 
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
-    flip_angle=90 * np.pi / 180, phase_offset=90 * np.pi / 180, duration=1e-3,
+    flip_angle=90 * np.pi / 180, duration=1e-3,
     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
     system=system, return_gz=True
 )
-rf2, _, _ = pp.make_sinc_pulse(
-    flip_angle=180 * np.pi / 180, duration=1e-3,
-    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
-    system=system, return_gz=True
-)
-# rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
-rf_prep = pp.make_block_pulse(flip_angle=180 * np.pi / 180, duration=1e-3, system=system)
 
+zoom=1/np.sqrt(2)
+zoom=1
+
+phi = 30 * np.pi / 180 +1e-6
 # Define other gradients and ADC events
-gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=4e-3, system=system)
-adc = pp.make_adc(num_samples=Nread, duration=4e-3, phase_offset=90 * np.pi / 180, delay=gx.rise_time, system=system)
-gx_pre = pp.make_trapezoid(channel='x', area=+gx.area / 2, duration=5e-3, system=system)
+gr_x = pp.make_trapezoid(channel='x', flat_area=Nread*zoom*np.cos(phi), flat_time=10e-3, system=system)
+gr_y = pp.make_trapezoid(channel='y', flat_area=-Nread*zoom*np.sin(phi), flat_time=10e-3, system=system)
+
+adc = pp.make_adc(num_samples=Nread, duration=10e-3, phase_offset=0 * np.pi / 180, delay=gr_x.rise_time, system=system)
+
+grx_pre = pp.make_trapezoid(channel='x', area=-gr_x.area / 2, duration=5e-3, system=system)
+gry_pre = pp.make_trapezoid(channel='y', area=-gr_y.area / 2, duration=5e-3, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE
 # ======
 for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
-    gp = pp.make_trapezoid(channel='y', area=-ii, duration=5e-3, system=system)
+    seq.add_block(pp.make_delay(1))
 
-    seq.add_block(pp.make_delay(5))
+    seq.add_block(rf1)  # add rf1 with 90° flip_angle
 
-    seq.add_block(rf1)
-    seq.add_block(gx_pre, gp, pp.make_delay(0.01))
-    seq.add_block(rf2)
-    seq.add_block(pp.make_delay(0.005))
-    seq.add_block(adc, gx)
+    gpx = pp.make_trapezoid(channel='x', area=ii*zoom*np.sin(phi), duration=5e-3, system=system)
+    gpy = pp.make_trapezoid(channel='y', area=ii*zoom*np.cos(phi), duration=5e-3, system=system)
+    
+    seq.add_block(grx_pre, gry_pre)
+    seq.add_block(gpx, gpy)
+    seq.add_block(adc, gr_x,gr_y )
+    if ii < Nphase - 1:
+        seq.add_block(pp.make_delay(10))
 
 
-# %% S3. CHECK, PLOT and WRITE the sequence  as .seq
+# %% S3. CHECK, PLOT and WRITE the sequence as .seq
+
 # Check whether the timing of the sequence is correct
 ok, error_report = seq.check_timing()
 if ok:
@@ -78,7 +82,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, figid=(11,12))
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False, figid=(11,12))
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
@@ -87,7 +91,7 @@ seq.write('out/external.seq')
 seq.write('out/' + experiment_id + '.seq')
 
 
-# %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above
+# %% S4: SETUP Phantom on which we can run the MR sequence external.seq
 sz = [64, 64]
 
 if 1:
@@ -95,17 +99,17 @@ if 1:
     # obj_p = mr0.VoxelGridPhantom.load_mat('../data/phantom2D.mat')
     obj_p = mr0.VoxelGridPhantom.load_mat('../data/numerical_brain_cropped.mat')
     obj_p = obj_p.interpolate(sz[0], sz[1], 1)
-
-# Manipulate loaded data
+    # Manipulate loaded data
     obj_p.T2dash[:] = 30e-3
     obj_p.D *= 0 
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
-    # Store PD for comparison
+    # Store PD and B0 for comparison
     PD = obj_p.PD.squeeze()
     B0 = obj_p.B0.squeeze()
 else:
-    # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
+    # or (ii) set phantom  manually to a pixel phantom.
     obj_p = mr0.CustomVoxelPhantom(
+        # Coordinate system is [-0.5, 0.5]^3
         pos=[[-0.4, -0.4, 0], [-0.4, -0.2, 0], [-0.3, -0.2, 0], [-0.2, -0.2, 0], [-0.1, -0.2, 0]],
         PD=[1.0, 1.0, 0.5, 0.5, 0.5],
         T1=1.0,
@@ -121,16 +125,15 @@ else:
     B0 = torch.zeros_like(PD)
 
 obj_p.plot()
-obj_p.size=torch.tensor([fov, fov, slice_thickness]) 
+obj_p.size=torch.tensor([fov, fov, slice_thickness])
 # Convert Phantom into simulation data
 obj_p = obj_p.build()
 
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
-# Read in the sequence 
-seq0 = mr0.Sequence.import_file("out/external.seq")
- 
+# Read in the sequence
+seq0 = mr0.Sequence.from_seq_file("out/external.seq")
 #seq0.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
@@ -138,34 +141,29 @@ signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal in the ADC subplot
 plt.close(11);plt.close(12)
-sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
  
  
-
 # additional noise as simulation is perfect
-signal += 1e-4 * np.random.randn(signal.shape[0], 2).view(np.complex128)
+signal += 1e-1 * np.random.randn(signal.shape[0], 2).view(np.complex128)
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
-fig = plt.figure()  # fig.clf()
+
+fig = plt.figure()
 plt.subplot(411)
 plt.title('ADC signal')
-kspace = torch.reshape((signal), (Nphase, Nread)).clone().t()
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
-
 # this adds ticks at the correct position szread
-major_ticks = np.arange(0, Nphase * Nread, Nread)
-ax = plt.gca()
-ax.set_xticks(major_ticks)
-ax.grid()
+plt.xticks(np.arange(0, Nphase * Nread, Nread))
+plt.grid()
 
-# fftshift
-spectrum = torch.fft.fftshift(kspace)
+kspace = torch.reshape((signal), (Nphase, Nread)).clone().t()
+spectrum = torch.fft.ifftshift(kspace)
 # FFT
 space = torch.fft.fft2(spectrum)
-# fftshift
 space = torch.fft.fftshift(space)
 
 
@@ -186,7 +184,6 @@ util.MR_imshow(np.angle(space.numpy()), vmin=-np.pi, vmax=np.pi)
 plt.colorbar()
 
 # % compare with original phantom obj_p.PD
-
 plt.subplot(348)
 plt.title('phantom PD')
 util.MR_imshow(PD)

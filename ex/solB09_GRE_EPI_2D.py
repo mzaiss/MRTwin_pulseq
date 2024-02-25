@@ -146,7 +146,7 @@ signal += 1e-5 * np.random.randn(signal.shape[0], 2).view(np.complex128)
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-kspace = torch.reshape((signal), (Nphase, Nread)).clone().t().numpy()
+kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t().numpy()
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
@@ -157,13 +157,14 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
+kspace=kspace_adc
 space = np.zeros_like(kspace)
 
 kspace[:, ::2] = kspace[::-1, ::2]
-kspace[1:, ::2] = kspace[:-1, ::2]
+#kspace[1:, ::2] = kspace[:-1, ::2]
 
 # fftshift
-kspace = np.fft.fftshift(kspace)
+kspace = np.fft.ifftshift(kspace)
 # FFT
 space = np.fft.fft2(kspace)
 # fftshift
@@ -172,10 +173,10 @@ space = np.fft.fftshift(space)
 
 plt.subplot(345)
 plt.title('k-space')
-util.MR_imshow(np.abs(kspace))
+util.MR_imshow(np.abs(kspace_adc))
 plt.subplot(349)
 plt.title('k-space_r')
-util.MR_imshow(np.log(np.abs(kspace)))
+util.MR_imshow(np.log(np.abs(kspace_adc)))
 
 plt.subplot(346)
 plt.title('FFT-magnitude')

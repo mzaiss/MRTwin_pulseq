@@ -148,7 +148,7 @@ ax.grid()
 space = torch.zeros_like(spectrum)
 
 # fftshift
-spectrum = torch.fft.fftshift(spectrum)
+spectrum = torch.fft.ifftshift(spectrum)
 for ii in range(0, Nread):
     space[ii, :] = torch.fft.fft(spectrum[ii, :])
 
