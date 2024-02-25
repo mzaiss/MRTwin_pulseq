@@ -2,6 +2,7 @@
 import torchvision
 import MRzeroCore as mr0
 import pypulseq as pp
+import util
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -92,7 +93,7 @@ if 0:
     obj_p.D *= 0 
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
     # Store PD for comparison
-    PD = obj_p.PD
+    PD = obj_p.PD.squeeze()
 else:
     # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
     obj_p = mr0.CustomVoxelPhantom(
@@ -187,7 +188,7 @@ plt.show()
 
 plt.subplot(222)
 plt.title('magnitude')
-plt.imshow(np.abs(space.numpy()))
+util.MR_imshow(np.abs(space.numpy()))
 plt.subplot(224)
 plt.title('phase')
-plt.imshow(np.angle(space.numpy()))
+util.MR_imshow(np.angle(space.numpy()))

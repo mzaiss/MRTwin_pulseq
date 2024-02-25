@@ -1,6 +1,7 @@
 # %% S0. SETUP env
 import MRzeroCore as mr0
 import pypulseq as pp
+import util
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -177,7 +178,7 @@ ax.grid()
 
 plt.subplot(222)
 plt.title('magnitude')
-plt.imshow(np.abs(space.numpy()))
+util.MR_imshow(np.abs(space.numpy()))
 plt.subplot(224)
 plt.title('phase')
-plt.imshow(np.angle(space.numpy()))
+util.MR_imshow(np.angle(space.numpy()))

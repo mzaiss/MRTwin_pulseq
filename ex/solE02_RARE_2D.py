@@ -1,6 +1,7 @@
 # %% S0. SETUP env
 import MRzeroCore as mr0
 import pypulseq as pp
+import util
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -118,8 +119,8 @@ if 1:
     obj_p.D *= 0 
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
     # Store PD for comparison
-    PD = obj_p.PD
-    B0 = obj_p.B0
+    PD = obj_p.PD.squeeze()
+    B0 = obj_p.B0.squeeze()
 else:
     # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
     obj_p = mr0.CustomVoxelPhantom(
@@ -195,24 +196,24 @@ space = torch.fft.fftshift(space, 1)
 
 plt.subplot(345)
 plt.title('k-space')
-plt.imshow(np.abs(kspace.numpy()))
+util.MR_imshow(np.abs(kspace.numpy()))
 plt.subplot(349)
 plt.title('k-space_r')
-plt.imshow(np.log(np.abs(kspace.numpy())))
+util.MR_imshow(np.log(np.abs(kspace.numpy())))
 
 plt.subplot(346)
 plt.title('FFT-magnitude')
-plt.imshow(np.abs(space.numpy()))
+util.MR_imshow(np.abs(space.numpy()))
 plt.colorbar()
 plt.subplot(3, 4, 10)
 plt.title('FFT-phase')
-plt.imshow(np.angle(space.numpy()), vmin=-np.pi, vmax=np.pi)
+util.MR_imshow(np.angle(space.numpy()), vmin=-np.pi, vmax=np.pi)
 plt.colorbar()
 
 # % compare with original phantom obj_p.PD
 plt.subplot(348)
 plt.title('phantom PD')
-plt.imshow(PD)
+util.MR_imshow(PD)
 plt.subplot(3, 4, 12)
 plt.title('phantom B0')
-plt.imshow(B0)
+util.MR_imshow(B0)

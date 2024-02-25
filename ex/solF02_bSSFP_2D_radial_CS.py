@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import MRzeroCore as mr0
 import numpy as np
 import pypulseq as pp
+import util
 
 
 import pywt

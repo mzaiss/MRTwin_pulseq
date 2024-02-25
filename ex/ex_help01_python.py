@@ -26,7 +26,8 @@ from torch import optim
 import matplotlib
 import matplotlib.pyplot as plt
 import MRzeroCore as mr0   # if this does drop an error, read again the readme.
-import pypulseq as pp   # if this does drop an error, read again the readme.
+import pypulseq as pp
+import util   # if this does drop an error, read again the readme.
 import torchkbnufft
 
 # to test if all your versions are fine, tested before were:
@@ -222,25 +223,25 @@ plt.figure("""mag and phase images""")
 
 plt.subplot(141)
 plt.title('real(img)')  # make subplots with title
-ax = plt.imshow(img[:, :, 0], interpolation='none')
+ax = util.MR_imshow(img[:, :, 0], interpolation='none')
 fig = plt.gcf()
 fig.colorbar(ax)  # add a colorbar
 
 plt.subplot(142)
 plt.title('imag(img)')  # make subplots with title
-ax = plt.imshow(img[:, :, 1], interpolation='none')
+ax = util.MR_imshow(img[:, :, 1], interpolation='none')
 fig = plt.gcf()
 fig.colorbar(ax)  # add a colorbar
 
 plt.subplot(143)
 plt.title('abs(img)')  # make subplots with title
-ax = plt.imshow(magimg(img), interpolation='none')
+ax = util.MR_imshow(magimg(img), interpolation='none')
 fig = plt.gcf()
 fig.colorbar(ax)  # add a colorbar
 
 plt.subplot(144)
 plt.title('phase(img)')  # make subplots with title
-ax = plt.imshow(phaseimg(img), interpolation='none')
+ax = util.MR_imshow(phaseimg(img), interpolation='none')
 fig = plt.gcf()
 fig.colorbar(ax)  # add a colorbar
 
@@ -277,7 +278,7 @@ param = ['PD', 'T1', 'T2', 'dB0', 'rB1']
 for i in range(5):
     plt.subplot(151 + i)
     plt.title(param[i])
-    ax = plt.imshow(phantom[:, :, i], interpolation='none')
+    ax = util.MR_imshow(phantom[:, :, i], interpolation='none')
     fig = plt.gcf()
     fig.colorbar(ax)
 fig.set_size_inches(18, 3)

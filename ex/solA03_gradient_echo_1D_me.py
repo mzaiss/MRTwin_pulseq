@@ -1,6 +1,7 @@
 # %% S0. SETUP env
 import MRzeroCore as mr0
 import pypulseq as pp
+import util
 import numpy as np
 import torch
 import matplotlib.pyplot as plt

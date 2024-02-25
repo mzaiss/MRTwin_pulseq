@@ -5,6 +5,7 @@ import MRzeroCore as mr0
 import numpy as np
 import torch
 import pypulseq as pp
+import util
 from matplotlib import pyplot as plt
 
 # makes the ex folder your working directory
@@ -28,7 +29,7 @@ kspace_adc = np.fft.fft2(space)
 # this is a kspace as it woudk come from an ADC, with low frequencies centered.
 kspace_adc = np.fft.fftshift(kspace_adc)
 
-plt.imshow(np.log(np.abs(kspace_adc)))
+util.MR_imshow(np.log(np.abs(kspace_adc)))
 
 
 # %% ##########################################################################
@@ -139,28 +140,28 @@ pattern_vis = np.fft.fftshift(pattern * 256)
 fig = plt.figure(dpi=90)
 plt.subplot(321)
 plt.set_cmap(plt.gray())
-plt.imshow(abs(recon_nufft))
+util.MR_imshow(abs(recon_nufft))
 plt.ylabel('recon_full')
 plt.subplot(322)
 plt.set_cmap(plt.gray())
-plt.imshow(abs(pattern_vis))
+util.MR_imshow(abs(pattern_vis))
 plt.ylabel("pattern_vis")
 plt.title("{:.1f} % sampled".format(actual_measured_percent))
 plt.subplot(323)
 plt.set_cmap(plt.gray())
-plt.imshow(abs(first))
+util.MR_imshow(abs(first))
 plt.ylabel('first iter (=NUFFT)')
 plt.subplot(325)
 plt.set_cmap(plt.gray())
-plt.imshow(abs(current_shrink))
+util.MR_imshow(abs(current_shrink))
 plt.ylabel('final recon')
 plt.subplot(324)
 plt.set_cmap(plt.gray())
-plt.imshow(np.log(abs(np.fft.fftshift(kspace_full))))
+util.MR_imshow(np.log(abs(np.fft.fftshift(kspace_full))))
 plt.ylabel('kspace_nufft')
 plt.subplot(326)
 plt.set_cmap(plt.gray())
-plt.imshow(np.log(abs(np.fft.fftshift((kspace)))))
+util.MR_imshow(np.log(abs(np.fft.fftshift((kspace)))))
 plt.ylabel('kspace*pattern')
 plt.show()
 

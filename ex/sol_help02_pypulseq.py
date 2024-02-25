@@ -1,5 +1,6 @@
 # %% S0. SETUP env
 import pypulseq as pp
+import util
 import numpy as np
 
 # makes the ex folder your working directory
