@@ -25,28 +25,23 @@ In addition to python some extension packages are required like Pytorch. Install
 - The MRTwin_pulseq simulation itself requires the MRzero Core for simulation. Install it with:
 
 ```
- change path to MRTwin_pulseq/data
- 
- On Windows (requires python > 3.7):
- pip install MRzeroCore-0.1.0-cp37-abi3-win_amd64.whl
+ On Windows and Linux (requires python > 3.7):
+ pip install MRzeroCore
 
- On Linux (requires python > 3.9):
- pip install MRzeroCore-0.1.0-cp37-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.whl
- 
  On Mac:
  not yet supported
 ```
 
 If not already installed you also need pypulseq, torchkbnufft, numpy, scipy and matplotlib.
 
-The can be installed with
+All required packages can be installed by
 ```
+pip install mrzerocore
 pip install pypulseq==1.3.1.post1
 pip install torchkbnufft==1.3.0 --no-deps
 pip install torchvision --no-deps
-pip install numpy==1.23.5
-pip install scipy
-pip install matplotlib
+pip install scikit-image
+pip install PyWavelets
 ```
 
 **Versions that were tested**
@@ -71,7 +66,7 @@ If errors occur check the versions of the required packages. Or get help from th
 
 ## General Settings of Spyder ##
 
-To have plots as separate window, go to Tools->Preferences. Then on the rider IPythonKonsole go to Graphics and choose for the graphics backend: Automatic. 
+To have plots as separate window, which allows resizing and zooming, go to Tools->Preferences. Then on the rider IPythonKonsole go to Graphics and choose for the graphics backend: Automatic. 
 
 Then you have to close and restart spyder.
 
@@ -79,8 +74,6 @@ I recommend to switch the layout to matlab layout. Go to View->Layouts -> Matlab
 
 Once this is set up, make the project code folder **MRTwin_pulseq/ex** your current folder. 
 
-
-To be able to go to definitions quickly (CTRL-click), you have to add the included paths ('./codes, ./codes/GradOpt\_python, ./codes/scannerloop\_libs)  again in your spyder path manually in the menu (Tools/PYTHONPATH):
 
 ### Diff tool
 

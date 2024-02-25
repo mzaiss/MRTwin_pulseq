@@ -9,6 +9,7 @@ git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git --depth 1
 
 ### Installation of MRTwin_pulseq
 The cip-quota for disk space is limited, thus we need to make a symlink to the more relaxed /proj directory.
+We do thsi for the python package installation folder site-packages.
 This is done in the first 4 commands, the other 7 install packages an a specific environment python3/anaconda-2022.05
 
 Run all of the following commands in a terminal:
@@ -40,12 +41,10 @@ If errors occur check the versions of the required packages. Or get help from th
 
 ## General recommended settings in Spyder
 
-To have plots as separate window, go to Tools->Preferences. Then on the rider IPythonKonsole go to Graphics and choose for the graphics backend: Automatic. 
+To have plots as separate window, which allows resizing and zooming, go to Tools->Preferences. Then on the rider IPythonKonsole go to Graphics and choose for the graphics backend: Automatic. 
 Then you have to close and restart spyder.
 
 I recommend to switch the layout to matlab layout. G to View->Layouts -> Matlab Layout or Rstudio Layout.
-
-To be able to go to definitions quickly (CTRL-click), you have to add the included paths ('./codes, ./codes/GradOpt_python, ./codes/scannerloop_libs)  again in your spyder path manually in the menu (Tools/PYTHONPATH):
 
 
 ## Diff tool ##
