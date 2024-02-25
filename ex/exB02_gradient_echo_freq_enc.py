@@ -1,5 +1,5 @@
 # %% S0. SETUP env
-import torchvision
+
 import MRzeroCore as mr0
 import pypulseq as pp
 import util
@@ -161,21 +161,22 @@ space = torch.zeros_like(spectrum)
 plt.subplot(312)
 plt.title('FFT')
 
-plt.plot(torch.abs(torch.t(space).flatten(0)), label='real')
-plt.plot(torch.imag(torch.t(space).flatten(0)), label='imag')
+plt.plot(torch.abs(torch.t(space).flatten(0)), label='abs'); plt.legend()
 ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-# compare with original phantom obj_p.PD
+# %%  compare with original phantom obj_p.PD
 plt.subplot(313)
 plt.title('phantom projection')
-t = torchvision.transforms.Resize((Nread, Nread), interpolation=0)(PD.permute(2, 0, 1))[0, :, :]
-# this is needed due to the oversampling of the phantom, szread>sz
-t = np.roll(t, -Nread // sz[1] // 2 + 1, 0)
+
+import torch.nn.functional as F
+phantom_resampled = F.interpolate(PD.permute(2, 0, 1).unsqueeze(0) , size=(Nread, Nread), mode='nearest').squeeze(0)  # Squeeze to remove batch dimension if it was added
+phantom_resampled = np.roll(phantom_resampled, -Nread // sz[1] // 2 + 1, 0)  # this is needed due to the oversampling of the phantom, szread>sz
+
 if gx.channel == 'x':
-    plt.plot(np.sum(t, axis=1).flatten('F'), label='proj1')
+    plt.plot(np.sum(phantom_resampled, axis=1).flatten('F'), label='y-projection')
 else:
-    plt.plot(np.sum(t, axis=0).flatten('F'), label='proj1')
+    plt.plot(np.sum(phantom_resampled, axis=0).flatten('F'), label='x-projection')
 
 plt.show()

@@ -23,7 +23,6 @@ module load python3/anaconda-2022.05
 pip install mrzerocore
 pip install pypulseq==1.3.1.post1
 pip install torchkbnufft==1.3.0 --no-deps
-pip install torchvision --no-deps
 pip install scikit-image
 pip install PyWavelets
 ```

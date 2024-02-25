@@ -13,7 +13,7 @@ Created on Sun Feb  9 12:56:54 2020
 # for automatic plotting sometimes this is needed:
 import os 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
 
 
 # %% these are imports: libraries used in the script later.
