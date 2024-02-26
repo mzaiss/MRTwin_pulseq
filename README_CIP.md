@@ -15,9 +15,9 @@ This is done in the first 4 commands, the other 7 install packages an a specific
 Run all of the following commands in a terminal:
 ```
 mkdir /proj/ciptmp/$USER/
-mv /home/cip/guests/$USER/.local/lib/python3.9/site-packages/ /home/cip/guests/$USER/.local/lib/python3.9/site-packages-backup
-ln -s /proj/ciptmp/$USER/site-packages /home/cip/guests/$USER/.local/lib/python3.9/site-packages
-mv /home/cip/guests/$USER/.local/lib/python3.9/site-packages-backup /proj/ciptmp/$USER/site-packages
+mv $HOME/.local/lib/python3.9/site-packages/ $HOME/.local/lib/python3.9/site-packages-backup
+ln -s /proj/ciptmp/$USER/site-packages $HOME/.local/lib/python3.9/site-packages
+mv $HOME/$USER/.local/lib/python3.9/site-packages-backup /proj/ciptmp/$USER/site-packages
 
 module load python3/anaconda-2022.05
 pip install mrzerocore
