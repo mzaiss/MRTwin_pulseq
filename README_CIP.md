@@ -17,7 +17,7 @@ Run all of the following commands in a terminal:
 mkdir /proj/ciptmp/$USER/
 mv $HOME/.local/lib/python3.9/site-packages/ $HOME/.local/lib/python3.9/site-packages-backup
 ln -s /proj/ciptmp/$USER/site-packages $HOME/.local/lib/python3.9/site-packages
-mv $HOME/$USER/.local/lib/python3.9/site-packages-backup /proj/ciptmp/$USER/site-packages
+mv $HOME/.local/lib/python3.9/site-packages-backup /proj/ciptmp/$USER/site-packages
 
 module load python3/anaconda-2022.05
 pip install mrzerocore
