@@ -122,7 +122,7 @@ array[0, 0, :] = 1.0
 # array[0, :, 0] = 2.0
 # array[:, 4, 1] = 3.0
 # array[:, 0, :] = 4.0
-# array[:, :, :] = 5.0
+#array[:, :, :] = 5.0
 # array[:] = 0.123
 print(array[:, :, 0], '\n\n', array[:, :, 1], 'shape=', array.shape)
 
@@ -131,14 +131,14 @@ print(array[:, :, 0], '\n\n', array[:, :, 1], 'shape=', array.shape)
 array = np.zeros([5, 5, 2])  # this could be a complex image
 # array[:, -1, :] = 1.0  #last entry
 # array[:, -3, :] = 1.0  # third last entry
-# array[:, 1:-2, :] = 1.0  # from index one til -2 (be careful, last value is not counted in)
-# array[:, ::2, :] = 3.0  # all in steps of 2
-# array[:, 1::2, :] = 3.0  # from 1 to end in steps of 2
+#array[:, 1:-2, :] = 1.0  # from index one til -2 (be careful, last value is not counted in)
+#array[:, ::2, :] = 3.0  # all in steps of 2
+#array[:, 1::2, :] = 3.0  # from 1 to end in steps of 2
 # array[0, 1::2, 0] = np.linspace(0.5,0.6,2)  # from 1 to end in steps of 2
 
 # initialize to ones, then multiply certain entries by 0
-array = np.ones([5, 5, 2])
-array[:, 1:-2, :] *= 0
+# array = np.ones([5, 5, 2])
+# array[:, 1:-2, :] *= 0
 
 print(array[:, :, 0], '\n\n', array[:, :, 1], 'shape=', array.shape)
 
@@ -228,6 +228,7 @@ plt.figure("""mag and phase images""")
 
 plt.subplot(141)
 plt.title('real(img)')  # make subplots with title
+util.MR_imshow(img[:, :, 0])
 ax = util.MR_imshow(img[:, :, 0], interpolation='none')
 fig = plt.gcf()
 fig.colorbar(ax)  # add a colorbar
@@ -284,7 +285,7 @@ param = ['PD', 'T1', 'T2', 'dB0', 'rB1']
 for i in range(5):
     plt.subplot(151 + i)
     plt.title(param[i])
-    ax = util.MR_imshow(phantom[:, :, i], interpolation='none')
+    ax = util.MR_imshow(brain_phantom[:, :, i], interpolation='none')
     fig = plt.gcf()
     fig.colorbar(ax)
 fig.set_size_inches(18, 3)
@@ -344,22 +345,21 @@ print(tonumpy(D), type(tonumpy(D)), 'This is again a numpy array')
 
 # %% exercises:  fix the followig codes ( currently they will throw and error)
 if 0:
-    array = np.zeros([5, 5])  # aim: generate 5x5 matrix if zeroes
+    array = np.zeros(5, 5)  # aim: generate 5x5 matrix if zeroes
     print(array, 'shape=', array.shape)
 
-    array = np.linspace(0, 5, 6)  # aim: generate array [0, 1, 2, 3, 4, 5]
+    array = np.linspace(0, 5, 5)  # aim: generate array [0, 1, 2, 3, 4, 5]
     print(array, 'shape=', array.shape)
 
-    array = np.arange(0, 6, 1)  # aim: generate array [0, 1, 2, 3, 4, 5]
+    array = np.arange(0, 6, 5)  # aim: generate array [0, 1, 2, 3, 4, 5]
     print(array, 'shape=', array.shape)
 
     array = np.zeros([5, 5])
-    array[:, 4] = 3.0  # aim: we want the last column of the array all filled with 3.0
+    array[:, 5] = 3.0  # aim: we want the last column of the array all filled with 3.0
     print(array, 'shape=', array.shape)
 
     array = np.zeros([5, 5, 2])
-    array[0, ::3, 0] = np.ones(2)  # aim: fill every second column with vlue given by linspace
+    array[0, ::2, 0] = np.ones(2)  # aim: fill every second column with vlue given by linspace
+    print(array, 'shape=', array.shape)
+    
 
-    A = np.linspace(0, 1, 5)
-    B = torch.arange(0, 5, 1)
-    B * A
