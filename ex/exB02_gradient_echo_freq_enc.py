@@ -173,6 +173,7 @@ plt.title('phantom projection')
 import torch.nn.functional as F
 phantom_resampled = F.interpolate(PD.permute(2, 0, 1).unsqueeze(0) , size=(Nread, Nread), mode='nearest').squeeze(0)  # Squeeze to remove batch dimension if it was added
 phantom_resampled = np.roll(phantom_resampled, -Nread // sz[1] // 2 + 1, 0)  # this is needed due to the oversampling of the phantom, szread>sz
+phantom_resampled=phantom_resampled.squeeze()
 
 if gx.channel == 'x':
     plt.plot(np.sum(phantom_resampled, axis=1).flatten('F'), label='y-projection')
