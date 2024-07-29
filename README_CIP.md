@@ -16,6 +16,7 @@ Run all of the following commands in a terminal:
 ```
 module load python3/anaconda-2022.05
 pip install mrzerocore
+pip install mrzerocore==0.2.9
 ```
 ```
 mkdir /proj/ciptmp/$USER/
