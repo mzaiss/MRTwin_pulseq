@@ -1,4 +1,5 @@
 #@title re-animate with nufft
+import numpy as np
 from IPython.display import HTML
 from matplotlib.gridspec import GridSpec
 from tqdm.auto import tqdm
@@ -6,7 +7,7 @@ import matplotlib.animation as animation
 from scipy.interpolate import griddata
 import torchkbnufft as tkbn
 import torch
-import numpy as np
+
 
 def animate_nufft(seq, k_space_data, dt=1e-3, plot_window=1e-2, time_range=None, fps=30, max_frames=None,
             show=True, save_filename=None, show_progress=False):
