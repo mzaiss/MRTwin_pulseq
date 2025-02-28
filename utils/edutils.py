@@ -8,9 +8,22 @@ from scipy.interpolate import griddata
 import torchkbnufft as tkbn
 import torch
 
+import MRzeroCore as mr0
+import pypulseq as pp
+import matplotlib.pyplot as plt
 
-def animate_nufft(seq, k_space_data, dt=1e-3, plot_window=1e-2, time_range=None, fps=30, max_frames=None,
+
+def animate_nufft(seq, k_space_data, dt=1e-3, plot_window=1e-2, Nread=None,Nphase=None, time_range=None, fps=30, max_frames=None,
             show=True, save_filename=None, show_progress=False):
+  if time_range is None:
+      time_range = [0, seq.duration()[0]]
+
+  delta_kx = 1/seq.get_definition('FOV')[0]
+  delta_ky = 1/seq.get_definition('FOV')[1]
+  delta_kz = 1/seq.get_definition('FOV')[2]
+
+  fov=seq.get_definition('FOV')[0]
+
   def recon_nufft(signal, kspace_loc,verbose=0):
     img_shape = [Nread] * 2
   
@@ -39,12 +52,7 @@ def animate_nufft(seq, k_space_data, dt=1e-3, plot_window=1e-2, time_range=None,
     recon_nufft = torch.flip(recon_nufft, dims=(-2, -1))
     return recon_nufft
 
-  if time_range is None:
-      time_range = [0, seq.duration()[0]]
 
-  delta_kx = 1/seq.get_definition('FOV')[0]
-  delta_ky = 1/seq.get_definition('FOV')[1]
-  delta_kz = 1/seq.get_definition('FOV')[2]
 
   ts = np.linspace(time_range[0], time_range[1], int(np.ceil((time_range[1] - time_range[0])/dt))+1)
 
@@ -293,12 +301,12 @@ def animate_nufft(seq, k_space_data, dt=1e-3, plot_window=1e-2, time_range=None,
         # Update the filled k-space and reconstruction
         filled_kspace_plot.set_offsets(np.column_stack((k_traj_adc[0, mask_adc],k_traj_adc[1, mask_adc])))
         #filled_kspace_plot.set_offsets((k_traj_adc[0,mask_adc],k_traj_adc[1,mask_adc]))
-        filled_kspace_mag=np.log(np.abs(signal[mask_adc,:].cpu().numpy())+1).ravel()
+        filled_kspace_mag=np.log(np.abs(k_space_data[mask_adc,:].cpu().numpy())+1).ravel()
         filled_kspace_plot.set_array(filled_kspace_mag)
         filled_kspace_plot.set_clim(0, np.max(filled_kspace_mag) if np.max(filled_kspace_mag) > 0 else 1)
 
         # Perform forward NUFFT
-        recon_image = recon_nufft(signal[mask_adc,:], torch.from_numpy(k_traj_adc[:,mask_adc].T))
+        recon_image = recon_nufft(k_space_data[mask_adc,:], torch.from_numpy(k_traj_adc[:,mask_adc].T))
         #print(mask_adc)
 
         # Normalize for display
