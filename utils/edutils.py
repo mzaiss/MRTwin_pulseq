@@ -13,7 +13,7 @@ import pypulseq as pp
 import matplotlib.pyplot as plt
 
 
-def animate_nufft(seq, k_space_data, dt=1e-3, plot_window=1e-2, Nread=None,Nphase=None, time_range=None, fps=30, max_frames=None,
+def animate_nufft(seq, k_space_data,k_traj0=None, k_marker_s=20, dt=1e-3, plot_window=1e-2, Nread=None,Nphase=None, time_range=None, fps=30, max_frames=None,
             show=True, save_filename=None, show_progress=False):
   if time_range is None:
       time_range = [0, seq.duration()[0]]
@@ -239,7 +239,7 @@ def animate_nufft(seq, k_space_data, dt=1e-3, plot_window=1e-2, Nread=None,Nphas
 
   # New plot elements for filled k-space and reconstruction
   # Note: transposed display with origin='lower'
-  filled_kspace_plot = ax_filled_kspace.scatter([0],[0], c=[0],cmap='viridis',alpha=0.9, s=40)
+  filled_kspace_plot = ax_filled_kspace.scatter([0],[0], c=[0],cmap='viridis',alpha=0.9, s=k_marker_s)
   ax_filled_kspace.set_xlim((-0.5*Nread/fov,+0.5*Nread/fov))
   ax_filled_kspace.set_ylim((-0.5*Nread/fov,+0.5*Nread/fov))
   ax_filled_kspace.set_xlabel('kx')
@@ -305,8 +305,13 @@ def animate_nufft(seq, k_space_data, dt=1e-3, plot_window=1e-2, Nread=None,Nphas
         filled_kspace_plot.set_array(filled_kspace_mag)
         filled_kspace_plot.set_clim(0, np.max(filled_kspace_mag) if np.max(filled_kspace_mag) > 0 else 1)
 
+        if k_traj0 is None:
+          masked_traj_adc= torch.from_numpy(k_traj_adc[:,mask_adc].T)
+        else:
+          masked_traj_adc= k_traj0[mask_adc,:]
+
         # Perform forward NUFFT
-        recon_image = recon_nufft(k_space_data[mask_adc,:], torch.from_numpy(k_traj_adc[:,mask_adc].T))
+        recon_image = recon_nufft(k_space_data[mask_adc,:],masked_traj_adc)
         #print(mask_adc)
 
         # Normalize for display
