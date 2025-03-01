@@ -11,6 +11,7 @@ import torch
 import MRzeroCore as mr0
 import pypulseq as pp
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 
 def animate_nufft(seq, k_space_data,k_traj0=None, k_marker_s=20, dt=1e-3, plot_window=1e-2, Nread=None,Nphase=None, time_range=None, fps=30, max_frames=None,
@@ -244,6 +245,7 @@ def animate_nufft(seq, k_space_data,k_traj0=None, k_marker_s=20, dt=1e-3, plot_w
   ax_filled_kspace.set_ylim((-0.5*Nread/fov,+0.5*Nread/fov))
   ax_filled_kspace.set_xlabel('kx')
   ax_filled_kspace.set_ylabel('ky')
+  ax_filled_kspace.set_facecolor(cm.viridis[0])
   recon_image_plot = ax_recon_image.imshow(np.zeros((Nread, Nphase)).T,cmap='gray',origin='lower')
 
   ax_kspace.set_xlim(np.nanmin(k_traj_adc[0]) - delta_kx*10, np.nanmax(k_traj_adc[0]) + delta_kx*10)
@@ -298,17 +300,27 @@ def animate_nufft(seq, k_space_data,k_traj0=None, k_marker_s=20, dt=1e-3, plot_w
       p_cursor2.set_xdata([k_traj[0, c_ind]])
       p_cursor2.set_ydata([k_traj[2, c_ind]])
       if len(mask_adc)> 0:
-        # Update the filled k-space and reconstruction
-        filled_kspace_plot.set_offsets(np.column_stack((k_traj_adc[0, mask_adc],k_traj_adc[1, mask_adc])))
-        #filled_kspace_plot.set_offsets((k_traj_adc[0,mask_adc],k_traj_adc[1,mask_adc]))
-        filled_kspace_mag=np.log(np.abs(k_space_data[mask_adc,:].cpu().numpy())+1).ravel()
-        filled_kspace_plot.set_array(filled_kspace_mag)
-        filled_kspace_plot.set_clim(0, np.max(filled_kspace_mag) if np.max(filled_kspace_mag) > 0 else 1)
+
 
         if k_traj0 is None:
+          # Update the filled k-space and reconstruction
+          filled_kspace_plot.set_offsets(np.column_stack((k_traj_adc[0, mask_adc],k_traj_adc[1, mask_adc])))
+          #filled_kspace_plot.set_offsets((k_traj_adc[0,mask_adc],k_traj_adc[1,mask_adc]))
+          filled_kspace_mag=np.log(np.abs(k_space_data[mask_adc,:].cpu().numpy())+1).ravel()
+          filled_kspace_plot.set_array(filled_kspace_mag)
+          filled_kspace_plot.set_clim(0, np.max(filled_kspace_mag) if np.max(filled_kspace_mag) > 0 else 1)
+
           masked_traj_adc= torch.from_numpy(k_traj_adc[:,mask_adc].T)
         else:
           masked_traj_adc= k_traj0[mask_adc,:]
+          # Update the filled k-space and reconstruction
+          filled_kspace_plot.set_offsets(np.column_stack((k_traj0[mask_adc,0].numpy(),k_traj0[mask_adc,1].numpy())))
+          #filled_kspace_plot.set_offsets((k_traj_adc[0,mask_adc],k_traj_adc[1,mask_adc]))
+          filled_kspace_mag=np.log(np.abs(k_space_data[mask_adc,:].cpu().numpy())+1).ravel()
+          filled_kspace_plot.set_array(filled_kspace_mag)
+          filled_kspace_plot.set_sizes([k_marker_s])
+          filled_kspace_plot.set_clim(0, np.max(filled_kspace_mag) if np.max(filled_kspace_mag) > 0 else 1)
+
 
         # Perform forward NUFFT
         recon_image = recon_nufft(k_space_data[mask_adc,:],masked_traj_adc)
