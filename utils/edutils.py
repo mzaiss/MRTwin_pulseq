@@ -80,6 +80,19 @@ def recon_nufft(signal, kspace_loc, verbose=0, Nread=0, fov=0):
 
 def animate_nufft(seq, seq0, k_space_data, k_marker_s=20, dt=1e-3, plot_window=1e-2, Nread=None, Nphase=None, 
                   time_range=None, fps=30, max_frames=None, show=True, save_filename=None, show_progress=False):
+# example: ######################################################
+# import edutils
+# import importlib
+# importlib.reload(edutils)
+# ani = edutils.animate_nufft(seq, seq0, k_space_data=signal,k_marker_s=4, show=False, dt=seq.duration()[0] / 2000,Nread=256,Nphase=256,
+#                     plot_window=seq.duration()[0]/30, fps=20, show_progress=True,save_filename='external.gif', time_range=[0.0,0.17])
+#
+# ani.save('external.gif', fps=20)
+# ani.save('external.mp4', fps=20)
+#
+#
+################################################################     
+                      
     if time_range is None:
         time_range = [0, seq.duration()[0]]
     else:
