@@ -171,14 +171,24 @@ def animate_nufft(seq, seq0, k_space_data, k_marker_s=20, dt=1e-3, plot_window=1
     frames = len(ts) - 1
     if max_frames is not None:
         frames = min(max_frames, frames)
+           
+    # Calculate how many extra frames to add for the last frame (e.g., 3 seconds)
+    extra_frames = int(2.3 * fps)
+    total_frames = frames + extra_frames
 
     if show_progress:
-        progress_bar = tqdm(total=frames)
+        progress_bar = tqdm(total=total_frames)
 
     def update(frame):
         if show_progress:
             progress_bar.update(frame + 1 - progress_bar.n)
-        t_start, t_end = list(zip(ts[:-1], ts[1:]))[frame]
+
+        # If frame is within the original sequence duration
+        if frame < frames:
+            t_start, t_end = list(zip(ts[:-1], ts[1:]))[frame]
+        else:
+            # For extra frames, keep the last time step
+            t_start, t_end = ts[-2], ts[-1]
 
         ax_rf.set_xlim(t_start - plot_window/2, t_end + plot_window/2)
         ax_x.set_xlim(t_start - plot_window/2, t_end + plot_window/2)
@@ -233,6 +243,8 @@ def animate_nufft(seq, seq0, k_space_data, k_marker_s=20, dt=1e-3, plot_window=1
             recon_image = recon_image / np.max(recon_image) if np.max(recon_image) > 0 else recon_image
             recon_image_plot.set_data(recon_image.T)
             recon_image_plot.set_clim(0, 1)
+        
+        last_frame = plt.gcf() 
 
     ax_rf.text(-0.07, 0, 'RF', transform=ax_rf.transAxes)
     ax_x.text(-0.07, 0, 'GX', transform=ax_x.transAxes)
@@ -246,8 +258,8 @@ def animate_nufft(seq, seq0, k_space_data, k_marker_s=20, dt=1e-3, plot_window=1
     ax_recon_image.set_title('Reconstruction')
 
     plt.tight_layout()
-    ani = animation.FuncAnimation(fig=fig, func=update, frames=frames, interval=1000/fps)
-
+    ani = animation.FuncAnimation(fig=fig, func=update, frames=total_frames, interval=1000/fps)
+ 
     if save_filename is not None:
         ani.save(save_filename, fps=fps)
     if show:
