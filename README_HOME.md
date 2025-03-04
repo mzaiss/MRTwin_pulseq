@@ -25,11 +25,8 @@ In addition to python some extension packages are required like Pytorch. Install
 - The MRTwin_pulseq simulation itself requires the MRzero Core for simulation. Install it with:
 
 ```
- On Windows and Linux (requires python > 3.7):
+ On Windows, Linux and Mac (requires python > 3.7):
  pip install MRzeroCore
-
- On Mac:
- not yet supported
 ```
 
 If not already installed you also need pypulseq, torchkbnufft, numpy, scipy and matplotlib.
