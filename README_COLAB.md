@@ -1,5 +1,5 @@
 
-#https://colab.research.google.com/drive/1Ia6aPp6pmiJ0r_9bCrYr353cN04RIJ-S?usp=sharing
+# Thats what you need to run in Colab
 
 !pip install MRzeroCore &> /dev/null
 
@@ -12,6 +12,9 @@
 
 !mkdir out/
 
+
+# Or use this link:
+https://colab.research.google.com/drive/1Ia6aPp6pmiJ0r_9bCrYr353cN04RIJ-S?usp=sharing
 
 
 
