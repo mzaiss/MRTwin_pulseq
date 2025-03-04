@@ -37,7 +37,7 @@
 %	Information	
 % =================
 	{\large Designed by: M. Zaiss '19 \\
-	Updated 02/2024 \\
+	Updated 03/2025 \\
  \vspace*{1.2\baselineskip}
  Simulation by J.Endres\\
 		\vspace*{1.2\baselineskip}
@@ -86,6 +86,12 @@ The Latex file was created using Overleaf, based on the free template of Armin D
 \item http://mrsrl.stanford.edu/~brian/bloch/
 
 \item https://github.com/markus-nilsson/mri-simulator
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{gradient_flat_dur.png}
+    \caption{Enter Caption}
+    \label{fig:enter-label}
+\end{figure}
 \end{itemize}
 
 
@@ -362,19 +368,20 @@ So back to eq. \eqref{eq:signal}, if we now use a new variable
   \end{equation} 
    \end{minipage}
    }
-we obtain something that looks exactly like a Fourier transformation from the real space to the spatial frequency space, or k-space.
+we obtain something that looks exactly like a Fourier transformation from the real space to the spatial frequency space, or k-space. Actually it is an inverse Fourier transform with a positive sign in the exponent:
 
 \fcolorbox{white}{mygelb}{
  \addtolength{\linewidth}{-2\fboxsep}%
  \addtolength{\linewidth}{-2\fboxrule}%
  \begin{minipage}{\linewidth}
  \begin{equation} \label{eq:signal_kspace}
-    s(t)=  s(\vec{k}(t)) = \int_{\vec{r}} M_{xy}(\vec{r})\cdot\exp(-i2\pi\vec{r}\cdot \vec{k}) d^3r
+    s(t)=  s(\vec{k}(t)) = \int_{\vec{r}} M_{xy}(\vec{r})\cdot\exp(+i2\pi\vec{r}\cdot \vec{k}) d^3r
  \end{equation}
     \end{minipage}
   }
 Thus, the signal for a given gradient moment g, or k, is  actually just exactly the Fourier transform of the  excited transverse magnetization. 
- As the Fourier transform is invert-able, the inverse Fourier transform of the signal acquired at a full k-space grid will generate an image of the transverse magnetization.
+ The inverse Fourier transform is invertible, and the inverse of the inverse Fourier transform is the Fourier transform now with a negative sign in the exponent.
+ Thus, the Fourier transform of the signal acquired at a full k-space grid will generate an image of the transverse magnetization.
  
  \fcolorbox{white}{mygelb}{
  \addtolength{\linewidth}{-2\fboxsep}%
@@ -1066,6 +1073,7 @@ Hint: Blocks in Pulseq will always be played out after each other. If you want t
 
 You cannot edit blocks, to alter the events, you have to either define new events before adding them in a block. Or you alter old events after a first block, to then add the altered event to a new block.
 
+
 \begin{enumerate}
 
 \item 	Try to generate the sequence as displayed in Figure \ref{fig:ex_help02}. 
@@ -1095,7 +1103,7 @@ namespace(type='rf',
           delay=0.0005)
 \end{minted}
 and you get the delay, the dead time and the ringdown time.
-The delay is a delay before the pulse is played out, even if you requested a delay of 0 ms in the make\_sinc function, this delay is overwritten by either the dead time, or the rise time of the gradient, if it is a slice selective pulse (if it has a thickness).  The dead time is the time it takes the RF coil to switch between transmit and receive modes and is a security time where no events can be played out. Teh gradient rise time, depends on your gradient system, but typically your rf pulses are 0.5 ms delayed. 
+The delay is a delay before the pulse is played out, even if you requested a delay of 0 ms in the make\_sinc function, this delay is overwritten by either the dead time, or the rise time of the gradient, if it is a slice selective pulse (if it has a thickness).  The dead time is the time it takes the RF coil to switch between transmit and receive modes and is a security time where no events can be played out. The gradient rise time, depends on your gradient system, but typically your rf pulses are 0.5 ms delayed. 
 
 The ringdown time refers to the time period during which the RF coil continues to oscillate after the RF excitation pulse has been turned off. This ringing is due to the resonant nature of the RF coil, and can result in unwanted signals in the acquired data, leading to image artifacts.It counts as part of your pulse duration. 
 
@@ -1118,6 +1126,7 @@ is\textbf{ 0.00152 s} consisting of
 \end{itemize}
 Further, calc\_rf\_center(rf1) tells us that 0.00050 s after the delay, we have the center of the pulse, this at 0.00100 s  after the start of the block.
 
+
 With this information you can now do the next exercises
 
 \begin{enumerate}
@@ -1127,6 +1136,27 @@ With this information you can now do the next exercises
 \item 	Create a second rf pulse exactly 0.2 s. 
 
 \end{enumerate}
+
+\subsubsection{Trapezoid definition}
+There are more ways of defining gradients see code and Figure \ref{fig:ex_help02_grad}.
+\begin{itemize}
+    \item area and duration
+    \item flat\_area and flat\_time
+    \item amplitude and duration
+\end{itemize}
+\begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
+gx1 = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=2e-3, system=system)
+gx2 = pp.make_trapezoid(channel='x', flat_area=-gx.area / 2, flat_time=2e-3, system=system)
+gx3 = pp.make_trapezoid(channel='x', amplitude=111, duration=2e-3, system=system)
+\end{minted}
+
+\begin{figure}[H] 
+\centering
+\includegraphics[width=10cm]{img/gradient_flat_dur.png}
+\caption{Different ways of gradient definition} \label{fig:ex_help02_grad}
+\end{figure}
+
+
 
 \subsection{exA00\_phantom}
 To be able to simulate a MR signal, we need to define at least a minimal \textbf{MR phantom object }describing our spin system. Get familiar with the pixelwise definition of MR phantom objects, and load more complex MR phantoms
@@ -1518,7 +1548,6 @@ To send the sequence to the real scanner, you can add in section S5 the followin
 use_simulation = False
 
 if use_simulation:
-    seq_file = mr0.PulseqFile("out/external.seq")
     seq0 = mr0.Sequence.import_file("out/external.seq")
     #seq0.plot_kspace_trajectory()
     graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
