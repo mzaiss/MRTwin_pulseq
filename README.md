@@ -17,7 +17,7 @@ For virtual attendence read the [README_VIRTUAL.md](README_VIRTUAL.md).
 
 ## Installation
 Check the readmes for your system:
-- [README_HOME.md](README_HOME.md) for installation on your own Windows or Linux system, Mac is currently not supported.
+- [README_HOME.md](README_HOME.md) for installation on your own Windows, Linux system or Mac system. 
 - [README_CIP.md](README_CIP.md) for the installation in the FAU CIP pool.
 - run script data/brainweb/generate_maps.py to generate brainweb phantoms
 
