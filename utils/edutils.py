@@ -246,10 +246,10 @@ def animate_nufft(seq, seq0, k_space_data, k_marker_s=20, dt=1e-3, plot_window=1
         
         last_frame = plt.gcf() 
 
-    ax_rf.text(-0.07, 0,verticalalignment='center', 'RF', transform=ax_rf.transAxes)
-    ax_x.text(-0.07, 0, verticalalignment='center', 'GX', transform=ax_x.transAxes)
-    ax_y.text(-0.07, 0, verticalalignment='center', 'GY', transform=ax_y.transAxes)
-    ax_z.text(-0.07, 0, verticalalignment='center', 'GZ', transform=ax_z.transAxes)
+    ax_rf.text(-0.07, 0,'RF', verticalalignment='center',transform=ax_rf.transAxes)
+    ax_x.text(-0.07, 0, 'GX', verticalalignment='center', transform=ax_x.transAxes)
+    ax_y.text(-0.07, 0, 'GY', verticalalignment='center', transform=ax_y.transAxes)
+    ax_z.text(-0.07, 0, 'GZ', verticalalignment='center', transform=ax_z.transAxes)
     ax_kspace.text(0.5, 0, 'Ky ↑', horizontalalignment='center', verticalalignment='top', transform=ax_kspace.transAxes)
     ax_kspace.text(0.0, 0.5, 'Kx → ', verticalalignment='center', horizontalalignment='right', transform=ax_kspace.transAxes)
     ax_kspace2.text(0.5, 0, 'Kz ↑', horizontalalignment='center', verticalalignment='top', transform=ax_kspace2.transAxes)
