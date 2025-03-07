@@ -7,6 +7,7 @@ import matplotlib.animation as animation
 from scipy.interpolate import griddata
 import torchkbnufft as tkbn
 import torch
+import os
 
 import MRzeroCore as mr0
 import pypulseq as pp
