@@ -258,6 +258,8 @@ def animate_nufft(seq, seq0, k_space_data, k_marker_s=20, dt=1e-3, plot_window=1
     ax_recon_image.set_title('Reconstruction')
 
     plt.tight_layout()
+    title_label, _ = os.path.splitext(save_filename)
+    fig.text(0.01, 0.99,title_label, ha='left', va='top', fontsize=22,fontweight='bold')
     ani = animation.FuncAnimation(fig=fig, func=update, frames=total_frames, interval=1000/fps)
  
     if save_filename is not None:
