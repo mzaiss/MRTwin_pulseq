@@ -15,8 +15,8 @@ This is done in the first 4 commands, the other 7 install packages an a specific
 Run all of the following commands in a terminal:
 ```
 module load python3/anaconda-2022.05
-pip install mrzerocore
-pip install mrzerocore==0.2.9
+pip install mrzerocore --no-deps
+pip install pydisseqt
 ```
 ```
 mkdir /proj/ciptmp/$USER/
