@@ -10,7 +10,7 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
-experiment_id = 'exE02_RARE_2D'
+experiment_id = 'exE02_RARE_2D_name_fruit#'
 
 
 # %% S1. SETUP sys
@@ -36,13 +36,13 @@ Nphase = 64  # phase encoding steps/samples
 
 # Define rf events
 rf1, gz, gzr = pp.make_sinc_pulse(
-    flip_angle=90 * np.pi / 180, phase_offset=90 * np.pi / 180, duration=1e-3,
-    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
+    flip_angle=60 * np.pi / 180, phase_offset=90 * np.pi / 180, duration=2e-3,
+    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=2,
     system=system, return_gz=True
 )
 rf2, gz180, _ = pp.make_sinc_pulse(
-    flip_angle=180 * np.pi / 180, duration=1e-3,
-    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
+    flip_angle=100 * np.pi / 180, duration=2e-3,
+    slice_thickness=slice_thickness, apodization=0.5, time_bw_product=2,
     system=system, return_gz=True
 )
 # rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
@@ -64,26 +64,29 @@ gx_prewinder = pp.make_trapezoid(channel='x', area=+2.0 * gx.area / 2, duration=
 # seq.add_block(make_delay(2.7))
 # seq.add_block(gx_pre0)
 
-# seq.add_block(make_delay(0.00031))
-seq.add_block(pp.make_delay(0.0009))
 
-seq.add_block(rf1, gz)
-seq.add_block(gzr)
-pp.calc_duration(rf1)
-pp.calc_duration(gx_pre0)
+# calculate TE and delays
+ct=pp.calc_rf_center(rf2)    # rf center time returns time and index of the center of the pulse
+ct[0]                       # this is the rf center time
 
-seq.add_block(gx_pre0, pp.make_delay(0.0041 - pp.calc_duration(rf1) - rf2.delay - rf2.t[-1] / 2 + rf2.ringdown_time / 2))
+TE=  12e-3  # the echo time we want, defines the delays we need, min TE~=2ms
+delayTE_1= pp.make_delay(TE/2 - pp.calc_duration(rf1))  # the rf pulses take time, which we need to subtract
+
+delayTE_2= pp.make_delay(TE/2 - ct[0]- rf2.ringdown_time-pp.calc_duration(gx)/2) # half rf and half adc/gx time need to be subtracted, so echo is at adc center
+
+seq.add_block(rf1,gz)
+
+seq.add_block(gx_pre0,delayTE_1,gzr) # only valid if delayTE_1 longer than gx_pre0
+if pp.calc_duration(gx_pre0)>pp.calc_duration(delayTE_1): raise Exception("below minTE")
 
 for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
-    seq.add_block(rf2, gz180)
-
-    seq.add_block(pp.make_delay(0.0001))
-    gp = pp.make_trapezoid(channel='y', area=ii / fov , duration=1e-3, system=system)
-    gp_ = pp.make_trapezoid(channel='y', area=-ii / fov , duration=1e-3, system=system)
-    seq.add_block(gx_prewinder, gp)
+    seq.add_block(rf2,gz)
+    gp = pp.make_trapezoid(channel='y', area=ii/fov, duration=1e-3, system=system)
+    gp_ = pp.make_trapezoid(channel='y', area=-ii/fov, duration=1e-3, system=system)
+    seq.add_block(gx_prewinder, gp, delayTE_2)  
     seq.add_block(adc, gx)
-    seq.add_block(gx_prewinder, gp_)
-    seq.add_block(pp.make_delay(0.00008))
+    seq.add_block(gx_prewinder, gp_,delayTE_2)
+
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
@@ -143,14 +146,13 @@ obj_p.size=torch.tensor([fov, fov, slice_thickness])
 # Convert Phantom into simulation data
 obj_p = obj_p.build()
 
-
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
 use_simulation = True
 
 if use_simulation:
     seq0 = mr0.Sequence.import_file("out/external.seq")
-    #seq0.plot_kspace_trajectory()
+    # #seq0.plot_kspace_trajectory()
     graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
     signal = mr0.execute_graph(graph, seq0, obj_p)
     spectrum = torch.reshape((signal), (Nphase, Nread)).clone().transpose(1, 0)
@@ -162,8 +164,7 @@ if use_simulation:
 else:
     signal = mr0.util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
     spectrum = torch.reshape((signal), (Nphase, Nread, 20)).clone().transpose(1, 0)
-    
-
+    kspace = spectrum
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
@@ -191,8 +192,10 @@ space = torch.fft.fft2(spectrum, dim=(0, 1))
 space = torch.fft.fftshift(space, 0)
 space = torch.fft.fftshift(space, 1)
 
+space0 = space
 if use_simulation==False:
-    space = torch.sum(space.abs(), 2)
+    space0 = space[:,:,0]
+    space = torch.sum(space.abs(), 2)  # or use single coil: space  = space[:,:,14]
 
 plt.subplot(345)
 plt.title('k-space')
@@ -203,7 +206,8 @@ mr0.util.imshow(np.log(np.abs(kspace.numpy())))
 
 plt.subplot(346)
 plt.title('FFT-magnitude')
-mr0.util.imshow(np.abs(space.numpy()))
+mr0.util.imshow(np.abs(space.numpy()),vmin=0, vmax=0.07,cmap='gray')
+#mr0.util.imshow(np.abs(space.numpy()),cmap='gray')
 plt.colorbar()
 plt.subplot(3, 4, 10)
 plt.title('FFT-phase')
