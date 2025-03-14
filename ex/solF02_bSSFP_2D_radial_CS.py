@@ -6,7 +6,6 @@ import numpy as np
 import pypulseq as pp
 
 
-
 import pywt
 import torch
 
@@ -36,11 +35,11 @@ fov = 1000e-3
 slice_thickness = 8e-3
 sz = (128, 128) # spin system size / resolution
 Nread = sz[0]   # frequency encoding steps/samples
-Nphase = 31     # phase encoding steps/samples - number of radial spokes
+Nphase = 64     # phase encoding steps/samples - number of radial spokes
 
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
-    flip_angle=6 * np.pi / 180, duration=1e-3,
+    flip_angle=30 * np.pi / 180, duration=1e-3,
     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
     system=system, return_gz=True
 )
@@ -64,7 +63,7 @@ rf_inc = 180
 sdel = 1e-0
 
 rf0, _, _ = pp.make_sinc_pulse(
-    flip_angle=6 / 2 * np.pi / 180, duration=1e-3,
+    flip_angle=30 / 2 * np.pi / 180, duration=1e-3,
     slice_thickness=slice_thickness, apodization=0.5, time_bw_product=4,
     system=system, return_gz=True
 )
@@ -123,6 +122,7 @@ if 1:
     obj_p.T2dash[:] = 30e-3
     obj_p.D *= 0 
     obj_p.B0 *= 1    # alter the B0 inhomogeneity
+    PD=obj_p.PD
 else:
     # or (ii) set phantom  manually to a pixel phantom. Coordinate system is [-0.5, 0.5]^3
     obj_p = mr0.CustomVoxelPhantom(
@@ -198,7 +198,7 @@ nufft_fwd = tkbn.KbNufft(im_size=img_shape)
 R = recon_nufft.cpu().detach().numpy()
 
 R1 = R[..., 0] + 1j * R[..., 1]
-R1 = np.flip(np.swapaxes(R1, -1, -2), -2)
+R1 = np.flip(R1,axis=(-1,-2))
 
 # %% S7:. Compressed Sensing reconstruction for radial sampling
 # Zhengguo Tan <zhengguo.tan@gmail.com>
@@ -208,9 +208,7 @@ print('> Compressed sensing recon for radial sampled data')
 def soft_thresh(input, lamda):
 
     abs_input = abs(input)
-
-    sign = np.true_divide(input, abs_input,
-                          out=np.zeros_like(input), where=abs_input!=0)
+    sign = np.true_divide(input, abs_input,out=np.zeros_like(input), where=abs_input!=0)
 
     magn = abs_input - lamda
     magn = (abs(magn) + magn) / 2
@@ -247,9 +245,8 @@ for n in range(30):
 
     print(max_eig)
 
-
 # Gradient method
-Niter = 400
+Niter = 1000
 
 alpha = (1 / max_eig).cpu().detach().numpy().item()
 lamda = 0.001
@@ -269,16 +266,17 @@ for n in range(Niter):
 
     print('> iter ' + str(n).zfill(4) + ' residuum ' + str(resid[0]))
 
-
 R2 = torch.view_as_complex(x).cpu().detach().numpy()
-R2 = np.flip(np.swapaxes(R2, -1, -2), -2)
 
-f, ax = plt.subplots(1, 2, figsize=(12, 6))
-ax[0].imshow(abs(np.squeeze(R1)), cmap='gray')
-ax[0].set_title('NUFFT')
+R2 = np.flip(R2,axis=(-1,-2))
 
-ax[1].imshow(abs(np.squeeze(R2)), cmap='gray')
-ax[1].set_title('Compressed Sensing')
-
-plt.savefig(DIR + '/' + experiment_id + '.png',
-            bbox_inches='tight', pad_inches=0, dpi=300)
+plt.figure(figsize=(12, 6))
+plt.subplot(1,3,1)
+mr0.util.imshow(abs(np.squeeze(R1)), cmap='gray')
+plt.title('NUFFT')
+plt.subplot(1,3,2)
+mr0.util.imshow(abs(np.squeeze(R2)), cmap='gray')
+plt.title('CS recon')
+plt.subplot(1,3,3)
+mr0.util.imshow(PD, cmap='gray')
+plt.title('PD')
