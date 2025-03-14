@@ -10,7 +10,7 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
-experiment_id = 'exE01_FLASH_2D_user_tag_fruit#'
+experiment_id = 'exE01_FLASH_2D_name_fruit#'
 
 
 # %% S1. SETUP sys
@@ -40,15 +40,13 @@ rf1, gz, gzr = pp.make_sinc_pulse(
     system=system, return_gz=True
 )
 
-# seq.add_block(rf1,gz)
-# seq.add_block(gzr)
 
-zoom = 1
+zoom = 1.0
 # Define other gradients and ADC events
 gx = pp.make_trapezoid(channel='x', flat_area=Nread / fov * zoom, flat_time=2e-3, system=system)
 adc = pp.make_adc(num_samples=Nread, duration=2e-3, delay=gx.rise_time, system=system)
-gx_pre = pp.make_trapezoid(channel='x', area=-0.5 * gx.area, duration=5e-3, system=system)
-gx_spoil = pp.make_trapezoid(channel='x', area=1.5 * gx.area, duration=5e-3, system=system)
+gx_pre = pp.make_trapezoid(channel='x', area=-0.5 * gx.area, duration=1e-3, system=system)
+gx_spoil = pp.make_trapezoid(channel='x', area=1.5 * gx.area, duration=2e-3, system=system)
 
 rf_phase = 0
 rf_inc = 0
@@ -69,13 +67,12 @@ for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
 
     seq.add_block(rf1, gz)
     seq.add_block(gzr)
-    gy_pre = pp.make_trapezoid(channel='y', area=ii / fov * zoom, duration=5e-3, system=system)
+    gy_pre = pp.make_trapezoid(channel='y', area=ii / fov * zoom, duration=1e-3, system=system)
     seq.add_block(gx_pre, gy_pre)
     seq.add_block(adc, gx)
-    gy_spoil = pp.make_trapezoid( channel='y', area=-ii / fov*zoom, duration=5e-3, system=system)
+    gy_spoil = pp.make_trapezoid( channel='y', area=-ii / fov*zoom, duration=1e-3, system=system)
     seq.add_block(gx_spoil, gy_spoil)
-    if ii < Nphase - 1:
-        seq.add_block(pp.make_delay(0.001))
+
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
@@ -131,7 +128,7 @@ else:
     B0 = torch.zeros_like(PD)
 
 # obj_p.plot()
-obj_p.size=torch.tensor([fov, fov, slice_thickness]) 
+#obj_p.size=torch.tensor([fov, fov, slice_thickness]) 
 # Convert Phantom into simulation data
 obj_p = obj_p.build()
 
@@ -155,7 +152,7 @@ if use_simulation:
 else:
     signal = mr0.util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
     spectrum = torch.reshape((signal), (Nphase, Nread, 20)).clone().transpose(1, 0)
-    
+    kspace = spectrum
 
 
 # %% S6: MR IMAGE RECON of signal ::: #####################################
@@ -183,8 +180,10 @@ space = torch.fft.fft2(spectrum, dim=(0, 1))
 space = torch.fft.fftshift(space, 0)
 space = torch.fft.fftshift(space, 1)
 
+space0 = space
 if use_simulation==False:
-    space = torch.sum(space.abs(), 2)
+    space0 = space[:,:,0]
+    space = torch.sum(space.abs(), 2)  # or use single coil: space  = space[:,:,14]
 
 plt.subplot(345)
 plt.title('k-space')
@@ -195,7 +194,8 @@ mr0.util.imshow(np.log(np.abs(kspace.numpy())))
 
 plt.subplot(346)
 plt.title('FFT-magnitude')
-mr0.util.imshow(np.abs(space.numpy()),vmin=0, vmax=0.8*1e-5,cmap='gray')
+#mr0.util.imshow(np.abs(space.numpy()),vmin=0, vmax=0.8*1e-5,cmap='gray')
+mr0.util.imshow(np.abs(space.numpy()),cmap='gray')
 plt.colorbar()
 plt.subplot(3, 4, 10)
 plt.title('FFT-phase')
