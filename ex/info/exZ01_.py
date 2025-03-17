@@ -4,7 +4,7 @@ Exercises - Homework:
 1.1. Spin echo EPI  with zig-zag or non blipped trajectory and silent EPI   (evtl propeller EPI)
 hint: exersice or any textbook for spin echo, http://mri.beckman.illinois.edu/interactive/topics/contents/fast_imaging/figures/zig.shtml
 hint: Fig 2 in https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5836719/, reuse radial reco
- reuse radial reco,   pp.make_extended_trapezoid
+ reuse radial reco,   pp.make_extended_trapezoid, and check 1.10 spiral trajectory below
 
 1.2. DREAM MRI
 two readouts from one measurement: eg. FID, STE as two separate contrasts
