@@ -14,6 +14,22 @@ hint: https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.24158
 1.3. Diffusion weighted MRI
 GRE DWI and spin echo DWI
 hint: any textbook, https://blog.ismrm.org/2017/06/06/dwe-part-2/ 
+# chek your sim by inserting a rectangular "Tumor" only visible in DWI
+# typical brain tumor ADC values are around ~1.5 * 10^-3 mm^2/s,
+# which lies between GM/WM and CSF (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3000221)
+# mr0 uses D in units of 10^-3 * mm ^2/s  this is the same as µm^2/ms
+obj_p.D*=1
+if 1:
+    # construct tumor border region
+    for ii in range(15, 25):
+        for jj in range(15, 25):
+            obj_p.D[ii, jj] = torch.tensor(0.75)
+    # construct tumor filling
+    for ii in range(16, 24):
+        for jj in range(16, 24):
+            obj_p.D[ii, jj] = torch.tensor(1.5)
+
+            
 
 
 1.4. B0 / T2* mapping  
