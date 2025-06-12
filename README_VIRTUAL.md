@@ -27,3 +27,6 @@ Unfortunately, I cannot interact with people joining virtually. But with the scr
 For questions regarding installations, I try to dedicate someone in zoom to help you out in a breakout session.
 
 
+FAU students can join in-person via Studon https://www.studon.fau.de/studon/go/crs/6216997 
+
+
