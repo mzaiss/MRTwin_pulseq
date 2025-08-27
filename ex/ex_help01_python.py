@@ -38,7 +38,11 @@ print(f"torch.__version__ : {torch.__version__}; tested 1.10.2")
 print(f"np.__version__ : {np.__version__ }; tested 1.20.3")
 print(f"scipy.__version__: {scipy.__version__}; tested 1.5.2")
 print(f"matplotlib.__version__ : {matplotlib.__version__}; tested 3.4.3")
-print(f"pp.major.minor.revision : {pp.major}.{pp.minor}.{pp.revision}; tested 1.3.1post1")
+try: 
+    print(f"pp.major.minor.revision : {pp.major}.{pp.minor}.{pp.revision}; tested 1.4.2")
+except:
+    print(f"pp.__version__ : {pp.__version__} tested 1.4.2")# this works for 1.4
+
 print(f"torchkbnufft.__version__:  : {torchkbnufft.__version__}; tested 1.3.0")
 print(f"ski.__version__:  : {ski.__version__}; tested 0.20.0")
 print(f"pywt.__version__:  : {pywt.__version__}; tested 1.4.1")
