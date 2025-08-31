@@ -9,7 +9,9 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 # for interactive separate plots in Ipython
-%matplotlib qt5 
+import matplotlib
+matplotlib.use('Qt5Agg')
+plt.ion()
 experiment_id = 'exA00_phantom'
 
 # %% S4: SETUP SPIN SYSTEM/object on which we can run the MR sequence external.seq from above

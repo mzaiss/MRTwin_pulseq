@@ -10,7 +10,9 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 # for interactive separate plots in Ipython
-%matplotlib qt5 
+import matplotlib
+matplotlib.use('Qt5Agg')
+plt.ion()
 experiment_id = 'exB05_GRE_2D_fully_relaxed'
 
 
@@ -80,7 +82,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, figid=(11,12))
+mr0.util.pulseq_plot(seq)
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
@@ -134,8 +136,7 @@ graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal in the ADC subplot
-plt.close(11);plt.close(12)
-sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+mr0.util.pulseq_plot(seq, signal=signal.numpy())
  
  
 # additional noise as simulation is perfect

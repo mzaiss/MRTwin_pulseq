@@ -10,7 +10,9 @@ import torch
 import os
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 # for interactive separate plots in Ipython
-%matplotlib qt5 
+import matplotlib
+matplotlib.use('Qt5Agg')
+plt.ion()
 experiment_id = 'exA04_stimulated_echo_zaiss_fruit3'
 
 

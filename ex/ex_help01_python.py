@@ -20,7 +20,9 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 # for interactive separate plots in Ipython
-%matplotlib qt5 
+import matplotlib
+matplotlib.use('Qt5Agg')
+plt.ion()
 
 import numpy as np
 import scipy
@@ -51,7 +53,9 @@ print(f"ski.__version__:  : {ski.__version__}; tested 0.20.0")
 print(f"pywt.__version__:  : {pywt.__version__}; tested 1.4.1")
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 # for interactive separate plots in Ipython
-%matplotlib qt5 
+import matplotlib
+matplotlib.use('Qt5Agg')
+plt.ion()
 
 # %% variables (int, float, bool)
 A = 4.0
