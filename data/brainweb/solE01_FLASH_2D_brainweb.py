@@ -4,7 +4,7 @@ import pypulseq as pp
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-import util
+
 import random
 
 # makes the ex folder your working directory
