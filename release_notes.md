@@ -2,6 +2,17 @@
 
 ## MRTwin pulseq
 
+### version v1.2.0 
+#### Updated simulation and phantoms to newest pip version of MRzero, **v0.4.1**
+
+Details:
+- switched to Pulseq 1.4.2 or current pip install pypulseq. This required: 
+  - to fix plot function, namely reimplementing pypulseq 1.4.2. seq.plot(), not nice but neccessary for comparing plots.
+  - to fix raster time errors, simply by using grad_raster_time everywhere
+- removed:  # Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
+- added a function run_all_examples.py. it tests all files in /ex for exection and timing issues. Ran sucessfully.
+
+
 ### version v1.1.0
 
 

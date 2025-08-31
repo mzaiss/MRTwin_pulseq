@@ -82,8 +82,8 @@ for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
 
     seq.add_block(rf1)
 
-    gx = pp.make_trapezoid(channel='x', flat_area=-Nread * np.sin(ii / Nphase * np.pi) + 1e-7, flat_time=5e-3, system=system)
-    gy = pp.make_trapezoid(channel='y', flat_area=Nread * np.cos(ii / Nphase * np.pi) + 1e-7, flat_time=5e-3, system=system)
+    gx = pp.make_trapezoid(channel='x', flat_area=-Nread * np.sin(ii / Nphase * np.pi) + 1e-7, flat_time=Nread*dwell, system=system)
+    gy = pp.make_trapezoid(channel='y', flat_area=Nread * np.cos(ii / Nphase * np.pi) + 1e-7, flat_time=Nread*dwell, system=system)
 
     gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=system)
     gy_pre = pp.make_trapezoid(channel='y', area=-gy.area / 2, duration=1e-3, system=system)
@@ -157,7 +157,7 @@ obj_p = obj_p.build()
 # Read in the sequence 
 seq0 = mr0.Sequence.import_file("out/external.seq")
  
-#seq0.plot_kspace_trajectory()
+seq0.plot_kspace_trajectory()
 kspace_loc = seq0.get_kspace()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)

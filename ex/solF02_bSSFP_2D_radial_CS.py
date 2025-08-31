@@ -86,8 +86,8 @@ for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
 
     seq.add_block(rf1)
 
-    gx = pp.make_trapezoid(channel='x', flat_area=-Nread * np.sin(ii / Nphase * np.pi) + 1e-7, flat_time=5e-3, system=system)
-    gy = pp.make_trapezoid(channel='y', flat_area=Nread * np.cos(ii / Nphase * np.pi) + 1e-7, flat_time=5e-3, system=system)
+    gx = pp.make_trapezoid(channel='x', flat_area=-Nread * np.sin(ii / Nphase * np.pi) + 1e-7, flat_time=Nread*dwell, system=system)
+    gy = pp.make_trapezoid(channel='y', flat_area=Nread * np.cos(ii / Nphase * np.pi) + 1e-7, flat_time=Nread*dwell, system=system)
 
     gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=system)
     gy_pre = pp.make_trapezoid(channel='y', area=-gy.area / 2, duration=1e-3, system=system)
@@ -162,8 +162,7 @@ graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
 signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal in the ADC subplot
-plt.close(11);plt.close(12)
-sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+sp_adc, t_adc = mr0.util.pulseq_plot(seq, signal=signal.numpy())
 
 kspace_adc = torch.reshape((signal), (Nphase, adc.num_samples)).clone().t()
 
