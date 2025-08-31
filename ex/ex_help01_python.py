@@ -19,10 +19,7 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 import os 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-# for interactive separate plots in Ipython
-import matplotlib
-matplotlib.use('Qt5Agg')
-plt.ion()
+
 
 import numpy as np
 import scipy
@@ -37,6 +34,10 @@ import pypulseq as pp
 import torchkbnufft
 import skimage as ski
 import pywt
+# for interactive separate plots in Ipython
+import matplotlib
+matplotlib.use('Qt5Agg')
+plt.ion()
 
 # to test if all your versions are fine, tested before were:
 print(f"torch.__version__ : {torch.__version__}; tested 1.10.2")
@@ -241,24 +242,25 @@ plt.figure("""mag and phase images""")
 
 plt.subplot(141)
 plt.title('real(img)')  # make subplots with title
-im = mr0.util.imshow(img[:, :, 0], interpolation='none')
-plt.colorbar(plt.gca().images[-1])  # add a colorbar to the last image
+ax = mr0.util.imshow(img[:, :, 0], interpolation='none')
+fig = plt.gcf(); fig.colorbar(ax)
 
 plt.subplot(142)
 plt.title('imag(img)')  # make subplots with title
-im = mr0.util.imshow(img[:, :, 1], interpolation='none')
-plt.colorbar(plt.gca().images[-1])  # add a colorbar
+ax = mr0.util.imshow(img[:, :, 1], interpolation='none')
+fig = plt.gcf(); fig.colorbar(ax)
 
 plt.subplot(143)
 plt.title('abs(img)')  # make subplots with title
-im = mr0.util.imshow(magimg(img), interpolation='none')
-plt.colorbar(plt.gca().images[-1])  # add a colorbar
+ax = mr0.util.imshow(magimg(img), interpolation='none')
+fig = plt.gcf(); fig.colorbar(ax)
 
 plt.subplot(144)
 plt.title('phase(img)')  # make subplots with title
-im = mr0.util.imshow(phaseimg(img), interpolation='none')
-plt.colorbar(plt.gca().images[-1])  # add a colorbar
+ax = mr0.util.imshow(phaseimg(img), interpolation='none')
+fig = plt.gcf(); fig.colorbar(ax)
 
+fig = plt.gcf()
 fig.set_size_inches(10, 2)  # resize the figure propery to match your screen
 plt.show()
 
@@ -294,8 +296,7 @@ for i in range(5):
     plt.subplot(151 + i)
     plt.title(param[i])
     ax = mr0.util.imshow(brain_phantom[:, :, i], interpolation='none')
-    fig = plt.gcf()
-    fig.colorbar(ax)
+    fig = plt.gcf(); fig.colorbar(ax)
 fig.set_size_inches(18, 3)
 plt.show()
 

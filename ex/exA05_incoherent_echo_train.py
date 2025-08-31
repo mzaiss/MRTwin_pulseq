@@ -36,6 +36,9 @@ slice_thickness = 8e-3
 Nread = 128    # frequency encoding steps/samples
 Nphase = 16    # phase encoding steps/samples
 
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
+
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
     flip_angle=60 * np.pi / 180, phase_offset=90 * np.pi / 180, duration=1e-3,
@@ -50,8 +53,8 @@ rf2, _, _ = pp.make_sinc_pulse(
 
 
 # Define other gradients and ADC events
-adc = pp.make_adc(num_samples=Nread, duration=20e-3, phase_offset=90 * np.pi / 180, delay=5 * 1e-4, system=system)
-adc0 = pp.make_adc(num_samples=Nread, duration=8e-3, phase_offset=90 * np.pi / 180, delay=5 * 1e-4, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=2*Nread*dwell, phase_offset=90 * np.pi / 180, delay=5 * 1e-4, system=system)
+adc0 = pp.make_adc(num_samples=Nread, duration=Nread*dwell, phase_offset=90 * np.pi / 180, delay=5 * 1e-4, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE
@@ -66,8 +69,7 @@ for ii in range(-Nphase // 2, Nphase // 2 - 1):  # e.g. -64:63
     seq.add_block(adc)
     seq.add_block(pp.make_delay(1e-3))
 
-# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
-seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
+
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
@@ -156,38 +158,3 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-space = torch.zeros_like(spectrum)
-
-# fftshift
-spectrum = torch.fft.fftshift(spectrum, 0)
-spectrum = torch.fft.fftshift(spectrum, 1)
-# FFT
-space = torch.fft.fft2(spectrum)
-# fftshift
-space = torch.fft.fftshift(space, 0)
-space = torch.fft.fftshift(space, 1)
-
-
-plt.subplot(345)
-plt.title('k-space')
-mr0.util.imshow(np.abs(kspace.numpy()))
-plt.subplot(349)
-plt.title('k-space_r')
-mr0.util.imshow(np.log(np.abs(kspace.numpy())))
-
-plt.subplot(346)
-plt.title('FFT-magnitude')
-mr0.util.imshow(np.abs(space.numpy()))
-plt.colorbar()
-plt.subplot(3, 4, 10)
-plt.title('FFT-phase')
-mr0.util.imshow(np.angle(space.numpy()), vmin=-np.pi, vmax=np.pi)
-plt.colorbar()
-
-# % compare with original phantom obj_p.PD
-plt.subplot(348)
-plt.title('phantom PD')
-mr0.util.imshow(obj_p.recover().PD.squeeze())
-plt.subplot(3, 4, 12)
-plt.title('phantom B0')
-mr0.util.imshow(obj_p.recover().B0.squeeze())

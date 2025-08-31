@@ -36,6 +36,9 @@ sz = (48, 48)   # spin system size / resolution
 Nread = 48    # frequency encoding steps/samples
 Nphase = 48    # phase encoding steps/samples
 
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
+
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
     flip_angle=5 * np.pi / 180, duration=1e-3,
@@ -45,8 +48,8 @@ rf1, _, _ = pp.make_sinc_pulse(
 # rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=10e-3, system=system)
-adc = pp.make_adc(num_samples=Nread, duration=10e-3, phase_offset=0 * np.pi / 180, delay=gx.rise_time, system=system)
+gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=Nread*dwell, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=Nread*dwell, phase_offset=0 * np.pi / 180, delay=gx.rise_time, system=system)
 gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=5e-3, system=system)
 gx_spoil = pp.make_trapezoid(channel='x', area=1.5 * gx.area, duration=2e-3, system=system)
 
@@ -54,7 +57,7 @@ rf_phase = 0
 rf_inc = 0
 rf_spoiling_inc = 117
 
-phase_enc__gradmoms = torch.arange(0, Nphase, 1) - Nphase // 2
+phase_enc__gradmoms = np.arange(0, Nphase, 1) - Nphase // 2
 
 
 permvec = np.zeros((Nphase,), dtype=int)

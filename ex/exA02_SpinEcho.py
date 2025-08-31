@@ -35,6 +35,9 @@ Nread = 128
 Nphase = 1
 slice_thickness = 8e-3  # slice
 
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
+
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
     flip_angle=90 * np.pi / 180, duration=1e-3,
@@ -44,7 +47,7 @@ rf1, _, _ = pp.make_sinc_pulse(
 # rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-adc = pp.make_adc(num_samples=Nread, duration=20e-3, phase_offset=0 * np.pi / 180, delay=0, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=Nread*dwell, phase_offset=0 * np.pi / 180, delay=0, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE
@@ -55,8 +58,7 @@ seq.add_block(adc)
 
 # seq.add_block(adc)
 
-# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
-seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
+
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq

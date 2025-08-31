@@ -8,6 +8,7 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 # for interactive separate plots in Ipython
 import matplotlib
+import matplotlib.pyplot as plt
 matplotlib.use('Qt5Agg')
 plt.ion()
 # %% GENERATE and WRITE a sequence   .seq
@@ -22,6 +23,9 @@ system = pp.Opts(
 
 # %% S2. DEFINE the sequence
 seq = pp.Sequence(system) 
+
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
 
 # Define rf events
 rf, _, _ = pp.make_sinc_pulse(
@@ -38,7 +42,7 @@ rf2, _, _ = pp.make_sinc_pulse(
 
 # Define other gradients and ADC events
 gx = pp.make_trapezoid(channel='y', area=80, duration=2e-3, system=system)
-adc = pp.make_adc(num_samples=128, duration=10e-3, phase_offset=0 * np.pi / 180, system=system)
+adc = pp.make_adc(num_samples=100, duration=10e-3, phase_offset=0 * np.pi / 180, system=system)
 gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=2e-3, system=system)
 del15 = pp.make_delay(0.0015)
 
@@ -100,6 +104,9 @@ Nread = 128
 Nphase = 1
 slice_thickness = 8e-3  # slice
 
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
+
 # Define rf events
 rf, _, _ = pp.make_sinc_pulse(
     flip_angle=1 * np.pi / 180, duration=1e-3,
@@ -158,8 +165,7 @@ seq.add_block(delay2)
 seq.add_block(rf2)
 
 
-# # Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
-seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
+# 
 
 # % S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct

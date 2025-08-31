@@ -36,6 +36,9 @@ sz = (64, 64)   # spin system size / resolution
 Nread = 64     # frequency encoding steps/samples
 Nphase = 64    # phase encoding steps/samples - number of spokes
 
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
+
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
     flip_angle=6 * np.pi / 180, duration=1e-3,
@@ -50,13 +53,13 @@ rf0, _, _ = pp.make_sinc_pulse(
 )
 
 # Define other gradients and ADC events
-gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=5e-3, system=system)
-gy = pp.make_trapezoid(channel='y', flat_area=Nread, flat_time=5e-3, system=system)
+gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=Nread*dwell, system=system)
+gy = pp.make_trapezoid(channel='y', flat_area=Nread, flat_time=Nread*dwell, system=system)
 
 gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=system)
 gy_pre = pp.make_trapezoid(channel='y', area=-gx.area / 2, duration=1e-3, system=system)
 
-adc = pp.make_adc(num_samples=Nread, duration=5e-3, phase_offset=0 * np.pi / 180, delay=gx.rise_time, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=Nread*dwell, phase_offset=0 * np.pi / 180, delay=gx.rise_time, system=system)
 
 rf_phase = 180
 rf_inc = 180
@@ -67,7 +70,7 @@ rf_inc = 180
 sdel = 1e-0
 
 seq.add_block(rf0)
-seq.add_block(pp.make_delay(3e-3))
+seq.add_block(pp.make_delay(pp.calc_duration(gx_pre)+pp.calc_duration(gx)/2))
 
 for ii in range(-Nphase // 2, Nphase // 2):  # e.g. -64:63
 

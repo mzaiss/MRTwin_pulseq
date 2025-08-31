@@ -41,8 +41,7 @@ slice_thickness = 8e-3  # slice
 # ======
 seq.add_block(pp.make_delay(0.01))
 
-# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
-seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
+
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
@@ -105,7 +104,12 @@ seq0 = mr0.Sequence.import_file("out/external.seq")
 # #seq0.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
-signal = mr0.execute_graph(graph, seq0, obj_p)
+try:
+    signal = mr0.execute_graph(graph, seq0, obj_p)
+except Exception as e:
+    print(f"Error: {e}")
+    print("Without ADC event there can't be signal")
+    signal=None
 
 # PLOT sequence with signal in the ADC subplot
 mr0.util.pulseq_plot(seq, signal=signal.numpy())

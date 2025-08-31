@@ -36,6 +36,9 @@ Nphase = 256
 
 slice_thickness = 8e-3  # slice
 
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
+
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
     flip_angle=5 * np.pi / 180, duration=1e-3,
@@ -45,7 +48,7 @@ rf1, _, _ = pp.make_sinc_pulse(
 # rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-adc = pp.make_adc(num_samples=Nread, duration=2e-3, phase_offset=0 * np.pi / 180, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=Nread*dwell, phase_offset=0 * np.pi / 180, system=system)
 
 # ======
 # CONSTRUCT SEQUENCE

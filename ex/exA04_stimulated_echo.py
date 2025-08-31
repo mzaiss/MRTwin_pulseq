@@ -31,9 +31,12 @@ seq = pp.Sequence(system)
 
 # Define FOV and resolution
 fov = 1000e-3
-Nread = 128
+Nread = 100
 Nphase = 1
 slice_thickness = 8e-3  # slice
+
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
 
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
@@ -54,9 +57,9 @@ rf3, _, _ = pp.make_sinc_pulse(
 # rf1 = pp.make_block_pulse(flip_angle=90 * np.pi / 180, duration=1e-3, system=system)
 
 # Define other gradients and ADC events
-adc1 = pp.make_adc(num_samples=Nread, duration=100e-3, phase_offset=0 * np.pi / 180, system=system)
-adc2 = pp.make_adc(num_samples=Nread, duration=200e-3, phase_offset=0 * np.pi / 180, system=system)
-gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=200e-3, system=system)
+adc1 = pp.make_adc(num_samples=Nread, duration=1000*dwell, phase_offset=0 * np.pi / 180, system=system)
+adc2 = pp.make_adc(num_samples=Nread, duration=2000*dwell, phase_offset=0 * np.pi / 180, system=system)
+gx = pp.make_trapezoid(channel='x', flat_area=Nread, flat_time=2000*dwell, system=system)
 gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=1e-3, system=system)
 gspoil = pp.make_trapezoid(channel='x', area=1000, duration=5e-3, system=system)
 
@@ -75,8 +78,7 @@ seq.add_block(rf3)
 seq.add_block(adc2)
 seq.add_block(adc2)
 
-# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
-seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
+
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct

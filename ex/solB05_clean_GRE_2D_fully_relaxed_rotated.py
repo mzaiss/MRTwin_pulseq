@@ -35,6 +35,9 @@ slice_thickness = 8e-3
 Nread = 64  # frequency encoding steps/samples
 Nphase = 64  # phase encoding steps/samples
 
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
+
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
     flip_angle=90 * np.pi / 180, duration=1e-3,
@@ -47,10 +50,10 @@ zoom=1
 
 phi = 30 * np.pi / 180 +1e-6
 # Define other gradients and ADC events
-gr_x = pp.make_trapezoid(channel='x', flat_area=Nread*zoom*np.cos(phi), flat_time=10e-3, system=system)
-gr_y = pp.make_trapezoid(channel='y', flat_area=-Nread*zoom*np.sin(phi), flat_time=10e-3, system=system)
+gr_x = pp.make_trapezoid(channel='x', flat_area=Nread*zoom*np.cos(phi), flat_time=Nread*dwell, system=system)
+gr_y = pp.make_trapezoid(channel='y', flat_area=-Nread*zoom*np.sin(phi), flat_time=Nread*dwell, system=system)
 
-adc = pp.make_adc(num_samples=Nread, duration=10e-3, phase_offset=0 * np.pi / 180, delay=gr_x.rise_time, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=Nread*dwell, phase_offset=0 * np.pi / 180, delay=gr_x.rise_time, system=system)
 
 grx_pre = pp.make_trapezoid(channel='x', area=-gr_x.area / 2, duration=5e-3, system=system)
 gry_pre = pp.make_trapezoid(channel='y', area=-gr_y.area / 2, duration=5e-3, system=system)
@@ -84,7 +87,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False, figid=(11,12))
+sp_adc, t_adc = mr0.util.pulseq_plot(seq)
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
@@ -135,7 +138,7 @@ obj_p = obj_p.build()
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
 # Read in the sequence
-seq0 = mr0.Sequence.from_seq_file("out/external.seq")
+seq0 = mr0.Sequence.import_file("out/external.seq")
 #seq0.plot_kspace_trajectory()
 # Simulate the sequence
 graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
@@ -143,7 +146,7 @@ signal = mr0.execute_graph(graph, seq0, obj_p)
 
 # PLOT sequence with signal in the ADC subplot
 plt.close(11);plt.close(12)
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
  
  
 # additional noise as simulation is perfect

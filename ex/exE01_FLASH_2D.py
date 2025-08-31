@@ -35,6 +35,9 @@ slice_thickness = 8e-3
 Nread = 64  # frequency encoding steps/samples
 Nphase = 64  # phase encoding steps/samples
 
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
+
 # Define rf events
 rf1, gz, gzr = pp.make_sinc_pulse(
     flip_angle=12 * np.pi / 180, duration=1e-3,
@@ -46,10 +49,10 @@ rf1, gz, gzr = pp.make_sinc_pulse(
 # seq.add_block(rf1,gz)
 # seq.add_block(gzr)
 
-zoom = 1.3 / fov
+zoom = 1.0 / fov
 # Define other gradients and ADC events
-gx = pp.make_trapezoid(channel='x', flat_area=Nread * zoom, flat_time=2e-3, system=system)
-adc = pp.make_adc(num_samples=Nread, duration=2e-3, delay=gx.rise_time, system=system)
+gx = pp.make_trapezoid(channel='x', flat_area=Nread * zoom, flat_time=Nread*dwell, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=Nread*dwell, delay=gx.rise_time, system=system)
 gx_pre = pp.make_trapezoid(channel='x', area=-0.5 * gx.area, duration=5e-3, system=system)
 gx_spoil = pp.make_trapezoid(channel='x', area=1.5 * gx.area, duration=5e-3, system=system)
 
@@ -140,7 +143,7 @@ obj_p = obj_p.build()
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
-use_simulation = False
+use_simulation = True
 
 if use_simulation:
     seq0 = mr0.Sequence.import_file("out/external.seq")
@@ -187,7 +190,9 @@ space = torch.fft.fft2(spectrum, dim=(0, 1))
 space = torch.fft.fftshift(space, 0)
 space = torch.fft.fftshift(space, 1)
 
-if use_simulation==False:
+if use_simulation==True:
+    space0 = space
+else:
     space0 = space[:,:,0]
     space = torch.sum(space.abs(), 2)
     

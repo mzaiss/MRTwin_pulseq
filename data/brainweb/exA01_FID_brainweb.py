@@ -40,8 +40,7 @@ slice_thickness = 8e-3  # slice
 # ======
 seq.add_block(pp.make_delay(0.01))
 
-# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
-seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
+
 
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq

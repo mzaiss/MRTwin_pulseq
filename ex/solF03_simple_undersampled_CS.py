@@ -99,7 +99,7 @@ recon_nufft = (np.fft.fftshift(np.fft.fft2(kspace_full)))
 
 # parameters of iterative reconstructio using total variation denoising
 denoising_strength = 10e-6
-number_of_iterations = 8000
+number_of_iterations = 3000
 
 # parameters of random subsampling pattern
 percent = 0.25        # this is the amount of data that is randomly measured

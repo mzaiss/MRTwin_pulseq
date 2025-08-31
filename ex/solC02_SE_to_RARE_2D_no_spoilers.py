@@ -37,6 +37,9 @@ slice_thickness = 8e-3
 Nread = 64    # frequency encoding steps/samples
 Nphase = 64    # phase encoding steps/samples
 
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
+
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
     flip_angle=30 * np.pi / 180, phase_offset=90 * np.pi / 180, duration=1e-3,
@@ -50,8 +53,8 @@ rf2, _, _ = pp.make_sinc_pulse(
 )
 
 # Define other gradients and ADC events
-gx = pp.make_trapezoid(channel='x', flat_area=Nread,flat_time=2e-3, system=system)
-adc = pp.make_adc(num_samples=Nread, duration=2e-3, phase_offset=90 * np.pi/180, delay=gx.rise_time, system=system)
+gx = pp.make_trapezoid(channel='x', flat_area=Nread,flat_time=Nread*dwell, system=system)
+adc = pp.make_adc(num_samples=Nread, duration=Nread*dwell, phase_offset=90 * np.pi/180, delay=gx.rise_time, system=system)
 gx_pre0 = pp.make_trapezoid(channel='x', area=+(1.0 + 0.0) * gx.area / 2, duration=1e-3, system=system)
 gx_prewinder = pp.make_trapezoid(channel='x', area=+0.0 * gx.area / 2, duration=1e-3, system=system)
 
@@ -59,7 +62,7 @@ gx_prewinder = pp.make_trapezoid(channel='x', area=+0.0 * gx.area / 2, duration=
 ct=pp.calc_rf_center(rf2)    # rf center time returns time and index of the center of the pulse
 ct[0]                       # this is the rf center time
 
-TE=  6e-3  # the echo time we want, defines the delays we need, min TE~=2ms
+TE=  7.5e-3  # the echo time we want, defines the delays we need, for current dwell min TE~=2ms
 delayTE_1= pp.make_delay(TE/2 - pp.calc_duration(rf1))  # the rf pulses take time, which we need to subtract
 
 delayTE_2= pp.make_delay(TE/2 - ct[0]- rf2.ringdown_time-pp.calc_duration(gx)/2) # half rf and half adc/gx time need to be subtracted, so echo is at adc center

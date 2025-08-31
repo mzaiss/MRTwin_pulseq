@@ -3,7 +3,6 @@ import MRzeroCore as mr0
 import pypulseq as pp
 import numpy as np
 import matplotlib.pyplot as plt
-import util
 import torch
 
 # makes the ex folder your working directory
@@ -31,9 +30,12 @@ seq = pp.Sequence()
 
 # Define FOV and resolution
 fov = 220e-3
-Nread = 128
+Nread = 100
 Nphase = 4
 slice_thickness = 8e-3  # slice
+
+# Define dwell time to be a multiple of the gradient raster time
+dwell = 10*system.grad_raster_time
 
 # Define rf events
 rf1, _, _ = pp.make_sinc_pulse(
@@ -75,8 +77,7 @@ seq.add_block(rf3)
 seq.add_block(adc2)
 seq.add_block(adc2)
 
-# Bug: pypulseq 1.3.1post1 write() crashes when there is no gradient event
-seq.add_block(pp.make_trapezoid('x', duration=20e-3, area=10))
+
 
 # %% S3. CHECK, PLOT and WRITE the sequence  as .seq
 # Check whether the timing of the sequence is correct
@@ -88,7 +89,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-sp_adc, t_adc = util.pulseq_plot(seq, clear=False, figid=(11,12))
+sp_adc, t_adc = mr0.util.pulseq_plot(seq)
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
@@ -130,11 +131,10 @@ obj_p = obj_p.build()
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
-use_simulation = False
+use_simulation = True
 
 if use_simulation:
-    seq_file = mr0.PulseqFile("out/external.seq")
-    seq0 = mr0.Sequence.from_seq_file(seq_file)
+    seq0 = mr0.Sequence.import_file("out/external.seq")
     # seq0.plot_kspace_trajectory()
     graph = mr0.compute_graph(seq0, obj_p, 200, 1e-3)
     signal = mr0.execute_graph(graph, seq0, obj_p)
@@ -142,10 +142,10 @@ if use_simulation:
     kspace = spectrum
     # PLOT sequence with signal in the ADC subplot
     plt.close(11);plt.close(12)
-    sp_adc, t_adc = util.pulseq_plot(seq, clear=False, signal=signal.numpy())
+    sp_adc, t_adc = mr0.util.pulseq_plot(seq, clear=False, signal=signal.numpy())
      
 else:
-    signal = util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
+    signal = mr0.util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
     spectrum = torch.reshape((signal), (Nphase, Nread, 20)).clone().transpose(1, 0)
     spectrum = spectrum[:, :, 10]
     kspace = spectrum

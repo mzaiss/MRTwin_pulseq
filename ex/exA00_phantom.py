@@ -3,6 +3,7 @@ import MRzeroCore as mr0
 import pypulseq as pp
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 
 # makes the ex folder your working directory
 import os 
