@@ -9,7 +9,8 @@ import torch
 # makes the ex folder your working directory
 import os
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
+# for interactive separate plots in Ipython
+%matplotlib qt5 
 experiment_id = 'exA04_stimulated_echo_zaiss_fruit3'
 
 

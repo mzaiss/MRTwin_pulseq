@@ -9,7 +9,8 @@ from matplotlib import pyplot as plt
 import os 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
+# for interactive separate plots in Ipython
+%matplotlib qt5 
 experiment_id = 'exB08_FLASH_2D_MP'
 
 

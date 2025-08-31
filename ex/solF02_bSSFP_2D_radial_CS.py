@@ -16,7 +16,8 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 DIR = os.path.dirname(os.path.realpath(__file__))
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-experiment_id = 'exF02_undersampled_radial'
+# for interactive separate plots in Ipython
+%matplotlib qt5 experiment_id = 'exF02_undersampled_radial'
 
 # %% S1. SETUP sys
 

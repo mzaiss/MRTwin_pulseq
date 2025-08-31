@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import os 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
+# for interactive separate plots in Ipython
+%matplotlib qt5 
 experiment_id = 'exA03_gradient_echo'
 
 

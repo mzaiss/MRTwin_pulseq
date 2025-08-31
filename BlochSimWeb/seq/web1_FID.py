@@ -2,7 +2,8 @@ experiment_id = 'web1_FID'
 
 # %% S0. SETUP env
 import sys,os
-os.chdir(os.path.abspath(os.path.dirname(__file__)))  #  makes the ex folder your working directory
+os.chdir(os.path.abspath(os.path.dirname(__file__)))
+%matplotlib qt5  # for interactive separate plots in Ipython  #  makes the ex folder your working directory
 sys.path.append(os.path.dirname(os.getcwd()))         #  add required folders to path
 mpath=os.path.dirname(os.getcwd())
 c1=r'codes'; c2=r'codes\GradOpt_python'; c3=r'codes\scannerloop_libs' #  add required folders to path

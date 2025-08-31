@@ -4,12 +4,12 @@ import pypulseq as pp
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-
 # makes the ex folder your working directory
 import os 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
+# for interactive separate plots in Ipython
+%matplotlib qt5 
 experiment_id = 'exB05_GRE_2D_fully_relaxed'
 
 

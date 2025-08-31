@@ -6,7 +6,8 @@ import MRzeroCore as mr0
 import os 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
+# for interactive separate plots in Ipython
+%matplotlib qt5 
 # %% GENERATE and WRITE a sequence   .seq
 # %% S1. SETUP sys
 

@@ -10,7 +10,8 @@ import torch
 import os 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
+# for interactive separate plots in Ipython
+%matplotlib qt5 
 experiment_id = 'exD01_bSSFP_2D'
 
 # %% S1. SETUP sys

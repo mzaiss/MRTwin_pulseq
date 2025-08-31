@@ -10,7 +10,8 @@ import random
 # makes the ex folder your working directory
 import os
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
+# for interactive separate plots in Ipython
+%matplotlib qt5 
 experiment_id = 'exE01_FLASH_2D_user_tag_fruit#'
 
 

@@ -15,10 +15,13 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
-
 # %% these are imports: libraries used in the script later.
 import os 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+os.chdir(os.path.abspath(os.path.dirname(__file__)))
+# for interactive separate plots in Ipython
+%matplotlib qt5 
+
 import numpy as np
 import scipy
 import scipy.io
@@ -41,13 +44,14 @@ print(f"matplotlib.__version__ : {matplotlib.__version__}; tested 3.4.3")
 try: 
     print(f"pp.major.minor.revision : {pp.major}.{pp.minor}.{pp.revision}; tested 1.4.2")
 except:
-    print(f"pp.__version__ : {pp.__version__} tested 1.4.2")# this works for 1.4
+    print(f"pp.__version__ : {pp.Sequence.version_major}.{pp.Sequence.version_minor}.{pp.Sequence.version_revision} tested 1.4.2")# this works for 1.4
 
 print(f"torchkbnufft.__version__:  : {torchkbnufft.__version__}; tested 1.3.0")
 print(f"ski.__version__:  : {ski.__version__}; tested 0.20.0")
 print(f"pywt.__version__:  : {pywt.__version__}; tested 1.4.1")
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
+# for interactive separate plots in Ipython
+%matplotlib qt5 
 
 # %% variables (int, float, bool)
 A = 4.0
@@ -208,6 +212,7 @@ print(f"The value of a is\n{a}\n and its shape is {a.shape}")
 
 
 # %% pyplot 1
+
 array = np.ones([5, 3])
 array[:, 0] = 0
 array[:, 2] = 2
@@ -224,6 +229,7 @@ ax.grid()
 
 
 # %% pyplot 2
+
 img = np.random.rand(5, 5, 2)    # lets assume this is a complex image, last dimension is just real and imaginary part
 img[:, :, 1] *= 0.1
 
@@ -231,28 +237,23 @@ plt.figure("""mag and phase images""")
 
 plt.subplot(141)
 plt.title('real(img)')  # make subplots with title
-mr0.util.imshow(img[:, :, 0])
-ax = mr0.util.imshow(img[:, :, 0], interpolation='none')
-fig = plt.gcf()
-fig.colorbar(ax)  # add a colorbar
+im = mr0.util.imshow(img[:, :, 0], interpolation='none')
+plt.colorbar(plt.gca().images[-1])  # add a colorbar to the last image
 
 plt.subplot(142)
 plt.title('imag(img)')  # make subplots with title
-ax = mr0.util.imshow(img[:, :, 1], interpolation='none')
-fig = plt.gcf()
-fig.colorbar(ax)  # add a colorbar
+im = mr0.util.imshow(img[:, :, 1], interpolation='none')
+plt.colorbar(plt.gca().images[-1])  # add a colorbar
 
 plt.subplot(143)
 plt.title('abs(img)')  # make subplots with title
-ax = mr0.util.imshow(magimg(img), interpolation='none')
-fig = plt.gcf()
-fig.colorbar(ax)  # add a colorbar
+im = mr0.util.imshow(magimg(img), interpolation='none')
+plt.colorbar(plt.gca().images[-1])  # add a colorbar
 
 plt.subplot(144)
 plt.title('phase(img)')  # make subplots with title
-ax = mr0.util.imshow(phaseimg(img), interpolation='none')
-fig = plt.gcf()
-fig.colorbar(ax)  # add a colorbar
+im = mr0.util.imshow(phaseimg(img), interpolation='none')
+plt.colorbar(plt.gca().images[-1])  # add a colorbar
 
 fig.set_size_inches(10, 2)  # resize the figure propery to match your screen
 plt.show()
