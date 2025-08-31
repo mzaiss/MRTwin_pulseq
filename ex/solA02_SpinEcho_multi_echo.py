@@ -77,7 +77,7 @@ else:
     [print(e) for e in error_report]
 
 # PLOT sequence
-mr0.util.pulseq_plot(seq)
+sp_adc, t_adc = mr0.util.pulseq_plot(seq)
 
 # Prepare the sequence output for the scanner
 seq.set_definition('FOV', [fov, fov, slice_thickness])
