@@ -34,7 +34,7 @@ If not already installed you also need pypulseq, torchkbnufft, numpy, scipy and 
 All required packages can be installed by
 ```
 pip install mrzerocore
-pip install pypulseq==1.4.2
+pip install pypulseq==1.4.2.post1
 pip install torchkbnufft==1.3.0 --no-deps
 pip install scikit-image
 pip install PyWavelets
