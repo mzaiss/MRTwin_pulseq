@@ -26,7 +26,7 @@ ln -s /proj/ciptmp/$USER/site-packages $HOME/.local/lib/python3.9/site-packages
 mv $HOME/.local/lib/python3.9/site-packages-backup /proj/ciptmp/$USER/site-packages
 ```
 ```
-pip install pypulseq==1.4.2
+pip install pypulseq==1.4.2.post1
 pip install torchkbnufft==1.3.0 --no-deps
 pip install scikit-image
 pip install PyWavelets
