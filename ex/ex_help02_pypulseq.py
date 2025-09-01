@@ -18,7 +18,7 @@ plt.ion()
 system = pp.Opts(
     max_grad=28, grad_unit='mT/m', max_slew=150, slew_unit='T/m/s',
     rf_ringdown_time=20e-6, rf_dead_time=100e-6, adc_dead_time=20e-6,
-    grad_raster_time=50 * 10e-6
+    grad_raster_time=10e-6
 )
 
 # %% S2. DEFINE the sequence
@@ -37,15 +37,15 @@ rf, _, _ = pp.make_sinc_pulse(
 # )
 
 # Define other gradients and ADC events
-gx = pp.make_trapezoid(channel='y', area=80, duration=200*dwell, system=system)
+gy = pp.make_trapezoid(channel='y', area=80, duration=200*dwell, system=system)
 adc = pp.make_adc(num_samples=128, duration=128*dwell, phase_offset=0 * np.pi / 180, system=system)
-gx_pre = pp.make_trapezoid(channel='x', area=-gx.area / 2, duration=2e-3, system=system)
+gx_pre = pp.make_trapezoid(channel='x', area=-gy.area / 2, duration=2e-3, system=system)
 del15 = pp.make_delay(0.0015)
 
 seq.add_block(del15)
 seq.add_block(rf)
 seq.add_block(gx_pre)
-seq.add_block(adc, gx)
+seq.add_block(adc, gy)
 
 seq.plot()
 # PLOT sequence
