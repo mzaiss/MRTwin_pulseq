@@ -1,9 +1,11 @@
 import scipy
 import torch 
 import matplotlib.pyplot as plt
-case="gauss"
+
+samplepoints = 112
+case="block"
+
 if case=="block":
-    samplepoints = 112
     func = torch.zeros((samplepoints,),dtype=torch.complex128)
     func[20:70] = 1+0.1j
 elif case=="gauss":
@@ -29,7 +31,6 @@ plt.plot(torch.abs(FFT_FFT_func))
 plt.plot(torch.imag(FFT_FFT_func)); plt.legend(['real','imag'])
 
 
-
 ## echo like function
 func_echolike = torch.fft.fftshift(FFT_func, axis=0) #an echo is the shifted ifft of an object
 
@@ -37,7 +38,6 @@ plt.subplot(322)
 plt.title('echo_func \n(an echo is the shifted ifft of an object) ')
 plt.plot(torch.abs(func_echolike))
 plt.plot(torch.imag(func_echolike)); plt.legend(['real','imag'])
-
 
 # fft of wrongly fft-shifted
 FFT_func_echolike = torch.fft.fft(func_echolike, axis=0)
