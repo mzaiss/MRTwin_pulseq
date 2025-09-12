@@ -87,6 +87,22 @@ def animate_nufft(seq, seq0, k_space_data, k_marker_s=20, dt=1e-3, plot_window=1
     ----------
     theme : str, optional
         Theme for the plot, either 'light' or 'dark'. Default: 'light'
+
+        import MRzeroCore as mr0
+        import utils.edutils
+        from IPython.display import HTML
+        
+        seq0 = mr0.Sequence.import_file('spin_echo_epi.seq')
+        phantom = mr0.util.load_phantom(size=(64,64))
+        signal,_ = mr0.util.simulate(seq0, phantom,accuracy=1e-4,)
+        
+        ani = edutils.animate_nufft(seq, seq0, k_space_data=signal,k_marker_s=4, show=False, dt=seq.duration()[0] / 100,Nread=128,Nphase=128,
+                            plot_window=seq.duration()[0]/1, fps=20, show_progress=True,save_filename='GROK-3.gif', time_range=(0,seq.duration()[0]*2))
+        
+        #ani.save('spiral_tse_3.gif', fps=20)
+        #ani.save('spiral_tse_outin.mp4', fps=40)
+        display(HTML(ani.to_html5_video()))
+
     """
     if theme not in ['light', 'dark']:
         raise ValueError("theme must be 'light' or 'dark'")
