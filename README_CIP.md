@@ -14,28 +14,22 @@ This is done in the first 4 commands, the other 7 install packages an a specific
 
 Run all of the following commands in a terminal:
 ```
-module load python3/anaconda-2022.05
-pip install mrzerocore --no-deps
-pip install pydisseqt
-pip install ismrmrd
+module load python3/anaconda-2024.07
+source /proj/cipdata/zaissmz/mripulseq_new/bin/activate
 ```
+In Spyder: Tools:Preferences:Python Interpreter
+
+use following interpreter:
 ```
-mkdir /proj/ciptmp/$USER/
-mv $HOME/.local/lib/python3.9/site-packages/ $HOME/.local/lib/python3.9/site-packages-backup
-ln -s /proj/ciptmp/$USER/site-packages $HOME/.local/lib/python3.9/site-packages
-mv $HOME/.local/lib/python3.9/site-packages-backup /proj/ciptmp/$USER/site-packages
+/proj/cipdata/zaissmz/mripulseq/bin/python3
 ```
-```
-pip install pypulseq==1.4.2.post1
-pip install torchkbnufft==1.3.0 --no-deps
-pip install scikit-image
-pip install PyWavelets
-```
+
 
 ### Start spyder
 After running the installation you can start the environment by running in any terminal:
 ```
-module load python3/anaconda-2022.05
+module load python3/anaconda-2024.07
+source /proj/cipdata/zaissmz/mripulseq_new/bin/activate
 spyder
 ```
 
