@@ -21,7 +21,7 @@ In Spyder: Tools:Preferences:Python Interpreter
 
 use following interpreter:
 ```
-/proj/cipdata/zaissmz/mripulseq/bin/python3
+/proj/cipdata/zaissmz/mripulseq_new/bin/python3
 ```
 
 
