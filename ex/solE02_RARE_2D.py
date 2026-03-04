@@ -162,7 +162,7 @@ obj_p = obj_p.build()
 
 # %% S5:. SIMULATE  the external.seq file and add acquired signal to ADC plot
 
-use_simulation = False
+use_simulation = True
 
 if use_simulation:
     seq0 = mr0.Sequence.import_file("out/external.seq")
