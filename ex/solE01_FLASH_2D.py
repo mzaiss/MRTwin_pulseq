@@ -10,6 +10,14 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 # for interactive separate plots in Ipython
+
+
+import sys
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(PROJECT_ROOT)
+
+from utils.send_seq_to_scanner import send_seq_to_scanner
+
 import matplotlib
 matplotlib.use('Qt5Agg')
 plt.ion()
@@ -156,7 +164,7 @@ if use_simulation:
      
 
 else:
-    signal = mr0.util.get_signal_from_real_system('out/' + experiment_id + '.seq.dat', Nphase, Nread)
+    signal = send_seq_to_scanner(seq, experiment_id + '.seq', Nread)
     spectrum = torch.reshape((signal), (Nphase, Nread, 20)).clone().transpose(1, 0)
     kspace = spectrum
 
