@@ -36,7 +36,7 @@ system = pp.Opts(
 seq = pp.Sequence(system) 
 
 # Define FOV and resolution
-fov = 1000e-3
+fov = 200e-3
 slice_thickness = 8e-3
 sz = (48, 48)   # spin system size / resolution
 Nread = 48    # frequency encoding steps/samples
@@ -183,7 +183,7 @@ mr0.util.pulseq_plot(seq, signal=signal.numpy())
 fig = plt.figure()  # fig.clf()
 plt.subplot(411)
 plt.title('ADC signal')
-kspace_adc = torch.reshape((signal), (Nphase, Nread)).clone().t()
+kspace_adc = torch.reshape((signal[:,0]), (Nphase, Nread)).clone().t()
 plt.plot(torch.real(signal), label='real')
 plt.plot(torch.imag(signal), label='imag')
 
@@ -227,3 +227,36 @@ mr0.util.imshow(obj_p.recover().PD.squeeze())
 plt.subplot(3, 4, 12)
 plt.title('phantom B0')
 mr0.util.imshow(obj_p.recover().B0.squeeze())
+
+
+# %% Coil Combination
+
+NCoils = signal.shape[1]
+space = torch.zeros([Nread, Nphase, NCoils])
+for ii in range(NCoils):
+    kspace_adc = torch.reshape((signal[:,ii]), (Nphase, Nread)).clone().t()
+    
+    ipermvec = np.arange(len(permvec))[np.argsort(permvec)]
+    kspace = kspace_adc[:, ipermvec]
+    
+    
+    # fftshift
+    spectrum = torch.fft.fftshift(kspace)
+    # FFT
+    spectrum = torch.fft.fft2(spectrum)
+    # fftshift
+    space[..., ii] = torch.fft.fftshift(spectrum)
+    
+# space: [Nread, Nphase, NCoils]
+# Sum-of-Squares reconstruction
+image_sos = torch.sqrt(torch.sum(torch.abs(space)**2, dim=-1))
+
+fig = plt.figure()  # fig.clf()
+plt.subplot(121)
+plt.title('FFT-magnitude')
+mr0.util.imshow(np.abs(image_sos.numpy()))
+plt.colorbar()
+plt.subplot(122)
+plt.title('FFT-phase')
+mr0.util.imshow(np.angle(image_sos.numpy()), vmin=-np.pi, vmax=np.pi)
+plt.colorbar()
