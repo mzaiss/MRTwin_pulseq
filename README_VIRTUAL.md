@@ -17,7 +17,7 @@ https://fau.zoom.us/j/97342557725?pwd=aTVNZzBZdzZya0xBT3lrR294d3o1dz09 <br>
 Meeting-ID: 973 4255 7725<br>
 Code: 162060
 
-## Course setup  - next start at Monday . March 2nd 2026 to  March 13th 2026
+## Course setup  - next start at Monday . August 31st 2026 to  Sept 11th 2026
 The course format is full time two weeks. <br>
 We meet  daily from 9:30 am to 5:30 pm (CET).<br>
 The first week is very interactive, with small inputs, and interleaved exercises and discussion of them.<br>
