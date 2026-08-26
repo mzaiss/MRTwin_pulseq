@@ -209,7 +209,6 @@ recon_nufft = nufft_adj(kdat*dcf , traj)
 print('nufft_adj -> image shape: ', recon_nufft.shape)
 
 space = recon_nufft.numpy().squeeze()
-space = np.flip(space, -1)
 
 plt.subplot(345)
 plt.title('k-space')

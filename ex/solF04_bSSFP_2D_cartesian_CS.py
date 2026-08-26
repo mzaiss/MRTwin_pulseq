@@ -227,7 +227,7 @@ def updateData(k_space, pattern, current, step, i):
     print("i: {}, consistency RMSEpc: {:3.6f}".format(
         i, np.abs(update[:]).sum() * 100))
     # return to image space
-    update = np.fft.fftshift(np.fft.fft2(update))
+    update = np.fft.ifftshift(np.fft.ifft2(update))
     # improve current estimation by consitency
     update = current + (step * update)
     return update
@@ -239,7 +239,7 @@ def updateData(k_space, pattern, current, step, i):
 kspace_full = np.fft.fftshift(kspace_adc)
 
 # fully sampled recon
-recon_nufft = (np.fft.fftshift(np.fft.fft2(kspace_full)))
+recon_nufft = (np.fft.ifftshift(np.fft.ifft2(kspace_full)))
 
 
 # %% S6.3 undersampling and undersampled reconstruction

@@ -175,10 +175,10 @@ ax.grid()
 
 # fftshift
 spectrum = torch.fft.fftshift(kspace)
-# FFT
-space = torch.fft.fft2(spectrum)
-# fftshift
-space = torch.fft.fftshift(space)
+# IFFT
+space = torch.fft.ifft2(spectrum)
+# ifftshift
+space = torch.fft.ifftshift(space)
 
 
 plt.subplot(345)

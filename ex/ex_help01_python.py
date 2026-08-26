@@ -52,6 +52,7 @@ except:
 print(f"torchkbnufft.__version__:  : {torchkbnufft.__version__}; tested 1.3.0")
 print(f"ski.__version__:  : {ski.__version__}; tested 0.20.0")
 print(f"pywt.__version__:  : {pywt.__version__}; tested 1.4.1")
+print(f"mr0.__version__ : {getattr(mr0, '__version__', 'unknown')}; tested 1.0.5")
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 # for interactive separate plots in Ipython
 import matplotlib

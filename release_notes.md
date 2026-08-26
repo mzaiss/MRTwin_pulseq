@@ -2,6 +2,16 @@
 
 ## MRTwin pulseq
 
+### version v1.3.0
+#### Updated simulation and reconstructions to newest pip version of MRzeroCore, **v1.0.5**
+
+Details:
+- MRzeroCore 1.0 conjugates the simulated signal relative to previous versions.
+- All Cartesian reconstructions now use an iFFT (`ifft` / `ifft2`) instead of an FFT.
+- NUFFT reconstructions no longer apply an extra image flip; the conjugated signal already matches the NUFFT adjoint orientation.
+- See the MRzeroCore [FFT sign conventions](https://mrsources.github.io/MRzero-Core/fft_sign_conventions.html).
+
+
 ### version v1.2.0 
 #### Updated simulation and phantoms to newest pip version of MRzero, **v0.4.1**
 

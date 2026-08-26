@@ -167,8 +167,8 @@ plt.grid()
 
 kspace = torch.reshape((signal), (Nphase, Nread)).clone().t()
 spectrum = torch.fft.ifftshift(kspace)
-# FFT
-space = torch.fft.fft2(spectrum)
+# IFFT
+space = torch.fft.ifft2(spectrum)
 space = torch.fft.fftshift(space)
 
 

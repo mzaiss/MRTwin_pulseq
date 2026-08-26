@@ -76,7 +76,7 @@ def recon_nufft(signal, kspace_loc, verbose=0, Nread=0, fov=0):
 
     nufft_adj = tkbn.KbNufftAdjoint(im_size=img_shape)
     recon_nufft = nufft_adj(kdat * dcf, traj)
-    return torch.flip(recon_nufft, dims=(-2, -1))
+    return recon_nufft
 
 def animate_nufft(seq, seq0, k_space_data, k_marker_s=20, dt=1e-3, plot_window=1e-2, Nread=None, Nphase=None, 
                   time_range=None, fps=30, max_frames=None, show=True, save_filename=None, show_progress=False, theme='light'):

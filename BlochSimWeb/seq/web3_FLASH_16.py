@@ -180,9 +180,9 @@ space = torch.zeros_like(spectrum)
 
 # fftshift
 spectrum=torch.fft.fftshift(kspace,0); spectrum=torch.fft.fftshift(kspace,1)
-#FFT
+# IFFT
 space = torch.fft.ifft2(spectrum)
-# fftshift
+# ifftshift
 space=torch.fft.ifftshift(space,0); space=torch.fft.ifftshift(space,1)
 
 

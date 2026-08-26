@@ -184,11 +184,11 @@ space = torch.zeros_like(kspace)
 # fftshift
 spectrum = torch.fft.fftshift(spectrum, 0)
 spectrum = torch.fft.fftshift(spectrum, 1)
-# FFT
-space = torch.fft.fft2(spectrum, dim=(0, 1))
-# fftshift
-space = torch.fft.fftshift(space, 0)
-space = torch.fft.fftshift(space, 1)
+# IFFT
+space = torch.fft.ifft2(spectrum, dim=(0, 1))
+# ifftshift
+space = torch.fft.ifftshift(space, 0)
+space = torch.fft.ifftshift(space, 1)
 
 if use_simulation==True:
     space0 = space
