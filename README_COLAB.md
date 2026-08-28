@@ -4,7 +4,7 @@
 !pip install MRzeroCore &> /dev/null
 
 !git clone -b mr0-core https://github.com/mzaiss/MRTwin_pulseq.git --depth 1
-!pip install pypulseq==1.4.2.post1
+!pip install pypulseq==1.5.0post1
 
 !pip install torchkbnufft==1.3.0 --no-deps
 !pip install scikit-image

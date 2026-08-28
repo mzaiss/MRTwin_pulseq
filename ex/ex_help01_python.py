@@ -45,7 +45,7 @@ print(f"np.__version__ : {np.__version__ }; tested 1.20.3")
 print(f"scipy.__version__: {scipy.__version__}; tested 1.5.2")
 print(f"matplotlib.__version__ : {matplotlib.__version__}; tested 3.4.3")
 try: 
-    print(f"pp.major.minor.revision : {pp.major}.{pp.minor}.{pp.revision}; tested 1.4.2")
+    print(f"pp.major.minor.revision : {pp.major}.{pp.minor}.{pp.revision}; tested 1.5.0post1")
 except:
     print(f"pp.__version__ : {pp.Sequence.version_major}.{pp.Sequence.version_minor}.{pp.Sequence.version_revision} tested 1.4.2")# this works for 1.4
 
