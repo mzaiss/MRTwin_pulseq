@@ -153,10 +153,10 @@ ax.grid()
 
 space = torch.zeros_like(spectrum)
 
-# fftshift
+# ifftshift
 
 
-# FFT
+# IFFT
 
 
 # fftshift

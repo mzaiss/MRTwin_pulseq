@@ -432,7 +432,7 @@ An MRI sequence is a particular time scheme of radio frequency pulses and pulsed
 \begin{figure}[!ht] 
 \centering
 \includegraphics[width=6cm]{img/seq_k_traj_GRE.png}
-\caption{An MR sequence scheme as picture (gradient echo,12x12 ). This is the same sequence as in Figure \ref{fig:MRsequence_GRE}. In addition to the events, also the k-space trajectory is given (bottom-right). This reflects the cumulative sum of played out gradient moments and the coverage of the acquired k-space. Full-coverage is necessary for FFT.     } \label{fig:MRsequence_pic_GRE}
+\caption{An MR sequence scheme as picture (gradient echo,12x12 ). This is the same sequence as in Figure \ref{fig:MRsequence_GRE}. In addition to the events, also the k-space trajectory is given (bottom-right). This reflects the cumulative sum of played out gradient moments and the coverage of the acquired k-space. Full-coverage is necessary for iFFT.     } \label{fig:MRsequence_pic_GRE}
 \end{figure}
 
 
@@ -747,7 +747,7 @@ This code expects that the seq file was send to an MRI scanner, played out, and 
 
 \subsubsection{S6: MR image reconstruction}
 Here the signal is rearranged and processed.
-Correctly ordered and shifted to form the complex k-space, the signal can be directly Fourier transformed using a FFT to image domain.
+Correctly ordered and shifted to form the complex k-space, the signal can be directly Fourier transformed using an iFFT to image domain.
 The complex image is plotted as magnitude and phase image.
 
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
@@ -772,9 +772,9 @@ space = torch.zeros_like(spectrum)
 # fftshift
 spectrum = torch.fft.fftshift(spectrum, 0)
 spectrum = torch.fft.fftshift(spectrum, 1)
-# FFT
+# IFFT
 space = torch.fft.ifft2(spectrum)
-# fftshift
+# ifftshift
 space = torch.fft.ifftshift(space, 0)
 space = torch.fft.ifftshift(space, 1)
 
@@ -946,20 +946,20 @@ The gradient echo is now independent of the timing and occurs when the sum of al
 TE at  $\sum G\cdot t=0$; for constant gradient:s TE at $t_{dephase}=t_{rephase}$.
 
 \subsubsection{Gradient encoding and k-space}
-A closer look to a two pixel gradient echo reveals that we can separate two pixels by their frequencies they send during the readout rephasing gradient. And these frequency contributions can be separated from the signal by using an FFT.
-This brought us to the general concept of FFT reconstruction and that in MRI we measure directly points in the k-space and the k-space coordinates are determined by the gradient experienced by the transverse magnetization (compare eqns. \eqref{eq:signal_kspace} and \eqref{eq:signaltoimg}). The gradient moment used as input in the simulation is directly linked to the k-space coordinate.
+A closer look to a two pixel gradient echo reveals that we can separate two pixels by their frequencies they send during the readout rephasing gradient. And these frequency contributions can be separated from the signal by using an iFFT.
+This brought us to the general concept of iFFT reconstruction and that in MRI we measure directly points in the k-space and the k-space coordinates are determined by the gradient experienced by the transverse magnetization (compare eqns. \eqref{eq:signal_kspace} and \eqref{eq:signaltoimg}). The gradient moment used as input in the simulation is directly linked to the k-space coordinate.
 \begin{itemize}
 \item after a 90° excitation k=0
 \item k=cumsum(grad\_moments), this allows free movement in k-space for rewinder or phase encoding or spoiling.
 \item a 180° pulse inverts all rotations made: k=-k
 \end{itemize}
-By these operations we can play out gradients in such a way that the k-space is equidistantly and fully covered ready for a two-dimensional FFT. If gradients are not played out in linear order (centric reordering or EPI zig-zag) another reordering of the k-space must be performed before FFT. Undersampled k-spaces can also be reconstructed as discussed in the radial imaging part below.
+By these operations we can play out gradients in such a way that the k-space is equidistantly and fully covered ready for a two-dimensional iFFT. If gradients are not played out in linear order (centric reordering or EPI zig-zag) another reordering of the k-space must be performed before iFFT. Undersampled k-spaces can also be reconstructed as discussed in the radial imaging part below.
 
 \subsection{Slice selection}
 The simulation is completely 2D thus we don't need slice selection here. However in a real system we need to encode also the third dimension. One way to do this is directly be the selection of the excited volume using slice selection gradients. This means that an RF pulse of since shape with a certain bandwidth is played out during a slice selection gradient, thus only the magnetization in a certain frequency window, or slice, is excited. Thus after such a pulse the problem is again two dimensional and equivalent to our simulation. For more details see here: \href{http://mriquestions.com/slice-selective-excitation.html}{http://mriquestions.com/slice-selective-excitation.html}
 
 \subsection{GRE imaging}
-With the encoded signal and the FFT reconstruction we can now generate a full GRE MRI sequence. The fully relaxed gradient echo sequence consists several repetitions of the following building block: 
+With the encoded signal and the iFFT reconstruction we can now generate a full GRE MRI sequence. The fully relaxed gradient echo sequence consists several repetitions of the following building block: 
 \begin{itemize}
 \item 90° excitation
 \item rewinder and phase encoding gradient 
@@ -1328,7 +1328,7 @@ This file starts from B01. We want now to create the 1D - Fourier transform of t
 \item What happens if you use both x and y gradients simultaneously?
 \item What happens if you alter the number of Nread samples? 
 
-\item (Bonus) Repeat the whole sequence multiple times. Run a for loop to FFT every repetition in the same manner.
+\item (Bonus) Repeat the whole sequence multiple times. Run a for loop to iFFT every repetition in the same manner.
 
 \end{enumerate}
 
@@ -1358,7 +1358,7 @@ and to get a 2D image with full encoding.
 
 \begin{enumerate}
 \item  Outgoing from the phase encoding exercise, we can again activate the frequency encoding gradients (in x) in addition to the phase encoding gradients (in y). Instead of the projection of the phantom you should now see additional gradient echoes in each phase encoding step.
-\item To have full encoding you now have to Fourier transform a second time, once a loop over Nread and FFT along Nphase, and once a loop over Nphase  and an FFT over Nread. If you got this right, your plot will show the profiles along x of the phantom at each phase encoding position in y.
+\item To have full encoding you now have to Fourier transform a second time, once a loop over Nread and iFFT along Nphase, and once a loop over Nphase  and an iFFT over Nread. If you got this right, your plot will show the profiles along x of the phantom at each phase encoding position in y.
 \item Plot the result as an image, \\plt.imshow()  or \\ plt.imshow(np.abs(space), interpolation='none',aspect = sz[0]/Nread)
 
 \item The two Fourier transforms can be concatenated using np.fft.ifft2. 
@@ -1570,12 +1570,12 @@ else:
 You see that there is a difference between the signals.
 
 The simulated signal has (Nphase, Nread) elements, the real signal is acquired woth a 20-channel head coil, thus more signal elements are available (Nphase, Nread,20). 
-We have to either FFT all coil data, and sum it. Or we just look at one individual coil.
-Either before FFT select one coil:
+We have to either iFFT all coil data, and sum it. Or we just look at one individual coil.
+Either before iFFT select one coil:
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
 spectrum =spectrum[:,:,0]
 \end{minted}
-or after FFT do:
+or after iFFT do:
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
 
 if use_simulation==False:

@@ -182,13 +182,13 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-if 0:  # FFT
+if 0:  # IFFT
     # fftshift
     spectrum = torch.fft.fftshift(kspace_adc)
-    # FFT
-    space = torch.fft.fft2(spectrum)
-    # fftshift
-    space = torch.fft.fftshift(space)
+    # IFFT
+    space = torch.fft.ifft2(spectrum)
+    # ifftshift
+    space = torch.fft.ifftshift(space)
 
 
 if 1:  # NUFFT
@@ -225,9 +225,9 @@ if 1:  # NUFFT
     kspace_r_shifted = np.fft.fftshift(kspace_r, 0)
     kspace_r_shifted = np.fft.fftshift(kspace_r_shifted, 1)
 
-    space = np.fft.fft2(kspace_r_shifted)
-    space = np.fft.fftshift(space, 0)
-    space = np.fft.fftshift(space, 1)
+    space = np.fft.ifft2(kspace_r_shifted)
+    space = np.fft.ifftshift(space, 0)
+    space = np.fft.ifftshift(space, 1)
 
 space = np.transpose(space)
 plt.subplot(345)

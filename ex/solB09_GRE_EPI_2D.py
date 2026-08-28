@@ -167,10 +167,10 @@ space = np.zeros_like(kspace)
 kspace[:, ::2] = kspace[::-1, ::2]
 #kspace[1:, ::2] = kspace[:-1, ::2]
 
-# fftshift
+# ifftshift
 kspace = np.fft.ifftshift(kspace)
-# FFT
-space = np.fft.fft2(kspace)
+# IFFT
+space = np.fft.ifft2(kspace)
 # fftshift
 space = np.fft.fftshift(space)
 

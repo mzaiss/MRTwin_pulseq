@@ -204,7 +204,6 @@ nufft_fwd = tkbn.KbNufft(im_size=img_shape)
 R = recon_nufft.cpu().detach().numpy()
 
 R1 = R[..., 0] + 1j * R[..., 1]
-R1 = np.flip(R1,axis=(-1,-2))
 
 # %% S7:. Compressed Sensing reconstruction for radial sampling
 # Zhengguo Tan <zhengguo.tan@gmail.com>
@@ -273,8 +272,6 @@ for n in range(Niter):
     print('> iter ' + str(n).zfill(4) + ' residuum ' + str(resid[0]))
 
 R2 = torch.view_as_complex(x).cpu().detach().numpy()
-
-R2 = np.flip(R2,axis=(-1,-2))
 
 plt.figure(figsize=(12, 6))
 plt.subplot(1,3,1)

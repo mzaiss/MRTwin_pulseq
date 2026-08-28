@@ -167,11 +167,11 @@ space = torch.zeros_like(spectrum)
 # fftshift
 spectrum = torch.fft.fftshift(spectrum, 0)
 spectrum = torch.fft.fftshift(spectrum, 1)
-# FFT
-space = torch.fft.fft2(spectrum)
-# fftshift
-space = torch.fft.fftshift(space, 0)
-space = torch.fft.fftshift(space, 1)
+# IFFT
+space = torch.fft.ifft2(spectrum)
+# ifftshift
+space = torch.fft.ifftshift(space, 0)
+space = torch.fft.ifftshift(space, 1)
 
     
 plt.subplot(345)

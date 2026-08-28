@@ -147,9 +147,9 @@ kspace[1:,::2]=kspace[:-1,::2]
 
 # fftshift
 kspace=np.fft.fftshift(kspace)
-#FFT
+# IFFT
 space = np.fft.ifft2(kspace)
-# fftshift
+# ifftshift
 space= np.fft.ifftshift(space)
 
 

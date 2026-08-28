@@ -42,6 +42,7 @@ pip install PyWavelets
 
 **Versions that were tested**
 
+ -  MRzeroCore.__version__ : '1.0.5'
  -  pypulseq.__version__ : '1.4.2'
  -  torch.__version__  : '1.3.0'   and  '1.7.0'
  -  np.__version__ 	 : '1.18.1'    and  '1.19.2'

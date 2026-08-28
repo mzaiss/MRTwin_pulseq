@@ -154,11 +154,11 @@ ax = plt.gca()
 ax.set_xticks(major_ticks)
 ax.grid()
 
-# fftshift
+# ifftshift
 spectrum = torch.fft.ifftshift(kspace)
 
-space = torch.fft.fft(spectrum[:, 0])
-# fft
+space = torch.fft.ifft(spectrum[:, 0])
+# ifft
 
 # fftshift
 space = torch.fft.fftshift(space)
