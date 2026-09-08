@@ -86,12 +86,6 @@ The Latex file was created using Overleaf, based on the free template of Armin D
 \item http://mrsrl.stanford.edu/~brian/bloch/
 
 \item https://github.com/markus-nilsson/mri-simulator
-\begin{figure}
-    \centering
-    \includegraphics[width=0.5\linewidth]{gradient_flat_dur.png}
-    \caption{Enter Caption}
-    \label{fig:enter-label}
-\end{figure}
 \end{itemize}
 
 
@@ -351,10 +345,10 @@ We can now use equation \eqref{eq:Bloch1} to calculate the actual signal. With t
  \end{equation}
  
 There is not really a complex voltage measured, this is just a mathematical trick. Of course each coils receives their own real signal:   
-\begin{equation}
+\begin{align}
  s_x(t) = \int_{\vec{r}} M_{x}(\vec{r})\cdot \cos(\gamma\cdot\vec{r}\cdot \vec{g}) d^3r \\
- s_y(t) = \int_{\vec{r}} M_{y}(\vec{r})\cdot \sin(\gamma\cdot \vec{r}\cdot \vec{g}) d^3r \\
- \end{equation}
+ s_y(t) = \int_{\vec{r}} M_{y}(\vec{r})\cdot \sin(\gamma\cdot \vec{r}\cdot \vec{g}) d^3r 
+ \end{align}
  But because these are always 90 degree phase shifted they fulfill the relation of a combined complex number $M_{xy}=M_x+i\cdot M_y$. Thus, we do not measure the spin density, we actually measure the sum of the transverse magnetization in each voxel. If using the exp depiction of this complex number, we will measure a magnitude and a phase of this magnetization state.
  
 So back to eq. \eqref{eq:signal}, if we now use a new variable 
@@ -1069,7 +1063,7 @@ This file gives a quick overview over python, numpy, torch and plotting commands
 At the end of the file some exercises with wrong code or code that doesn't run is given for you to fix.
 It is also helpful file to check weather all required packages are installed. 
 
-\subsection{ex\_help02\_pypylseq}
+\subsection{ex\_help02\_pypulseq}
 This file gives a quick overview over pypulseq and how to load and plot .seq-files, and how to generate basic sequence objects with pypulseq and write a seq file.
 
 Hint: Blocks in Pulseq will always be played out after each other. If you want to play events out simultaneously you have to put them into the same block, separated by a comma.
@@ -1108,7 +1102,13 @@ namespace(type='rf',
 and you get the delay, the dead time and the ringdown time.
 The delay is a delay before the pulse is played out, even if you requested a delay of 0 ms in the make\_sinc function, this delay is overwritten by either the dead time, or the rise time of the gradient, if it is a slice selective pulse (if it has a thickness).  The dead time is the time it takes the RF coil to switch between transmit and receive modes and is a security time where no events can be played out. The gradient rise time, depends on your gradient system, but typically your rf pulses are 0.5 ms delayed. 
 
-The ringdown time refers to the time period during which the RF coil continues to oscillate after the RF excitation pulse has been turned off. This ringing is due to the resonant nature of the RF coil, and can result in unwanted signals in the acquired data, leading to image artifacts.It counts as part of your pulse duration. 
+The ringdown time refers to the time period during which the RF coil continues to oscillate after the RF excitation pulse has been turned off. This ringing is due to the resonant nature of the RF coil, and can result in unwanted signals in the acquired data, leading to image artifacts. It counts as part of your pulse duration. 
+
+\begin{figure}[H] 
+\centering
+\includegraphics[width=15cm]{img/symmetric_rf_pulse_blocks.png}
+\caption{RF pulse block duration and composition} \label{fig:ex_help02_rf}
+\end{figure}
 
 To calculate some important durations there exists some function:
 \begin{minted}[fontsize=\scriptsize, bgcolor=bg]{python}
@@ -1177,7 +1177,7 @@ This is  the simplest MR sequence that just consists of an ADC event and an rf e
 	%	\\ Answer/Result: signal(FA)\\ \framebox[\textwidth]{\rule{0pt}{80pt}}
 		
 		
-\item  Search for the B0 inhomogeneity if the object (obj\_p.B0). In the on-resonant case this is 0. By changing the value (e.g. obj\_p.B0 +=100) you can mimic the laboratory frame dynamic. 
+\item  Search for the B0 inhomogeneity of the object (obj\_p.B0). In the on-resonant case this is 0. By changing the value (e.g. obj\_p.B0 +=100) you can mimic the laboratory frame dynamic. 
 %		\\ Answer/Result:  Plot of the max. FID in the lab frame and in the rotating frame\\ \framebox[\textwidth]{\rule{0pt}{80pt}}
 \begin{figure}[H] 
 \centering
@@ -1457,16 +1457,13 @@ Check ex\_help05\_reverse to find a solution.
 \end{enumerate}
 
 \subsection{exC02\_spinecho\_to\_RARE\_2D}
-This is starts from C01, which is relatively slow. We want to generate a so called turbo spin echo (TSE), or Rapid Aquisition relaxation enhanced (RARE). \\
-The idea is similar to the GRE EPI, we can also reuse the transverse magnetization after the first acquisition.
+The idea of a faster SE is similar to the GRE EPI, we can also reuse the transverse magnetization after the first acquisition.
+Thus, we start from the spin echo train of A02. We want to generate a so called turbo spin echo (TSE), or Rapid Aquisition relaxation enhanced (RARE). Thus, we need to encode the echoes of this train now.\\
 \begin{enumerate}
-\item  Try to do so, by using now RF events instead of gradients only. First try to get another echo in the second repetition, without a fresh 90° pulse. Remove gradients for testings. 
 
-\item Once you get an echo in the second repetition, repeat to get echoes in all repetitions. As you fight against T2-decay you must be again fast. Do all echoes have the same sign?
+\item Add the frequency encoding gradients. What is needed to have the same gradient echo in all repetitions? Do you need the rewinder gradient? If all echos look proper, add the phase encoding to get RARE MR imaging. Check your k-space plot carefully, as there might be some unexpected jumps. 
 
-\item Add back the frequency encoding gradients. What is needed to have the same gradient echo in all repetitions? Do you need the rewinder gradient? If all echos look proper, add back the phase encoding to get RARE MR imaging.
-
-\item Most probably you still have imaging artefacts. As for the RARE the timing is very important, thus check again that the echo time TE/2 from center of the 90 to the center of the first 180 pulse, and the TE between the center of the 180 pulses match exactly, and that you have the ADC centered around the TE. The function calculate\_duration can help. Some events have have a rise-time or delay times that need to e considered.
+\item Most probably you still have imaging artifacts. As for the RARE the timing is very important, thus check again that the echo time TE/2 from center of the 90 to the center of the first 180 pulse, and the TE between the center of the 180 pulses match exactly, and that you have the ADC centered around the TE. The function calculate\_duration can help. Some events have have a rise-time or delay times that need to e considered.
 
 \item Try reordering of the sequence, e.g. centric reordering, how does this affect the contrast, the image? 
 
@@ -1485,7 +1482,7 @@ This starts from B05 which was the fully relaxed GRE sequence.
 flip angle was set to 5 degree
 \begin{enumerate}
 
-\item As before let us decrease the recovery time. This time make it very short.You should observe an image with artifacts when going from 5 to 0.002 s. Last time we tried to get rid of higher echoes. This time we want to understand them better.
+\item As before let us decrease the recovery time. This time make it very short. You should observe an image with artifacts when going from 5 to 0.002 s. Last time we tried to get rid of higher echoes. This time we want to understand them better and use both of them.
 				
 \item We saw in exA04 (stimulated echo) that gradients act on certain echoes, and older echoes contain their complete gradient history. Thus, echoes can be at the same time point, but can have a different encoding as their transverse magnetization saw different gradients. This can actually be observed in the k-space plot: do you see the additional intensity at the edge of the k-space.
 
