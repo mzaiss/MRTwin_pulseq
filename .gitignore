@@ -7,3 +7,6 @@ __pycache__/
 *.gz
 
 data/brainweb/output/
+
+# exam materials live only on the test branch
+exam/
